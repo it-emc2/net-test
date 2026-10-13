@@ -1,0 +1,141 @@
+/* CSS for Optional Section goes here */
+
+.opt-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;       /* ← equalizes row height */
+}
+.opt-tile-grid > .field {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.opt-tile-grid > .field > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;                    /* card fills the .field height */
+}
+.opt-tile-grid > .field > .image-check .caption {
+  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
+}
+
+.opt-tile-grid .img-wrap {
+  display: flex !important;       /* override the global display:grid */
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: unset !important;
+  height: 300px;
+}
+
+.opt-tile-grid .img-wrap img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
+}
+
+/* WC carousel tiles: match img-wrap height */
+#wcWallProductsGrid .image-check .img-carousel {
+  display: flex;          /* ← makes height work on the span */
+  flex-direction: column;
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #eef0f4;
+}
+
+#wcWallProductsGrid .img-carousel__track {
+  display: flex;
+  height: 100%;
+  flex: 1;
+}
+
+#wcWallProductsGrid .img-carousel__slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#wcWallProductsGrid .img-carousel__slide img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* WC accessories grid: equal-height cards */
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item {
+  display: flex;
+  flex-direction: column;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check .caption {
+  flex: 1;
+}
+
+.wc-products-subheader {
+  color: var(--text);   /* or just: color: #000; */
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.wc-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 14px;
+  width: fit-content;   /* pair shrinks to cards, no leftover space */
+}
+
+.wc-pair > .opt-item {
+  display: flex;
+  flex-direction: column;
+  max-width: unset;
+}
+
+.wc-pair > .opt-item > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+.wc-pair > .opt-item > .image-check .caption {
+  flex: 1;
+}
+
+#wcWallProductsGrid .img-carousel__btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+#wcWallProductsGrid .img-carousel__btn--prev { left: 6px; }
+#wcWallProductsGrid .img-carousel__btn--next { right: 6px; }
+
+#wcWallProductsGrid .img-carousel__dots {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}

@@ -514,7 +514,10 @@ export function initEmailManager(options = {}) {
         console.warn("[EmailManager] onDealStageMoved hook failed:", e);
       }
     } catch (e) {
-      if (body) body.innerHTML = `<p class="ang-stage-error">Fehler: ${e.message || e}</p>`;
+      // The offer itself already went out — say so, or users resend it.
+      if (body) {
+        body.innerHTML = `<p class="ang-stage-error">Deal konnte nicht verschoben werden: ${e.message || e}<br>Das Angebot wurde trotzdem versendet – bitte NICHT erneut senden.</p>`;
+      }
       if (moveBtn) moveBtn.disabled = false;
     }
   }
@@ -548,6 +551,7 @@ export function initEmailManager(options = {}) {
   const $customerEmail = document.querySelector("#email");
   const $lastName = document.querySelector("#lastName");
   const $cpEmail = document.querySelector("#cp_email");
+  const $customerCc = document.querySelector("#emailCc");
   const $cpName = document.querySelector("#cp_name");
 
   function getCustomerSalutation() {
@@ -630,6 +634,14 @@ export function initEmailManager(options = {}) {
     updatePreview();
   }
 
+  // Same gate as the payload in script.js: the tick only counts while Rabatt is "ja".
+  function bonusGrabOn() {
+    return (
+      document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja" &&
+      !!document.getElementById("rb-bonus-grab")?.checked
+    );
+  }
+
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
     const isSelbstzahler =
@@ -678,8 +690,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
 • Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
 • Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
-• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.
-
+${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
@@ -894,8 +905,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
   function updateCcDefault() {
     if (ccTouched || !$cc) return;
-    const v = ($cpEmail?.value || "").trim();
-    $cc.value = v;
+    const v = [$customerCc?.value, $cpEmail?.value].map((x) => (x || "").trim()).filter(Boolean);
+    $cc.value = [...new Set(v)].join(", ");
   }
 
   function updateBodyDefault() {
@@ -915,6 +926,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   $customerEmail?.addEventListener("input", updateRecipientDefault);
   $customerEmail?.addEventListener("change", updateRecipientDefault);
 
+  $customerCc?.addEventListener("input", updateCcDefault);
+  $customerCc?.addEventListener("change", updateCcDefault);
   $cpEmail?.addEventListener("input", updateCcDefault);
   $cpEmail?.addEventListener("change", updateCcDefault);
 
@@ -945,6 +958,11 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     const el = document.getElementById(id);
     el?.addEventListener("input", updateBodyDefault);
     el?.addEventListener("change", updateBodyDefault);
+  });
+
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", updateBodyDefault);
+  document.querySelectorAll('input[name="rb-add-rabatt"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
   });
 
   $antragGestellt?.addEventListener("change", () => {
@@ -1060,6 +1078,26 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
     $list.appendChild(makeTile({ name: offerPdfName, meta: "Angebots-PDF", removable: false }));
 
+    // Produktbilder-PDF tile (when checkbox is on and at least one product is selected)
+    if ($prodImgCheck?.checked) {
+      const anyChecked = [...(productImgState.values())].some(Boolean);
+      if (anyChecked) {
+        const safeNo = String(offerNumber || "Angebot").replace(/[^\w\-]+/g, "_");
+        $list.appendChild(
+          makeTile({
+            name: `Produktbilder_${safeNo}.pdf`,
+            meta: "Produktbilder",
+            removable: true,
+            onRemove: () => {
+              if ($prodImgCheck) $prodImgCheck.checked = false;
+              if ($prodImgPanel) $prodImgPanel.hidden = true;
+              renderList();
+            },
+          }),
+        );
+      }
+    }
+
     // Presets (Selbstzahler: no Abtretung/Vollmacht -> fewer attachments)
     const isSZ =
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
@@ -1105,6 +1143,183 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const n = $list.childElementCount;
       $count.textContent = n === 1 ? "1 Datei" : `${n} Dateien`;
     }
+  }
+
+  // ---- Produktbilder-PDF ----
+  const $prodImgCheck = document.getElementById("mailIncludeProductImages");
+  const $prodImgPanel = document.getElementById("mailProductImgPanel");
+  const $prodImgList = document.getElementById("mailProductImgList");
+  const $prodImgHint = document.getElementById("mailProductImgHint");
+
+  // productId -> checked state; populated on first toggle-open
+  const productImgState = new Map(); // productId -> boolean (checked)
+  const customProductImages = new Map(); // productId -> data URL (user upload)
+  let productImgLoaded = false;
+
+  function renderProductImgList(products) {
+    if (!$prodImgList) return;
+    $prodImgList.innerHTML = "";
+    if (!products.length) {
+      if ($prodImgHint) $prodImgHint.hidden = false;
+      return;
+    }
+    if ($prodImgHint) $prodImgHint.hidden = true;
+    for (const p of products) {
+      const row = document.createElement("div");
+      const hasAnyImage = p.hasImage || customProductImages.has(p.productId);
+      row.className = "mail-prodimg-item" + (hasAnyImage ? "" : " no-image");
+
+      // Thumbnail
+      const thumb = document.createElement("img");
+      thumb.className = "prodimg-thumb";
+      const customUrl = customProductImages.get(p.productId);
+      if (customUrl || p.imageUrl) {
+        thumb.src = customUrl || p.imageUrl;
+      } else {
+        thumb.src = "";
+        thumb.style.display = "none";
+      }
+      thumb.alt = "";
+
+      // Checkbox (wrapped in label for click area)
+      const lbl = document.createElement("label");
+      lbl.className = "prodimg-cb-label";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = p.productId;
+      const current = productImgState.has(p.productId)
+        ? productImgState.get(p.productId)
+        : p.defaultInclude;
+      cb.checked = current;
+      if (!hasAnyImage) cb.disabled = true;
+      cb.addEventListener("change", () => {
+        productImgState.set(p.productId, cb.checked);
+        renderList();
+      });
+      productImgState.set(p.productId, cb.checked);
+      lbl.appendChild(cb);
+
+      const nameWrap = document.createElement("span");
+      nameWrap.className = "prodimg-name";
+      const name = document.createElement("span");
+      name.textContent = p.name;
+      name.title = p.name;
+      nameWrap.appendChild(name);
+      if (p.finish) {
+        const fin = document.createElement("span");
+        fin.className = "prodimg-finish";
+        fin.textContent = p.finish;
+        nameWrap.appendChild(fin);
+      }
+
+      const qty = document.createElement("span");
+      qty.className = "prodimg-qty";
+      qty.textContent = `${p.qty ?? ""} ${p.unit || "Stck."}`.trim();
+
+      // Upload button
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.style.display = "none";
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          customProductImages.set(p.productId, ev.target.result);
+          thumb.src = ev.target.result;
+          thumb.style.display = "";
+          row.classList.remove("no-image");
+          cb.disabled = false;
+          if (!productImgState.has(p.productId) || !productImgState.get(p.productId)) {
+            cb.checked = true;
+            productImgState.set(p.productId, true);
+          }
+          renderList();
+        };
+        reader.readAsDataURL(file);
+      });
+      const uploadBtn = document.createElement("button");
+      uploadBtn.type = "button";
+      uploadBtn.className = "prodimg-upload-btn";
+      uploadBtn.title = "Eigenes Bild";
+      uploadBtn.textContent = "📷";
+      uploadBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(lbl);
+      row.appendChild(nameWrap);
+      row.appendChild(qty);
+      row.appendChild(uploadBtn);
+      row.appendChild(fileInput);
+      $prodImgList.appendChild(row);
+    }
+    renderList();
+  }
+
+  async function loadProductImgList() {
+    productImgLoaded = true;
+    try {
+      const payload = cfg.hooks.buildPayload?.() || {};
+      const res = await fetch("/api/email/product-image-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      renderProductImgList(data.products || []);
+    } catch (e) {
+      console.warn("[EmailManager] product-image-list failed:", e);
+      if ($prodImgHint) { $prodImgHint.textContent = "Fehler beim Laden der Produktliste."; $prodImgHint.hidden = false; }
+    }
+  }
+
+  $prodImgCheck?.addEventListener("change", () => {
+    const on = !!$prodImgCheck.checked;
+    if ($prodImgPanel) $prodImgPanel.hidden = !on;
+    if (on) loadProductImgList();
+    renderList();
+  });
+
+  document.getElementById("mailProductImgPreview")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Lade…";
+    try {
+      const payload = cfg.hooks.buildPayload?.() || {};
+      const res = await fetch("/api/email/preview-product-image-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          excludeProductImageIds: getExcludedProductImageIds(),
+          productCustomImageData: Object.fromEntries(customProductImages),
+        }),
+      });
+      if (res.status === 204) { alert("Keine Produktbilder vorhanden."); return; }
+      if (!res.ok) { alert("Fehler beim Generieren des PDFs."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert("Fehler: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  });
+
+  function getExcludedProductImageIds() {
+    const excluded = [];
+    $prodImgList?.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+      if (!cb.checked) excluded.push(cb.value);
+    });
+    return excluded;
   }
 
   // de-dup by name+size+lastModified
@@ -1250,6 +1465,14 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     userFiles = [];
     bitrixFiles = [];
     if ($bitrixFiles) $bitrixFiles.value = "";
+    // Reset product image state
+    productImgState.clear();
+    customProductImages.clear();
+    productImgLoaded = false;
+    if ($prodImgCheck) $prodImgCheck.checked = false;
+    if ($prodImgPanel) $prodImgPanel.hidden = true;
+    if ($prodImgList) $prodImgList.innerHTML = "";
+    if ($prodImgHint) $prodImgHint.hidden = true;
     subjectTouched = false;
     toTouched = false;
     ccTouched = false;
@@ -1345,7 +1568,13 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   }
   window.__collectBitrixDocs = collectBitrixDocs;
 
+  let sending = false;
+
   async function send({ bitrixOnly = false } = {}) {
+    // Lock before the first await (draft save, PDF build) — otherwise repeated
+    // clicks while it "looks idle" each start their own send.
+    if (sending) return false;
+    setSendingState(true);
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
         location.hash = "Kundendaten";
@@ -1378,6 +1607,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
+      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+        return false;
+      }
+
       try {
         await cfg.hooks.saveDraftBeforeSend?.();
       } catch (e) {
@@ -1390,7 +1623,6 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",
       ).trim();
 
-      setSendingState(true);
       startStatusLog();
       pushStatus(
         bitrixOnly ? "Bitrix-Ablage gestartet …" : "Sende-Vorgang gestartet …",
@@ -1433,6 +1665,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const fd = new FormData();
       fd.append("to", to);
       if (bitrixOnly) fd.append("bitrixOnly", "1");
+      fd.append("internalNote", document.getElementById("internalNote")?.value || "");
       if (cc) fd.append("cc", cc);
       fd.append("subject", subject);
       fd.append("body", body);
@@ -1441,6 +1674,12 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       fd.append("payload", JSON.stringify(payload));
       fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
       fd.append("excludeBitrixPresets", excludeBitrixPresets ? "1" : "");
+      const includeProductImages = !!$prodImgCheck?.checked;
+      fd.append("includeProductImages", includeProductImages ? "1" : "");
+      if (includeProductImages) {
+        fd.append("excludeProductImageIds", JSON.stringify(getExcludedProductImageIds()));
+        fd.append("productCustomImageData", JSON.stringify(Object.fromEntries(customProductImages)));
+      }
       fd.append("dealId", dealId);
       fd.append("contactId", contactId);
 
@@ -1467,6 +1706,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       }
 
       const data = await res.json().catch(() => ({}));
+
+      const noteEl = document.getElementById("internalNote");
+      if (noteEl) noteEl.value = "";
 
       pushStatus(
         `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
@@ -1530,8 +1772,17 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   }
 
   function setSendingState(busy) {
-    $btn.disabled = busy;
-    if ($btnBitrix) $btnBitrix.disabled = busy;
+    sending = busy;
+    for (const b of [$btn, $btnBitrix]) {
+      if (!b) continue;
+      b.disabled = busy;
+      if (busy) {
+        b.dataset.idleLabel = b.innerHTML;
+        b.innerHTML = '<span class="btn-icon">⏳</span> Wird gesendet …';
+      } else if (b.dataset.idleLabel) {
+        b.innerHTML = b.dataset.idleLabel;
+      }
+    }
   }
 
   $btn.addEventListener("click", (e) => {

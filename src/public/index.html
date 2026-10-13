@@ -20,6 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Angebote" />
 
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./styles/opt_section.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
     /* Fußboden prices hidden per request — delete/comment this rule to re-enable */
@@ -1290,7 +1291,7 @@
       }
     }
 
-    .opt-grid {
+    .opt-grid:not(.wc-pairs-grid) {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
@@ -2351,7 +2352,7 @@ button.dm-btn-danger:focus-visible {
 
     .customer-contact-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 12px;
       align-items: end;
     }
@@ -2716,8 +2717,6 @@ button.dm-btn-danger:focus-visible {
 
             <div id="todayPlanningOverview" class="day-overview" hidden></div>
 
-            <div id="todayPlanningPause" class="today-pause-chip" hidden></div>
-
             <div id="todayPlanningList" class="today-customers-list" aria-live="polite">
               <div class="today-customers-empty">Noch keine Termine geladen.</div>
             </div>
@@ -2901,6 +2900,32 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label for="lastName" class="req">Nachname</label><input id="lastName" name="lastName" required />
           </div>
+          <!-- AH: 2. Person mit Pflegegrad (doubles the Entlastungsbetrag) -->
+          <div class="full" data-offer="ah">
+            <label class="check-pill"><input type="checkbox" id="ahZweiPersonen" name="ahZweiPersonen" /><span class="box"></span>
+              <span>2 Personen mit Pflegegrad im Haushalt (Entlastungsbetrag 2 × <span id="ebMonatLabel2">131</span> €/Monat)</span>
+            </label>
+            <div id="ahPerson2Fields" hidden aria-hidden="true" style="margin-top:8px; padding:12px 16px; border:1px solid var(--border); border-radius:8px;">
+              <div style="font-weight:700; margin-bottom:8px;">2. Person</div>
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <label class="radio-pill"><input type="radio" name="p2Salutation" value="Frau" /><span class="circle"></span><span>Frau</span></label>
+                <label class="radio-pill"><input type="radio" name="p2Salutation" value="Herr" /><span class="circle"></span><span>Herr</span></label>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div><label for="p2FirstName">Vorname</label><input id="p2FirstName" name="p2FirstName" /></div>
+                <div><label for="p2LastName">Nachname</label><input id="p2LastName" name="p2LastName" /></div>
+              </div>
+              <label style="margin-top:8px;">Pflegegrad</label>
+              <div class="zones-grid" style="grid-template-columns: repeat(6, 1fr)">
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+              </div>
+            </div>
+          </div>
 
 
           <div class="full customer-phone-row">
@@ -2916,6 +2941,10 @@ button.dm-btn-danger:focus-visible {
             <div class="customer-email-field">
               <label for="email">Email</label><input id="email" name="email" type="email"
                 placeholder="name@example.com" />
+            </div>
+            <div class="customer-email-field">
+              <label for="emailCc">Email (CC)</label><input id="emailCc" name="emailCc" type="email" multiple
+                placeholder="cc@example.com" />
             </div>
           </div>
 
@@ -3119,7 +3148,7 @@ button.dm-btn-danger:focus-visible {
                     <label class="req" id="aufschlagLabel" for="sonderaufschlagValue">Aufschlag</label>
                     <div class="aufschlag-value-box">
                       <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="text" inputmode="decimal"
-                        autocomplete="off" pattern="^\s*\d{1,4}([.,]\d{1,2})?\s*$" placeholder="z. B. 50"
+                        autocomplete="off" pattern="^\s*\d{1,4}([.,]\d{1,4})?\s*$" placeholder="z. B. 50"
                         aria-label="Aufschlag in Prozent" />
                       <span class="sonderaufschlag-unit">%</span>
                     </div>
@@ -3320,6 +3349,19 @@ button.dm-btn-danger:focus-visible {
                     </div></div>
                   </div>
 
+                  <div id="kasseFreigabeRow" style="margin-top: 12px">
+                    <label for="kasseFreigabeFile">Freigabe der Kasse</label>
+                    <label class="pgb-btn-ghost dealUploadBox" for="kasseFreigabeFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
+                      <span style="display:flex;align-items:center;gap:8px">
+                        <span class="du-spin" aria-hidden="true"></span><svg class="du-ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span class="du-title">Foto aufnehmen / Datei hochladen</span>
+                      </span>
+                      <span class="du-hint" style="font-weight:400;font-size:.85em;opacity:.75">Bestätigung der Kasse für Wohnumfeldverb. Maßnahmen – wird beim Auftrag in Bitrix24 abgelegt.</span>
+                    </label>
+                    <input id="kasseFreigabeFile" type="file" accept="image/*,application/pdf,.pdf" hidden />
+                    <span id="kasseFreigabeStatus" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></span>
+                  </div>
+
                   <!--  <div class="full" style="margin-top: 8px">
                     <label class="req"
                       >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
@@ -3442,6 +3484,33 @@ button.dm-btn-danger:focus-visible {
                     <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="betreut" /><span class="circle"></span><span>betreut</span></label>
                     <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="bei Angehörigen" /><span class="circle"></span><span>bei Angehörigen</span></label>
                   </div>
+                </div>
+
+                <!-- BU/BWT: steuert den Satz "Der Auftrag kommt erst mit schriftlicher Zustimmung
+                     des Vermieters zustande." im Angebot. Auto aus Bitrix-Deal / Wohnsituation.
+                     Pflichtfeld bei BU/BWT (required wird in script.js je Angebotstyp gesetzt),
+                     rot solange nichts gewählt. Doku: docs/vermieter-genehmigung.md -->
+                <div id="vermieterErforderlichRow" class="full" data-offer="bu,bwt">
+                  <label class="req">Genehmigung des Vermieters erforderlich?</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Genehmigung des Vermieters erforderlich?">
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
+                </div>
+
+                <!-- Upload "Bestätigung vom Vermieter für Umbauten" -> Bitrix (nur bei erforderlich = Ja).
+                     Setzt "liegt vor" = Ja. Doku: docs/kasse-freigabe-upload.md -->
+                <div id="vermieterUploadRow" class="full" data-offer="bu,bwt" hidden>
+                  <label for="vermieterUploadFile">Bestätigung des Vermieters</label>
+                  <label class="pgb-btn-ghost dealUploadBox" for="vermieterUploadFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
+                    <span style="display:flex;align-items:center;gap:8px">
+                      <span class="du-spin" aria-hidden="true"></span><svg class="du-ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      <span class="du-title">Foto aufnehmen / Datei hochladen</span>
+                    </span>
+                    <span class="du-hint" style="font-weight:400;font-size:.85em;opacity:.75">Bestätigung vom Vermieter für Umbauten – wird beim Auftrag in Bitrix24 abgelegt.</span>
+                  </label>
+                  <input id="vermieterUploadFile" type="file" accept="image/*,application/pdf,.pdf" hidden />
+                  <span id="vermieterUploadStatus" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></span>
                 </div>
 
                 <div id="vermieterGenehmigungRow" class="full" data-offer="bu,bwt,hl,bl,hms,wd" hidden aria-hidden="true">
@@ -5243,7 +5312,13 @@ button.dm-btn-danger:focus-visible {
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
     width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
-    background: #fff; flex: 0 0 auto;
+    background: #fff; flex: 0 0 auto; cursor: pointer;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img {
+    width: 40px; height: 40px; border: 1px solid var(--border);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
     font-size: 0.85rem; color: var(--text); font-weight: 600;
@@ -5255,6 +5330,9 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
     width: 100%; height: 260px; cursor: pointer;
     border: 1px solid var(--border); border-radius: 8px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-thumbs img {
+    width: 56px; height: 56px;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
     text-align: center;
@@ -5289,6 +5367,23 @@ button.dm-btn-danger:focus-visible {
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img {
     width: 100%; height: 100%; object-fit: contain; display: block;
+  }
+  /* selected Verbreiterungsprofil tile + its Menge input; the cell takes the tile's flex slot */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell {
+    display: flex; flex-direction: column; gap: 6px;
+    flex: 1 1 calc((100% - (3 * 14px)) / 4);
+    max-width: calc((100% - (3 * 14px)) / 4);
+    min-width: 200px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell > .dac-opt {
+    flex: 1 1 auto; max-width: none;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    font-size: 0.85rem; margin: 0; text-align: left;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty input {
+    width: 100%; box-sizing: border-box;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label {
     font-size: 0.9rem; color: var(--text); line-height: 1.25;
@@ -5399,9 +5494,22 @@ button.dm-btn-danger:focus-visible {
     padding: 0px;
   }
   .dac-lightbox-close:hover { background: #fff; }
+  .dac-lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 48px; height: 48px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, 0.9); color: #111;
+    font-size: 30px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .dac-lightbox-nav:hover { background: #fff; }
+  .dac-lightbox-prev { left: 16px; }
+  .dac-lightbox-next { right: 16px; }
+  .dac-lightbox-caption {
+    position: absolute; bottom: 16px; left: 0; right: 0;
+    text-align: center; color: #fff; font-size: 14px; padding: 0 16px;
+  }
 
   @media (max-width: 760px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-opt, .dac-extra-cell) {
       flex-basis: calc((100% - 14px) / 2);
       max-width: calc((100% - 14px) / 2);
     }
@@ -5520,7 +5628,7 @@ button.dm-btn-danger:focus-visible {
   }
   #page-Duschvorhang .vh-acc-grid .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
   #page-Duschvorhang .vh-acc .vh-qty-field { max-width: 168px; }
-  /* cards reuse the Optional tab's .image-check / .opt-item look */
+  /* cards reuse the Optional tab's .image-check / .field look */
   #page-Duschvorhang .vh-price-row { text-align: center; }
   #page-Duschvorhang .vh-price { font-weight: 700; color: var(--text); }
   #page-Duschvorhang .vh-muted { color: var(--muted); font-weight: 500; }
@@ -6364,12 +6472,8 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Menüs, erscheinen je nach Auswahl -->
           <div id="menu_REHA" class="full field" hidden aria-hidden="true">
-            <div class="subheader">REHA-Team</div>
-            <div class="opt-grid">
-
-
-
-              <div class="opt-item">
+            <div class="opt-tile-grid">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081000" name="optReha[]"
                     value="VitaL Hüftkissen schwarz 24081000" /><span class="img-wrap"><img src="./assets/24081000.jpg"
                       alt="24081000" /></span><span class="caption">VitaL Hüftkissen schwarz 24081000</span></label>
@@ -6379,7 +6483,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081100" name="optReha[]"
                     value="VitaL Hüftkissen blau 24081100" /><span class="img-wrap"><img src="./assets/24081100.jpg"
                       alt="24081100" /></span><span class="caption">VitaL Hüftkissen blau 24081100</span></label>
@@ -6389,7 +6493,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081500" name="optReha[]"
                     value="VitaL Steißbeinkissen schwarz 24081500" /><span class="img-wrap"><img
                       src="./assets/24081500.jpg" alt="24081500" /></span><span class="caption">VitaL Steißbeinkissen
@@ -6399,7 +6503,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081500" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081600" name="optReha[]"
                     value="VitaL Steißbeinkissen blau 24081600" /><span class="img-wrap"><img
                       src="./assets/24081600.jpg" alt="24081600" /></span><span class="caption">VitaL Steißbeinkissen
@@ -6409,7 +6513,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081005" name="optReha[]"
                     value="Bezug zu VitaL Hüftkissen schwarz 24081005" /><span class="img-wrap"><img
                       src="./assets/24081005.jpg" alt="24081005" /></span><span class="caption">Bezug zu VitaL
@@ -6419,7 +6523,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081005" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081105" name="optReha[]"
                     value="Bezug zu VitaL Hüftkissen blau 24081105" /><span class="img-wrap"><img
                       src="./assets/24081105.jpg" alt="24081105" /></span><span class="caption">Bezug zu VitaL
@@ -6429,7 +6533,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081105" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081505" name="optReha[]"
                     value="Bezug zu VitaL Steißbeinkissen schwarz 24081505" /><span class="img-wrap"><img
                       src="./assets/24081505.jpg" alt="24081505" /></span><span class="caption">Bezug zu VitaL
@@ -6439,7 +6543,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081505" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081605" name="optReha[]"
                     value="Bezug zu VitaL Steißbeinkissen blau 24081605" /><span class="img-wrap"><img
                       src="./assets/24081605.jpg" alt="24081605" /></span><span class="caption">Bezug zu VitaL
@@ -6449,7 +6553,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081605" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_25670000" name="optReha[]"
                     value="RUSSKA Sitzring 25670000" /><span class="img-wrap"><img src="./assets/25670000.jpg"
                       alt="25670000" /></span><span class="caption">RUSSKA Sitzring 25670000</span></label>
@@ -6458,7 +6562,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_25670000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081800" name="optReha[]"
                     value="VitaL Hüftkissen Mobil/Auto 24081800" /><span class="img-wrap"><img
                       src="./assets/24081800.jpg" alt="24081800" /></span><span class="caption">VitaL Hüftkissen
@@ -6468,7 +6572,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081800" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24096000" name="optReha[]"
                     value="RUSSKA Komfort-Sitzkissen 24096000" /><span class="img-wrap"><img src="./assets/24096000.jpg"
                       alt="24096000" /></span><span class="caption">RUSSKA Komfort-Sitzkissen 24096000</span></label>
@@ -6477,7 +6581,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24096000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24097000" name="optReha[]"
                     value="RUSSKA Kissen zur Sitzerhöhung 24097000" /><span class="img-wrap"><img
                       src="./assets/24097000.jpg" alt="24097000" /></span><span class="caption">RUSSKA Kissen zur
@@ -6487,7 +6591,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24097000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24096240" name="optReha[]"
                     value="RUSSKA Kissen zur Sitzerhöhung 24096240" /><span class="img-wrap"><img
                       src="./assets/24096240.jpg" alt="24096240" /></span><span class="caption">RUSSKA Kissen zur
@@ -6497,7 +6601,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24096240" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_19034422" name="optReha[]"
                     value="Lück Rhombo-therm soft Kissen 19034422" /><span class="img-wrap"><img
                       src="./assets/19034422.jpg" alt="19034422" /></span><span class="caption">Lück Rhombo-therm soft
@@ -6507,7 +6611,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_19034422" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035200" name="optReha[]"
                     value="Hepro Haltestange Gripo 35035200" /><span class="img-wrap"><img src="./assets/35035200.jpg"
                       alt="35035200" /></span><span class="caption">Hepro Haltestange Gripo 35035200</span></label>
@@ -6516,7 +6620,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035200" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035145" name="optReha[]"
                     value="HEPRO Griffbügel Triangel 35035145" /><span class="img-wrap"><img src="./assets/35035145.jpg"
                       alt="35035145" /></span><span class="caption">HEPRO Griffbügel Triangel 35035145</span></label>
@@ -6525,7 +6629,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035145" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035148" name="optReha[]"
                     value="HEPRO Stützbügel mit Hängegriff 35035148" /><span class="img-wrap"><img
                       src="./assets/35035148.jpg" alt="35035148" /></span><span class="caption">HEPRO Stützbügel mit
@@ -6535,7 +6639,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035148" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035281" name="optReha[]"
                     value="HEPRO Ringgriff Ø 30 cm 35035281" /><span class="img-wrap"><img src="./assets/35035281.jpg"
                       alt="35035281" /></span><span class="caption">HEPRO Ringgriff Ø 30 cm 35035281</span></label>
@@ -6544,7 +6648,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035281" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035280" name="optReha[]"
                     value="HEPRO Ringgriff  Ø 40 cm 35035280" /><span class="img-wrap"><img src="./assets/35035280.jpg"
                       alt="35035280" /></span><span class="caption">HEPRO Ringgriff Ø 40 cm 35035280</span></label>
@@ -6553,7 +6657,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035280" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700800" name="optReha[]"
                     value="RUSSKA laguna Duschhocker mit Hygieneausschnitt 78700800" /><span class="img-wrap"><img
                       src="./assets/78700800.jpg" alt="78700800" /></span><span class="caption">RUSSKA laguna
@@ -6563,7 +6667,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700800" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78701700" name="optReha[]"
                     value="Duschstuhl mit Armlehnen und Rückenlehne 78701700" /><span class="img-wrap"><img
                       src="./assets/78701700.jpg" alt="78701700" /></span><span class="caption">Duschstuhl mit Armlehnen
@@ -6573,7 +6677,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78701700" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700400" name="optReha[]"
                     value="RUSSKA laguna Duschstuhl 78700400" /><span class="img-wrap"><img src="./assets/78700400.jpg"
                       alt="78700400" /></span><span class="caption">RUSSKA laguna Duschstuhl 78700400</span></label>
@@ -6582,7 +6686,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700400" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78701500" name="optReha[]"
                     value="Duschstuhl mit Rückenlehne 78701500" /><span class="img-wrap"><img
                       src="./assets/78701500.jpg" alt="78701500" /></span><span class="caption">Duschstuhl mit
@@ -6592,7 +6696,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78701500" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700750" name="optReha[]"
                     value="Soft-Auflage zu laguna Duschstuhl 78700750" /><span class="img-wrap"><img
                       src="./assets/78700750.jpg" alt="78700750" /></span><span class="caption">Soft-Auflage zu laguna
@@ -6602,7 +6706,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700750" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700850" name="optReha[]"
                     value="Soft-Auflage zu laguna Duschhocker und Duschstuhl mit Hygieneausschnitt 78700850" /><span
                     class="img-wrap"><img src="./assets/78700850.jpg" alt="78700850" /></span><span
@@ -6613,7 +6717,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700850" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11096600" name="optReha[]"
                     value="RUSSKA Funk-Sensormatte Step Control rechteckig 75 x 55 x 1 cm (ohne Empfänger Plus) 11096600" /><span
                     class="img-wrap"><img src="./assets/11096600.jpg" alt="11096600" /></span><span
@@ -6624,7 +6728,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11096600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11096610" name="optReha[]"
                     value=" RUSSKA Funk-Sensormatte Step Control halbrund 110 x 70 x 1 cm (ohne Empfänger Plus) 11096610" /><span
                     class="img-wrap"><img src="./assets/11096610.jpg" alt="11096610" /></span><span class="caption">
@@ -6635,7 +6739,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11096610" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020600" name="optReha[]"
                     value="RUSSKA Drehsitz Komfort 11020600" /><span class="img-wrap"><img src="./assets/11020600.jpg"
                       alt="11020600" /></span><span class="caption">RUSSKA Drehsitz Komfort 11020600</span></label>
@@ -6644,7 +6748,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020700" name="optReha[]"
                     value="RUSSKA Aufstehhilfe: für Körpergewicht 35–105 kg 11020700" /><span class="img-wrap"><img
                       src="./assets/11020700.jpg" alt="11020700" /></span><span class="caption">RUSSKA Aufstehhilfe: für
@@ -6654,7 +6758,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020700" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020710" name="optReha[]"
                     value="Aufstehhilfe: für Körpergewicht 60–180 kg 11020710" /><span class="img-wrap"><img
                       src="./assets/11020710.jpg" alt="11020710" /></span><span class="caption">Aufstehhilfe: für
@@ -6664,7 +6768,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020710" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020300" name="optReha[]"
                     value="RUSSKA Flexibler Drehsitz 11020300" /><span class="img-wrap"><img src="./assets/11020300.jpg"
                       alt="11020300" /></span><span class="caption">RUSSKA Flexibler Drehsitz 11020300</span></label>
@@ -6673,7 +6777,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020300" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_14661000" name="optReha[]"
                     value="Greifhilfe Classic 45 cm 14661000" /><span class="img-wrap"><img src="./assets/14661000.jpg"
                       alt="14661000" /></span><span class="caption">Greifhilfe Classic 45 cm 14661000</span></label>
@@ -6682,7 +6786,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_14661000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_14662000" name="optReha[]"
                     value="Greifhilfe Classic 70 cm 14662000" /><span class="img-wrap"><img src="./assets/14662000.jpg"
                       alt="14662000" /></span><span class="caption">Greifhilfe Classic 70 cm 14662000</span></label>
@@ -6691,7 +6795,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_14662000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26013000" name="optReha[]"
                     value="RUSSKA Strumpf-Anziehhilfe aus Frottee 26013000" /><span class="img-wrap"><img
                       src="./assets/26013000.jpg" alt="26013000" /></span><span class="caption">RUSSKA
@@ -6701,7 +6805,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26013000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26014000" name="optReha[]"
                     value="Strumpf-Anziehhilfe aus Kunststoff kleine Nuten 26014000" /><span class="img-wrap"><img
                       src="./assets/26014000.jpg" alt="26014000" /></span><span class="caption">Strumpf-Anziehhilfe aus
@@ -6711,7 +6815,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26014000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26014200" name="optReha[]"
                     value="Strumpf-Anziehhilfe aus Kunststoff große Nuten 26014200" /><span class="img-wrap"><img
                       src="./assets/26014200.jpg" alt="26014200" /></span><span class="caption">Strumpf-Anziehhilfe aus
@@ -6721,7 +6825,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26014200" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_091095504" name="optReha[]"
                     value="homecraft Strumpfhosen-Anziehhilfe Dorking 091095504" /><span class="img-wrap"><img
                       src="./assets/091095504.jpg" alt="091095504" /></span><span class="caption">homecraft
@@ -6731,7 +6835,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_091095504" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_10440000" name="optReha[]"
                     value="RUSSKA Teleskopischer Schuhanzieher 10440000" /><span class="img-wrap"><img
                       src="./assets/10440000.jpg" alt="10440000" /></span><span class="caption">RUSSKA Teleskopischer
@@ -6741,7 +6845,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_10440000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78061000" name="optReha[]"
                     value="Badebrett Deluxe mit Soft-Drehsitz 78061000" /><span class="img-wrap"><img src="./assets/78061000.jpg"
                       alt="78061000" /></span><span class="caption">Badebrett Deluxe mit Soft-Drehsitz 78061000</span></label>
@@ -6750,7 +6854,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78061000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78062300" name="optReha[]"
                     value="RUSSKA Drehbarer Aluminium-Badewannensitz mit Armlehnen und Rückenlehne 78062300" /><span class="img-wrap"><img src="./assets/78062300.jpg"
                       alt="78062300" /></span><span class="caption">RUSSKA Drehbarer Aluminium-Badewannensitz mit Armlehnen und Rückenlehne 78062300</span></label>
@@ -6759,7 +6863,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78062300" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700150" name="optReha[]"
                     value="Soft-Auflage zu laguna Badewannensitzen hellgrau 78700150" /><span class="img-wrap"><img src="./assets/78700150.jpg"
                       alt="78700150" /></span><span class="caption">Soft-Auflage zu laguna Badewannensitzen hellgrau 78700150</span></label>
@@ -6768,7 +6872,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700150" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78058100" name="optReha[]"
                     value="Badebrett Basic 68 cm 78058100" /><span class="img-wrap"><img src="./assets/78058100.jpg"
                       alt="78058100" /></span><span class="caption">Badebrett Basic 68 cm 78058100</span></label>
@@ -6777,7 +6881,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78058100" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78059100" name="optReha[]"
                     value="Badebrett Basic 73 cm 78059100" /><span class="img-wrap"><img src="./assets/78059100.jpg"
                       alt="78059100" /></span><span class="caption">Badebrett Basic 73 cm 78059100</span></label>
@@ -6786,7 +6890,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78059100" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700000" name="optReha[]"
                     value="RUSSKA laguna Badewannensitz ohne Rückenlehne 78700000" /><span class="img-wrap"><img src="./assets/78700000.jpg"
                       alt="78700000" /></span><span class="caption">RUSSKA laguna Badewannensitz ohne Rückenlehne 78700000</span></label>
@@ -6795,7 +6899,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700100" name="optReha[]"
                     value="RUSSKA laguna Badewannensitz mit Rückenlehne 78700100" /><span class="img-wrap"><img src="./assets/78700100.jpg"
                       alt="78700100" /></span><span class="caption">RUSSKA laguna Badewannensitz mit Rückenlehne 78700100</span></label>
@@ -6812,9 +6916,8 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duscharmatur</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" style="min-width: 220px">
+            <div class="opt-tile-grid">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_V22WS1R" name="optShower[]"
                     value="Wannenset individual 2.2 m.Wandhalter Schlauch u.HB 1-str. rund verchr. VIGOUR V22WS1R" /><span
                     class="img-wrap"><img src="./assets/V22WS1R.jpg" alt="V22WS1R" /></span><span
@@ -6858,12 +6961,22 @@ button.dm-btn-danger:focus-visible {
                     name="qty_V12DS250E" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"><input type="checkbox" id="opt_STRAYT" name="optShower[]"
+                    value="Duschsäule m.Thermostat Strayt STRAYT" /><span
+                    class="img-wrap"><img src="./assets/STRAYT.jpg" alt="STRAYT" /></span><span
+                    class="caption">Duschsäule m.Thermostat Strayt Chrom Poliert
+                    </span></label>
+                <div id="qty_STRAYT_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_STRAYT" class="req">Menge STRAYT</label><input id="qty_STRAYT"
+                    name="qty_STRAYT" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
             </div>
           </div>
 
           <div id="menu_THERMO" class="full field" hidden aria-hidden="true">
-            <div class="subheader">AP‑Thermostat / Brausebatterie</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CLTB" name="optThermo[]"
                     value="AP-Brause-Thermostat clivia, ohne Brausegarnitur CLTB" /><span class="img-wrap"><img
@@ -6901,8 +7014,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_GRAB" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Haltegriffe</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
 
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CLPESG30" name="optGrab[]"
@@ -6951,8 +7063,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_FOLD" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Stützklappgriff</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_DEPSKG60" name="optFold[]"
                     value="Stützklappgriff derby plus 600mm verchromt VIGOUR DEPSKG60" /><span class="img-wrap"><img
@@ -6977,8 +7088,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_SEAT" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duschhocker </div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
 
               <div class="field" style="min-width: 220px" hidden>
                 <label class="image-check"><input type="checkbox" id="opt_DEPKS" name="optSeat[]"
@@ -7022,8 +7132,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_BASIN_TAP" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Einhand‑Waschtischbatterie</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CL_BASIN" name="optBasinTap[]"
                     value="Einhand-Waschtischbatterie clivia mit Ablaufgarnitur verchromt VIGOUR CL" /><span
@@ -7060,7 +7169,7 @@ button.dm-btn-danger:focus-visible {
             </div>
             <!-- Pflichtzubehör bei ausgewählter ONSHB -->
             <div id="tapRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top: 8px">
-              <div class="subheader">Erforderliches Zubehör</div>
+              <h4>Erforderliches Zubehör</h4>
               <div style="display: flex; gap: 14px; flex-wrap: wrap">
                 <div class="field" style="min-width: 220px">
                   <label class="image-check"><input type="checkbox" id="opt_YNORGH21825" name="optBasinTapAcc[]"
@@ -7080,7 +7189,7 @@ button.dm-btn-danger:focus-visible {
           <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
             <h4 class="basin-section-title">Waschtisch ohne Unterschrank</h4>
             <p class="basin-required-sub">Sobald ein Waschbecken <strong>oder</strong> ein Sonderprodukt ausgewählt ist, ergänzt der Konfigurator automatisch Befestigungssatz und Siphon. Bei mehreren Auswahlen bleibt es bei einer Zeile je Artikel – nur die Menge summiert sich.</p>
-            <div class="basin-tile-grid">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 0">
                 <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]"
                     value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img
@@ -7164,6 +7273,24 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
+              <!-- DEP65U -->
+              <div class="field" style="min-width: 0">
+                <label class="image-check">
+                  <input type="checkbox" id="opt_DEP65U" name="optBasin[]"
+                    value="Waschtisch derby plus care 65x55 cm unterfahrbar weiss VIGOUR DEP65U" />
+                  <span class="img-wrap">
+                    <img src="./assets/DEP65U.jpg" alt="DEP65U" />
+                  </span>
+                  <span class="caption">
+                    Waschtisch derby plus care 65x55 cm DEP65U
+                  </span>
+                </label>
+                <div id="qty_DEP65U_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_DEP65U" class="req">Menge DEP65U</label>
+                  <input id="qty_DEP65U" name="qty_DEP65U" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+
               <!-- Sonderprodukt: freier Posten, löst dieselbe Pflichtzubehör-Automatik aus wie ein Katalog-Waschtisch -->
               <div class="field" style="min-width: 0">
                 <label class="image-check tile-custom"><input type="checkbox" id="opt_BASIN_SONDER" name="optBasin[]"
@@ -7192,7 +7319,7 @@ button.dm-btn-danger:focus-visible {
               <p class="basin-required-sub">
                 Wird ergänzt, sobald oben ein Waschbecken oder ein Sonderprodukt gewählt ist, und wieder entfernt, sobald keine Auswahl mehr besteht. Die Menge kann bei Bedarf jederzeit manuell reduziert werden.
               </p>
-              <div class="basin-tile-grid">
+              <div class="opt-tile-grid">
                 <!-- WTBF (required when basin selected) -->
                 <div class="field" style="min-width: 0">
                   <label class="image-check"><input type="checkbox" id="opt_WTBF" name="optBasinAcc[]"
@@ -7228,7 +7355,7 @@ button.dm-btn-danger:focus-visible {
               <!-- Optional zu Waschtisch ohne Unterschrank -->
               <div class="full field" style="margin-top: 12px">
                 <h4 class="basin-section-title">Optional zu Waschtisch ohne Unterschrank</h4>
-                <div class="basin-tile-grid">
+                <div class="opt-tile-grid">
                   <div class="field" style="min-width: 0">
                     <label class="image-check"><input type="checkbox" id="opt_EV" name="optBasinAcc[]"
                         value='SCHELL Eckventil COMFORT regulierbar ASAG 1/2" chrom EV' /><span class="img-wrap"><img
@@ -7289,8 +7416,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_METER" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Verlege-Meter</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_TECEADS" name="optMeter[]"
                     value="TECE ADS Abdichtung/Verlegung pro Meter TECEADS" /><span class="img-wrap"><img
@@ -7304,8 +7430,7 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
           <div id="menu_RAMPE" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Rampe</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_RAMPE35" name="optRampe[]"
                     value="Rampe 3.5 cm Hoch" /><span class="img-wrap"><img src="./assets/rampe.PNG"
@@ -7381,31 +7506,27 @@ button.dm-btn-danger:focus-visible {
           </div>
           <!-- NEW children for “Sonderprodukte” -->
           <div id="menu_WC" class="full field wc-menu" hidden aria-hidden="true">
-            <div class="subheader">WC</div>
+            <div class="wc-option-group">
+              <label class="req">Montageart</label>
+              <div class="wc-montage-grid">
+                <label class="image-radio wc-montage-card large">
+                  <input type="radio" name="wcMontage" value="Wandmontage" />
+                  <span class="img-wrap">
+                    <img src="./assets/Wandmontage.jpg" alt="Wandmontage WC" />
+                  </span>
+                  <span class="caption">Wandmontage</span>
+                </label>
 
-           <div class="wc-option-group">
-  <label class="req">Montageart</label>
+                <label class="image-radio wc-montage-card large">
+                  <input type="radio" name="wcMontage" value="Bodenmontage" />
+                  <span class="img-wrap">
+                    <img src="./assets/Bodenmontage.jpg" alt="Bodenmontage WC" />
+                  </span>
+                  <span class="caption">Bodenmontage</span>
+                </label>
 
-  <div class="wc-montage-grid">
-
-    <label class="image-radio wc-montage-card large">
-      <input type="radio" name="wcMontage" value="Wandmontage" />
-      <span class="img-wrap">
-        <img src="./assets/Wandmontage.jpg" alt="Wandmontage WC" />
-      </span>
-      <span class="caption">Wandmontage</span>
-    </label>
-
-    <label class="image-radio wc-montage-card large">
-      <input type="radio" name="wcMontage" value="Bodenmontage" />
-      <span class="img-wrap">
-        <img src="./assets/Bodenmontage.jpg" alt="Bodenmontage WC" />
-      </span>
-      <span class="caption">Bodenmontage</span>
-    </label>
-
-  </div>
-</div>
+              </div>
+            </div>
 
             <div id="wcSeatHeightWrap" class="wc-option-group" hidden aria-hidden="true">
               <label class="req">Sitzhöhe</label>
@@ -7423,15 +7544,15 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
-            <div id="wcWallProductsWrap" class="wc-option-group" hidden aria-hidden="true">
+            <div id="wcWallProductsWrap" hidden aria-hidden="true">
             
               <div id="wcWallProductsGrid" class="opt-grid"></div>
             </div>
           </div>
 
           <div id="menu_WESGH" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Wandeinbau-Waschgeräte-Siphon komplett DN 40/50</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <h4>Wandeinbau-Waschgeräte-Siphon komplett DN 40/50</h4>
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_WESGH" name="optWesgh[]"
                     value="Wandeinbau-Waschgeraete-Siphon komplett DN 40/50" /><span class="img-wrap"><img src="./assets/WESGH.jpg"
@@ -7445,7 +7566,7 @@ button.dm-btn-danger:focus-visible {
             <div id="wesghRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top:8px">
               <div class="subheader">Erforderliches Zubehör</div>
               <div style="display: flex; gap: 14px; flex-wrap: wrap">
-                <div class="opt-item">
+                <div class="field">
                   <label class="image-check">
                     <input type="checkbox" id="opt_TRGAVS15" name="optWesgh[]"
                       value="Geräte-Schrägsitzventil TRINNITY 1/2&quot; m.Rückflussverh.verchromt TRGAVS15" />
@@ -7457,7 +7578,7 @@ button.dm-btn-danger:focus-visible {
                     <input id="qty_TRGAVS15" name="qty_TRGAVS15" type="number" min="0" step="1" placeholder="0" />
                   </div>
                 </div>
-                <div class="opt-item">
+                <div class="field">
                   <label class="image-check">
                     <input type="checkbox" id="opt_INSTMATROH" name="optWesgh[]"
                       value="Installations Material Roh INSTMATROH" />
@@ -7515,8 +7636,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_DUSCHZUB" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duschzubehör</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_DUSCHKORB01" name="optDuschzub[]"
                     value="Duschkorb Duschablage ohne Bohren - Shampoohalter zum Kleben aus rostfreiem Edelstahl mit Original 3M-Klebepads, 2 beweglichen Haken, Extra-Rasierhalter (Edelstahl Silber) DUSCHKORB01" /><span
@@ -7664,7 +7784,7 @@ button.dm-btn-danger:focus-visible {
               <label class="check-pill">
                 <input type="checkbox" id="rb-bonus-300" />
                 <span class="box"></span>
-                <span>Möchten Sie den Neu- oder Bestandskundenbonus in Höhe von 252,10 € hinzufügen?
+                <span>Möchten Sie den Neukundenbonus in Höhe von 252,10 € hinzufügen?
                   (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)</span>
               </label>
             </div>
@@ -7674,14 +7794,6 @@ button.dm-btn-danger:focus-visible {
                 <input type="checkbox" id="rb-bonus-grab" />
                 <span class="box"></span>
                 <span>Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage.</span>
-              </label>
-            </div>
-
-            <div class="full field" id="rb-show-free-grab-row" hidden aria-hidden="true" style="display:none; padding-left:28px; margin-top:-6px;">
-              <label class="check-pill" style="border-style:dashed;">
-                <input type="checkbox" id="rb-show-free-grab" />
-                <span class="box"></span>
-                <span>Möchten Sie die Haltegriffe im Angebot zeigen?</span>
               </label>
             </div>
 
@@ -8238,6 +8350,14 @@ button.dm-btn-danger:focus-visible {
           </section>
 
           <!-- Email Versand (unter PDF Vorschau) -->
+<!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
+     never into the mail body, PDF or post payload. -->
+<section class="internal-note-card" id="internalNoteCard">
+  <label for="internalNote" class="internal-note-label">🔒 Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)</label>
+  <textarea id="internalNote" rows="3" maxlength="5000" placeholder="z. B. Besonderheiten, Absprachen, Hinweise für Innendienst/Montage …"></textarea>
+  <p class="internal-note-hint">Erscheint als eigener Kommentar in der Deal-Timeline. Wird nicht in E-Mail, PDF oder Brief übernommen.</p>
+</section>
+
 <!-- Versandart: E-Mail vs Post. Replaces the old "Versand per Post" toggle in
      Kundendaten — both ways are always available now, you just switch tab.
      The "Mitgesendete Unterlagen" card above stays shared: one tick state
@@ -8309,6 +8429,19 @@ button.dm-btn-danger:focus-visible {
         <label for="mailAttachments" class="mail-attach-add">+ Datei hinzufügen</label>
       </div>
       <div id="mailAttachmentList" class="mail-attach-grid"></div>
+
+      <!-- Produktbilder-PDF: optional second attachment with product images -->
+      <div class="mail-attach-head mail-attach-head--sub mail-prodimg-head">
+        <label class="mail-prodimg-toggle">
+          <input type="checkbox" id="mailIncludeProductImages" />
+          <span>Produktbilder-PDF anhängen</span>
+        </label>
+      </div>
+      <div id="mailProductImgPanel" hidden>
+        <div id="mailProductImgList" class="mail-prodimg-list"></div>
+        <div class="mail-attach-hint" id="mailProductImgHint" hidden>Keine Produkte mit Bild gefunden.</div>
+        <button type="button" id="mailProductImgPreview" class="btn-secondary mail-prodimg-preview-btn">PDF Vorschau</button>
+      </div>
 
       <!-- Bitrix-only uploads: never attached to the customer email, they ride
            along to the Deal-Timeline on send (backend field: bitrixDocs). -->
@@ -8834,12 +8967,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
                         inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
-                      <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorStdColorLabel" class="req">Farbe Universal / Standard Tür</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorStdColorLabel">
+                        <input type="text" id="bwtDoorStdColor" name="bwtDoorStdColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -9003,12 +9137,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
-                      <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorBudgetColorLabel" class="req">Farbe Budget Tür - Verona</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorBudgetColorLabel">
+                        <input type="text" id="bwtDoorBudgetColor" name="bwtDoorBudgetColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -9028,12 +9163,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
-                      <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorVariodoorColorLabel" class="req">Farbe Variodoor</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorVariodoorColorLabel">
+                        <input type="text" id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -9078,47 +9214,6 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <div class="bwt-config-card">
-                <div class="section-title">Farbe der Tür</div>
-                <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-
-                <div class="color-swatch-group">
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="Weiß" aria-label="Weiß (#fffdfa)" />
-                    <div class="color-swatch__preview" style="background-color: #fffdfa;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Weiß</span>
-                      <span class="color-swatch__code">#fffdfa</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="manhattan" aria-label="Manhattan (#D1D0CC)" />
-                    <div class="color-swatch__preview" style="background-color: #D1D0CC;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Manhattan</span>
-                      <span class="color-swatch__code">#D1D0CC</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="bahama_beige" aria-label="Bahama Beige (#FDF5EA)" />
-                    <div class="color-swatch__preview" style="background-color: #FDF5EA;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Bahama Beige</span>
-                      <span class="color-swatch__code">#FDF5EA</span>
-                    </div>
-                  </label>
-                </div>
-
                 <div class="bwt-note-box">
                   <strong>Hinweis:</strong><br>
                   - Zusätzlicher Verschluss 49€ EK-Preis grundsätzlich wird automatisch mitkalkuliert.<br>
@@ -9904,6 +9999,8 @@ button.dm-btn-danger:focus-visible {
           <div class="field full" style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <input type="checkbox" id="ahEntlastungAuto" name="ahEntlastungAuto" />
             <label for="ahEntlastungAuto" style="margin:0; font-weight:500;">Dauer automatisch auf Entlastungsbetrag (<span id="ahEntlastungAutoLabelValue">131</span>&nbsp;€/Monat) optimieren</label>
+            <button type="button" id="ahOptimizeAllBtn" class="btn-secondary" style="margin-left:auto; padding:4px 10px; font-size:0.82rem;"
+              title="Alle Zeiten im gleichen Verhältnis anpassen, sodass der Gesamtbetrag in den Entlastungsbetrag passt">⚡ Gesamtzeit auf Entlastungsbetrag optimieren</button>
           </div>
           <!-- Haushaltsnahe Dienstleistungen section -->
           <div class="full" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
@@ -10848,12 +10945,12 @@ button.dm-btn-danger:focus-visible {
         <p class="nocontact-hint">Der Deal wird zur&uuml;ck auf &bdquo;Besichtigungstermin vereinbaren&ldquo; verschoben und der Grund als Kommentar hinterlegt.</p>
         <fieldset class="nocontact-reasons">
           <legend>Grund</legend>
-          <label><input type="radio" name="planningNoContactReason" value="Kunde nicht erreichbar" checked /> <span>Kunde nicht erreichbar</span></label>
-          <label><input type="radio" name="planningNoContactReason" value="Kunde war nicht zu Hause" /> <span>Kunde war nicht zu Hause</span></label>
-          <label><input type="radio" name="planningNoContactReason" value="Termin vom Kunden abgesagt" /> <span>Termin vom Kunden abgesagt</span></label>
-          <label><input type="radio" name="planningNoContactReason" value="Kunde w&uuml;nscht neuen Termin" /> <span>Kunde w&uuml;nscht neuen Termin</span></label>
-          <label><input type="radio" name="planningNoContactReason" value="Falsche / ung&uuml;ltige Kontaktdaten" /> <span>Falsche / ung&uuml;ltige Kontaktdaten</span></label>
-          <label><input type="radio" name="planningNoContactReason" value="Sonstiges" /> <span>Sonstiges</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Kunde nicht erreichbar" checked /> <span>Kunde nicht erreichbar</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Kunde war nicht zu Hause" /> <span>Kunde war nicht zu Hause</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Termin vom Kunden abgesagt" /> <span>Termin vom Kunden abgesagt</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Kunde w&uuml;nscht neuen Termin" /> <span>Kunde w&uuml;nscht neuen Termin</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Falsche / ung&uuml;ltige Kontaktdaten" /> <span>Falsche / ung&uuml;ltige Kontaktdaten</span></label>
+          <label><input type="checkbox" name="planningNoContactReason" value="Sonstiges" /> <span>Sonstiges</span></label>
         </fieldset>
         <label class="nocontact-note-label" for="planningNoContactNote">Kommentar (optional)</label>
         <textarea id="planningNoContactNote" class="nocontact-note" rows="3" placeholder="Zus&auml;tzliche Anmerkung &hellip;"></textarea>

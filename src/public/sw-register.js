@@ -30,6 +30,18 @@ export async function registerOfflineShell() {
     if (!res.ok) throw new Error(`version lookup failed (${res.status})`);
     const { buildId } = await res.json();
 
+    // A deploy's first load is still served from the old worker's cache. When
+    // the new worker claims the page, reload once so the user gets the new
+    // code without ever knowing — unless they already started typing.
+    // No previous controller = first install, nothing stale to replace.
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => { if (!window.__userEdited) location.reload(); },
+        { once: true },
+      );
+    }
+
     return await navigator.serviceWorker.register(
       `/sw.js?v=${encodeURIComponent(buildId || "dev")}`,
       { scope: "/" },

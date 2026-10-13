@@ -362,6 +362,8 @@ const ANGEBOT_CSS = `
 .ang .sig-img { max-width:300px; max-height:130px; display:block; margin:6px 0; }
 .ang .hinweise { margin:16px 0; }
 .ang .hinweise p { margin:8px 0; }
+.ang .hinweise ul { margin:0; padding-left:20px; }
+.ang .hinweise li { margin:6px 0; }
 .ang .closing { margin-top:22px; }
 .ang .our-sig-img { max-width:220px; max-height:80px; display:block; margin:8px 0 2px; }
 .ang .accept-line { font-weight:bold; margin:22px 0 6px; }
@@ -416,11 +418,15 @@ function materialBlock(d) {
   return out.join("");
 }
 
-// Festpreis-/Hinweisblock nach der Gesamtsumme (BU-Angebot).
-// Der Festpreis-Satz wird immer gezeigt; der HINWIES-/Regie-Absatz nur wenn
-// eine Duschwanne montiert wird; die Selbstkosten-/Zuschusszeile nur für
-// Kassenkunden mit gewährtem Zuschuss. Der Stundensatz kommt aus RegieRateFmt
-// (59,50€ SZ / 69,50€ KK).
+// "Wichtige Hinweise" nach der Gesamtsumme (BU-Angebot) — gleiche Punkte und
+// Reihenfolge wie im DOCX (Angebot-10 / Angebot-BU-KK-2):
+//   1. Festpreis (immer)
+//   2. Ihr Eigenanteil (Kassenkunde mit gewährtem Zuschuss)
+//   3. Ebenerdige Montage + Regie (nur wenn eine Duschwanne montiert wird;
+//      Stundensatz aus RegieRateFmt, 59,50€ SZ / 69,50€ KK)
+//   4. Pflegekassen-Bewilligung (alle Kassenkunden)
+//   5. Vermieter-Zustimmung (VermieterZustimmungHinweis aus docx-template.js)
+// Doku: docs/vermieter-genehmigung.md
 function festpreisBlock(d) {
   const payer = String(d.PayerKind || "").toUpperCase();
   const isKK = payer === "KK" || payer === "KASSENKUNDE";
@@ -429,35 +435,48 @@ function festpreisBlock(d) {
   );
   const rate = String(d.RegieRateFmt || "").trim();
   const out = [
-    `<p>Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich.</p>`,
+    `Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich.`,
   ];
-  if (hasDuschwanne) {
-    out.push(
-      `<p><strong>HINWEIS:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz Servicemonteur: ${esc(rate)} netto)` : ""}</p>`,
-    );
-  }
   if (isKK && d.hasSubsidyLine) {
     out.push(
-      `<p>Der Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
+      `Ihr Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.`,
     );
   }
-  return `<div class="hinweise">${out.join("")}</div>`;
+  if (hasDuschwanne) {
+    out.push(
+      `Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz Servicemonteur: ${esc(rate)} netto)` : ""}`,
+    );
+  }
+  if (isKK) {
+    out.push(
+      `Der Auftrag kommt erst mit schriftlicher Bewilligung des Zuschusses durch die Pflegekasse zustande. Wird der Zuschuss abgelehnt, können Sie – wenn gewünscht – den Auftrag auch auf eigene Kosten erteilen. Es gilt dann der angebotene Preis.`,
+    );
+  }
+  if (d.VermieterZustimmungHinweis) {
+    out.push(`Der Auftrag kommt erst mit schriftlicher Zustimmung des Vermieters zustande.`);
+  }
+  return `<div class="hinweise"><p class="b">Wichtige Hinweise:</p><ul>${out.map((t) => `<li>${t}</li>`).join("")}</ul></div>`;
 }
 
 // Abschlussblock: Grußformel + Gültigkeit + Unterschrift des zuständigen
-// EmC2-Mitarbeiters (aus OurSignatureImage) + "Ihr Team von EmC2".
-// Gilt für BU und AH.
+// EmC2-Mitarbeiters (aus OurSignatureImage) + Name (Ansprechpartner) +
+// "Ihr Team von EmC2". Jede Zeile ein eigener Absatz. Gilt für BU und AH.
+// Doku: docs/online-signing-form.md
 function closingBlock(d) {
   const validity = d.ValidityDate
-    ? ` Dieses Angebot ist gültig bis ${esc(d.ValidityDate)}.`
+    ? `<p>Dieses Angebot ist gültig bis ${esc(d.ValidityDate)}.</p>`
     : "";
   const sigImg = d.OurSignatureImage
     ? `<img class="our-sig-img" src="${d.OurSignatureImage}" alt="Unterschrift EmC2">`
     : "";
+  const name = d.Ansprechpartner ? `<p>${esc(d.Ansprechpartner)}</p>` : "";
   return `
     <div class="closing">
-      <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.${validity} Mit freundlichen Grüßen.</p>
+      <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.</p>
+      ${validity}
+      <p>Mit freundlichen Grüßen</p>
       ${sigImg}
+      ${name}
       <p class="b">Ihr Team von EmC2</p>
     </div>`;
 }

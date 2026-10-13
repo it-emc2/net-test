@@ -561,6 +561,11 @@ app.post("/api/price", async (req, res) => {
   try {
     const payload = req.body;
     const result = await pricing.computePrices(payload);
+    // One readable line per price call (replaces the per-helper spam).
+    console.log(
+      `[price] ${payload?.activeOffer || "bu"} | Aufschlag ${payload?.Kundendaten?.aufschlag || "–"} | total ${result?.total} € | markup ${result?.markup} €` +
+        (payload?._priceTag ? ` | ${payload._priceTag}` : " | UI refresh"),
+    );
     res.json(result);
   } catch (err) {
     console.error(err);

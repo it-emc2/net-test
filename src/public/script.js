@@ -649,7 +649,17 @@ const toast = {
 
 window.toast = window.toast || toast;
 
-// Update-checker: polls /api/version every 5 min; shows a refresh toast on new deploy
+// Update-checker: checks /api/version at boot, when the tab comes back into
+// view, and daily at 19:30. On a new deploy it reloads by itself while the form
+// is untouched; once the user has typed, it only offers the reload (toast).
+// Fresh-page reload after the SW swap is in sw-register.js.
+// isTrusted: the app fires ~150 synthetic change/input events itself (restore,
+// defaults), which must not count as the user having typed.
+window.__userEdited = false;
+const markUserEdited = (e) => { if (e.isTrusted) window.__userEdited = true; };
+document.addEventListener("input", markUserEdited, true);
+document.addEventListener("change", markUserEdited, true);
+
 (function startUpdateChecker() {
   let knownBuildId = null;
   let poller = null;
@@ -719,8 +729,9 @@ window.toast = window.toast || toast;
         return;
       }
       if (buildId !== knownBuildId) {
-        showUpdateToast();
         clearTimeout(poller);
+        if (!window.__userEdited) location.reload();
+        else showUpdateToast();
       }
     } catch (_) {}
   }
@@ -737,6 +748,9 @@ window.toast = window.toast || toast;
 
   checkVersion();
   scheduleNextCheck();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkVersion();
+  });
 
   window.__checkAppVersion = checkVersion;
 })();
@@ -1405,6 +1419,14 @@ function setCheckbox(nameOrId, on) {
 // =================================================================
 // #region 5. AUTO-CALCULATION & FORMATTING WIRING & black white theme
 // =================================================================
+// Aktion Haltegriff: is a grab bar from the active list in this pricing result?
+function hasEligibleGrab(data) {
+  const ids = window.__grabBonusIds || ["CLPESG30"];
+  return (data?.materials?.lines || []).some(
+    (l) => ids.includes(l.productId || l.id) && Number(l.qty) > 0,
+  );
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch("/api/price", {
@@ -1474,25 +1496,6 @@ function wireDAQtyAutoFill() {
 
 // Refresh when a panel becomes visible (by hash or tab click)
 
-function syncShowFreeGrabRowVisibility() {
-  const row = document.getElementById("rb-show-free-grab-row");
-  const bonusGrab = document.getElementById("rb-bonus-grab");
-  const showFree = document.getElementById("rb-show-free-grab");
-  if (!row) return;
-
-  const pricing = window.getCanonicalPricingData?.() || null;
-  const total = Number(pricing?.grabCounts?.total || 0);
-  const shouldShow = !!bonusGrab?.checked && total > 0;
-
-  row.style.display = shouldShow ? "" : "none";
-  row.hidden = !shouldShow;
-  row.setAttribute("aria-hidden", String(!shouldShow));
-
-  if (!shouldShow && showFree) {
-    showFree.checked = false;
-  }
-}
-
 function autoRefreshOnEnter() {
   // 1) Hash-based navigation (#rabatt, #kosten-details, #debug …)
   window.addEventListener("hashchange", () => {
@@ -1517,11 +1520,9 @@ function autoRefreshOnEnter() {
     });
 
   // 3) Bonus checkbox itself should also re-render on change
-  document.getElementById("rb-bonus-grab")?.addEventListener("change", () => {
-    syncShowFreeGrabRowVisibility();
-    refetchAndRender();
-  });
-  document.getElementById("rb-show-free-grab")?.addEventListener("change", () => {
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", (e) => {
+    // Rabatt given → freeze this offer's grab-bar list against later admin edits.
+    if (e.target.checked) window.__grabBonusIdsPinned = true;
     refetchAndRender();
   });
 }
@@ -1664,6 +1665,33 @@ function hoursToHHMM(n) {
   const m = mins % 60;
   return `${h}:${String(m).padStart(2, "0")}`;
 }
+
+// BWT door color pills: buttons write the hidden bwtDoor*Color inputs, which stay
+// the saved/restored value. restoreBwt() calls window.syncBwtDoorColors().
+(function initBwtDoorColors() {
+  const form = document.getElementById("form-bwt");
+  if (!form) return;
+  const sync = () =>
+    form.querySelectorAll(".bwt-door-colors").forEach((group) => {
+      const input = group.querySelector("input");
+      group.querySelectorAll("button[data-value]").forEach((b) =>
+        b.setAttribute("aria-checked", String(b.dataset.value === input.value)),
+      );
+    });
+  form.addEventListener("click", (e) => {
+    const b = e.target.closest(".bwt-door-colors button[data-value]");
+    if (!b) return;
+    e.preventDefault(); // don't toggle the surrounding door card checkbox
+    const input = b.closest(".bwt-door-colors").querySelector("input");
+    input.value = b.dataset.value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    sync();
+  });
+  form.addEventListener("reset", () => setTimeout(sync));
+  window.syncBwtDoorColors = sync;
+  sync();
+})();
 
 (function initBwtSteelAutoNote() {
   const form = document.getElementById("form-bwt");
@@ -3189,6 +3217,8 @@ function startOfferFlow(offerKey) {
   window.__bwtFreigrenzenLegacyOffer = false;
   window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  window.__grabBonusIdsPinned = false;
+  window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -3636,7 +3666,7 @@ function collectDuschabtrennungConfigurator(doc) {
     qa.push({
       kind: "config",
       label: ln.label || "Duschabtrennung (Konfigurator)",
-      qty: 1,
+      qty: Math.max(1, Number(ln?.qty) || 1),
       // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
       // avoiding the German-format ambiguity where "411.6" would parse to 4116.
       price: price,
@@ -3649,7 +3679,8 @@ function collectDuschabtrennungConfigurator(doc) {
   // persist for restore
   try {
     const state = typeof api.getState === "function" ? api.getState() : null;
-    doc.duschabtrennung.configurator = { state, lines };
+    const previewImages = typeof api.getPreviewImageData === "function" ? api.getPreviewImageData() : [];
+    doc.duschabtrennung.configurator = { state, lines, previewImages };
   } catch {
     /* non-fatal */
   }
@@ -4720,7 +4751,10 @@ function buildPayload() {
   // Two-person address/greeting overrides (Zusammenfassung). Only for a real
   // two-person offer; otherwise leave empty so the PDF composes the single-person
   // name/greeting itself. Empty string => mapData fallback.
-  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  const _twoPersonsFinal = !_isSZ && (
+    /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase())
+      ? !!payload.Kundendaten.ahZweiPersonen
+      : !!payload.Kundendaten.twoPersons);
   payload.Kundendaten.kundenName = _twoPersonsFinal
     ? String(document.getElementById("zfKundenName")?.value || "").trim()
     : "";
@@ -4738,9 +4772,17 @@ function buildPayload() {
     materialDiscountPct: rabattEnabled && isFinite(pct) ? pct / 100 : 0,
     bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
     bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
-    showFreeGrabInMaterial:
-      rabattEnabled && !!document.getElementById("rb-show-free-grab")?.checked,
   };
+
+  // Aktion Haltegriff: snapshot the eligible grab bars so a later admin edit
+  // can't add/remove the bonus on this offer. Only sent while the bonus is on
+  // and the list differs from the historical 30 cm-only rule (= what pricing
+  // assumes when absent): any other offer keeps its pricing fingerprint, so
+  // an admin edit never makes unrelated saved offers recompute.
+  const grabIds = window.__grabBonusIds || ["CLPESG30"];
+  if (payload.rabatt.bonusGrab && JSON.stringify(grabIds) !== '["CLPESG30"]') {
+    payload.pricingRules.grabBonusIds = [...grabIds];
+  }
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
@@ -6412,6 +6454,55 @@ function validateWandverkleidung() {
   }
   return true;
 }
+// D_65418: Dekor defaults to "Marmor weiß" and wvKind to "Fliesenspiegel", so a
+// forgotten Plattenformat (997/1497) silently drops every panel, profile and
+// consumable from Angebot + Kalkulation. Same totals as pricing-core.
+function wvPanelsMissing(payload, offerType) {
+  if (offerType !== "bu") return false;
+  const wv = payload?.wandverkleidung;
+  if (!wv?.wvKind || wv.wvKind === "Keine") return false;
+  const extras = Object.values(wv.extraColors || {}).flat();
+  const total =
+    (Number(wv.wvQty997) || 0) +
+    (Number(wv.wvQty1497) || 0) +
+    extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
+  return total === 0;
+}
+window.wvPanelsMissing = wvPanelsMissing;
+// Resolves true = proceed anyway, false = back to the WV tab.
+window.confirmWvPanels = function (payload, offerType) {
+  if (!wvPanelsMissing(payload, offerType)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    document.getElementById("wvMissingOverlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "wvMissingOverlay";
+    overlay.className = "ang-stage-overlay";
+    overlay.innerHTML = `
+      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
+        <h3 id="wvMissingTitle" class="ang-stage-title">Wandverkleidung ohne Platten</h3>
+        <p class="ang-stage-text">
+          Wandverkleidung „${escapeHtml(payload.wandverkleidung.wvKind)}“ ist gewählt, aber kein
+          Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.
+        </p>
+        <div class="ang-stage-actions">
+          <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
+          <button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = (value) => {
+      overlay.remove();
+      if (!value) location.hash = "Wandverkleidung";
+      resolve(value);
+    };
+    overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
+    overlay.querySelector("#wvMissingGo").addEventListener("click", () => close(true));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
+  });
+};
 function validateOptional() {
   return true;
 }
@@ -6771,6 +6862,31 @@ document.body.addEventListener("click", (e) => {
 // AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
 // while /admin/api/config/public is loading.
 window.__entlastungsbetragMonat = 131;
+// Monthly Entlastungsbetrag incl. the "2 Personen mit Pflegegrad" doubling
+// (§ 45b is per insured person). Used by pricing and the ⚡ Dauer optimizer.
+window.getAHEntlastungsbetragMonat = function () {
+  var zwei = !!document.getElementById("ahZweiPersonen")?.checked;
+  return window.__entlastungsbetragMonat * (zwei ? 2 : 1);
+};
+// AH prices client-side, but the bottom bar (Gesamt / Eigenanteil) only
+// refreshed via updatePricing() on step changes. Call this after any AH
+// price input changes so the bar follows immediately.
+window.refreshAHPricing = function () {
+  if (/^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase()) &&
+      typeof window.updatePricing === "function") {
+    window.updatePricing();
+  }
+};
+(function initAhPerson2Toggle() {
+  var cb = document.getElementById("ahZweiPersonen");
+  var box = document.getElementById("ahPerson2Fields");
+  if (!cb || !box) return;
+  cb.addEventListener("change", function () {
+    box.hidden = !cb.checked;
+    box.setAttribute("aria-hidden", String(!cb.checked));
+    window.refreshAHPricing(); // Entlastungsbetrag ×1 / ×2
+  });
+})();
 // AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
@@ -6786,10 +6902,17 @@ window.__bwtTravelTimeFreeHoursLive = 2;
 window.__bwtKmFreeThresholdLive = 200;
 window.__bwtTravelTimeFreeHours = 2;
 window.__bwtKmFreeThreshold = 200;
+// Aktion Haltegriff: eligible grab bars (GRAB_BONUS_IDS). Same Live/pinned
+// split as the BWT Freigrenzen above.
+window.__grabBonusIdsLive = ["CLPESG30"];
+window.__grabBonusIds = ["CLPESG30"];
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
-fetch("/admin/api/config/public")
+// Re-run when the admin modal closes (admin-modal.js), so edits there apply
+// without a page reload.
+window.__loadPublicConfig = function () {
+return fetch("/admin/api/config/public", { cache: "no-store" })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
     if (!d) return;
@@ -6799,6 +6922,8 @@ fetch("/admin/api/config/public")
       if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
       var ebLabel = document.getElementById("ebMonatLabel");
       if (ebLabel) ebLabel.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+      var ebLabel2 = document.getElementById("ebMonatLabel2");
+      if (ebLabel2) ebLabel2.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
     }
     if (typeof d.VERHINDERUNGSPFLEGE_JAHR === "number") {
       window.__verhinderungspflegeJahr = d.VERHINDERUNGSPFLEGE_JAHR;
@@ -6819,6 +6944,15 @@ fetch("/admin/api/config/public")
       window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
       if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
     }
+    if (Array.isArray(d.GRAB_BONUS_IDS)) {
+      window.__grabBonusIdsLive = d.GRAB_BONUS_IDS;
+      if (!window.__grabBonusIdsPinned) {
+        const changed = JSON.stringify(window.__grabBonusIds) !== JSON.stringify(d.GRAB_BONUS_IDS);
+        window.__grabBonusIds = d.GRAB_BONUS_IDS;
+        // Re-price so the "Haltegriff gratis" checkbox follows the new list.
+        if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
+      }
+    }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
@@ -6830,6 +6964,8 @@ fetch("/admin/api/config/public")
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
+};
+window.__loadPublicConfig();
 
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
@@ -6940,7 +7076,92 @@ fetch("/admin/api/config/public")
     if (typeof window.renderAHKostenPreview === "function") {
       window.renderAHKostenPreview();
     }
+    window.refreshAHPricing?.();
   }
+
+  // Largest 5-min Dauer (≤ 8 h) for ONE row whose monthly price fits the
+  // Entlastungsbetrag on its own. Visits rarer than monthly (Vierteljährlich/
+  // Halbjährlich/Jährlich) each fall in their own month, so one visit must fit
+  // that month's budget — no pooling of several months into one visit.
+  function maxMinsForBudget(freq, rate) {
+    freq = Math.max(freq, 1);
+    var reisezeitH = 0, anfahrtPerEinsatz = 0;
+    if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+      var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+      reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+      anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+    }
+    var budget = window.getAHEntlastungsbetragMonat();
+    var bestMins = 0;
+    for (var m = 5; m <= 480; m += 5) {
+      var price = Math.round(
+        (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * rate) * 100
+      ) / 100;
+      if (price > budget) break;
+      bestMins = m;
+    }
+    return bestMins;
+  }
+
+  // "⚡ Gesamtzeit": scale every row's Dauer by ONE factor (keeps the entered
+  // HnD:AB ratio) so the whole AH price fits the Entlastungsbetrag. Prices via
+  // computeAHGesamt, so zone, "Gleicher Termin" and 2 Personen all count.
+  function optimizeAllForEntlastungsbetrag() {
+    serialize();
+    var services = JSON.parse(jsonInput.value || "[]");
+    var rows = [], si = 0;
+    [alltagsList, haushaltList].forEach(function (list) { // same order as serialize()
+      list.querySelectorAll(".ah-service-card").forEach(function (card) {
+        var rate = card.getAttribute("data-type") === "Haushaltsnahedienstleistungen" ? STUNDENSATZ_HND : STUNDENSATZ_AB;
+        var svc = services[si++];
+        card.querySelectorAll(".ah-sched-row").forEach(function (row, ri) {
+          var sched = svc.schedules[ri];
+          var freq  = FREQ_PER_MONTH[sched.regelmaessigkeit]; // Einmalig isn't priced → skipped
+          var base  = parseDurationMinutes(sched.dauer);
+          if (base && typeof freq === "number") {
+            rows.push({ row: row, sched: sched, base: base, cap: maxMinsForBudget(freq, rate) });
+          }
+        });
+      });
+    });
+    if (!rows.length) return;
+
+    var budget = window.getAHEntlastungsbetragMonat();
+    var original = jsonInput.value;
+    // ≥ 5 min per row: never silently wipe a service the consultant entered.
+    function minsAt(r, k) { return Math.max(5, Math.min(r.cap, Math.floor((r.base * k) / 5) * 5)); }
+    function priceAt(k) {
+      rows.forEach(function (r) {
+        var m = minsAt(r, k);
+        r.sched.dauer = Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+      });
+      jsonInput.value = JSON.stringify(services);
+      return window.computeAHGesamt().allBase;
+    }
+    if (priceAt(0) > budget) {
+      // Even 5 min per row exceeds the budget (fixed Anfahrt + Reisezeit alone).
+      jsonInput.value = original;
+      alert("Die gewählten Leistungen passen nicht in den Entlastungsbetrag (" + budget +
+        " €/Monat): schon Anfahrt und Fahrtzeit liegen darüber. Bitte Regelmäßigkeit reduzieren " +
+        "oder \"Gleicher Termin wie HnD\" nutzen.");
+      return;
+    }
+    var lo = 0, hi = Math.max.apply(null, rows.map(function (r) { return r.cap / r.base; })) + 0.01;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (priceAt(mid) <= budget) lo = mid; else hi = mid;
+    }
+
+    rows.forEach(function (r) {
+      var m = minsAt(r, lo);
+      var hEl = r.row.querySelector(".ah-dauer-h"), mEl = r.row.querySelector(".ah-dauer-m");
+      hEl.value = String(Math.floor(m / 60));
+      mEl.value = String(m % 60);
+      hEl.dispatchEvent(new Event("input", { bubbles: true })); // syncDauer → serialize → totals
+    });
+  }
+  var optimizeAllBtn = document.getElementById("ahOptimizeAllBtn");
+  if (optimizeAllBtn) optimizeAllBtn.addEventListener("click", optimizeAllForEntlastungsbetrag);
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
   function updateTitlesAndButtons() {
@@ -7112,7 +7333,7 @@ fetch("/admin/api/config/public")
       var combinedText = document.createElement("span");
       combinedText.innerHTML =
         "<strong>Gleicher Termin wie HnD</strong><br>" +
-        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrtspauschale wird nur einmal berechnet.</span>";
+        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrt und Reisezeit werden am gemeinsamen Tag nur einmal berechnet.</span>";
 
       combinedRow.appendChild(combinedCb);
       combinedRow.appendChild(combinedText);
@@ -7261,22 +7482,7 @@ fetch("/admin/api/config/public")
 
         var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
         if (typeof freq !== "number") return;
-
-        var reisezeitH = 0, anfahrtPerEinsatz = 0;
-        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
-          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
-          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
-          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
-        }
-
-        var bestMins = 0;
-        for (var m = 5; m <= 480; m += 5) {
-          var price = Math.round(
-            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ) * 100
-          ) / 100;
-          if (price > window.__entlastungsbetragMonat) break;
-          bestMins = m;
-        }
+        var bestMins = maxMinsForBudget(freq, STUNDENSATZ);
         rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
         rDauerM.value = bestMins ? String(bestMins % 60) : "";
         syncDauer();
@@ -7286,7 +7492,7 @@ fetch("/admin/api/config/public")
 
       var rOptBtn = document.createElement("button");
       rOptBtn.type = "button";
-      rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+      rOptBtn.title = "Dauer auf Entlastungsbetrag optimieren";
       rOptBtn.textContent = "⚡";
       rOptBtn.style.cssText =
         "background:none; border:1px solid var(--border); border-radius:4px;" +
@@ -8822,7 +9028,53 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
 
-  function applyAutomatisch(rawEur) {
+  // Largest u (Aufschlag in 1/10000 %) with priceAt(u) <= goal, starting at
+  // the estimate u0. slope = estimated € per unit. Price is monotone in u but
+  // not linear (server rounds per step, BWT grabs carry the Aufschlag in their
+  // line price): first jump straight at the goal using the slope, then bracket
+  // (steps of ~1 ct) and bisect. Stops as soon as a price hits the goal exactly
+  // — a higher u with the same price changes nothing. -1 if even u=0 is over.
+  async function findBestAufschlagUnits(priceAt, u0, goal, slope) {
+    const hit = (p) => Math.abs(p - goal) < 0.005;
+    let lo = Math.max(0, u0);
+    let p;
+    if (slope > 0) {
+      for (let i = 0; i < 3; i++) {
+        p = await priceAt(lo);
+        if (hit(p)) return lo;
+        const next = Math.max(0, lo + Math.floor((goal - p) / slope));
+        if (next === lo) break;
+        lo = next;
+      }
+    }
+    const step0 = slope > 0 ? Math.max(1, Math.floor(0.01 / slope)) : 1;
+    let step = step0;
+    while ((p = await priceAt(lo)) > goal) {
+      if (lo === 0) return -1;
+      lo = Math.max(0, lo - step);
+      step *= 2;
+    }
+    if (hit(p)) return lo;
+    step = step0;
+    let hi = lo + step;
+    while ((p = await priceAt(hi)) <= goal) {
+      if (hit(p)) return hi;
+      lo = hi;
+      step *= 2;
+      hi = lo + step;
+    }
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      p = await priceAt(mid);
+      if (hit(p)) return mid;
+      if (p <= goal) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+  window.__findBestAufschlagUnits = findBestAufschlagUnits;
+
+  async function applyAutomatisch(rawEur) {
     const pricing = window.__pricing;
     if (!pricing) {
       alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
@@ -8833,7 +9085,10 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
       return;
     }
-    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    // "4.180" / "4.180,50" → thousands dots removed before parsing
+    const targetTotal = parseFloat(
+      String(rawEur).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."),
+    );
     if (!Number.isFinite(targetTotal) || targetTotal <= 0) {
       alert("Bitte einen gültigen Zielpreis eingeben.");
       return;
@@ -8841,13 +9096,48 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
     const netAmount = currentTotal - (vatOnNet || 0);
     const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
-    const newPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
-    const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
-    if (!Number.isFinite(rounded) || rounded < 0) {
-      alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
-      return;
+    const estPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const u0 = Number.isFinite(estPct) ? Math.floor(estPct * 1e6) : 0; // 1 unit = 0.0001 %
+
+    // Total must end up strictly below the target — as close as possible.
+    const goal = Math.round(targetTotal * 100 - 1) / 100;
+    const pctStr = (u) => (u / 10000).toFixed(4);
+    const cache = new Map();
+    const priceAt = async (u) => {
+      if (!cache.has(u)) {
+        const pl = window.buildPayload();
+        pl.Kundendaten = { ...(pl.Kundendaten || {}), aufschlag: `${pctStr(u)}%` };
+        pl._priceTag = `Zielpreis ${targetTotal} € · call #${cache.size + 1}`; // DEBUG Zielpreis: server log label
+        cache.set(u, Number((await window.__fetchPrice(pl))?.total));
+        // DEBUG Zielpreis: one line per /api/price call
+        console.log(`[Zielpreis] call #${cache.size}: ${pctStr(u)}% → ${cache.get(u)} € ${cache.get(u) <= goal ? "≤" : ">"} goal ${goal}`);
+      } else {
+        console.log(`[Zielpreis] cached: ${pctStr(u)}% → ${cache.get(u)} €`);
+      }
+      return cache.get(u);
+    };
+
+    if (autoBtn) autoBtn.disabled = true;
+    // DEBUG Zielpreis
+    console.log(`[Zielpreis] target ${targetTotal} € | goal ${goal} € | current ${currentTotal} € @ ${(currentPctVal * 100).toFixed(4)}% | markup ${currentMarkup} € | estimate ${pctStr(u0)}%`);
+    console.time("[Zielpreis] duration");
+    try {
+      // € per unit: total grows by factor × markupBase per 100 % (1 unit = 1e-6)
+      const slope = currentPctVal > 0 ? (factor * currentMarkup / currentPctVal) * 1e-6 : 0;
+      const best = await findBestAufschlagUnits(priceAt, u0, goal, slope);
+      console.log(`[Zielpreis] DONE: ${cache.size} server call(s) → ${pctStr(best)}% = ${cache.get(best)} €${Math.abs(cache.get(best) - goal) < 0.005 ? " (goal hit → stopped early)" : ""}`);
+      console.timeEnd("[Zielpreis] duration");
+      if (best < 0) {
+        alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+        return;
+      }
+      setAufschlag(pctStr(best));
+    } catch (err) {
+      console.error("[Zielpreis]", err);
+      alert("Zielpreis-Berechnung fehlgeschlagen. Bitte erneut versuchen.");
+    } finally {
+      if (autoBtn) autoBtn.disabled = false;
     }
-    setAufschlag(String(rounded));
   }
 
   document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
@@ -9407,10 +9697,140 @@ function pgbReveal(el, on) {
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
     if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
+    // Miete → "Genehmigung des Vermieters erforderlich?" = Ja, Eigentum → Nein.
+    // Beim Wiederherstellen eines Entwurfs nicht, dort zählt der gespeicherte Wert.
+    if (name === "wohnsituation" && !window.__restoring) {
+      if (e.target.value === "Miete") setRadio("vermieterGenehmigungErforderlich", "Ja");
+      if (e.target.value === "Eigentum") setRadio("vermieterGenehmigungErforderlich", "Nein");
+    }
   });
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// BU/BWT: Vermieter-Genehmigung aus dem Bitrix-Deal vorbelegen.
+// Sobald #auftragId eine Deal-ID bekommt (Kalender, Hauptmenü, Planung, Hand),
+// liefert GET /api/bitrix/deal/:id -> vermieter { erforderlich, liegtVor }
+// (je true/false/null). null = unbekannt -> Formular bleibt wie es ist.
+// Doku: docs/vermieter-genehmigung.md
+// -------------------------------------------------------------------------
+// Foto/Datei-Uploads -> Bitrix-Auftrag (Feld + Timeline-Notiz): Kasse, Vermieter.
+// Doku: docs/kasse-freigabe-upload.md
+(function initDealUploads() {
+  const setup = (type, inputId, statusId, onDone) => {
+    const input = document.getElementById(inputId);
+    const status = document.getElementById(statusId);
+    const box = document.querySelector(`label.dealUploadBox[for="${inputId}"]`);
+    if (!input || !status || !box) return;
+    const title = box.querySelector(".du-title");
+    const hint = box.querySelector(".du-hint");
+    const done = [];
+    // state: "" | busy | ok | err — shown inside the box, mirrored to the aria-live span
+    const show = (state, t, h) => {
+      if (state) box.dataset.state = state; else delete box.dataset.state;
+      box.setAttribute("aria-busy", state === "busy" ? "true" : "false");
+      title.textContent = t;
+      hint.textContent = h;
+      status.textContent = `${t} ${h}`;
+    };
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      const dealId = (document.getElementById("auftragId")?.value || "").trim();
+      if (!/^\d+$/.test(dealId)) return show("err", "Auftrag ID fehlt", "Bitte zuerst eine Auftrag ID eintragen und erneut wählen.");
+      if (file.size > 15 * 1024 * 1024) return show("err", "Datei zu groß", "Maximal 15 MB. Bitte erneut wählen.");
+      show("busy", "Wird hochgeladen …", file.name);
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] || "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch(`/api/bitrix/deal/${dealId}/upload/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name || `${type}.jpg`, base64 }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || resp.status);
+        done.push(file.name);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei${data.kept === false ? " (Hinweis: Feld enthält nur die neueste Datei, frühere siehe Timeline)" : ""}`);
+        if (onDone) onDone();
+      } catch (e) {
+        show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);
+      }
+    });
+  };
+
+  setup("kasse", "kasseFreigabeFile", "kasseFreigabeStatus");
+  // Vermieter-Bestätigung hochgeladen => "liegt vor" = Ja (Satz entfällt im Angebot)
+  setup("vermieter", "vermieterUploadFile", "vermieterUploadStatus", () =>
+    setRadio("vermieterGenehmigung", "Ja"),
+  );
+
+  // Vermieter-Upload nur zeigen, wenn Genehmigung erforderlich = Ja
+  const row = document.getElementById("vermieterUploadRow");
+  const sync = () => {
+    if (row) row.hidden = document.querySelector('input[name="vermieterGenehmigungErforderlich"]:checked')?.value !== "Ja";
+  };
+  document
+    .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+    .forEach((el) => el.addEventListener("change", sync));
+  window.addEventListener("offerflow:changed", sync);
+  sync();
+})();
+
+(function initVermieterFromDeal() {
+  const input = document.getElementById("auftragId");
+  if (!input) return;
+  let lastId = "";
+
+  input.addEventListener("change", async () => {
+    const id = input.value.trim();
+    if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
+    if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
+    if (!["bu", "bwt"].includes(currentOfferKey)) return;
+    lastId = id;
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      if (!res.ok || input.value.trim() !== id) return; // Fehler oder ID inzwischen geändert
+      const { contact, vermieter } = await res.json();
+
+      // Schutz: manche Flows schreiben eine Kontakt-ID ins Feld. Gehört der
+      // Deal zu einem anderen Kontakt als im Formular, nichts übernehmen.
+      const formContactId = document.getElementById("bitrixContactId")?.value.trim();
+      if (formContactId && contact?.ID && String(contact.ID) !== formContactId) return;
+
+      if (vermieter?.erforderlich === true) {
+        setRadio("wohnsituation", "Miete");
+        setRadio("vermieterGenehmigungErforderlich", "Ja");
+      } else if (vermieter?.erforderlich === false) {
+        setRadio("wohnsituation", "Eigentum");
+        setRadio("vermieterGenehmigungErforderlich", "Nein");
+      }
+      if (vermieter?.liegtVor === true) setRadio("vermieterGenehmigung", "Ja");
+      if (vermieter?.liegtVor === false) setRadio("vermieterGenehmigung", "Nein");
+    } catch (e) {
+      console.warn("[vermieter] Deal konnte nicht geladen werden:", e);
+    }
+  });
+
+  // Pflichtfeld nur bei BU/BWT. Bei anderen Angeboten ist die Zeile nur
+  // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
+  // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
+  const syncRequired = () => {
+    const on = ["bu", "bwt"].includes(currentOfferKey);
+    document
+      .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+      .forEach((el) => { el.required = on; });
+  };
+  window.addEventListener("offerflow:changed", syncRequired);
+  syncRequired();
 })();
 
 // -------------------------------------------------------------------------
@@ -9428,8 +9848,15 @@ function pgbReveal(el, on) {
   const val = (id) => String(document.getElementById(id)?.value || "").trim();
   const salutation = () =>
     document.querySelector('input[name="salutation"]:checked')?.value || "";
+  // AH has its own "2 Personen" switch + p2* fields in Kundendaten; BU uses twoPersons + partner*.
+  const isAh = () => /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase());
+  const pSal = () => isAh()
+    ? document.querySelector('input[name="p2Salutation"]:checked')?.value || ""
+    : val("partnerSalutation");
+  const pFirst = () => val(isAh() ? "p2FirstName" : "partnerFirstName");
+  const pLast = () => val(isAh() ? "p2LastName" : "partnerLastName");
   const isTwoPersons = () =>
-    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    !!document.querySelector(isAh() ? "#ahZweiPersonen:checked" : 'input[name="twoPersons"]:checked') &&
     document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
 
   const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
@@ -9443,11 +9870,11 @@ function pgbReveal(el, on) {
 
   function composeName() {
     const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
-    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
-    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+    const partner = [pFirst(), pLast()].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(pSal(), partner)}`.trim();
   }
   function composeGreeting() {
-    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(pSal(), pLast())}`;
     return two.charAt(0).toUpperCase() + two.slice(1);
   }
 
@@ -9467,13 +9894,14 @@ function pgbReveal(el, on) {
   // Recompose when any source field changes.
   const srcIds = [
     "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+    "p2FirstName", "p2LastName", "ahZweiPersonen",
   ];
   srcIds.forEach((id) => {
     const el = document.getElementById(id);
     el?.addEventListener("input", refresh);
     el?.addEventListener("change", refresh);
   });
-  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"], input[name="p2Salutation"]').forEach((el) => {
     el.addEventListener("change", refresh);
   });
   window.addEventListener("offerflow:changed", refresh);
@@ -9566,6 +9994,7 @@ function getKundendatenPageData() {
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
     vermieterGenehmigung:
       data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
+    vermieterGenehmigungErforderlich: checkedValue("vermieterGenehmigungErforderlich"), // "Ja" | "Nein" | ""
     zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
     badStockwerk:
       (checkedValue("badStockwerk") === "Anderes OG"
@@ -11543,6 +11972,7 @@ function attachDuschwanneToPayload(payload) {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
+  window.__fetchPrice = fetchPrice; // Zielpreis search: price a payload without applying it
 
   window.__pricing = null;
   let pricingRequestSeq = 0;
@@ -11705,7 +12135,13 @@ document
 // Formula: billMin = max(10, ceil(oneWayMinutes / 10) × 10)
 //          zone    = (billMin - 10) / 10 + 1
 
+// Hof city PLZs are always Zone 1 (routing often returns 11 min at the edge).
+// Capped at 15 min so a manual Zone 2+ button click is still respected.
+var AH_ZONE1_PLZ = ["95026", "95028", "95030", "95032"];
+
 window.computeAHZoneFromMinutes = function(oneWayMinutes) {
+  var plz = (document.getElementById("postalCode")?.value || "").trim();
+  if (AH_ZONE1_PLZ.indexOf(plz) !== -1 && oneWayMinutes <= 15) oneWayMinutes = 10;
   var billMin = Math.max(10, Math.ceil(oneWayMinutes / 10) * 10);
   var zone    = (billMin - 10) / 10 + 1;
   return { zone: zone, billMin: billMin };
@@ -11815,10 +12251,13 @@ window.computeAHGesamt = function computeAHGesamt() {
   var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
   var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
 
-  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
-  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  // Same visit as HnD: on shared days (min of both visit counts) HnD keeps the
+  // trip — Anfahrt and Reisezeit — so AB bills neither for those visits.
   var abCombinedVisit   = !!(abSvc && abSvc.combinedVisit);
-  var abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  var abSharedEinsaetze = abCombinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
+  var abSharedReiseH    = abSharedEinsaetze * reisezeitH;
+  ab.totalMonatlichH    = Math.max(0, ab.totalMonatlichH - abSharedReiseH);
+  var abAnfahrtEinsaetze = ab.totalEinsaetze - abSharedEinsaetze;
   var abAnfahrtTotal    = r2(abAnfahrtEinsaetze * ANFAHRT_PER_EINSATZ);
   var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
   var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
@@ -11830,7 +12269,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   // confirmed it on the Finanzierung step — nothing is assumed, so skipping that step
   // (or leaving every toggle off) leaves the Eigenanteil equal to the full Gesamt.
   var entlastungsbetragNutzen  = !!document.getElementById("ahEntlastungsbetragNutzen")?.checked;
-  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.__entlastungsbetragMonat : 0;
+  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.getAHEntlastungsbetragMonat() : 0;
   var verhinderungspflegeMonat = Number(document.getElementById("ahVerhinderungspflegeMonat")?.value) || 0;
   var umwidmungBeantragt       = !!document.getElementById("ahUmwidmungBeantragt")?.checked;
   var umwidmungMonat           = umwidmungBeantragt ? (Number(document.getElementById("ahUmwidmungBetrag")?.value) || 0) : 0;
@@ -11866,6 +12305,8 @@ window.computeAHGesamt = function computeAHGesamt() {
     hasAb:             ab.totalMonatlichH > 0,
     abTotalEinsaetze:  ab.totalEinsaetze,
     abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+    abSharedEinsaetze: abSharedEinsaetze,
+    abSharedReiseH:    abSharedReiseH,
     abCombinedVisit:   abCombinedVisit,
     abTotalMonatlichH: ab.totalMonatlichH,
     abAnfahrtTotal:    abAnfahrtTotal,
@@ -11955,7 +12396,11 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   });
   if (hasAb) sections.push({
     title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
-    sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
+    sp: (function () {
+      var x = splitH(ah.abSchedRows);
+      x.t = Math.max(0, x.t - (ah.abSharedReiseH || 0)); // shared days: HnD carries the Fahrtzeit
+      return x;
+    })(), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
     einsaetze: ah.abAnfahrtEinsaetze, anfahrt: ah.abAnfahrtTotal,
     combinedVisit: ah.abCombinedVisit,
     servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
@@ -12948,6 +13393,11 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const optSum = Number(data.optionalDisplayUI?.sum || 0);
     const rabattAmount = Number(data.rabattAmount || 0);
     const bonusGross = Number(data.bonusGross || 0);
+    // Aktion Haltegriff: the Angebot shows fixed Material/Arbeit values instead
+    // of the real purchase price — say so, so the two can be compared.
+    const grabReal = Number(data.grabBonusReal || 0);
+    const grabMat = Number(data.grabBonusMaterial || 0);
+    const grabArb = Number(data.grabBonusArbeit || 0);
     // Percent label: "19", "19,5" — never a trailing ",00".
     const fmtPct = (frac) => {
       const p = (Number(frac) || 0) * 100;
@@ -12989,6 +13439,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
+      ${grabReal ? `<div class="kosten-sums__note">davon Aktion Haltegriff ${euroC(grabReal)} (Einkauf) · im Angebot: +${euroC(grabMat)} Material, +${euroC(grabArb)} Arbeit, −${euroC(grabMat + grabArb)} Aktion — Nettobetrag gleich</div>` : ""}
       <div class="kosten-sums__rule kosten-sums__subtotal"><span>Nettobetrag:</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div><span>zzgl. ${taxPct}% MwSt.:</span> <b>${euroC(data.vatOnNet || 0)}</b></div>
       <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
@@ -13007,14 +13458,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     `;
     const totalsCard = card("Summen", sums, recomputeFooter);
 
-    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG30 presence
+    // --- Show/hide "Haltegriff gratis" checkbox: server sets freeId only for admin-listed grab bars
     (function () {
       const bonusGrab = document.getElementById("rb-bonus-grab");
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const total = Number(data?.grabCounts?.total || 0);
-    const shouldShow = total > 0;
+      const shouldShow = hasEligibleGrab(data);
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -14570,8 +15020,6 @@ function restoreRabatt(r) {
   }
   setCheckboxById("rb-bonus-300", !!r.bonus300);
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
-  setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
-  syncShowFreeGrabRowVisibility();
 
   // "Rabatt hinzufügen?" toggle: enabled if the offer had any discount/bonus,
   // or an explicit rabattEnabled flag was saved.
@@ -14644,9 +15092,6 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId("bwtDoorStdQty", bwt.bwtDoorStdQty);
   }
-  if (bwt.bwtDoorStdColor != null) {
-  setByNameOrId("bwtDoorStdColor", bwt.bwtDoorStdColor);
-}
 
   if (bwt.bwtDoorBudgetQty != null) {
     setByNameOrId("bwtDoorBudgetQty", bwt.bwtDoorBudgetQty);
@@ -14708,10 +15153,12 @@ if (typeof syncBwtDoorStdHeightCaption === "function") {
     setRadio("bwtAnschlag", bwt.bwtAnschlag);
   }
 
-  // --- Farbe (tray_color: color radio group) ---
-  if (bwt.tray_color) {
-    setRadio("tray_color", bwt.tray_color);
-  }
+  // --- Farbe: old offers saved it in the removed "Farbe der Tür" card (tray_color) ---
+  const trayColor = { "Weiß": "weiß", manhattan: "Manhattan", bahama_beige: "Beige" }[bwt.tray_color];
+  ["bwtDoorStdColor", "bwtDoorBudgetColor", "bwtDoorVariodoorColor"].forEach((k) =>
+    setByNameOrId(k, trayColor || bwt[k]),
+  );
+  window.syncBwtDoorColors?.();
 
   // --- Haltegriffe (bwtAids[] + *_Qty) ---
   let aids = [];
@@ -14777,6 +15224,12 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("date", k.date);
   setByNameOrId("firstName", k.firstName);
   setByNameOrId("lastName", k.lastName);
+  // AH: 2. Person mit Pflegegrad (checkbox change reveals the fields)
+  setByNameOrId("ahZweiPersonen", !!k.ahZweiPersonen);
+  setRadio("p2Salutation", k.p2Salutation);
+  setByNameOrId("p2FirstName", k.p2FirstName || "");
+  setByNameOrId("p2LastName", k.p2LastName || "");
+  setRadio("p2Pflegegrad", k.p2Pflegegrad);
   setByNameOrId("phone", k.phone);
   setByNameOrId("email", k.email);
   setByNameOrId("street", k.street);
@@ -14789,6 +15242,9 @@ function restoreKundendaten(k, offer) {
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
+  // Ältere Entwürfe speicherten einen Boolean (Checkbox): true → "Ja", false → offen lassen.
+  const vgErf = k.vermieterGenehmigungErforderlich === true ? "Ja" : k.vermieterGenehmigungErforderlich;
+  if (vgErf === "Ja" || vgErf === "Nein") setRadio("vermieterGenehmigungErforderlich", vgErf);
   setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
   const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
   const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);
@@ -14808,6 +15264,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
   setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("emailCc", k.emailCc);
   setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
@@ -15146,17 +15603,18 @@ function restoreOptionalPage(opt) {
         "opt_TEMPDSU250",
         "opt_V22BG903R",
         "opt_V12DS250E",
+        "opt_STRAYT",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+      cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -15198,12 +15656,15 @@ function restoreOptionalPage(opt) {
   document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
-  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "CLSIAS", "DERWWCOSVP", "DEDWWC", "CLPWWCOS5", "0601010003"];
-  requestAnimationFrame(() => {
+  const wcProductIds = window.WC_PRODUCT_IDS || [];
+  const applySavedWcSelection = () => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
       const qty = document.getElementById(`qty_${pid}`);
-      const savedQty = opt[`qty_${pid}`];
+      // A saved WC selection without this product (e.g. saved before it was
+      // added to WC_WALL_PRODUCTS) means "not selected" — otherwise new
+      // required products would silently appear in old offers/drafts.
+      const savedQty = opt[`qty_${pid}`] ?? (opt.wcMontage ? "0" : undefined);
       if (qty != null && savedQty != null) {
         qty.value = String(savedQty);
       }
@@ -15212,7 +15673,20 @@ function restoreOptionalPage(opt) {
         cb.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-  });
+  };
+  // This used to run only inside requestAnimationFrame, which the browser never
+  // fires while the tab or app is in the background. Restoring then left the WC
+  // tiles on their render defaults (ensureWallProductsRendered: accessories on,
+  // WC and seat off) — a saved Dusch-WC DEDWWC + seat DERSIAS silently became
+  // WWCAG90, and the draft repriced about 1.338 € lower. Same trap as pgbReveal.
+  //
+  // The cat_WC / wcMontage change events above render the tiles synchronously,
+  // so they exist now: apply right away, so the restore's own pricing pass
+  // already sees the saved WCs. The second pass catches anything rendered late,
+  // via setTimeout, which background tabs throttle but still run. Both passes
+  // set the same saved values, so running twice is harmless.
+  applySavedWcSelection();
+  setTimeout(applySavedWcSelection, 0);
 }
 
 // Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
@@ -17255,12 +17729,6 @@ async function __recalcRabattNow() {
 
 
 document
-  .getElementById("rb-show-free-grab")
-  ?.addEventListener("change", async () => {
-    await __recalcRabattNow();
-  });
-
-document
   .getElementById("rb-bonus-300")
   ?.addEventListener("change", async () => {
     const cb = document.getElementById("rb-bonus-300");
@@ -17461,8 +17929,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    const total = Number(data?.grabCounts?.total || 0);
-    const allow = total > 0;
+    // Aktion Haltegriff applies to the grab bars listed in the admin panel.
+    const allow = hasEligibleGrab(data);
 
     if (row) {
       row.style.display = allow ? "" : "none";
@@ -17470,23 +17938,9 @@ window.setPricingData = function setPricingData(data) {
       row.setAttribute("aria-hidden", String(!allow));
     }
     if (!allow && cb && cb.checked) {
-      //cb.checked = false;
+      cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
-
-    const showFreeRow = document.getElementById("rb-show-free-grab-row");
-    const showFreeCb = document.getElementById("rb-show-free-grab");
-    const allowShowFree = allow && !!cb?.checked;
-
-    if (showFreeRow) {
-      showFreeRow.style.display = allowShowFree ? "" : "none";
-      showFreeRow.hidden = !allowShowFree;
-      showFreeRow.setAttribute("aria-hidden", String(!allowShowFree));
-    }
-    if (!allowShowFree && showFreeCb?.checked) {
-      showFreeCb.checked = false;
-    }
-    syncShowFreeGrabRowVisibility();
   })();
 };
 
@@ -17517,7 +17971,7 @@ window.setPricingData = function setPricingData(data) {
       slider.dispatchEvent(new Event("input", { bubbles: true }));
       slider.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    ["rb-bonus-300", "rb-bonus-grab", "rb-show-free-grab"].forEach((id) => {
+    ["rb-bonus-300", "rb-bonus-grab"].forEach((id) => {
       const cb = document.getElementById(id);
       if (cb && cb.checked) {
         cb.checked = false;
@@ -17627,6 +18081,9 @@ function initBasinAutoAccessories() {
   const coair40 = document.getElementById("opt_COAIR40");
   const qCOAIR40 = document.getElementById("qty_COAIR40");
 
+  const dep65u = document.getElementById("opt_DEP65U");
+  const qDEP65U = document.getElementById("qty_DEP65U");
+
   const basinSonder = document.getElementById("opt_BASIN_SONDER");
   const qBasinSonder = document.getElementById("qty_BASIN_SONDER");
 
@@ -17662,6 +18119,7 @@ function initBasinAutoAccessories() {
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
     { key: "on35", cb: on35, qtyInput: qON35 },
     { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
+    { key: "dep65u", cb: dep65u, qtyInput: qDEP65U },
     { key: "sonder", cb: basinSonder, qtyInput: qBasinSonder },
   ].filter((b) => b.cb && b.qtyInput);
 
@@ -18616,6 +19074,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
   wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
+  wireTileQty("opt_STRAYT", "qty_STRAYT_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -18650,6 +19109,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   wireTileQty("opt_ON35", "qty_ON35_wrap");
   wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
+  wireTileQty("opt_DEP65U", "qty_DEP65U_wrap");
   wireTileQty("opt_BASIN_SONDER", "qty_BASIN_SONDER_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
@@ -18697,6 +19157,13 @@ cat_SHOWER: "menu_SHOWER",
         image: "./assets/Gipskarton.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
         category: "accessory",
+      },
+      {
+        productId: "WWCAG90",
+        image: "./assets/WWCAG90.jpg",
+        fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
+        category: "accessory",
+        montage: "both", // one tile, moved into the visible montage group
       },
       {
         productId: "DERSIAS",
@@ -18760,6 +19227,9 @@ cat_SHOWER: "menu_SHOWER",
         montage: "Bodenmontage",
       },
     ];
+
+    // Single source for the cat_WC kid lists and the saved-offer restore.
+    window.WC_PRODUCT_IDS = WC_WALL_PRODUCTS.map((item) => item.productId);
 
     const montageOf = (item) => item.montage || "Wandmontage";
 
@@ -18892,82 +19362,75 @@ cat_SHOWER: "menu_SHOWER",
         return card;
       };
 
-      // Accessories group (no seats here anymore)
-      if (accessories.length) {
+      // Per montage: required products (pre-checked), WC+seat pairs
+      // (exclusive), optional products (user-driven). Group order matters:
+      // "both" tiles move into the first non-WC group of the active montage.
+      const addGroup = (montage, kind, title, fill) => {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
+        group.dataset.montage = montage;
+        group.dataset.kind = kind;
         group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "Produkte für Wandmontage";
+        const header = document.createElement("h4");
+        header.textContent = title;
         group.appendChild(header);
         const grid = document.createElement("div");
-        grid.className = "opt-grid";
+        grid.className = kind === "wc" ? "opt-grid wc-pairs-grid" : "opt-grid";
         grid.style.width = "100%";
-        for (const item of accessories) grid.appendChild(buildTile(item));
+        fill(grid);
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
-      }
+      };
 
-      // WCs group: each WC paired with its corresponding seat tile, every
-      // pair on its own row. Shared seats (e.g. DERSIAS for both DERWWCOSVP
-      // and DEDWWC) are rendered in every pair — the first occurrence keeps
-      // the canonical opt_/qty_ ids; subsequent occurrences are alias tiles.
-      if (wcs.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
-        group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "WCs für Wandmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid wc-pairs-grid";
-        grid.style.width = "100%";
-        const renderedSeats = new Set();
-        for (const wc of wcs) {
-          const pair = document.createElement("div");
-          pair.className = "wc-pair";
-          pair.dataset.wcProductId = wc.productId;
-          pair.appendChild(buildTile(wc));
-          const seat = wc.seatId && seatById[wc.seatId];
-          if (seat) {
-            if (!renderedSeats.has(seat.productId)) {
-              pair.appendChild(buildTile(seat));
-              renderedSeats.add(seat.productId);
-            } else {
-              pair.appendChild(
-                buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
-              );
-            }
-          }
-          grid.appendChild(pair);
+      // Shared seats (e.g. DERSIAS for both DERWWCOSVP and DEDWWC) are
+      // rendered in every pair — the first occurrence keeps the canonical
+      // opt_/qty_ ids; subsequent occurrences are alias tiles.
+      const renderedSeats = new Set();
+      for (const montage of ["Wandmontage", "Bodenmontage"]) {
+        const inMontage = (item) =>
+          montageOf(item) === montage ||
+          (item.montage === "both" && montage === "Wandmontage"); // rendered once, moved later
+        const required = accessories.filter(inMontage);
+        const wcsHere = wcs.filter(inMontage);
+        const optional = WC_WALL_PRODUCTS.filter(
+          (item) => item.category === "floor" && inMontage(item),
+        );
+
+        if (required.length) {
+          addGroup(montage, "required", `Produkte für ${montage}`, (grid) => {
+            for (const item of required) grid.appendChild(buildTile(item));
+          });
         }
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
-      }
 
-      // Bodenmontage group
-      const floorProducts = WC_WALL_PRODUCTS.filter(
-        (item) => item.category === "floor",
-      );
-      if (floorProducts.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Bodenmontage";
-        group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "Produkte für Bodenmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid";
-        grid.style.width = "100%";
-        for (const item of floorProducts) grid.appendChild(buildTile(item));
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
+        if (wcsHere.length) {
+          addGroup(montage, "wc", `WCs für ${montage}`, (grid) => {
+            for (const wc of wcsHere) {
+              const pair = document.createElement("div");
+              pair.className = "wc-pair";
+              pair.dataset.wcProductId = wc.productId;
+              pair.appendChild(buildTile(wc));
+              const seat = wc.seatId && seatById[wc.seatId];
+              if (seat) {
+                if (!renderedSeats.has(seat.productId)) {
+                  pair.appendChild(buildTile(seat));
+                  renderedSeats.add(seat.productId);
+                } else {
+                  pair.appendChild(
+                    buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
+                  );
+                }
+              }
+              grid.appendChild(pair);
+            }
+          });
+        }
+
+        if (optional.length) {
+          const title = required.length ? `Weitere Produkte für ${montage}` : `Produkte für ${montage}`;
+          addGroup(montage, "optional", title, (grid) => {
+            for (const item of optional) grid.appendChild(buildTile(item));
+          });
+        }
       }
 
       await Promise.all(
@@ -19269,6 +19732,7 @@ cat_SHOWER: "menu_SHOWER",
       );
     }
 
+    let lastMontage = null;
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
@@ -19284,6 +19748,7 @@ cat_SHOWER: "menu_SHOWER",
       }
       if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
+        lastMontage = null;
         return;
       }
 
@@ -19296,6 +19761,24 @@ cat_SHOWER: "menu_SHOWER",
           );
         setMontageChecked("Wandmontage", showSeat);
         setMontageChecked("Bodenmontage", showFloor);
+        // "both" tiles: move into the active montage's first non-WC group
+        const targetGrid = wallProductsGrid?.querySelector(
+          `[data-montage="${selectedMontage}"]:not([data-kind="wc"]) .opt-grid`,
+        );
+        const switched = lastMontage !== selectedMontage;
+        WC_WALL_PRODUCTS.forEach((item) => {
+          const both = item.montage === "both";
+          if (item.category !== "accessory" && !both) return;
+          if (!both && montageOf(item) !== selectedMontage) return;
+          const cb = document.getElementById(`opt_${item.productId}`);
+          if (!cb) return;
+          const card = cb.closest(".opt-item");
+          if (both && targetGrid && card.parentElement !== targetGrid) targetGrid.appendChild(card);
+          // required products are re-checked whenever the montage changes
+          if (switched && item.category === "accessory") cb.checked = true;
+          applyGeneratedTileQty(cb, document.getElementById(`qty_${item.productId}_wrap`));
+        });
+        lastMontage = selectedMontage;
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -19378,17 +19861,18 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_TEMPDSU250",
       "opt_V22BG903R",
       "opt_V12DS250E",
+      "opt_STRAYT",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
     cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+    cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
@@ -19429,7 +19913,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
     // any basin keeps the required block open, not just CL60
-    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"]
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"]
       .map((id) => document.getElementById(id))
       .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
@@ -19534,7 +20018,8 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_V12DS250E", // Duschsystem V1 Thermostat
+        "opt_V12DS250E", // Duschsystem V1 Thermostat,
+        "opt_STRAYT", // New edge duschsystem
       ],
     },
     {
@@ -20088,6 +20573,7 @@ function restoreFinanzierung(fin) {
   var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
 
   function refresh() {
+    window.refreshAHPricing?.();
     if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
     if (umCb && umField) {
       umField.hidden = !umCb.checked;
@@ -20284,8 +20770,6 @@ window.addEventListener("offerflow:changed", () => {
         bwtDoorStdHeight: "36", // valid range: 33–40
         // bwtAnschlag must match the HTML radio value exactly ("Links" or "Rechts")
         bwtAnschlag: "Rechts",
-        // tray_color must match HTML radio value exactly ("Weiß", "manhattan", "bahama_beige")
-        tray_color: "Weiß",
         bwtAids: ["Haltegriff30"],
         bwtAidsHaltegriff30Qty: "1",
         bwtNote: "Musterdaten für Badewannentür.",
@@ -20533,7 +21017,6 @@ window.addEventListener("offerflow:changed", () => {
                   bwtDoorStdColor: "weiß",
                   bwtDoorStdHeight: "36",
                   bwtAnschlag: "Rechts",
-                  tray_color: "Weiß",
                   bwtAids: ["Haltegriff30"],
                   bwtAidsHaltegriff30Qty: "1",
                   bwtNote: "Musterdaten · Badewannentür",
@@ -22793,6 +23276,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -22905,6 +23389,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -25129,6 +25614,7 @@ function initHlFlexofitWizard() {
     outside: ["Aluminiumrohr 35mm"],
   };
   const outsideFinish = "Edelstahl gebürstet";
+  const SONDER_TAB = "__sonder__";
 
   let entries = [];
   let entriesByKey = new Map();
@@ -25154,6 +25640,7 @@ function initHlFlexofitWizard() {
       tubes: {}, // catalogKey -> meters
       finish: "",
       fittings: {}, // catalogKey -> qty
+      sonderprodukte: [],
       open: { area: true, rohr: false, beschlaege: false },
       ...overrides,
     };
@@ -25192,15 +25679,18 @@ function initHlFlexofitWizard() {
   const isComplete = (c) =>
     !!c.area &&
     (Object.values(c.tubes).some((m) => Number(m) > 0) ||
-      Object.values(c.fittings).some((q) => Number(q) > 0));
+      Object.values(c.fittings).some((q) => Number(q) > 0) ||
+      (c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0));
 
   const summaryTextFor = (c) => {
     const parts = [];
     if (c.area) parts.push(c.area === "inside" ? "Innen" : "Außen");
     const nT = Object.keys(c.tubes).length;
     const nF = Object.keys(c.fittings).length;
+    const nS = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
     if (nT) parts.push(`${nT} Rohr${nT === 1 ? "" : "e"}`);
     if (nF) parts.push(`${nF} Beschlag${nF === 1 ? "" : "-läge"}`);
+    if (nS) parts.push(`${nS} Sonderprodukt${nS === 1 ? "" : "e"}`);
     return parts.join(" · ") || "Unvollständig";
   };
 
@@ -25208,7 +25698,7 @@ function initHlFlexofitWizard() {
   const autoOpenNext = (c) => {
     c.open = { area: false, rohr: false, beschlaege: false };
     if (!c.area) c.open.area = true;
-    else if (!Object.keys(c.tubes).length) c.open.rohr = true;
+    else if (!Object.keys(c.tubes).length && !(c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0)) c.open.rohr = true;
     else c.open.beschlaege = true;
   };
 
@@ -25247,23 +25737,37 @@ function initHlFlexofitWizard() {
   const rohrBodyHtml = (c) => {
     if (!c.area) return `<div class="hl-wiz__empty">Bitte zuerst Bereich wählen.</div>`;
     const groups = (TUBE_GROUPS[c.area] || []).filter((f) => tubeEntriesFor(c.area, f).length);
-    if (!groups.includes(c.tubeTab)) c.tubeTab = groups[0] || "";
+    if (!groups.includes(c.tubeTab) && c.tubeTab !== SONDER_TAB) c.tubeTab = groups[0] || SONDER_TAB;
     const active = c.tubeTab;
 
     const countIn = (family) =>
       tubeEntriesFor(c.area, family).filter((e) => c.tubes[hlCatalogKey(e)] != null).length;
+    const nSonder = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
 
-    const tabs =
-      groups.length > 1
-        ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
-          groups
-            .map((family) => {
-              const n = countIn(family);
-              return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
-            })
-            .join("") +
-          `</div>`
-        : "";
+    const tabs = `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
+      groups.map((family) => {
+        const n = countIn(family);
+        return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
+      }).join("") +
+      `<button type="button" class="hl-wiz__finish${active === SONDER_TAB ? " is-selected" : ""}" data-tube-tab="${SONDER_TAB}">Sonderprodukt${nSonder ? ` (${nSonder})` : ""}</button>` +
+      `</div>`;
+
+    if (active === SONDER_TAB) {
+      const sonders = c.sonderprodukte || [];
+      const rows = sonders.map((s, idx) => `
+        <div class="hl-wiz__sonder-row">
+          <input type="text" placeholder="Bezeichnung" value="${escapeHtml(String(s.name || ""))}" data-sonder-name data-idx="${idx}" />
+          <input type="text" inputmode="decimal" placeholder="Preis netto" value="${escapeHtml(String(s.price || ""))}" data-sonder-price data-idx="${idx}" />
+          <input type="text" placeholder="Artikel-ID" value="${escapeHtml(String(s.articleId || ""))}" data-sonder-article data-idx="${idx}" />
+          <input type="number" min="1" step="1" placeholder="1" value="${Number(s.qty) > 0 ? s.qty : 1}" data-sonder-qty data-idx="${idx}" />
+          <button type="button" class="hl-wiz__sonder-del" data-sonder-del data-idx="${idx}" title="Entfernen">×</button>
+        </div>`).join("");
+      return `<p class="hl-wiz__hint">Material und eine Farbe wählen. Rohre werden pro Meter berechnet — Länge unten in der Positionsliste angeben.</p>
+        ${tabs}
+        <p class="hl-wiz__hint" style="margin-top:14px">Bezeichnung, Netto-Preis (EK) und Artikel-ID eingeben — Menge unten in der Positionsliste anpassen.</p>
+        <div class="hl-wiz__sonder-list">${rows}</div>
+        <button type="button" class="hl-wiz__sonder-add" data-sonder-add><i class="fa-solid fa-plus"></i> Sonderprodukt hinzufügen</button>`;
+    }
 
     const picks = (active ? tubeEntriesFor(c.area, active) : [])
       .map((entry) => {
@@ -25390,14 +25894,15 @@ function initHlFlexofitWizard() {
     const stepTitle = { area: "Bereich", rohr: "Rohr & Farbe", beschlaege: "Beschläge & Oberfläche" };
     const nTubes = Object.keys(c.tubes).length;
     const nFit = Object.keys(c.fittings).length;
+    const nSonderValid = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0).length;
     const stepValue = {
       area: c.area ? (c.area === "inside" ? "Innen" : "Außen") : "—",
-      rohr: nTubes ? `${nTubes} Rohr(e)` : "—",
+      rohr: nTubes ? `${nTubes} Rohr(e)` : nSonderValid ? `${nSonderValid} Sonderprodukt(e)` : "—",
       beschlaege: c.area === "outside" || c.finish ? `${activeFinishFor(c)} · ${nFit} Beschlag/-läge` : "—",
     };
     const stepDone = {
       area: !!c.area,
-      rohr: nTubes > 0,
+      rohr: nTubes > 0 || nSonderValid > 0,
       beschlaege: c.area === "outside" ? nFit > 0 : !!c.finish && nFit > 0,
     };
     const steps = ["area", "rohr", "beschlaege"]
@@ -25487,6 +25992,32 @@ function initHlFlexofitWizard() {
         refreshOffer();
       });
     });
+    panelEl.querySelectorAll("[data-sonder-name],[data-sonder-price],[data-sonder-article],[data-sonder-qty]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const idx = Number(inp.dataset.idx);
+        while (c.sonderprodukte.length <= idx) c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+        const s = c.sonderprodukte[idx];
+        if ("sonderName" in inp.dataset) s.name = inp.value.trim();
+        if ("sonderPrice" in inp.dataset) s.price = parseFloat(String(inp.value).replace(",", ".")) || "";
+        if ("sonderArticle" in inp.dataset) s.articleId = inp.value.trim();
+        if ("sonderQty" in inp.dataset) s.qty = Math.max(1, parseInt(inp.value) || 1);
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-sonder-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.idx);
+        c.sonderprodukte.splice(idx, 1);
+        renderPanel();
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelector("[data-sonder-add]")?.addEventListener("click", () => {
+      c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+      renderPanel();
+    });
   };
 
   const renderLedger = () => {
@@ -25532,6 +26063,22 @@ function initHlFlexofitWizard() {
             <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="fit" title="Entfernen">×</button></td>
           </tr>`);
       });
+      (c.sonderprodukte || []).forEach((s, idx) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        const lineTotal = q * price;
+        total += lineTotal;
+        count++;
+        cRows.push(`
+          <tr>
+            <td><div class="hl-wiz__ledger-name">${escapeHtml(s.name)}</div><div class="hl-wiz__ledger-sub">${escapeHtml(s.articleId || "")}</div></td>
+            <td class="num"><span class="hl-wiz__ledger-qty"><input type="number" min="0" step="1" value="${q}" data-ledger-qty data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" /> Stk.</span></td>
+            <td class="num">${money(price)}</td>
+            <td class="num">${money(lineTotal)}</td>
+            <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" title="Entfernen">×</button></td>
+          </tr>`);
+      });
       if (cRows.length) {
         if (!activeConfig) rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
         rows.push(...cRows);
@@ -25556,10 +26103,15 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = inp.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        const bag = kind === "tube" ? c.tubes : c.fittings;
         const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
-        if (v <= 0) delete bag[key];
-        else bag[key] = v;
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          if (c.sonderprodukte[idx]) c.sonderprodukte[idx].qty = v > 0 ? v : 0;
+        } else {
+          const bag = kind === "tube" ? c.tubes : c.fittings;
+          if (v <= 0) delete bag[key];
+          else bag[key] = v;
+        }
         renderAll();
         refreshOffer();
       });
@@ -25569,7 +26121,12 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = btn.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          c.sonderprodukte.splice(idx, 1);
+        } else {
+          delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        }
         renderAll();
         refreshOffer();
       });
@@ -25613,6 +26170,18 @@ function initHlFlexofitWizard() {
           price: Number(entry.product.price) || 0,
         });
       });
+      (c.sonderprodukte || []).forEach((s) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        lines.push({
+          label: s.name,
+          category: c.name,
+          productId: s.articleId || "HL_SONDER",
+          qty: q,
+          price,
+        });
+      });
     });
     return lines;
   };
@@ -25627,6 +26196,7 @@ function initHlFlexofitWizard() {
         finish: c.finish,
         tubes: { ...c.tubes },
         fittings: { ...c.fittings },
+        sonderprodukte: [...(c.sonderprodukte || [])],
       }));
     },
     async restore(saved) {
@@ -25641,6 +26211,7 @@ function initHlFlexofitWizard() {
             c.finish = s?.finish || "";
             c.tubes = { ...(s?.tubes || {}) };
             c.fittings = { ...(s?.fittings || {}) };
+            c.sonderprodukte = Array.isArray(s?.sonderprodukte) ? [...s.sonderprodukte] : [];
             autoOpenNext(c);
             return c;
           })
@@ -26022,6 +26593,9 @@ function syncSummaryLeadIds(rawLeadId){
     postAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
+// Offer restore, postal restore and onEnterZusammenfassung live in other
+// scopes and guard with `typeof syncSummaryLeadIds` — without this they skip silently.
+window.syncSummaryLeadIds = syncSummaryLeadIds;
 
 function syncSummaryRecipientEmail(rawEmail){
   const email = String(rawEmail || "").trim();
@@ -26630,6 +27204,7 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
+let todayPlanningPause = null;
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
@@ -26731,8 +27306,8 @@ function openPlanningNoContactDialog(dealId) {
   if (!modal) return;
   _noContactDealId = String(dealId || "").trim();
   // Fresh state every time — the modal is reused across cards.
-  const first = modal.querySelector('input[name="planningNoContactReason"]');
-  if (first) first.checked = true;
+  const boxes = modal.querySelectorAll('input[name="planningNoContactReason"]');
+  boxes.forEach((b, i) => { b.checked = i === 0; });
   const note = document.getElementById("planningNoContactNote");
   if (note) note.value = "";
   const submit = document.getElementById("planningNoContactSubmit");
@@ -26753,9 +27328,12 @@ async function submitPlanningNoContact() {
   const dealId = _noContactDealId;
   if (!dealId) return;
   const modal = document.getElementById("planningNoContactModal");
-  const reason = modal?.querySelector('input[name="planningNoContactReason"]:checked')?.value || "Kunde nicht erreichbar";
+  const reasons = [...(modal?.querySelectorAll('input[name="planningNoContactReason"]:checked') || [])].map(i => i.value);
+  if (!reasons.length) reasons.push("Kunde nicht erreichbar");
   const note = String(document.getElementById("planningNoContactNote")?.value || "").trim();
-  const comment = `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reason}` + (note ? `\n${note}` : "");
+  const comment = reasons.length === 1
+    ? `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reasons[0]}` + (note ? `\n${note}` : "")
+    : `\u{1F4F5} Termin nicht zustande gekommen:\n${reasons.map(r => `\u2022 ${r}`).join("\n")}` + (note ? `\n${note}` : "");
 
   const submit = document.getElementById("planningNoContactSubmit");
   if (submit) { submit.disabled = true; submit.textContent = "Verschiebe\u2026"; }
@@ -26763,7 +27341,7 @@ async function submitPlanningNoContact() {
     const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-besichtigung`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ comment, reason: reasons.join(", ") + (note ? ` – ${note}` : "") }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -26773,8 +27351,10 @@ async function submitPlanningNoContact() {
     (typeof showToast === "function") && showToast(
       data?.commentFailed
         ? "Deal verschoben \u2014 Kommentar konnte nicht gespeichert werden."
-        : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
-      data?.commentFailed ? "error" : "success",
+        : data?.plannerSynced === false
+          ? "Deal verschoben \u2014 Routenplaner nicht aktualisiert, bitte Innendienst informieren."
+          : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
+      data?.commentFailed || data?.plannerSynced === false ? "error" : "success",
     );
   } catch (e) {
     console.error("[planning] move-besichtigung failed:", e);
@@ -27501,7 +28081,22 @@ function renderTodayPlanningAppointments(){
     return;
   }
 
-  list.innerHTML = todayPlanningAppointmentsFiltered.map(entry => {
+  // Pause pill rides on the travel row after the last appointment starting
+  // before the pause; no start time -> after the last appointment.
+  const pauseText = formatTodayPause({ todayPause: todayPlanningPause });
+  const [ph, pm] = String(todayPlanningPause?.start || "").split(":").map(Number);
+  const pauseStart = ph * 60 + pm;
+  let pauseIndex = todayPlanningAppointmentsFiltered.length - 1;
+  if(Number.isFinite(pauseStart)){
+    const after = todayPlanningAppointmentsFiltered.findIndex(e => Number(e?.manualStartMinutes) > pauseStart);
+    if(after !== -1) pauseIndex = Math.max(after - 1, 0);
+  }
+  const pauseHtml = pauseText
+    ? `<span class="today-pause-chip"><i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}</span>`
+    : "";
+
+  list.innerHTML = todayPlanningAppointmentsFiltered.map((entry, index) => {
+    const pausePill = index === pauseIndex ? pauseHtml : "";
     const isCancelled = isPlanningEntryCancelled(entry);
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
@@ -27534,9 +28129,9 @@ function renderTodayPlanningAppointments(){
           const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
             ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
             : "";
-          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}${pausePill}</div>`;
         })()
-      : "";
+      : (pausePill ? `<div class="planning-travel-connector planning-pause-row">${pausePill}</div>` : "");
 
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
@@ -27776,14 +28371,7 @@ function applyPlanningPayload(payload){
   const list = document.getElementById("todayPlanningList");
   const { day, entries, planning } = buildPlanningEntries(payload || {});
 
-  const pauseChip = document.getElementById("todayPlanningPause");
-  if(pauseChip){
-    const pauseText = formatTodayPause(planning);
-    pauseChip.hidden = !pauseText;
-    pauseChip.innerHTML = pauseText
-      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
-      : "";
-  }
+  todayPlanningPause = planning?.todayPause || null;
 
   todayPlanningAppointments = entries;
   // Deal "done" state is tracked locally (markDealStage) whenever *this app*
@@ -28696,6 +29284,25 @@ document.addEventListener("DOMContentLoaded", () => {
       country: document.getElementById("postCountry"),
     };
 
+    // Two-way mirror with the Bitrix #auftragId, like EmailManager's
+    // syncLeadIdFields — flows that only write #auftragId must reach Post too.
+    const mainAuftragId = document.getElementById("auftragId");
+    if (mainAuftragId && fields.auftragId) {
+      const pull = () => {
+        if (fields.auftragId.value !== mainAuftragId.value) fields.auftragId.value = mainAuftragId.value;
+      };
+      const push = () => {
+        if (mainAuftragId.value === fields.auftragId.value) return;
+        mainAuftragId.value = fields.auftragId.value;
+        mainAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+        mainAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      mainAuftragId.addEventListener("input", pull);
+      mainAuftragId.addEventListener("change", pull);
+      fields.auftragId.addEventListener("input", push);
+      fields.auftragId.addEventListener("change", push);
+    }
+
     // Postversand only. The Flyer "Barrierefreies Wohnen" is mail-only and never
     // goes out by post — keep in sync with STATIC_POSTAL_ATTACHMENTS in
     // src/routes/post.js, which refuses it as well.
@@ -28917,6 +29524,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function fillPostalDefaults() {
+      if (fields.auftragId && !String(fields.auftragId.value || "").trim()) {
+        fields.auftragId.value = String(document.getElementById("auftragId")?.value || "").trim();
+      }
       if (!String(fields.firstName?.value || "").trim()) {
         fields.firstName.value = String(document.getElementById("firstName")?.value || "").trim();
       }
@@ -29252,7 +29862,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
+    // Set once a letter went out; keeps the button locked until the panel is
+    // reset or another offer is loaded, so one click = at most one letter.
+    let postalSent = false;
+
     sendBtn.addEventListener("click", async () => {
+      if (sendBtn.disabled) return;
+      sendBtn.disabled = true;
       try {
         fillPostalDefaults();
         validate();
@@ -29276,7 +29892,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        sendBtn.disabled = true;
         setStatus("Erzeuge Angebots-PDF …", "info");
         const { blob: pdfBlob, filename: pdfFilename } = await fetchOfferPdfBlobLocal();
         const pdfBase64 = await blobToBase64Local(pdfBlob);
@@ -29324,10 +29939,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setStatus("Sende Brief an onlinebrief24 …", "info");
-        const response = await fetch("/api/post/send", {
+        const sendLetter = (forceResend) => fetch("/api/post/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            forceResend,
             auftragId: String(fields.auftragId?.value || "").trim(),
             recipient: {
               name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
@@ -29343,6 +29959,7 @@ document.addEventListener("DOMContentLoaded", () => {
             attachments: attachmentPayload,
             bitrixDocs,
             docWarnings,
+            internalNote: document.getElementById("internalNote")?.value || "",
             dealIdOverride,
             meta: {
               offerNumber: offerNumber,
@@ -29351,7 +29968,22 @@ document.addEventListener("DOMContentLoaded", () => {
           }),
         });
 
-        const result = await response.json().catch(() => ({}));
+        let response = await sendLetter(false);
+        let result = await response.json().catch(() => ({}));
+        if (response.status === 409 && result?.code === "ALREADY_SENT") {
+          const when = result.lastSentAt ? new Date(result.lastSentAt).toLocaleString("de-DE") : "-";
+          const again = window.confirm(
+            `Für diesen Deal wurde bereits am ${when} ein Brief versendet ` +
+              `(${result.lastOfferNumber || "-"}, onlinebrief24 ${result.lastPrintjobId || "-"}).\n\n` +
+              "Wirklich einen ZWEITEN Brief versenden?",
+          );
+          if (!again) {
+            setStatus("Versand abgebrochen – Brief wurde bereits versendet.", "info");
+            return;
+          }
+          response = await sendLetter(true);
+          result = await response.json().catch(() => ({}));
+        }
         if (!response.ok || result?.ok === false) {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
@@ -29362,6 +29994,11 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
+
+        postalSent = true;
+
+        const noteEl = document.getElementById("internalNote");
+        if (noteEl) noteEl.value = "";
 
         window.__bitrixSendState = {
           lastOfferType: getActiveOfferForPostal() || null,
@@ -29374,10 +30011,11 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const payload = buildPayload();
           const dealId = String(fields.auftragId?.value || "").trim();
+          const offerTotal = Number(window.__pricing?.total) || 0;
           window.__showSentDialog?.({
             via: "post",
             dealId,
-            offerTotal: Number(payload?.pricing?.finalTotal) || 0,
+            offerTotal,
             attachmentNames: [
               ...(result.attachmentNames || []),
               ...bitrixDocs.map((doc) => doc.filename),
@@ -29387,7 +30025,8 @@ document.addEventListener("DOMContentLoaded", () => {
               offerType: payload.activeOffer || "",
               offerNumber,
               isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
-              finalTotal: Number(payload?.pricing?.finalTotal) || 0,
+              selfPayAmount: Number(window.__pricing?.selfPayAmount) || 0,
+              finalTotal: offerTotal,
               payload,
             },
           });
@@ -29398,14 +30037,25 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("[post] send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
       } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = postalSent;
       }
     });
 
+    const unlockSend = () => {
+      postalSent = false;
+      sendBtn.disabled = false;
+    };
+
     window.__postalManager = {
-      reset: resetPostalPanel,
+      reset: () => {
+        unlockSend();
+        resetPostalPanel();
+      },
       getState: serializePostalState,
-      restoreFromPayload: restorePostalState,
+      restoreFromPayload: (state) => {
+        unlockSend();
+        restorePostalState(state);
+      },
       render: renderAttachmentList,
       refreshPrefills: refreshPostalPrefills,
     };

@@ -5,9 +5,38 @@ import path from "path";
 import crypto from "crypto";
 import { PDFDocument } from "pdf-lib";
 import https from "node:https";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
+import PostalSend from "../models/PostalSend.js";
 
 const router = express.Router();
+
+const RESEND_BLOCK_MS = 24 * 60 * 60 * 1000; // a 2nd letter for the same deal within 24h needs forceResend
+const IN_FLIGHT_MS = 2 * 60 * 1000; // lock survives a crashed request for at most 2 min
+
+// Atomically claims the deal for one send. The filter only matches a free,
+// not-recently-sent row; otherwise the upsert hits the unique dealId index
+// (E11000), which is how a concurrent or repeated send is rejected.
+export async function claimPostalSend(dealId, forceResend) {
+  const now = new Date();
+  const sentCutoff = forceResend ? now : new Date(now.getTime() - RESEND_BLOCK_MS);
+  try {
+    await PostalSend.findOneAndUpdate(
+      {
+        dealId,
+        $and: [
+          { $or: [{ inFlightUntil: null }, { inFlightUntil: { $lt: now } }] },
+          { $or: [{ sentAt: null }, { sentAt: { $lt: sentCutoff } }] },
+        ],
+      },
+      { $set: { inFlightUntil: new Date(now.getTime() + IN_FLIGHT_MS) } },
+      { upsert: true },
+    );
+    return null;
+  } catch (err) {
+    if (err?.code !== 11000) throw err;
+    return (await PostalSend.findOne({ dealId }).lean()) || {};
+  }
+}
 
 // onlinebrief24.de / letterei.de API v1 (Stand 30.07.2026, docs1/refs/onlinebrief24-api.pdf.pdf).
 // One request does everything: POST /v1/printjobs with the letter as base64.
@@ -374,6 +403,7 @@ router.post("/send", async (req, res) => {
       meta,
       dealId,
       bitrixEntityType,
+      internalNote,
     } = req.body || {};
 
     const mainFilename = String(document?.filename || "").trim() || "Angebot.pdf";
@@ -432,12 +462,50 @@ router.post("/send", async (req, res) => {
 
     const { mode } = getConfig();
 
+    // ponytail: sends without a deal (password-released dealIdOverride) are not
+    // guarded — there is no key to lock on.
+    const guardDealId = String(meta?.dealId ?? dealId ?? auftragId ?? "").trim();
+    if (guardDealId) {
+      const existing = await claimPostalSend(guardDealId, req.body?.forceResend === true);
+      if (existing) {
+        const inFlight = existing.inFlightUntil && new Date(existing.inFlightUntil) > new Date();
+        logPost("duplicate send blocked", { dealId: guardDealId, offerNumber, inFlight, existing });
+        return res.status(409).json({
+          ok: false,
+          code: inFlight ? "SEND_IN_PROGRESS" : "ALREADY_SENT",
+          error: inFlight
+            ? "Für diesen Deal läuft gerade bereits ein Postversand."
+            : `Für diesen Deal wurde bereits ein Brief versendet (${existing.offerNumber || "-"}).`,
+          lastSentAt: existing.sentAt || null,
+          lastOfferNumber: existing.offerNumber || "",
+          lastPrintjobId: existing.printjobId || "",
+        });
+      }
+    }
+
     let printjob;
     try {
       const result = await ob24Fetch("/printjobs", { method: "POST", body: { letter } });
       printjob = result?.data || null;
     } catch (err) {
+      if (guardDealId) {
+        await PostalSend.updateOne({ dealId: guardDealId }, { $set: { inFlightUntil: null } }).catch(() => {});
+      }
       throw withStage(err, "submit_printjob", { mainFilename, offerNumber });
+    }
+
+    if (guardDealId) {
+      await PostalSend.updateOne(
+        { dealId: guardDealId },
+        {
+          $set: {
+            inFlightUntil: null,
+            sentAt: new Date(),
+            offerNumber,
+            printjobId: String(printjob?.id || ""),
+          },
+        },
+      ).catch((e) => console.warn("[post] PostalSend record failed:", e?.message || e));
     }
 
     // A send without an Auftrag/Deal-ID is released in the frontend by
@@ -494,12 +562,21 @@ router.post("/send", async (req, res) => {
         String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal";
 
       if (timelineEntityId) {
+        if (resolvedEntityType === "deal") await setDealOfferLink(timelineEntityId, offerNumber);
         bitrixResult = await addTimelineComment({
           entityType: resolvedEntityType,
           entityId: timelineEntityId,
           comment,
           attachments: bitrixAttachments,
         });
+        const noteComment = buildInternalNoteComment(internalNote);
+        if (noteComment) {
+          await addTimelineComment({
+            entityType: resolvedEntityType,
+            entityId: timelineEntityId,
+            comment: noteComment,
+          });
+        }
       } else {
         bitrixResult = { skipped: true, reason: "missing entityId" };
       }

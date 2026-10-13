@@ -67,7 +67,6 @@ const CSS = `
   .pos-card .pcalc{font-size:9.5pt; color:#5c6e76; text-align:right;}
   .pos-card .pcalc b{color:#1b2a30; font-size:10.5pt;}
   .note{font-size:9pt; color:#8b9ba1; font-style:italic; margin:4px 0 2px;}
-  .foot{position:fixed; bottom:0; left:0; right:0; font-size:8pt; color:#8b9ba1; border-top:1px solid #dbe4e6; padding-top:6px;}
   .page{page-break-after:always; padding-bottom:20px;}
   .page:last-child{page-break-after:auto;}
 `;
@@ -87,9 +86,11 @@ function headerBlock(data) {
     </div>`;
 }
 
-function footBlock() {
-  return `<div class="foot">EmC2 Attila Landgrafe &middot; Waldstraße 5 &middot; 95032 Hof &middot; service@e-m-c-2.de</div>`;
-}
+// Rendered by Puppeteer in the bottom page margin (footerTemplate), so body
+// content can never flow underneath it. A position:fixed footer inside the body
+// overlapped the last table row on full pages. Footer templates don't inherit
+// page CSS — styles must be inline, with an explicit font-size.
+export const KALKULATION_V2_FOOTER = `<div style="width:calc(100% - 36mm); margin:0 18mm; font-family:Arial,Helvetica,sans-serif; font-size:8pt; color:#8b9ba1; border-top:1px solid #dbe4e6; padding-top:6px; -webkit-print-color-adjust:exact;">EmC2 Attila Landgrafe &middot; Waldstraße 5 &middot; 95032 Hof &middot; service@e-m-c-2.de</div>`;
 
 function posBlock(prefix, data) {
   const no = data[`${prefix}_No`];
@@ -204,14 +205,12 @@ export function buildKalkulationV2Html(data) {
       <tr class="total"><td>Summe, ${esc(data.MitarbeiterCount)} Mitarbeiter</td><td class="num">${esc(data.ArbeitszeitGesamtLabel)}</td><td class="num">${esc(data.ReisezeitGesamtLabel)}</td><td class="num">${esc(data.GesamtzeitLabel)}</td></tr>
     </tbody>
   </table>
-  ${footBlock()}
 </div>
 
 <div class="page">
   ${headerBlock(data)}
   ${posBlock("Pos001", data)}
   ${reisezeitKostenBlock(data)}
-  ${footBlock()}
 </div>
 
 <div class="page">
@@ -229,7 +228,6 @@ export function buildKalkulationV2Html(data) {
     </table>`
       : ""
   }
-  ${footBlock()}
 </div>
 
 </body></html>`;

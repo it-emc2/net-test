@@ -248,37 +248,10 @@ into other dialogs.
 
 ## 4. WC is different: JS-generated tiles
 
-`menu_WC` has no static product tiles. It has `Montageart`
-(Wandmontage/Bodenmontage), `Sitzhöhe`, and a container that
-`wireWcMenu()` fills from the `WC_WALL_PRODUCTS` array (~`script.js:17408`).
-To add a WC product you add an array entry, not HTML:
-
-```js
-{
-  productId: "CLPWCF10",
-  image: "./assets/CLPWCF10.jpg",          // or images: [a, b, c] → carousel
-  fallbackName: "Stand-Flachspül-WC clivia V2 plus …",  // shown until the DB name loads
-  category: "floor",     // "accessory" | "wc" | "seat" | "floor"
-  montage: "Bodenmontage",                 // omitted ⇒ "Wandmontage"
-  // "wc" only: seatId: "CLSIAS", requiredSeatHeight: "erhoeht"
-}
-```
-
-What the fields do:
-- `category: "accessory"` → group *Produkte für Wandmontage*, **checked by default**
-- `category: "wc"` → group *WCs für Wandmontage*, mutually exclusive (picking one
-  greys out the others), pulls in its `seatId` tile automatically
-- `category: "seat"` → rendered inside its WC's pair, driven by the WC selection
-- `category: "floor"` + `montage: "Bodenmontage"` → group *Produkte für
-  Bodenmontage*, user-driven, no exclusivity
-- `requiredSeatHeight: "erhoeht" | "normal"` → tile only visible for that Sitzhöhe
-
-Name and price are fetched per tile from `/api/products/<productId>` and overwrite
-`fallbackName`, so **Step 1 is mandatory** — otherwise the tile shows the fallback
-text and no price. Kid lists (§2.3) still apply; `wireTileQty` does not (the
-generated tiles wire themselves).
-
-Switching Montageart unchecks the hidden side's tiles so nothing invisible prices.
+`menu_WC` has no HTML tiles — every WC product (required parts, WCs + seats, optional
+extras, Wand/Boden/both) is one entry in the `WC_WALL_PRODUCTS` array. Full guide:
+**[wc-produkte.md](wc-produkte.md)**. Step 1 (Products row) still applies; §2.2/§2.3
+(wireTileQty, kid lists) do not.
 
 ---
 

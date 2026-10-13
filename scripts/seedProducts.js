@@ -15,6 +15,7 @@ const products = [
   { productId: 'V22BG903R', name: 'Brausegarnitur individ. 2.2 m. Stange 90cm Schlauch u. HB 3-str. rund verchr. VIGOUR', price: 66.55, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V12DS250E', name: 'Duschsystem V1 Thermostat KB 250mm edge HB V1 5-fach u. Schlauch verchr. VIGOUR', price: 214.50, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'DEDS2503E', name: 'Duschsystem derby Thermostat m KB 250mm HB 3.2 3-fach edge u. Schl. verchr. VIG (verchromt)', price: 278.40, widthCm: null, heightCm: null, lengthCm: null },
+  { productId: 'STRAYT', name: 'Duschsäule m.Thermostat Strayt Chrom Poliert Jacob Delafon', price: 575.49, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'CLTB', name: 'AP-Brause-Thermostat clivia, ohne Brausegarnitur', price: 95.76, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'DEPTB', name: 'AP-Brause-Thermostat derby plus m. therm. Desinfektion Safe-Tec verchromt VIGOUR', price: 198.40, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'CLB', name: 'Einhand-Aufputz-Brausebatterie clivia ohne Brausegarnitur verchromt VIGOUR', price: 60.84, widthCm: null, heightCm: null, lengthCm: null },
