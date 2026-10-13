@@ -161,20 +161,48 @@ if (mountEl) {
     </div>`;
   };
 
+  // Stats are always written with their final value; countUp() only animates
+  // the visible digits from the previous value (as in the WV calculator).
+  const STAT_FMT = { rods: String, bogen: String, len: (v) => (v ? String(v) : "–"), sum: eur };
   const statsHtml = () => {
     const lines = getLines();
     const sum = lines.reduce((a, l) => a + l.net * l.qty, 0);
     const count = (m) => Object.values(m || {}).reduce((a, q) => a + (q > 0 ? q : 0), 0);
     const total = legValues(viewShape(), state.legs).reduce((a, b) => a + b, 0);
+    const b = (key, v) => `<b data-count="${key}" data-v="${v}">${STAT_FMT[key](v)}</b>`;
     return `
-      <div class="vhc-stat"><span class="vhc-stat-label">Vorhangstangen</span><span><b>${count(state.rodQty)}</b> Stück</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Verbindungsbögen</span><span><b>${state.optionalQty[ART.bogen] || 0}</b> Stück</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Vorhanglänge</span><span><b>${total || "–"}</b> cm</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Material netto</span><span><b>${eur(sum)}</b></span></div>`;
+      <div class="vhc-stat"><span class="vhc-stat-label">Vorhangstangen</span><span>${b("rods", count(state.rodQty))} Stück</span></div>
+      <div class="vhc-stat"><span class="vhc-stat-label">Verbindungsbögen</span><span>${b("bogen", state.optionalQty[ART.bogen] || 0)} Stück</span></div>
+      <div class="vhc-stat"><span class="vhc-stat-label">Vorhanglänge</span><span>${b("len", total)} cm</span></div>
+      <div class="vhc-stat"><span class="vhc-stat-label">Material netto</span><span>${b("sum", Math.round(sum * 100) / 100)}</span></div>`;
   };
+
+  const shownStats = {}; // last value per stat, the start of the next count
+  const countUp = () => {
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    mountEl.querySelectorAll(".vhc-stats b[data-count]").forEach((el) => {
+      const key = el.dataset.count, to = Number(el.dataset.v), fmt = STAT_FMT[key];
+      const from = shownStats[key];
+      shownStats[key] = to;
+      if (from == null || from === to || still) return;
+      const t0 = performance.now();
+      const step = (t) => {
+        if (!el.isConnected || el.dataset.v !== String(to)) return;
+        const k = Math.min(1, (t - t0) / 320);
+        const v = from + (to - from) * (1 - (1 - k) ** 3);
+        el.textContent = fmt(key === "sum" ? Math.round(v * 100) / 100 : Math.round(v));
+        if (k < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      // guarantees the exact final value even if frames don't run (background tab)
+      setTimeout(() => { if (el.isConnected) el.textContent = fmt(to); }, 380);
+    });
+  };
+
   const updateStats = () => {
     const el = mountEl.querySelector(".vhc-stats");
     if (el) el.innerHTML = statsHtml();
+    countUp();
   };
 
   const render = () => {
@@ -218,6 +246,7 @@ if (mountEl) {
         <div class="vh-tiles">${tilesHtml()}</div>
       </div>`;
     wire();
+    countUp();
   };
 
   const tilesHtml = () => {
