@@ -22,8 +22,8 @@ describe("Badolux Duschabtrennung model", () => {
     s = w.setComponentSize(s, "TuerSeite", "80 cm", "");
     const r = w.resolveConfiguration(model, s);
     expect(r.lines.map((l) => [l.article.articleNumber, l.article.net])).toEqual([
-      ["PRI80DK19", 242.06],
-      ["PRI80DK18", 229.32],
+      ["PRI80DK19-Z", 242.06], // "Zweiteilig" corner variant, same price
+      ["PRI80DK18-Z", 229.32],
     ]);
     expect(r.lines[0].article.displayName).toBe("Falttür Lissabon (vorn) 90 cm");
   });

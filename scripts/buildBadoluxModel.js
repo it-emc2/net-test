@@ -112,9 +112,11 @@ const component = (key, label, articles) => ({
 const LISSABON = [[80, "PRI80DK18"], [90, "PRI80DK19"], [100, "PRI80DK20"], [120, "PRI80DK21"]];
 const WIEN_FEST = [[60, "PRI80DK13"], [70, "PRI80DK14"], [80, "PRI80DK15"], [90, "PRI63DK16"], [100, "PRI80DK16"], [120, "PRI80DK17"]];
 
-const lissabon = (anschlag, suffix = "", image = "lissabon.webp") =>
+// Corner cabin only: the shop's "Zweiteilig" variant (article number + "-Z", same
+// price) — one of the two doors that meet at the open corner, vs. "Einteilig" for a niche.
+const lissabonEck = (anschlag, suffix, image) =>
   LISSABON.map(([cm, sku]) =>
-    article({ product: "Falttür - Lissabon", cm, size: `${cm} cm`, sku, name: `Falttür Lissabon${suffix}`, slug: "falttuer-lissabon", image, anschlag }),
+    article({ product: "Falttür - Lissabon", cm, size: `${cm} cm`, sku: `${sku}-Z`, name: `Falttür Lissabon${suffix}`, slug: "falttuer-lissabon", image, anschlag }),
   );
 const nischeFalt = (anschlag) => [
   ...LISSABON.map(([cm, sku]) =>
@@ -208,8 +210,8 @@ for (const side of ["links", "rechts"]) {
 leaf({ Einbausituation: "ecke", Tuer: "falt_eck" }, {
   id: "ecke_falt", label: "Eckkabine aus zwei Falttüren Lissabon", image: "lissabon-ecke.webp",
   components: [
-    component("TuerVorn", "Falttür vorn", lissabon("Eckeinstieg", " (vorn)", "lissabon-ecke.webp")),
-    component("TuerSeite", "Falttür an der Seite", lissabon("Eckeinstieg", " (Seite)", "lissabon-ecke.webp")),
+    component("TuerVorn", "Falttür vorn", lissabonEck("Eckeinstieg", " (vorn)", "lissabon-ecke.webp")),
+    component("TuerSeite", "Falttür an der Seite", lissabonEck("Eckeinstieg", " (Seite)", "lissabon-ecke.webp")),
   ],
 });
 for (const side of ["links", "rechts"]) {
