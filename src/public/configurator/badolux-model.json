@@ -62,35 +62,35 @@
       "values": [
         {
           "value": "falt_links",
-          "label": "Anschlag links (Griff rechts)"
+          "label": "Anschlag links — Scharnier links, Griff rechts"
         },
         {
           "value": "falt_rechts",
-          "label": "Anschlag rechts (Griff links)"
+          "label": "Anschlag rechts — Scharnier rechts, Griff links"
         },
         {
           "value": "schiebe_links",
-          "label": "Einstieg links (festes Glas rechts)"
+          "label": "Einstieg links — festes Glas rechts"
         },
         {
           "value": "schiebe_rechts",
-          "label": "Einstieg rechts (festes Glas links)"
+          "label": "Einstieg rechts — festes Glas links"
         },
         {
           "value": "pendel_links",
-          "label": "Festglas links (Tür öffnet rechts)"
+          "label": "Festglas links — Tür rechts"
         },
         {
           "value": "pendel_rechts",
-          "label": "Festglas rechts (Tür öffnet links)"
+          "label": "Festglas rechts — Tür links"
         },
         {
           "value": "walkin_links",
-          "label": "Wandanschluss links"
+          "label": "Wandanschluss links — Glas an der linken Wand"
         },
         {
           "value": "walkin_rechts",
-          "label": "Wandanschluss rechts"
+          "label": "Wandanschluss rechts — Glas an der rechten Wand"
         }
       ]
     },

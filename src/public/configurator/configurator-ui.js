@@ -4,6 +4,7 @@
 // a breadcrumb of answered steps (click to change), and a running line-item summary.
 // Engine logic lives in ./engine.js (ported verbatim from EMC2-scraper, framework-free).
 import * as w from "./engine.js";
+import { specFor, sketchSVG, attachSketch } from "./badolux-sketch.js";
 
 const euro = (n) =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(
@@ -73,6 +74,10 @@ export function mountConfigurator(el, model, options = {}) {
   let state = w.settle(model, options.initialState || w.initialState());
   let pending = { width: null, height: null }; // in-progress component size
   let extrasOpen = false; // Verbreiterungsprofil section collapsed by default
+  // Drawings (picture tiles + live cabin) only for the stepwise Badolux model;
+  // Vigour and the old one-step Badolux model keep their photos / text buttons.
+  const drawings = model.supplier === "BADOLUX" && model.params.some((p) => p.id === "Einbausituation");
+  let lastPicked = null; // param of the last option tap — the live drawing plays the door once
   const emit = (name, payload) => {
     if (typeof options[name] === "function") options[name](payload);
   };
@@ -443,12 +448,18 @@ export function mountConfigurator(el, model, options = {}) {
       .catch((e) => console.warn("[dac] leaf click log failed:", e?.message || e));
   }
 
-  function optionButton(val, onClick) {
+  function optionButton(val, onClick, sketch = "") {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "dac-opt";
-    const src = val.imageId && imageUrl(val.imageId);
-    if (src) {
+    const src = !sketch && val.imageId && imageUrl(val.imageId);
+    if (sketch) {
+      // Badolux: a drawing of the cabin as it would be with this answer.
+      const wrap = document.createElement("span");
+      wrap.className = "dac-opt-sketch";
+      wrap.innerHTML = sketch;
+      btn.appendChild(wrap);
+    } else if (src) {
       const wrap = document.createElement("span");
       wrap.className = "dac-opt-img";
       const img = document.createElement("img");
@@ -461,7 +472,17 @@ export function mountConfigurator(el, model, options = {}) {
     }
     const span = document.createElement("span");
     span.className = "dac-opt-label";
-    span.textContent = val.label;
+    const [title, sub] = sketch ? String(val.label).split(" — ") : [val.label];
+    if (sub) {
+      // "Nische — zwischen zwei Wänden …" → bold title + short explanation
+      const t = document.createElement("span");
+      t.className = "dac-opt-title";
+      t.textContent = title;
+      const u = document.createElement("span");
+      u.className = "dac-opt-sub";
+      u.textContent = sub;
+      span.append(t, u);
+    } else span.textContent = val.label;
     btn.appendChild(span);
     btn.addEventListener("click", onClick);
     return btn;
@@ -478,6 +499,25 @@ export function mountConfigurator(el, model, options = {}) {
 
     // Show the leaf's product image as soon as it's pinned down (right after the
     // last structure question), and keep it visible through finish + sizing.
+    // Badolux: live drawing of the cabin so far; the door moves on hover / tap,
+    // and once right after the door type or side was picked.
+    const spec = drawings ? specFor(state.selections, state.sizes) : null;
+    if (spec) {
+      const box = document.createElement("div");
+      box.className = "dac-sketch";
+      const pic = document.createElement("div");
+      box.appendChild(pic);
+      attachSketch(pic, spec, { autoplay: lastPicked === "Tuer" || lastPicked === "Anschlag" });
+      if (spec.tuer) {
+        const hint = document.createElement("div");
+        hint.className = "dac-sketch-hint";
+        hint.textContent = "Antippen zeigt, wie die Tür öffnet";
+        box.appendChild(hint);
+      }
+      main.appendChild(box);
+    }
+    lastPicked = null;
+
     const previews = previewImages();
     if (previews.length) main.appendChild(leafPreviewEl(previews));
     const infoProducts = currentProducts();
@@ -489,9 +529,16 @@ export function mountConfigurator(el, model, options = {}) {
       const grid = document.createElement("div");
       grid.className = "dac-grid";
       for (const val of w.availableOptions(model, state, step.paramId)) {
+        const sketch = drawings
+          ? sketchSVG(specFor({ ...state.selections, [step.paramId]: val.value }, state.sizes), {
+              small: true,
+              open: step.paramId === "Einbausituation" ? 0 : 0.45, // show how the door moves
+            })
+          : "";
         grid.appendChild(
           optionButton(val, () => {
             logLeafClick(step.paramId, val);
+            lastPicked = step.paramId;
             state = {
               ...w.settle(
                 model,
@@ -502,7 +549,7 @@ export function mountConfigurator(el, model, options = {}) {
             };
             emit("onChange", state);
             render();
-          }),
+          }, sketch),
         );
       }
       main.appendChild(grid);

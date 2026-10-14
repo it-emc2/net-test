@@ -161,14 +161,14 @@ const TUER = [
   { value: "falt_eck", label: "Falttür übers Eck — zwei Falttüren, Einstieg über Eck" },
 ];
 const ANSCHLAG = [
-  { value: "falt_links", label: "Anschlag links (Griff rechts)", text: "Anschlag links" },
-  { value: "falt_rechts", label: "Anschlag rechts (Griff links)", text: "Anschlag rechts" },
-  { value: "schiebe_links", label: "Einstieg links (festes Glas rechts)", text: "Einstieg links" },
-  { value: "schiebe_rechts", label: "Einstieg rechts (festes Glas links)", text: "Einstieg rechts" },
-  { value: "pendel_links", label: "Festglas links (Tür öffnet rechts)", text: "Festglas links" },
-  { value: "pendel_rechts", label: "Festglas rechts (Tür öffnet links)", text: "Festglas rechts" },
-  { value: "walkin_links", label: "Wandanschluss links", text: "Wandanschluss links" },
-  { value: "walkin_rechts", label: "Wandanschluss rechts", text: "Wandanschluss rechts" },
+  { value: "falt_links", label: "Anschlag links — Scharnier links, Griff rechts", text: "Anschlag links" },
+  { value: "falt_rechts", label: "Anschlag rechts — Scharnier rechts, Griff links", text: "Anschlag rechts" },
+  { value: "schiebe_links", label: "Einstieg links — festes Glas rechts", text: "Einstieg links" },
+  { value: "schiebe_rechts", label: "Einstieg rechts — festes Glas links", text: "Einstieg rechts" },
+  { value: "pendel_links", label: "Festglas links — Tür rechts", text: "Festglas links" },
+  { value: "pendel_rechts", label: "Festglas rechts — Tür links", text: "Festglas rechts" },
+  { value: "walkin_links", label: "Wandanschluss links — Glas an der linken Wand", text: "Wandanschluss links" },
+  { value: "walkin_rechts", label: "Wandanschluss rechts — Glas an der rechten Wand", text: "Wandanschluss rechts" },
 ];
 const anschlagText = (v) => ANSCHLAG.find((a) => a.value === v)?.text;
 

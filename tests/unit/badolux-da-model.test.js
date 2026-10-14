@@ -71,3 +71,28 @@ describe("Badolux Duschabtrennung model", () => {
     expect(w.resolveConfiguration(v1, old).net).toBe(242.06);
   });
 });
+
+describe("Badolux drawings (badolux-sketch.js)", () => {
+  let sk;
+  beforeAll(async () => { sk = await import("../../src/public/configurator/badolux-sketch.js"); });
+
+  test("spec follows answers and picked sizes", () => {
+    expect(sk.specFor({})).toBeNull();
+    expect(sk.specFor({ Einbausituation: "ecke" }, { TuerVorn: { width: "100 cm" }, TuerSeite: { width: "80 cm" } }))
+      .toMatchObject({ tuer: "falt_eck", W: 100, D: 80 });
+    expect(sk.specFor({ Einbausituation: "nische", Tuer: "pendel", Anschlag: "pendel_rechts" }, { Festglas: { width: "80 cm (Front 120 cm)" } }))
+      .toMatchObject({ side: "rechts", W: 120, label: "120 cm (80 + 40)" });
+    expect(sk.specFor({ Einbausituation: "nische", Tuer: "falt" }, { Tuer: { width: "171 cm · Stockholm mit Festteil" } }))
+      .toMatchObject({ W: 171, fold: 100 });
+  });
+
+  test("every leaf of the model draws, and the door moves with `open`", () => {
+    for (const leaf of model.leaves) {
+      const spec = sk.specFor(leaf.selections, {});
+      const closed = sk.sketchSVG(spec), open = sk.sketchSVG(spec, { open: 1 });
+      expect(closed).toMatch(/^<svg class="bs"/);
+      expect(closed).not.toMatch(/NaN/);
+      if (spec.tuer) expect(open).not.toBe(closed);
+    }
+  });
+});

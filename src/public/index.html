@@ -21,6 +21,7 @@
 
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./styles/opt_section.css" />
+  <link rel="stylesheet" href="/configurator/badolux-sketch.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
     /* Fußboden prices hidden per request — delete/comment this rule to re-enable */
@@ -5271,6 +5272,22 @@ button.dm-btn-danger:focus-visible {
 
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title {
     margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
+  }
+
+  /* Badolux drawings (badolux-sketch.js): picture tiles + live drawing */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sketch {
+    display: block; width: 100%; max-width: 180px; margin: 0 auto 6px;
+    background: #fafaf9; border-radius: 8px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch {
+    border: 1px solid var(--border); border-radius: 12px; background: #fafaf9;
+    margin-bottom: 16px; padding: 6px; cursor: pointer; touch-action: manipulation;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch .bs { max-width: 560px; max-height: 250px; margin: 0 auto; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-title { display: block; font-weight: 700; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sub { display: block; font-weight: 400; font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch-hint {
+    text-align: center; font-size: 0.78rem; color: #6b7280; margin-top: 2px;
   }
 
   /* Badolux product info from cleverbad.de (description + features), collapsed */

@@ -1,0 +1,18 @@
+/* Badolux Duschabtrennung drawings (badolux-sketch.js). Light drawing on any theme. */
+.bs { display: block; width: 100%; height: auto; }
+.bs .bs-fl { fill: #f1f1ef; }
+.bs .bs-tr { fill: #fbfbfa; stroke: #c9c9c5; stroke-width: 0.8; }
+.bs .bs-w { fill: #e8e8e5; stroke: #8e8e89; stroke-width: 0.9; stroke-linejoin: round; }
+.bs .bs-wb { fill-opacity: 0.25; stroke-opacity: 0.35; }
+.bs .bs-g { fill: rgba(196, 207, 212, 0.38); stroke: #5f6b71; stroke-width: 1.2; stroke-linejoin: round; }
+.bs .bs-gd { fill: rgba(190, 202, 208, 0.48); }
+.bs .bs-hl { stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.4; stroke-linecap: round; }
+.bs .bs-hd { stroke: #7d878c; stroke-width: 3; stroke-linecap: round; }
+.bs .bs-rail { stroke: #b9c0c4; stroke-width: 4; stroke-linecap: round; }
+.bs .bs-bar { stroke: #7d878c; stroke-width: 1.6; }
+.bs .bs-arr { stroke: #6b6b66; stroke-width: 1.3; stroke-dasharray: 5 4; }
+.bs .bs-ah { fill: #6b6b66; font-size: 12px; text-anchor: middle; dominant-baseline: middle; }
+.bs .bs-sw { stroke: #8e8e89; stroke-width: 1; stroke-dasharray: 3 3; }
+.bs .bs-dim { fill: #3f3f3b; font-size: 13px; font-weight: 600; text-anchor: middle; }
+.bs-small .bs-g { stroke-width: 1; }
+.bs-small .bs-w { stroke-width: 0.7; }
