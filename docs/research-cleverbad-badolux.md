@@ -105,3 +105,24 @@ best = kleinste Wand, die diese Premium-Paneele noch braucht · mid = Mitte, ≤
 
 Je cm Wandbreite: Keramico 1,22 € · Vigour 997 1,69 € · Vigour 1497 1,76 €. Nachteil nur bei sehr kleinen Wänden knapp über 95 cm (1 × 997 = 168 € vs. 2 × Keramico = 232,20 €).
 Nicht enthalten: Keramico-Zubehör (Kleber, Abschlussleiste), Arbeitszeit, Premium-Profile V3A/V3V nur in „inkl. Profile".
+
+## 10. Duschkabinen-Konfigurator cleverbad.de/konfigurator — Analyse 2026-10-14
+
+**Ablauf (5 Schritte bei „Duschkabine"):** Leistungen (Duschkabine / Duschwanne / Wandpaneele, Mehrfachauswahl) → Einbau → Tür → Öffnung → Maße → Glas & Profil → Ergebnis. Schritte mit nur einer Option werden übersprungen.
+
+| Einbau | Tür | Öffnung | Maße (Standard / frei) | Ergebnis (Produkte) |
+|---|---|---|---|---|
+| Nische | Falttür | Anschlag links/rechts | Breite 80–171 | ≤ 120: Lissabon einteilig · ≤ 150: Rom · sonst Stockholm |
+| Nische | Schiebetür | nach links/rechts | Breite 140/160/180 | Madrid |
+| Nische | Pendeltür | Festglas links/rechts | Front 100–160 | Festglas Wien (Front − 40) **+** Pendeltür Wien 40 |
+| Ecke | Falttür übers Eck | — | Breite 80–120, Tiefe 80–120 | Lissabon „Zweiteilig" vorn **+** Lissabon Seite |
+| Walk-In | — | — | Glaswand 60–120 | Wien Festglas |
+| U-Form | Falttür mit Festteilen | — | 100 / Tiefe 76–78 | Lissabon 100 + 2 × Festglas 76 — ausgeblendet, solange „festglas-76-cm" nicht im Shop ist |
+
+- Glashöhe 195/200 (185–215 frei), Glas klar/satiniert, Profil chrom/schwarz matt: **ändern das Produkt nicht** (nur Zeichnung/Notiz).
+- Maß „Weiß ich noch nicht" → Produkt ohne Größe („offen"); Maß ohne Standardvariante → „unpassend" + Alternativen.
+- Variantenwahl: passende Breite, bei mehreren (6/8 mm) die mit höchstem Lagerbestand.
+- Duschwanne im selben Ablauf: Maße übernimmt sie von der Kabine (Ecke: kurz/lang aus Breite/Tiefe), Ausführung Amalfi (Rand) / Riviera (randlos).
+
+**Unser Stand:** Badolux-Modell = 1 Parameter „Produkt" (7 Produkte) → 1 Glas-Komponente → 1 Artikel. Vigour-Modell = 23 Parameter, 109 Konfigurationen mit 1–3 Komponenten. Engine (engine.js) kann mehrstufige Struktur, Finish und Größe je Komponente bereits.
+**Daten:** 156 Angebote / 598 Entwürfe mit Duschabtrennung (neu) — alle Vigour, 0 × Badolux. Preise sind beim Speichern eingefroren (quickAdd), der Zustand dient nur dem Wiederöffnen; fehlendes `__supplier` = Vigour.
