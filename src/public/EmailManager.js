@@ -1504,6 +1504,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const txt = await resp.text().catch(() => "");
       throw new Error(`${endpoint} (${resp.status}): ${txt}`);
     }
+    if (resp.status === 204) return null; // nothing to attach (e.g. no Badolux item)
     const cd = resp.headers.get("content-disposition") || "";
     let filename = fallbackName;
     const match = cd.match(/filename="?([^"]+)"?/i);
@@ -1530,6 +1531,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
       { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
+      // Badolux cart for the cleverbad.de automation (n8n). Optional: only when the
+      // offer has Badolux items, and a failure never blocks sending the offer.
+      { endpoint: "/material-overview/badolux-cart?format=csv", name: `Badolux_Warenkorb_${safeNo}.csv`, label: "Badolux-Warenkorb (CSV)", optional: true },
+      { endpoint: "/material-overview/badolux-cart?format=json", name: `Badolux_Warenkorb_${safeNo}.json`, label: "Badolux-Warenkorb (JSON)", optional: true },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
     ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
@@ -1537,8 +1542,13 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
       try {
-        docs.push(await fetchBitrixExtraDoc(job.endpoint, payload, job.name));
+        const doc = await fetchBitrixExtraDoc(job.endpoint, payload, job.name);
+        if (doc) docs.push(doc);
       } catch (e) {
+        if (job.optional) {
+          console.warn("[EmailManager] optionales Bitrix-Dokument übersprungen:", job.endpoint, e);
+          continue;
+        }
         console.error("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
         const message = `${job.label} konnte nicht erzeugt werden: ${e.message || e}`;
         if (!onError) throw new Error(message);

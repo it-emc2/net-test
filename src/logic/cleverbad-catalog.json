@@ -1,0 +1,1039 @@
+{
+ "shop": "https://cleverbad.de",
+ "generatedAt": "2026-10-14T10:11:16.317Z",
+ "variants": {
+  "PRI119DK06": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 100 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 100,
+   "glassMm": null
+  },
+  "PRI70DW27": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 180 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 180,
+   "glassMm": null
+  },
+  "PRI70DW28": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 160 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 160,
+   "glassMm": null
+  },
+  "PRI119DK04": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 80 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 80,
+   "glassMm": null
+  },
+  "PRI70DW03": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 160 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 160,
+   "glassMm": null
+  },
+  "PRI70DW04": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 170 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 170,
+   "glassMm": null
+  },
+  "PRI70DW05": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 90 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 90,
+   "glassMm": null
+  },
+  "PRI70DW06": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 120 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 120,
+   "glassMm": null
+  },
+  "PRI70DW07": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 140 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 140,
+   "glassMm": null
+  },
+  "PRI70DW08": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 100 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 100,
+   "glassMm": null
+  },
+  "PRI70DW09": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 120 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 120,
+   "glassMm": null
+  },
+  "PRI70DW10": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 140 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 140,
+   "glassMm": null
+  },
+  "PRI70DW11": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 160 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 160,
+   "glassMm": null
+  },
+  "PRI70DW12": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 180 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 180,
+   "glassMm": null
+  },
+  "PRI70DW20": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 180 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 180,
+   "glassMm": null
+  },
+  "PRI70DW22": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 140 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 140,
+   "glassMm": null
+  },
+  "PRI119DK03": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 170 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 170,
+   "glassMm": null
+  },
+  "PRI70DW29": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 180 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 180,
+   "glassMm": null
+  },
+  "PRI119DK01": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 100 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 100,
+   "glassMm": null
+  },
+  "PRI119DK02": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 120 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 120,
+   "glassMm": null
+  },
+  "PRI119DK10": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "70 × 160 cm",
+   "option": "Weiß",
+   "widthCm": 70,
+   "lengthCm": 160,
+   "glassMm": null
+  },
+  "PRI119DK05": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 90 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 90,
+   "glassMm": null
+  },
+  "PRI70DW15": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 140 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 140,
+   "glassMm": null
+  },
+  "PRI119DK07": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 100 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 100,
+   "glassMm": null
+  },
+  "PRI119DK08": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "90 × 170 cm",
+   "option": "Weiß",
+   "widthCm": 90,
+   "lengthCm": 170,
+   "glassMm": null
+  },
+  "PRI119DK09": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "100 × 200 cm",
+   "option": "Weiß",
+   "widthCm": 100,
+   "lengthCm": 200,
+   "glassMm": null
+  },
+  "PRI70DW14": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 120 cm",
+   "option": "Weiß",
+   "widthCm": 80,
+   "lengthCm": 120,
+   "glassMm": null
+  },
+  "PRI70DW19": {
+   "slug": "duschwanne-riviera",
+   "name": "Duschwanne Riviera",
+   "label": "80 × 170 cm",
+   "option": "Grau",
+   "widthCm": 80,
+   "lengthCm": 170,
+   "glassMm": null
+  },
+  "PRI80DK20-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "100 cm, 8 mm",
+   "option": "Zweiteilig",
+   "widthCm": 100,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK18-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "80 cm, 8 mm",
+   "option": "Zweiteilig",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK03-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "120 cm, 6 mm",
+   "option": "Zweiteilig",
+   "widthCm": 120,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK18": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "80 cm, 8 mm",
+   "option": "Einteilig",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK19": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "90 cm, 8 mm",
+   "option": "Einteilig",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK01": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "90 cm, 6 mm",
+   "option": "Einteilig",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK21": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "120 cm, 8 mm",
+   "option": "Einteilig",
+   "widthCm": 120,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK01-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "90 cm, 6 mm",
+   "option": "Zweiteilig",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK19-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "90 cm, 8 mm",
+   "option": "Zweiteilig",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK21-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "120 cm, 8 mm",
+   "option": "Zweiteilig",
+   "widthCm": 120,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK20": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "100 cm, 8 mm",
+   "option": "Einteilig",
+   "widthCm": 100,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK02": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "100 cm, 6 mm",
+   "option": "Einteilig",
+   "widthCm": 100,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK03": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "120 cm, 6 mm",
+   "option": "Einteilig",
+   "widthCm": 120,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI71DK12": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "80 cm, 6 mm",
+   "option": "Einteilig",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI71DK12-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "80 cm, 6 mm",
+   "option": "Zweiteilig",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK02-Z": {
+   "slug": "falttuer-lissabon",
+   "name": "Falttür Lissabon",
+   "label": "100 cm, 6 mm",
+   "option": "Zweiteilig",
+   "widthCm": 100,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK22": {
+   "slug": "falttuer-rom",
+   "name": "Falttür Rom mit Festteil",
+   "label": "140 cm",
+   "option": "8 mm",
+   "widthCm": 140,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK04": {
+   "slug": "falttuer-rom",
+   "name": "Falttür Rom mit Festteil",
+   "label": "140 cm",
+   "option": "6 mm",
+   "widthCm": 140,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK09": {
+   "slug": "falttuer-stockholm",
+   "name": "Falttür Stockholm mit Festteil",
+   "label": "171 cm",
+   "option": null,
+   "widthCm": 171,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI71DK16": {
+   "slug": "schiebetuer-madrid",
+   "name": "Schiebetür Madrid",
+   "label": "180 cm",
+   "option": null,
+   "widthCm": 180,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI71DK14": {
+   "slug": "schiebetuer-madrid",
+   "name": "Schiebetür Madrid",
+   "label": "140 cm",
+   "option": null,
+   "widthCm": 140,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI71DK15": {
+   "slug": "schiebetuer-madrid",
+   "name": "Schiebetür Madrid",
+   "label": "160 cm",
+   "option": null,
+   "widthCm": 160,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI71DK17": {
+   "slug": "schiebetuer-madrid",
+   "name": "Schiebetür Madrid",
+   "label": "160 cm, obengeführt",
+   "option": null,
+   "widthCm": 160,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK13": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "60 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 60,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK14": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "70 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 70,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK15": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "80 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI63DK16": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "90 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK12": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "40 cm, 8 mm",
+   "option": "Pendeltür",
+   "widthCm": 40,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK05": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "40 cm, 6 mm",
+   "option": "Pendeltür",
+   "widthCm": 40,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK10": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "60 cm, 6 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 60,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK07": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "90 cm, 6 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 90,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK06": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "80 cm, 6 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 80,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI80DK17": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "120 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 120,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK16": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "100 cm, 8 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 100,
+   "lengthCm": null,
+   "glassMm": 8
+  },
+  "PRI80DK11": {
+   "slug": "duschglas-wien",
+   "name": "Duschglas Wien",
+   "label": "70 cm, 6 mm",
+   "option": "Festglas (Walk-in)",
+   "widthCm": 70,
+   "lengthCm": null,
+   "glassMm": 6
+  },
+  "PRI73WP08": {
+   "slug": "wandpaneel-keramico-marmor-weiss",
+   "name": "Wandpaneel Keramico Marmor Weiß",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP09": {
+   "slug": "wandpaneel-keramico-steingrau",
+   "name": "Wandpaneel Keramico Steingrau",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP10": {
+   "slug": "wandpaneel-keramico-grau",
+   "name": "Wandpaneel Keramico Grau",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP11": {
+   "slug": "wandpaneel-keramico-creme",
+   "name": "Wandpaneel Keramico Creme",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP12": {
+   "slug": "wandpaneel-keramico-sahara",
+   "name": "Wandpaneel Keramico Sahara",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP13": {
+   "slug": "wandpaneel-keramico-cafe",
+   "name": "Wandpaneel Keramico Cafe",
+   "label": "Standardpaneel",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI73WP999": {
+   "slug": "wandpaneel-dein-design",
+   "name": "Wandpaneel Dein Design",
+   "label": "Wunschmotiv",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP01": {
+   "slug": "wandpaneel-soufle-botanica-sage-mist",
+   "name": "Wandpaneel Soufle Botanica Sage Mist",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP02": {
+   "slug": "wandpaneel-silberweide",
+   "name": "Wandpaneel Silberweide",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP03": {
+   "slug": "wandpaneel-vintage-salbei",
+   "name": "Wandpaneel Vintage Salbei",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP04": {
+   "slug": "wandpaneel-korallenrauschen",
+   "name": "Wandpaneel Korallenrauschen",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP05": {
+   "slug": "wandpaneel-octopus-flow",
+   "name": "Wandpaneel Octopus Flow",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP06": {
+   "slug": "wandpaneel-lichtzweige",
+   "name": "Wandpaneel Lichtzweige",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP07": {
+   "slug": "wandpaneel-protea-bluete",
+   "name": "Wandpaneel Protea Blüte",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP08": {
+   "slug": "wandpaneel-pebble",
+   "name": "Wandpaneel Pebble",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP09": {
+   "slug": "wandpaneel-mauve-atelier",
+   "name": "Wandpaneel Mauve Atelier",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP10": {
+   "slug": "wandpaneel-fernscape",
+   "name": "Wandpaneel Fernscape",
+   "label": "Essential Line",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP11": {
+   "slug": "wandpaneel-koi-luxe-serenity",
+   "name": "Wandpaneel Koi Luxe Serenity",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP12": {
+   "slug": "wandpaneel-botanical-noir-harmony",
+   "name": "Wandpaneel Botanical Noir Harmony",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP13": {
+   "slug": "wandpaneel-midnight-abstract-gold",
+   "name": "Wandpaneel Midnight Abstract Gold",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP14": {
+   "slug": "wandpaneel-soft-nature-essence",
+   "name": "Wandpaneel Soft Nature Essence",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP15": {
+   "slug": "wandpaneel-golden-blush-elegance",
+   "name": "Wandpaneel Golden Blush Elegance",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP16": {
+   "slug": "wandpaneel-sage-bloom-retreat",
+   "name": "Wandpaneel Sage Bloom Retreat",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP17": {
+   "slug": "wandpaneel-crimson-velvet-spa",
+   "name": "Wandpaneel Crimson Velvet Spa",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP18": {
+   "slug": "wandpaneel-azure-floral-reflection",
+   "name": "Wandpaneel Azure Floral Reflection",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP19": {
+   "slug": "wandpaneel-safari-chic-stone",
+   "name": "Wandpaneel Safari Chic Stone",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP20": {
+   "slug": "wandpaneel-blush-petal-luxury",
+   "name": "Wandpaneel Blush Petal Luxury",
+   "label": "Young Living",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP21": {
+   "slug": "wandpaneel-stone-circle-harmony",
+   "name": "Wandpaneel Stone Circle Harmony",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP22": {
+   "slug": "wandpaneel-arcadia",
+   "name": "Wandpaneel Arcadia",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP23": {
+   "slug": "wandpaneel-ivory-marble-flow",
+   "name": "Wandpaneel Ivory Marble Flow",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP24": {
+   "slug": "wandpaneel-berlin-retro-shapes",
+   "name": "Wandpaneel Berlin Retro Shapes",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP25": {
+   "slug": "wandpaneel-mono-fragment-grid",
+   "name": "Wandpaneel Mono Fragment Grid",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP26": {
+   "slug": "wandpaneel-soft-glyph-harmony",
+   "name": "Wandpaneel Soft Glyph Harmony",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP27": {
+   "slug": "wandpaneel-sage-leaf-whisper",
+   "name": "Wandpaneel Sage Leaf Whisper",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP28": {
+   "slug": "wandpaneel-fragmented-sequence",
+   "name": "Wandpaneel Fragmented Sequence",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP29": {
+   "slug": "wandpaneel-dark-stone-matrix",
+   "name": "Wandpaneel Dark Stone Matrix",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP30": {
+   "slug": "wandpaneel-silver-concrete-horizon",
+   "name": "Wandpaneel Silver Concrete Horizon",
+   "label": "Soft Modern",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP31": {
+   "slug": "wandpaneel-retro-mosaik",
+   "name": "Wandpaneel Retro Mosaik",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP32": {
+   "slug": "wandpaneel-frozen-bloom",
+   "name": "Wandpaneel Frozen Bloom",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP33": {
+   "slug": "wandpaneel-golden-mosaic",
+   "name": "Wandpaneel Golden Mosaic",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP34": {
+   "slug": "wandpaneel-ivory-motion",
+   "name": "Wandpaneel Ivory Motion",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP35": {
+   "slug": "wandpaneel-nordic-patina",
+   "name": "Wandpaneel Nordic Patina",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP36": {
+   "slug": "wandpaneel-sage-composition",
+   "name": "Wandpaneel Sage Composition",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP37": {
+   "slug": "wandpaneel-desert-relic",
+   "name": "Wandpaneel Desert Relic",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP38": {
+   "slug": "wandpaneel-golden-petal-harmony",
+   "name": "Wandpaneel Golden Petal Harmony",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP39": {
+   "slug": "wandpaneel-golden-flow",
+   "name": "Wandpaneel Golden Flow",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP40": {
+   "slug": "wandpaneel-faded-heritage",
+   "name": "Wandpaneel Faded Heritage",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRE97WP41": {
+   "slug": "wandpaneel-patina",
+   "name": "Wandpaneel Patina",
+   "label": "Vintage Soul",
+   "option": null,
+   "widthCm": 95,
+   "lengthCm": null,
+   "glassMm": null
+  }
+ },
+ "ours": {
+  "DW001": "PRI70DW22",
+  "DW002": "PRI119DK10",
+  "DW003": "PRI119DK03",
+  "DW004": "PRI70DW20",
+  "DW005": "PRI119DK04",
+  "DW006": "PRI119DK05",
+  "DW007": "PRI119DK06",
+  "DW008": "PRI70DW14",
+  "DW009": "PRI70DW15",
+  "DW010": "PRI70DW03",
+  "DW011": "PRI70DW04",
+  "DW012": "PRI70DW27",
+  "DW013": "PRI70DW05",
+  "DW014": "PRI119DK07",
+  "DW015": "PRI70DW06",
+  "DW016": "PRI70DW07",
+  "DW017": "PRI70DW28",
+  "DW018": "PRI119DK08",
+  "DW019": "PRI70DW29",
+  "DW020": "PRI70DW08",
+  "DW021": "PRI70DW09",
+  "DW022": "PRI70DW10",
+  "DW023": "PRI70DW11",
+  "DW024": "PRI70DW12",
+  "DW025": "PRI119DK09",
+  "WP001": "PRI73WP08",
+  "WP002": "PRI73WP09",
+  "WP003": "PRI73WP10",
+  "WP004": "PRI73WP11",
+  "WP005": "PRI73WP12",
+  "WP006": "PRI73WP13",
+  "WP007": "PRI73WP999"
+ }
+}

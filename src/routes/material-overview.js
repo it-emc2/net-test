@@ -8,6 +8,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 
 import ProductModel from "../models/Product.js";
+import { buildBadoluxCart, cartCsv } from "../logic/badolux-cart.js";
 import pricingFactory from "../logic/pricing.js";
 import {
   aggregateMaterialsForOverview,
@@ -17,6 +18,10 @@ import {
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
+
+const cleverbadCatalog = JSON.parse(
+  fsSync.readFileSync(new URL("../logic/cleverbad-catalog.json", import.meta.url), "utf8"),
+);
 
 // Article codes that are internal cost lines or belong to other suppliers and
 // must never end up in the Hassmann Warenkorb CSV. Hassmann either rejects them
@@ -251,6 +256,56 @@ router.post("/pdf", async (req, res) => {
   }
 });
 
+
+// Badolux cart for cleverbad.de (Badolux's shop): ?format=csv (Hassmann-style
+// ART;<Artikelnummer>;<Menge>) or ?format=json (links, variants, manual items) for
+// the n8n cart automation. 204 when the offer has no Badolux item at all — the
+// client then attaches nothing.
+router.post("/badolux-cart", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const lines = computed?.materials?.lines || [];
+    const ids = [...new Set(lines.map((l) => String(l.productId || "").trim()).filter(Boolean))];
+    const badolux = ids.length
+      ? await ProductModel.find({
+          productId: { $in: ids },
+          $or: [{ source: /badolux/i }, { manufacturer: /badolux/i }],
+        })
+          .select("productId")
+          .lean()
+      : [];
+    const cart = buildBadoluxCart({
+      lines,
+      payload: body,
+      badoluxIds: new Set(badolux.map((d) => d.productId)),
+      catalog: cleverbadCatalog,
+    });
+    if (!cart.items.length && !cart.manual.length) return res.status(204).end();
+
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    if (req.query.format === "json") {
+      const json = {
+        format: "badolux-warenkorb/1",
+        offerNumber: angebotNummer,
+        dealId: String(body.auftragId || "").trim() || null,
+        createdAt: new Date().toISOString(),
+        shop: cleverbadCatalog.shop,
+        ...cart,
+      };
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="Badolux_Warenkorb_${safeOffer}.json"`);
+      return res.send(JSON.stringify(json, null, 2));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Badolux_Warenkorb_${safeOffer}.csv"`);
+    res.send(cartCsv(cart));
+  } catch (e) {
+    console.error("Badolux cart generation failed:", e);
+    res.status(500).json({ error: "Badolux cart generation failed", detail: e.message || String(e) });
+  }
+});
 
 router.post("/hassmann-cart", async (req, res) => {
   try {
