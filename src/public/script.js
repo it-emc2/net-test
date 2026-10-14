@@ -11721,6 +11721,7 @@ makeFloorCalc({
 
   import("/logic/pricing-core.js")
     .then((m) => {
+      if (!m?.KERAMICO_SITUATIONS?.wand) return; // stubbed module (tests) — leave the calculator idle
       core = m;
       render();
     })
