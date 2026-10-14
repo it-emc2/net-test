@@ -1,56 +1,149 @@
 {
   "meta": {
     "schemaVersion": 2,
+    "badoluxModel": 2,
     "supplier": "BADOLUX",
-    "source": "badolux-all.pdf",
-    "builtFrom": "badolux-prices.json → Duschabtrennungen (Gläser)",
+    "builtFrom": "badolux-prices.json → Duschabtrennungen (Gläser); scripts/data/badolux-da-cleverbad.json",
     "discount": 0.2,
-    "productCount": 7,
-    "leafCount": 7
+    "leafCount": 9
   },
   "supplier": "BADOLUX",
-  "sizeAxisLabel": "Maß (cm)",
+  "sizeAxisLabel": "Maß",
   "params": [
     {
-      "id": "Produkt",
-      "label": "Produkt",
+      "id": "Einbausituation",
+      "label": "Wo soll die Dusche stehen?",
       "order": 0,
       "mandatory": true,
       "values": [
         {
-          "value": "001_Walk_in_Wien",
-          "label": "Walk in - Wien",
-          "imageId": "001_Walk_in_Wien"
+          "value": "nische",
+          "label": "Nische — zwischen zwei Wänden, Glas nur vorn"
         },
         {
-          "value": "002_Pendel_Wien",
-          "label": "Pendel - Wien",
-          "imageId": "002_Pendel_Wien"
+          "value": "ecke",
+          "label": "Ecke — zwei Wände, Glas über Eck"
         },
         {
-          "value": "003_Falttur_Lissabon",
-          "label": "Falttür - Lissabon",
-          "imageId": "003_Falttur_Lissabon"
+          "value": "walkin",
+          "label": "Walk-In — feste Glaswand, offener Einstieg"
+        }
+      ]
+    },
+    {
+      "id": "Tuer",
+      "label": "Welche Tür passt?",
+      "order": 1,
+      "mandatory": true,
+      "values": [
+        {
+          "value": "falt",
+          "label": "Falttür — faltet nach innen und außen, braucht wenig Platz"
         },
         {
-          "value": "004_Faltur_mit_Festteil_Rom",
-          "label": "Faltür mit Festteil - Rom",
-          "imageId": "004_Faltur_mit_Festteil_Rom"
+          "value": "schiebe",
+          "label": "Schiebetür — gleitet zur Seite, 140 bis 180 cm"
         },
         {
-          "value": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt",
-          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
-          "imageId": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt"
+          "value": "pendel",
+          "label": "Pendeltür — Festglas mit schmaler Tür"
         },
         {
-          "value": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt",
-          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)",
-          "imageId": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt"
+          "value": "falt_eck",
+          "label": "Falttür übers Eck — zwei Falttüren, Einstieg über Eck"
+        }
+      ]
+    },
+    {
+      "id": "Anschlag",
+      "label": "Auf welcher Seite?",
+      "order": 2,
+      "mandatory": true,
+      "values": [
+        {
+          "value": "falt_links",
+          "label": "Anschlag links (Griff rechts)"
         },
         {
-          "value": "007_Faltur_mit_Festteil_Stockholm",
-          "label": "Faltür mit Festteil - Stockholm",
-          "imageId": "007_Faltur_mit_Festteil_Stockholm"
+          "value": "falt_rechts",
+          "label": "Anschlag rechts (Griff links)"
+        },
+        {
+          "value": "schiebe_links",
+          "label": "Einstieg links (festes Glas rechts)"
+        },
+        {
+          "value": "schiebe_rechts",
+          "label": "Einstieg rechts (festes Glas links)"
+        },
+        {
+          "value": "pendel_links",
+          "label": "Festglas links (Tür öffnet rechts)"
+        },
+        {
+          "value": "pendel_rechts",
+          "label": "Festglas rechts (Tür öffnet links)"
+        },
+        {
+          "value": "walkin_links",
+          "label": "Wandanschluss links"
+        },
+        {
+          "value": "walkin_rechts",
+          "label": "Wandanschluss rechts"
+        }
+      ]
+    },
+    {
+      "id": "Duschabtrennung",
+      "label": "Duschabtrennung",
+      "order": 3,
+      "mandatory": true,
+      "values": [
+        {
+          "value": "nische_falt_links",
+          "label": "Falttür in der Nische (Lissabon / Rom / Stockholm)",
+          "imageId": "nische_falt_links"
+        },
+        {
+          "value": "nische_falt_rechts",
+          "label": "Falttür in der Nische (Lissabon / Rom / Stockholm)",
+          "imageId": "nische_falt_rechts"
+        },
+        {
+          "value": "nische_schiebe_links",
+          "label": "Schiebetür Madrid",
+          "imageId": "nische_schiebe_links"
+        },
+        {
+          "value": "nische_schiebe_rechts",
+          "label": "Schiebetür Madrid",
+          "imageId": "nische_schiebe_rechts"
+        },
+        {
+          "value": "nische_pendel_links",
+          "label": "Festglas + Pendeltür Wien",
+          "imageId": "nische_pendel_links"
+        },
+        {
+          "value": "nische_pendel_rechts",
+          "label": "Festglas + Pendeltür Wien",
+          "imageId": "nische_pendel_rechts"
+        },
+        {
+          "value": "ecke_falt",
+          "label": "Eckkabine aus zwei Falttüren Lissabon",
+          "imageId": "ecke_falt"
+        },
+        {
+          "value": "walkin_links",
+          "label": "Walk-In Festglas Wien",
+          "imageId": "walkin_links"
+        },
+        {
+          "value": "walkin_rechts",
+          "label": "Walk-In Festglas Wien",
+          "imageId": "walkin_rechts"
         }
       ]
     }
@@ -58,13 +151,925 @@
   "leaves": [
     {
       "selections": {
-        "Produkt": "001_Walk_in_Wien"
+        "Einbausituation": "nische",
+        "Tuer": "falt",
+        "Anschlag": "falt_links",
+        "Duschabtrennung": "nische_falt_links"
       },
       "finish": [],
       "components": [
         {
-          "key": "Glas",
-          "label": "Walk in - Wien",
+          "key": "Tuer",
+          "label": "Falttür",
+          "breite": [
+            "80 cm · Lissabon",
+            "90 cm · Lissabon",
+            "100 cm · Lissabon",
+            "120 cm · Lissabon",
+            "140 cm · Rom mit Festteil",
+            "171 cm · Stockholm mit Festteil"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK18",
+              "width": "80 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 286.65,
+              "discount": 0.2,
+              "net": 229.32,
+              "gros": 286.65,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 80 cm",
+              "displayName": "Falttür Lissabon 80 cm",
+              "finishText": "Anschlag links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK19",
+              "width": "90 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 90 cm",
+              "displayName": "Falttür Lissabon 90 cm",
+              "finishText": "Anschlag links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK20",
+              "width": "100 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 318.5,
+              "discount": 0.2,
+              "net": 254.8,
+              "gros": 318.5,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 100 cm",
+              "displayName": "Falttür Lissabon 100 cm",
+              "finishText": "Anschlag links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK21",
+              "width": "120 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 357.1,
+              "discount": 0.2,
+              "net": 285.68,
+              "gros": 357.1,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 120 cm",
+              "displayName": "Falttür Lissabon 120 cm",
+              "finishText": "Anschlag links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK22",
+              "width": "140 cm · Rom mit Festteil",
+              "height": "",
+              "sizeLabel": null,
+              "list": 423.15,
+              "discount": 0.2,
+              "net": 338.52,
+              "gros": 423.15,
+              "currency": "EUR",
+              "label": "Falttür mit Festteil Rom 140 cm",
+              "displayName": "Falttür mit Festteil Rom 140 cm",
+              "finishText": "Anschlag links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/rom.webp",
+              "product": "falttuer-rom"
+            },
+            {
+              "articleNumber": "PRI80DK09",
+              "width": "171 cm · Stockholm mit Festteil",
+              "height": "",
+              "sizeLabel": null,
+              "list": 368.55,
+              "discount": 0.2,
+              "net": 294.84,
+              "gros": 368.55,
+              "currency": "EUR",
+              "label": "Falttür mit Festteil Stockholm 171 cm",
+              "displayName": "Falttür mit Festteil Stockholm 171 cm",
+              "finishText": "Anschlag links · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/stockholm.webp",
+              "product": "falttuer-stockholm"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "nische",
+        "Tuer": "falt",
+        "Anschlag": "falt_rechts",
+        "Duschabtrennung": "nische_falt_rechts"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Tuer",
+          "label": "Falttür",
+          "breite": [
+            "80 cm · Lissabon",
+            "90 cm · Lissabon",
+            "100 cm · Lissabon",
+            "120 cm · Lissabon",
+            "140 cm · Rom mit Festteil",
+            "171 cm · Stockholm mit Festteil"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK18",
+              "width": "80 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 286.65,
+              "discount": 0.2,
+              "net": 229.32,
+              "gros": 286.65,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 80 cm",
+              "displayName": "Falttür Lissabon 80 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK19",
+              "width": "90 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 90 cm",
+              "displayName": "Falttür Lissabon 90 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK20",
+              "width": "100 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 318.5,
+              "discount": 0.2,
+              "net": 254.8,
+              "gros": 318.5,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 100 cm",
+              "displayName": "Falttür Lissabon 100 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK21",
+              "width": "120 cm · Lissabon",
+              "height": "",
+              "sizeLabel": null,
+              "list": 357.1,
+              "discount": 0.2,
+              "net": 285.68,
+              "gros": 357.1,
+              "currency": "EUR",
+              "label": "Falttür Lissabon 120 cm",
+              "displayName": "Falttür Lissabon 120 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK22",
+              "width": "140 cm · Rom mit Festteil",
+              "height": "",
+              "sizeLabel": null,
+              "list": 423.15,
+              "discount": 0.2,
+              "net": 338.52,
+              "gros": 423.15,
+              "currency": "EUR",
+              "label": "Falttür mit Festteil Rom 140 cm",
+              "displayName": "Falttür mit Festteil Rom 140 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/rom.webp",
+              "product": "falttuer-rom"
+            },
+            {
+              "articleNumber": "PRI80DK09",
+              "width": "171 cm · Stockholm mit Festteil",
+              "height": "",
+              "sizeLabel": null,
+              "list": 368.55,
+              "discount": 0.2,
+              "net": 294.84,
+              "gros": 368.55,
+              "currency": "EUR",
+              "label": "Falttür mit Festteil Stockholm 171 cm",
+              "displayName": "Falttür mit Festteil Stockholm 171 cm",
+              "finishText": "Anschlag rechts · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/stockholm.webp",
+              "product": "falttuer-stockholm"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "nische",
+        "Tuer": "schiebe",
+        "Anschlag": "schiebe_links",
+        "Duschabtrennung": "nische_schiebe_links"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Tuer",
+          "label": "Schiebetür Madrid",
+          "breite": [
+            "140 cm",
+            "160 cm · untengeführt",
+            "160 cm · obengeführt",
+            "180 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI71DK14",
+              "width": "140 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 486.85,
+              "discount": 0.2,
+              "net": 389.48,
+              "gros": 486.85,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid 140 cm",
+              "displayName": "Schiebetür Madrid 140 cm",
+              "finishText": "Einstieg links · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK15",
+              "width": "160 cm · untengeführt",
+              "height": "",
+              "sizeLabel": null,
+              "list": 502.78,
+              "discount": 0.2,
+              "net": 402.22,
+              "gros": 502.78,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid untengeführt 160 cm",
+              "displayName": "Schiebetür Madrid untengeführt 160 cm",
+              "finishText": "Einstieg links · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK17",
+              "width": "160 cm · obengeführt",
+              "height": "",
+              "sizeLabel": null,
+              "list": 516.43,
+              "discount": 0.2,
+              "net": 413.14,
+              "gros": 516.43,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid obengeführt 160 cm",
+              "displayName": "Schiebetür Madrid obengeführt 160 cm",
+              "finishText": "Einstieg links · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK16",
+              "width": "180 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 559.43,
+              "discount": 0.2,
+              "net": 447.54,
+              "gros": 559.43,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid 180 cm",
+              "displayName": "Schiebetür Madrid 180 cm",
+              "finishText": "Einstieg links · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "nische",
+        "Tuer": "schiebe",
+        "Anschlag": "schiebe_rechts",
+        "Duschabtrennung": "nische_schiebe_rechts"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Tuer",
+          "label": "Schiebetür Madrid",
+          "breite": [
+            "140 cm",
+            "160 cm · untengeführt",
+            "160 cm · obengeführt",
+            "180 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI71DK14",
+              "width": "140 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 486.85,
+              "discount": 0.2,
+              "net": 389.48,
+              "gros": 486.85,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid 140 cm",
+              "displayName": "Schiebetür Madrid 140 cm",
+              "finishText": "Einstieg rechts · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK15",
+              "width": "160 cm · untengeführt",
+              "height": "",
+              "sizeLabel": null,
+              "list": 502.78,
+              "discount": 0.2,
+              "net": 402.22,
+              "gros": 502.78,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid untengeführt 160 cm",
+              "displayName": "Schiebetür Madrid untengeführt 160 cm",
+              "finishText": "Einstieg rechts · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK17",
+              "width": "160 cm · obengeführt",
+              "height": "",
+              "sizeLabel": null,
+              "list": 516.43,
+              "discount": 0.2,
+              "net": 413.14,
+              "gros": 516.43,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid obengeführt 160 cm",
+              "displayName": "Schiebetür Madrid obengeführt 160 cm",
+              "finishText": "Einstieg rechts · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            },
+            {
+              "articleNumber": "PRI71DK16",
+              "width": "180 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 559.43,
+              "discount": 0.2,
+              "net": 447.54,
+              "gros": 559.43,
+              "currency": "EUR",
+              "label": "Schiebetür Madrid 180 cm",
+              "displayName": "Schiebetür Madrid 180 cm",
+              "finishText": "Einstieg rechts · ESG Klarglas 6 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/madrid.webp",
+              "product": "schiebetuer-madrid"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "nische",
+        "Tuer": "pendel",
+        "Anschlag": "pendel_links",
+        "Duschabtrennung": "nische_pendel_links"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Festglas",
+          "label": "Festglas Wien (Front = Festglas + 40 cm Pendeltür)",
+          "breite": [
+            "60 cm (Front 100 cm)",
+            "70 cm (Front 110 cm)",
+            "80 cm (Front 120 cm)",
+            "90 cm (Front 130 cm)",
+            "100 cm (Front 140 cm)",
+            "120 cm (Front 160 cm)"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK13",
+              "width": "60 cm (Front 100 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 202.48,
+              "discount": 0.2,
+              "net": 161.98,
+              "gros": 202.48,
+              "currency": "EUR",
+              "label": "Festglas Wien 60 cm",
+              "displayName": "Festglas Wien 60 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK14",
+              "width": "70 cm (Front 110 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 225.23,
+              "discount": 0.2,
+              "net": 180.18,
+              "gros": 225.23,
+              "currency": "EUR",
+              "label": "Festglas Wien 70 cm",
+              "displayName": "Festglas Wien 70 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK15",
+              "width": "80 cm (Front 120 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 241.15,
+              "discount": 0.2,
+              "net": 192.92,
+              "gros": 241.15,
+              "currency": "EUR",
+              "label": "Festglas Wien 80 cm",
+              "displayName": "Festglas Wien 80 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI63DK16",
+              "width": "90 cm (Front 130 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 259.35,
+              "discount": 0.2,
+              "net": 207.48,
+              "gros": 259.35,
+              "currency": "EUR",
+              "label": "Festglas Wien 90 cm",
+              "displayName": "Festglas Wien 90 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK16",
+              "width": "100 cm (Front 140 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 270.73,
+              "discount": 0.2,
+              "net": 216.58,
+              "gros": 270.73,
+              "currency": "EUR",
+              "label": "Festglas Wien 100 cm",
+              "displayName": "Festglas Wien 100 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK17",
+              "width": "120 cm (Front 160 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Festglas Wien 120 cm",
+              "displayName": "Festglas Wien 120 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            }
+          ]
+        },
+        {
+          "key": "Pendeltuer",
+          "label": "Pendeltür Wien",
+          "breite": [
+            "40 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK12",
+              "width": "40 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 127.4,
+              "discount": 0.2,
+              "net": 101.92,
+              "gros": 127.4,
+              "currency": "EUR",
+              "label": "Pendeltür Wien 40 cm",
+              "displayName": "Pendeltür Wien 40 cm",
+              "finishText": "Festglas links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "nische",
+        "Tuer": "pendel",
+        "Anschlag": "pendel_rechts",
+        "Duschabtrennung": "nische_pendel_rechts"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Festglas",
+          "label": "Festglas Wien (Front = Festglas + 40 cm Pendeltür)",
+          "breite": [
+            "60 cm (Front 100 cm)",
+            "70 cm (Front 110 cm)",
+            "80 cm (Front 120 cm)",
+            "90 cm (Front 130 cm)",
+            "100 cm (Front 140 cm)",
+            "120 cm (Front 160 cm)"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK13",
+              "width": "60 cm (Front 100 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 202.48,
+              "discount": 0.2,
+              "net": 161.98,
+              "gros": 202.48,
+              "currency": "EUR",
+              "label": "Festglas Wien 60 cm",
+              "displayName": "Festglas Wien 60 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK14",
+              "width": "70 cm (Front 110 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 225.23,
+              "discount": 0.2,
+              "net": 180.18,
+              "gros": 225.23,
+              "currency": "EUR",
+              "label": "Festglas Wien 70 cm",
+              "displayName": "Festglas Wien 70 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK15",
+              "width": "80 cm (Front 120 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 241.15,
+              "discount": 0.2,
+              "net": 192.92,
+              "gros": 241.15,
+              "currency": "EUR",
+              "label": "Festglas Wien 80 cm",
+              "displayName": "Festglas Wien 80 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI63DK16",
+              "width": "90 cm (Front 130 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 259.35,
+              "discount": 0.2,
+              "net": 207.48,
+              "gros": 259.35,
+              "currency": "EUR",
+              "label": "Festglas Wien 90 cm",
+              "displayName": "Festglas Wien 90 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK16",
+              "width": "100 cm (Front 140 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 270.73,
+              "discount": 0.2,
+              "net": 216.58,
+              "gros": 270.73,
+              "currency": "EUR",
+              "label": "Festglas Wien 100 cm",
+              "displayName": "Festglas Wien 100 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK17",
+              "width": "120 cm (Front 160 cm)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Festglas Wien 120 cm",
+              "displayName": "Festglas Wien 120 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            }
+          ]
+        },
+        {
+          "key": "Pendeltuer",
+          "label": "Pendeltür Wien",
+          "breite": [
+            "40 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK12",
+              "width": "40 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 127.4,
+              "discount": 0.2,
+              "net": 101.92,
+              "gros": 127.4,
+              "currency": "EUR",
+              "label": "Pendeltür Wien 40 cm",
+              "displayName": "Pendeltür Wien 40 cm",
+              "finishText": "Festglas rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-pendel.webp",
+              "product": "duschglas-wien"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "ecke",
+        "Tuer": "falt_eck",
+        "Duschabtrennung": "ecke_falt"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "TuerVorn",
+          "label": "Falttür vorn",
+          "breite": [
+            "80 cm",
+            "90 cm",
+            "100 cm",
+            "120 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK18",
+              "width": "80 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 286.65,
+              "discount": 0.2,
+              "net": 229.32,
+              "gros": 286.65,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (vorn) 80 cm",
+              "displayName": "Falttür Lissabon (vorn) 80 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK19",
+              "width": "90 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (vorn) 90 cm",
+              "displayName": "Falttür Lissabon (vorn) 90 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK20",
+              "width": "100 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 318.5,
+              "discount": 0.2,
+              "net": 254.8,
+              "gros": 318.5,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (vorn) 100 cm",
+              "displayName": "Falttür Lissabon (vorn) 100 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK21",
+              "width": "120 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 357.1,
+              "discount": 0.2,
+              "net": 285.68,
+              "gros": 357.1,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (vorn) 120 cm",
+              "displayName": "Falttür Lissabon (vorn) 120 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            }
+          ]
+        },
+        {
+          "key": "TuerSeite",
+          "label": "Falttür an der Seite",
+          "breite": [
+            "80 cm",
+            "90 cm",
+            "100 cm",
+            "120 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "PRI80DK18",
+              "width": "80 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 286.65,
+              "discount": 0.2,
+              "net": 229.32,
+              "gros": 286.65,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (Seite) 80 cm",
+              "displayName": "Falttür Lissabon (Seite) 80 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK19",
+              "width": "90 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (Seite) 90 cm",
+              "displayName": "Falttür Lissabon (Seite) 90 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK20",
+              "width": "100 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 318.5,
+              "discount": 0.2,
+              "net": 254.8,
+              "gros": 318.5,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (Seite) 100 cm",
+              "displayName": "Falttür Lissabon (Seite) 100 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            },
+            {
+              "articleNumber": "PRI80DK21",
+              "width": "120 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 357.1,
+              "discount": 0.2,
+              "net": 285.68,
+              "gros": 357.1,
+              "currency": "EUR",
+              "label": "Falttür Lissabon (Seite) 120 cm",
+              "displayName": "Falttür Lissabon (Seite) 120 cm",
+              "finishText": "Eckeinstieg · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/lissabon-ecke.webp",
+              "product": "falttuer-lissabon"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Einbausituation": "walkin",
+        "Anschlag": "walkin_links",
+        "Duschabtrennung": "walkin_links"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Festglas",
+          "label": "Festglas Walk-In Wien",
           "breite": [
             "60 cm",
             "70 cm",
@@ -79,7 +1084,7 @@
           "sondermass": [],
           "articles": [
             {
-              "articleNumber": "60 cm",
+              "articleNumber": "PRI80DK13",
               "width": "60 cm",
               "height": "",
               "sizeLabel": null,
@@ -88,12 +1093,14 @@
               "net": 161.98,
               "gros": 202.48,
               "currency": "EUR",
-              "label": "Walk in - Wien 60 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 60 cm",
+              "displayName": "Festglas Wien 60 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "70 cm",
+              "articleNumber": "PRI80DK14",
               "width": "70 cm",
               "height": "",
               "sizeLabel": null,
@@ -102,12 +1109,14 @@
               "net": 180.18,
               "gros": 225.23,
               "currency": "EUR",
-              "label": "Walk in - Wien 70 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 70 cm",
+              "displayName": "Festglas Wien 70 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "80 cm",
+              "articleNumber": "PRI80DK15",
               "width": "80 cm",
               "height": "",
               "sizeLabel": null,
@@ -116,12 +1125,14 @@
               "net": 192.92,
               "gros": 241.15,
               "currency": "EUR",
-              "label": "Walk in - Wien 80 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 80 cm",
+              "displayName": "Festglas Wien 80 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "90 cm",
+              "articleNumber": "PRI63DK16",
               "width": "90 cm",
               "height": "",
               "sizeLabel": null,
@@ -130,12 +1141,14 @@
               "net": 207.48,
               "gros": 259.35,
               "currency": "EUR",
-              "label": "Walk in - Wien 90 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 90 cm",
+              "displayName": "Festglas Wien 90 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "100 cm",
+              "articleNumber": "PRI80DK16",
               "width": "100 cm",
               "height": "",
               "sizeLabel": null,
@@ -144,12 +1157,14 @@
               "net": 216.58,
               "gros": 270.73,
               "currency": "EUR",
-              "label": "Walk in - Wien 100 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 100 cm",
+              "displayName": "Festglas Wien 100 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "120 cm",
+              "articleNumber": "PRI80DK17",
               "width": "120 cm",
               "height": "",
               "sizeLabel": null,
@@ -158,9 +1173,11 @@
               "net": 242.06,
               "gros": 302.58,
               "currency": "EUR",
-              "label": "Walk in - Wien 120 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
-              "note": "Sondermaße auf Anfrage"
+              "label": "Festglas Wien 120 cm",
+              "displayName": "Festglas Wien 120 cm",
+              "finishText": "Wandanschluss links · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             }
           ]
         }
@@ -168,49 +1185,18 @@
     },
     {
       "selections": {
-        "Produkt": "002_Pendel_Wien"
+        "Einbausituation": "walkin",
+        "Anschlag": "walkin_rechts",
+        "Duschabtrennung": "walkin_rechts"
       },
       "finish": [],
       "components": [
         {
-          "key": "Glas",
-          "label": "Pendel - Wien",
+          "key": "Festglas",
+          "label": "Festglas Walk-In Wien",
           "breite": [
-            "40 cm"
-          ],
-          "hoehe": [
-            ""
-          ],
-          "sondermass": [],
-          "articles": [
-            {
-              "articleNumber": "40 cm",
-              "width": "40 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 127.4,
-              "discount": 0.2,
-              "net": 101.92,
-              "gros": 127.4,
-              "currency": "EUR",
-              "label": "Pendel - Wien 40 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 40 x 0,8 cm, Spritzschutzverlängerung 90° einstellbar",
-              "note": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "selections": {
-        "Produkt": "003_Falttur_Lissabon"
-      },
-      "finish": [],
-      "components": [
-        {
-          "key": "Glas",
-          "label": "Falttür - Lissabon",
-          "breite": [
+            "60 cm",
+            "70 cm",
             "80 cm",
             "90 cm",
             "100 cm",
@@ -222,22 +1208,88 @@
           "sondermass": [],
           "articles": [
             {
-              "articleNumber": "80 cm",
+              "articleNumber": "PRI80DK13",
+              "width": "60 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 202.48,
+              "discount": 0.2,
+              "net": 161.98,
+              "gros": 202.48,
+              "currency": "EUR",
+              "label": "Festglas Wien 60 cm",
+              "displayName": "Festglas Wien 60 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK14",
+              "width": "70 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 225.23,
+              "discount": 0.2,
+              "net": 180.18,
+              "gros": 225.23,
+              "currency": "EUR",
+              "label": "Festglas Wien 70 cm",
+              "displayName": "Festglas Wien 70 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK15",
               "width": "80 cm",
               "height": "",
               "sizeLabel": null,
-              "list": 286.65,
+              "list": 241.15,
               "discount": 0.2,
-              "net": 229.32,
-              "gros": 286.65,
+              "net": 192.92,
+              "gros": 241.15,
               "currency": "EUR",
-              "label": "Falttür - Lissabon 80 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
-              "note": ""
+              "label": "Festglas Wien 80 cm",
+              "displayName": "Festglas Wien 80 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             },
             {
-              "articleNumber": "90 cm",
+              "articleNumber": "PRI63DK16",
               "width": "90 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 259.35,
+              "discount": 0.2,
+              "net": 207.48,
+              "gros": 259.35,
+              "currency": "EUR",
+              "label": "Festglas Wien 90 cm",
+              "displayName": "Festglas Wien 90 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK16",
+              "width": "100 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 270.73,
+              "discount": 0.2,
+              "net": 216.58,
+              "gros": 270.73,
+              "currency": "EUR",
+              "label": "Festglas Wien 100 cm",
+              "displayName": "Festglas Wien 100 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
+            },
+            {
+              "articleNumber": "PRI80DK17",
+              "width": "120 cm",
               "height": "",
               "sizeLabel": null,
               "list": 302.58,
@@ -245,207 +1297,11 @@
               "net": 242.06,
               "gros": 302.58,
               "currency": "EUR",
-              "label": "Falttür - Lissabon 90 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
-              "note": ""
-            },
-            {
-              "articleNumber": "100 cm",
-              "width": "100 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 318.5,
-              "discount": 0.2,
-              "net": 254.8,
-              "gros": 318.5,
-              "currency": "EUR",
-              "label": "Falttür - Lissabon 100 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
-              "note": ""
-            },
-            {
-              "articleNumber": "120 cm",
-              "width": "120 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 357.1,
-              "discount": 0.2,
-              "net": 285.68,
-              "gros": 357.1,
-              "currency": "EUR",
-              "label": "Falttür - Lissabon 120 cm",
-              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
-              "note": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "selections": {
-        "Produkt": "004_Faltur_mit_Festteil_Rom"
-      },
-      "finish": [],
-      "components": [
-        {
-          "key": "Glas",
-          "label": "Faltür mit Festteil - Rom",
-          "breite": [
-            "140 (40er fest, 100er Falt)"
-          ],
-          "hoehe": [
-            ""
-          ],
-          "sondermass": [],
-          "articles": [
-            {
-              "articleNumber": "140 (40er fest, 100er Falt)",
-              "width": "140 (40er fest, 100er Falt)",
-              "height": "",
-              "sizeLabel": null,
-              "list": 423.15,
-              "discount": 0.2,
-              "net": 338.52,
-              "gros": 423.15,
-              "currency": "EUR",
-              "label": "Faltür mit Festteil - Rom 140 (40er fest, 100er Falt)",
-              "spec": "Gesamtlänge 140 cm, Faltwand 2 x 50 cm und 40 cm fest, Glasstärke 0,8 cm",
-              "note": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "selections": {
-        "Produkt": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt"
-      },
-      "finish": [],
-      "components": [
-        {
-          "key": "Glas",
-          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
-          "breite": [
-            "160 cm"
-          ],
-          "hoehe": [
-            ""
-          ],
-          "sondermass": [],
-          "articles": [
-            {
-              "articleNumber": "160 cm",
-              "width": "160 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 516.43,
-              "discount": 0.2,
-              "net": 413.14,
-              "gros": 516.43,
-              "currency": "EUR",
-              "label": "Schiebetür - Madrid (Wand-Wand, oben geführt) 160 cm",
-              "spec": "Schiebetür, 160 x 195 x 0,6 cm, Wand zu Wand Montage, oben geführt",
-              "note": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "selections": {
-        "Produkt": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt"
-      },
-      "finish": [],
-      "components": [
-        {
-          "key": "Glas",
-          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)",
-          "breite": [
-            "140 cm",
-            "160 cm",
-            "180 cm"
-          ],
-          "hoehe": [
-            ""
-          ],
-          "sondermass": [],
-          "articles": [
-            {
-              "articleNumber": "140 cm",
-              "width": "140 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 486.85,
-              "discount": 0.2,
-              "net": 389.48,
-              "gros": 486.85,
-              "currency": "EUR",
-              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 140 cm",
-              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
-              "note": ""
-            },
-            {
-              "articleNumber": "160 cm",
-              "width": "160 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 502.78,
-              "discount": 0.2,
-              "net": 402.22,
-              "gros": 502.78,
-              "currency": "EUR",
-              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 160 cm",
-              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
-              "note": ""
-            },
-            {
-              "articleNumber": "180 cm",
-              "width": "180 cm",
-              "height": "",
-              "sizeLabel": null,
-              "list": 559.43,
-              "discount": 0.2,
-              "net": 447.54,
-              "gros": 559.43,
-              "currency": "EUR",
-              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 180 cm",
-              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
-              "note": ""
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "selections": {
-        "Produkt": "007_Faltur_mit_Festteil_Stockholm"
-      },
-      "finish": [],
-      "components": [
-        {
-          "key": "Glas",
-          "label": "Faltür mit Festteil - Stockholm",
-          "breite": [
-            "180 (80er fest, 100er Falt)"
-          ],
-          "hoehe": [
-            ""
-          ],
-          "sondermass": [],
-          "articles": [
-            {
-              "articleNumber": "180 (80er fest, 100er Falt)",
-              "width": "180 (80er fest, 100er Falt)",
-              "height": "",
-              "sizeLabel": null,
-              "list": 368.55,
-              "discount": 0.2,
-              "net": 294.84,
-              "gros": 368.55,
-              "currency": "EUR",
-              "label": "Faltür mit Festteil - Stockholm 180 (80er fest, 100er Falt)",
-              "spec": "Gesamtlänge 180 cm, Faltwand 2 x 50 cm und 80 cm fest, Glasstärke 0,6 cm",
-              "note": ""
+              "label": "Festglas Wien 120 cm",
+              "displayName": "Festglas Wien 120 cm",
+              "finishText": "Wandanschluss rechts · ESG Klarglas 8 mm, EasyClean · Höhe 195 cm · Profil Chrom",
+              "image": "/assets/badolux/da/wien-walkin.webp",
+              "product": "duschglas-wien"
             }
           ]
         }
@@ -454,12 +1310,147 @@
   ],
   "sondermass": {},
   "images": {
-    "001_Walk_in_Wien": "/assets/badolux/walk-in-wien.png",
-    "002_Pendel_Wien": "/assets/badolux/pendel-wien.png",
-    "003_Falttur_Lissabon": "/assets/badolux/flattuer-lissabon.png",
-    "004_Faltur_mit_Festteil_Rom": "/assets/badolux/faltuer-mit-festteil-rom.png",
-    "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt": "/assets/badolux/schiebetuer-madrid.png",
-    "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt": "/assets/badolux/schiebetuer-unten-gefuehrt.png",
-    "007_Faltur_mit_Festteil_Stockholm": "/assets/badolux/faltuer-mit-festteil-stockholm.png"
+    "nische_falt_links": "/assets/badolux/da/lissabon.webp",
+    "nische_falt_rechts": "/assets/badolux/da/lissabon.webp",
+    "nische_schiebe_links": "/assets/badolux/da/madrid.webp",
+    "nische_schiebe_rechts": "/assets/badolux/da/madrid.webp",
+    "nische_pendel_links": "/assets/badolux/da/wien-pendel.webp",
+    "nische_pendel_rechts": "/assets/badolux/da/wien-pendel.webp",
+    "ecke_falt": "/assets/badolux/da/lissabon-ecke.webp",
+    "walkin_links": "/assets/badolux/da/wien-walkin.webp",
+    "walkin_rechts": "/assets/badolux/da/wien-walkin.webp"
+  },
+  "products": {
+    "falttuer-lissabon": {
+      "name": "Falttür Lissabon",
+      "description": [
+        "Die Falttür Lissabon öffnet nach innen und nach außen und faltet sich dabei zusammen. In engen Bädern falten Sie sie nach innen, damit vor der Dusche kaum Platz verloren geht. Brauchen Sie mehr Bewegungsfreiheit in der Kabine, öffnen Sie nach außen.",
+        "Sie wählen zwischen der einteiligen Falttür für die Nische und der zweiteiligen Eckkabine aus zwei Falttüren. Preislich sind beide Ausführungen gleich; die Maße und das Glas bleiben identisch.",
+        "Die Tür besteht aus 6 oder 8 mm starkem Einscheiben-Sicherheitsglas. Es ist stabil im Alltag und zerfällt im seltenen Bruchfall in kleine, stumpfe Stücke statt in scharfe Scherben.",
+        "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+        "Lissabon ist in vier Nennbreiten von 80 bis 120 cm erhältlich. Wählen Sie Ausführung, Glasstärke und Maß direkt auf der Produktseite; Preis und Verfügbarkeit passen sich Ihrer Auswahl an."
+      ],
+      "features": [
+        "Einteilig oder zweiteilig wählbar",
+        "Öffnet nach innen und außen",
+        "6 oder 8 mm ESG-Sicherheitsglas",
+        "EasyClean-Beschichtung serienmäßig",
+        "Vier Nennbreiten von 80 bis 120 cm"
+      ],
+      "gallery": [
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-falt.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-07.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-14.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-09.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-falt1.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-03.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-10.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-08.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-05.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-02.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-06.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-12.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-01.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-04.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-13.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-lissabon/lissabon-foto-11.webp"
+      ]
+    },
+    "falttuer-rom": {
+      "name": "Falttür Rom mit Festteil",
+      "description": [
+        "Die Serie Rom kombiniert ein festes Glasteil mit einer platzsparenden Falttür. Das Festteil übernimmt den Spritzschutz, die Falttür öffnet den Einstieg, ohne weit in den Raum zu schwenken.",
+        "Beide Elemente bestehen aus 6 oder 8 mm starkem Einscheiben-Sicherheitsglas. Die Kombination eignet sich für 140 cm breite Duschen, etwa als Front vor einer Duschwanne in Standardgröße.",
+        "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+        "Sie erhalten Festteil und Falttür als aufeinander abgestimmtes Set. Bei Fragen zur Aufteilung und zur Anschlagseite berät Sie unser Fachteam gern vor der Bestellung."
+      ],
+      "features": [
+        "Festteil und Falttür im Set",
+        "6 oder 8 mm ESG-Sicherheitsglas",
+        "EasyClean-Beschichtung serienmäßig",
+        "Für 140 cm breite Duschen",
+        "Platzsparender Einstieg"
+      ],
+      "gallery": [
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-140er-falt-fest.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-06.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-07.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-02.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-05.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-01.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-04.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-rom/rom-foto-03.webp"
+      ]
+    },
+    "falttuer-stockholm": {
+      "name": "Falttür Stockholm mit Festteil",
+      "description": [
+        "Die Serie Stockholm verschließt breite Duschbereiche mit einer Kombination aus festem Glasteil und Falttür. Sie eignet sich besonders als Front vor langen, bodengleichen Duschwannen.",
+        "Das 6 mm starke Einscheiben-Sicherheitsglas gibt der breiten Front die nötige Stabilität. Die Falttür öffnet platzsparend, das Festteil übernimmt den dauerhaften Spritzschutz.",
+        "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+        "Stockholm ist auf 171 cm Breite ausgelegt. Ob die Aufteilung zu Ihrem Grundriss passt, klären wir gern vorab; unser Fachteam prüft Ihre Maße vor der Bestellung."
+      ],
+      "features": [
+        "Für breite Duschen bis 171 cm",
+        "6 mm ESG-Sicherheitsglas",
+        "EasyClean-Beschichtung serienmäßig",
+        "Festteil und Falttür kombiniert",
+        "Ideal vor langen Duschwannen"
+      ],
+      "gallery": [
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-stockholm/stockholm-foto-01.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-stockholm/stockholm-foto-02.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/falttuer-stockholm/stockholm-foto-03.webp"
+      ]
+    },
+    "schiebetuer-madrid": {
+      "name": "Schiebetür Madrid",
+      "description": [
+        "Die Schiebetür Madrid ist die Lösung für breite Duschen: Das Türelement gleitet zur Seite, ohne in den Raum zu schwenken. So bleibt vor der Dusche voller Bewegungsraum.",
+        "Madrid besteht aus 8 mm starkem Einscheiben-Sicherheitsglas und läuft ruhig in der Führung. In 160 cm gibt es die Tür untengeführt oder obengeführt.",
+        "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+        "Erhältlich ist die Serie in 140, 160 und 180 cm. Wählen Sie das passende Maß direkt auf der Produktseite; Preis und Verfügbarkeit passen sich Ihrer Auswahl an."
+      ],
+      "features": [
+        "Gleitet zur Seite, schwenkt nicht in den Raum",
+        "8 mm ESG-Sicherheitsglas",
+        "EasyClean-Beschichtung serienmäßig",
+        "Breiten von 140 bis 180 cm",
+        "In 160 cm auch obengeführt"
+      ],
+      "gallery": [
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/schiebetuer-madrid/madrid-produkt.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/schiebetuer-madrid/madrid-w-w.webp"
+      ]
+    },
+    "duschglas-wien": {
+      "name": "Duschglas Wien",
+      "description": [
+        "Die Serie Wien deckt zwei Aufgaben ab: Als Festglas bildet sie die offene Walk-in-Abtrennung ohne Tür, als Pendeltür ergänzt sie ein schmales, schwenkbares Element, etwa am Ende einer festen Glaswand.",
+        "Das Festglas gibt es in Breiten von 60 bis 120 cm, die Pendeltür in 30 und 40 cm. Beide Ausführungen bestehen aus Einscheiben-Sicherheitsglas in 6 oder 8 mm Stärke, die Stärke wählen Sie zusammen mit der Breite.",
+        "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+        "Wählen Sie zuerst die Ausführung und dann die Breite direkt auf der Produktseite. Festglas und Pendeltür lassen sich auch kombinieren; unser Fachteam hilft bei der Planung gern weiter."
+      ],
+      "features": [
+        "Festglas oder Pendeltür wählbar",
+        "ESG-Sicherheitsglas in 6 oder 8 mm",
+        "EasyClean-Beschichtung serienmäßig",
+        "Festglas von 60 bis 120 cm",
+        "Pendeltür in 30 und 40 cm"
+      ],
+      "gallery": [
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-glas-fest.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-fest-pendel.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-09.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-03.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-02.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-04.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-05.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-06.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-07.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-08.webp",
+        "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/duschglas-wien/wien-foto-01.webp"
+      ]
+    }
   }
 }

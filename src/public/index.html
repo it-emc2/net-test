@@ -5273,6 +5273,18 @@ button.dm-btn-danger:focus-visible {
     margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
   }
 
+  /* Badolux product info from cleverbad.de (description + features), collapsed */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info {
+    border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+    margin: -6px 0 16px; background: var(--panel); font-size: 0.88rem; color: var(--text);
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary {
+    cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info h5 { margin: 10px 0 4px; font-size: 0.9rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info p { margin: 6px 0; line-height: 1.45; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info ul { margin: 6px 0 0; padding-left: 18px; }
+
   /* leaf preview — the resolved product's image, shown mid-wizard + in the summary */
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview {
     display: flex; align-items: center; gap: 12px;

@@ -29,6 +29,7 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store", "lojjuyeivvvykspkfaxl.sup
 const DA_CONFIG_MODEL_PATHS = new Set([
   "/api/da-config/model/vigour",
   "/configurator/badolux-model.json",
+  "/configurator/badolux-model-v1.json",
 ]);
 
 // Modules the offline path needs at the exact moment it cannot fetch them: the
@@ -81,6 +82,15 @@ const PRECACHE = [
   "/assets/duschwanne.jpeg",
   "/api/da-config/model/vigour",
   "/configurator/badolux-model.json",
+  "/configurator/badolux-model-v1.json",
+  // Badolux Duschabtrennung main photos (the gallery loads from cleverbad.de).
+  "/assets/badolux/da/lissabon.webp",
+  "/assets/badolux/da/lissabon-ecke.webp",
+  "/assets/badolux/da/rom.webp",
+  "/assets/badolux/da/stockholm.webp",
+  "/assets/badolux/da/madrid.webp",
+  "/assets/badolux/da/wien-walkin.webp",
+  "/assets/badolux/da/wien-pendel.webp",
   // The whole Wandverkleidung tab, ~2.3MB total: every static swatch/profile
   // image in its section of index.html, plus the 7 Budget-Wandpaneele
   // (Badolux WP*) photos, whose path is built client-side from productId

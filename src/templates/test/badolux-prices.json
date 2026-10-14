@@ -68,9 +68,9 @@
         },
         {
           "name": "Faltür mit Festteil - Stockholm",
-          "spec": "Gesamtlänge 180 cm, Faltwand 2 x 50 cm und 80 cm fest, Glasstärke 0,6 cm",
+          "spec": "Gesamtlänge 171 cm (korrigiert 2026-10-14 lt. cleverbad.de, vorher 180), Faltwand 2 x 50 cm, Glasstärke 0,6 cm",
           "prices": [
-            { "masse_cm": "180 (80er fest, 100er Falt)", "preis": 368.55 }
+            { "masse_cm": "171", "preis": 368.55 }
           ]
         }
       ]

@@ -231,15 +231,64 @@ export function mountConfigurator(el, model, options = {}) {
         cand[0];
       if (a && !out.some((x) => x.src === a.image))
         out.push({ src: a.image, label: a.displayName || c.label });
+      // Badolux: the product's photo gallery from cleverbad.de (model.products).
+      for (const src of (a && model.products?.[a.product]?.gallery) || [])
+        if (!out.some((x) => x.src === src)) out.push({ src, label: model.products[a.product].name });
     }
     return out;
+  }
+
+  /** Shop products behind the current configuration (Badolux model only): the
+   *  article picked per component, or its first article before a size is chosen. */
+  function currentProducts() {
+    const leaf = w.resolvedLeaf(model, state);
+    if (!leaf || !model.products) return [];
+    const slugs = [];
+    for (const c of leaf.components) {
+      const size = state.sizes[c.key];
+      const a = (size && c.articles.find((x) => x.width === size.width && x.height === size.height)) || c.articles[0];
+      if (a?.product && model.products[a.product] && !slugs.includes(a.product)) slugs.push(a.product);
+    }
+    return slugs.map((s) => model.products[s]);
+  }
+
+  // Description + features from the shop, collapsed so the steps stay in view.
+  function productInfoEl(products) {
+    const box = document.createElement("details");
+    box.className = "dac-info";
+    const sum = document.createElement("summary");
+    sum.textContent = `Produktinfo: ${products.map((p) => p.name).join(" + ")}`;
+    box.appendChild(sum);
+    for (const p of products) {
+      if (products.length > 1) {
+        const h = document.createElement("h5");
+        h.textContent = p.name;
+        box.appendChild(h);
+      }
+      for (const para of p.description || []) {
+        const el = document.createElement("p");
+        el.textContent = para;
+        box.appendChild(el);
+      }
+      if (p.features?.length) {
+        const ul = document.createElement("ul");
+        for (const f of p.features) {
+          const li = document.createElement("li");
+          li.textContent = f;
+          ul.appendChild(li);
+        }
+        box.appendChild(ul);
+      }
+    }
+    return box;
   }
 
   /** Gallery for the preview: product photos first, the leaf image last. */
   function previewImages() {
     const v = leafPreview();
     const imgs = productImages();
-    if (v) imgs.push({ src: imageUrl(v.imageId), label: v.label });
+    const leafSrc = v && imageUrl(v.imageId);
+    if (leafSrc && !imgs.some((x) => x.src === leafSrc)) imgs.push({ src: leafSrc, label: v.label });
     return imgs;
   }
 
@@ -431,6 +480,8 @@ export function mountConfigurator(el, model, options = {}) {
     // last structure question), and keep it visible through finish + sizing.
     const previews = previewImages();
     if (previews.length) main.appendChild(leafPreviewEl(previews));
+    const infoProducts = currentProducts();
+    if (infoProducts.length) main.appendChild(productInfoEl(infoProducts));
 
     if (step.phase === "structure" || step.phase === "finish") {
       const p = paramMeta(step.paramId);

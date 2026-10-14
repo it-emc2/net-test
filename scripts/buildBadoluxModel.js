@@ -1,17 +1,26 @@
 /* eslint-disable no-undef */
 // buildBadoluxModel.js
-// Generates src/public/configurator/badolux-model.json in the same schemaVersion-2 shape
-// the Duschabtrennung (neu) engine already consumes (see src/public/configurator/engine.js).
+// Generates src/public/configurator/badolux-model.json for "Duschabtrennung (neu)" in the
+// same schemaVersion-2 shape the engine already consumes (src/public/configurator/engine.js).
 //
-// Source (read-only): src/templates/test/badolux-prices.json → ONLY the
-// "Duschabtrennungen (Gläser)" category. All other badolux categories are seeded into the
-// product DB (scripts/seedBadolux.js) for use in other sections, NOT here.
+// Flow follows cleverbad.de/konfigurator (Badolux's own shop), see
+// docs/research-cleverbad-badolux.md §10:
+//   Einbausituation → Tür → Anschlag → (Duschabtrennung, auto) → size per component
+// and resolves to the same product SETS the shop does, e.g. a corner = two Lissabon
+// folding doors, a Pendeltür = Festglas Wien + Pendeltür Wien 40.
 //
-// Mapping badolux → Vigour schema:
-//   • one structure param "Produkt" whose values are the glass products
-//   • one leaf per product (finish: [] — badolux glass has no Glasart/Beschichtung tree)
-//   • one component per leaf; each `masse_cm` row is a size option (rendered as one "Maß" row)
-//   • per-article we KEEP the list price + discount (not baked): {list, discount, net}
+// Sources (read-only):
+//   • prices: src/templates/test/badolux-prices.json → "Duschabtrennungen (Gläser)"
+//     (our dealer list; net = list × (1 − discount))
+//   • shop data: scripts/data/badolux-da-cleverbad.json → article numbers, descriptions,
+//     photo gallery (photos are loaded from the shop; the main photo per product is
+//     stored locally under src/public/assets/badolux/da/ for the PDF and offline use)
+//
+// Glass/profile colour are not selectable (the shop's articles don't vary by them);
+// the offer line states the default finish instead (DEFAULT_FINISH).
+//
+// The previous one-step model is kept as badolux-model-v1.json: boot.js reopens any
+// saved Badolux state that still uses its "Produkt" step with it.
 //
 // Run: node scripts/buildBadoluxModel.js
 
@@ -20,125 +29,219 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = join(__dirname, "../src/templates/test/badolux-prices.json");
+const PRICES = join(__dirname, "../src/templates/test/badolux-prices.json");
+const SHOP = join(__dirname, "data/badolux-da-cleverbad.json");
 const OUT = join(__dirname, "../src/public/configurator/badolux-model.json");
 const CATEGORY = "Duschabtrennungen (Gläser)";
+const IMG = "/assets/badolux/da";
 
-// Product image files live under src/public/assets/badolux/ (served at /assets/badolux/).
-// Keyed by the generated product `value` (see `slug` below). Each entry becomes an
-// entry in model.images and an `imageId` on the matching "Produkt" value, which the
-// engine UI renders next to the option (see configurator-ui.js optionButton).
-const PRODUCT_IMAGES = {
-  "001_Walk_in_Wien": "walk-in-wien.png",
-  "002_Pendel_Wien": "pendel-wien.png",
-  "003_Falttur_Lissabon": "flattuer-lissabon.png",
-  "004_Faltur_mit_Festteil_Rom": "faltuer-mit-festteil-rom.png",
-  "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt": "schiebetuer-madrid.png",
-  "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt": "schiebetuer-unten-gefuehrt.png",
-  "007_Faltur_mit_Festteil_Stockholm": "faltuer-mit-festteil-stockholm.png",
-};
-const IMAGE_BASE = "/assets/badolux";
-
-// "20%" -> 0.20
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const parseDiscount = (s) => {
   const n = Number(String(s ?? "").replace("%", "").replace(",", ".").trim());
   return Number.isFinite(n) ? n / 100 : 0;
 };
-const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-const slug = (s) =>
-  String(s)
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-// numeric masse → "80 cm"; descriptive masse ("140 (40er fest…)") kept verbatim
-const sizeDisplay = (m) => (/^\d+$/.test(String(m).trim()) ? `${m} cm` : String(m));
 
-const src = JSON.parse(readFileSync(SRC, "utf8"));
-const cat = src.categories?.[CATEGORY];
-if (!cat) throw new Error(`Category "${CATEGORY}" not found in ${SRC}`);
+const prices = JSON.parse(readFileSync(PRICES, "utf8"));
+const shop = JSON.parse(readFileSync(SHOP, "utf8"));
+const cat = prices.categories?.[CATEGORY];
+if (!cat) throw new Error(`Category "${CATEGORY}" not found in ${PRICES}`);
+const discount = parseDiscount(cat.discount ?? "0%");
 
-const discount = parseDiscount(cat.discount ?? src.discounts?.Glaeser ?? "0%");
+// List price from our sheet by product name + width ("171", "140 (…)" → first number).
+function listPrice(product, cm) {
+  const p = cat.products.find((x) => x.name === product);
+  if (!p) throw new Error(`price list has no product "${product}"`);
+  const row = p.prices.find((r) => parseInt(r.masse_cm, 10) === cm);
+  if (!row) throw new Error(`"${product}" has no price for ${cm} cm`);
+  return Number(row.preis);
+}
+// Glass thickness from our sheet's spec ("Glasstärke 0,8 cm" / "x 0,6 cm").
+function glassMm(product) {
+  const spec = cat.products.find((x) => x.name === product)?.spec || "";
+  const m = spec.match(/0,(\d) cm/);
+  return m ? Number(m[1]) : null;
+}
 
-const values = [];
+// Default finish — Badolux glass comes in one version (all shop photos: clear glass,
+// chrome profiles). Profile colour is the shop's default, not stated in our sheet.
+const finishText = (product, anschlag) =>
+  [anschlag, `ESG Klarglas ${glassMm(product) ?? "?"} mm, EasyClean`, "Höhe 195 cm", "Profil Chrom"]
+    .filter(Boolean)
+    .join(" · ");
+
+// Per shop product, once: description, features and the photo gallery (loaded from
+// cleverbad.de; the local main photo sits on each article as `image`).
+const products = {};
+const useProduct = (slug) => {
+  const p = shop.products[slug];
+  if (p && !products[slug])
+    products[slug] = { name: p.name, description: p.description, features: p.features, gallery: p.gallery.map((g) => shop.imgBase + g) };
+  return slug;
+};
+
+/** One article. `size` is the size-button text and the engine's match key. */
+function article({ product, cm, size, sku, name, slug, image, anschlag }) {
+  const list = listPrice(product, cm);
+  return {
+    articleNumber: sku,
+    width: size,
+    height: "", // single height (195 cm) → no Höhe axis in the UI
+    sizeLabel: null,
+    list,
+    discount,
+    net: round2(list * (1 - discount)),
+    gros: list,
+    currency: "EUR",
+    label: `${name} ${cm} cm`,
+    displayName: `${name} ${cm} cm`,
+    finishText: finishText(product, anschlag),
+    image: `${IMG}/${image}`,
+    product: useProduct(slug), // → model.products[slug]: description + photo gallery
+  };
+}
+const component = (key, label, articles) => ({
+  key,
+  label,
+  breite: articles.map((a) => a.width),
+  hoehe: [""],
+  sondermass: [],
+  articles,
+});
+
+// --- products (article numbers = cleverbad.de variants matching our sheet's glass) ----
+const LISSABON = [[80, "PRI80DK18"], [90, "PRI80DK19"], [100, "PRI80DK20"], [120, "PRI80DK21"]];
+const WIEN_FEST = [[60, "PRI80DK13"], [70, "PRI80DK14"], [80, "PRI80DK15"], [90, "PRI63DK16"], [100, "PRI80DK16"], [120, "PRI80DK17"]];
+
+const lissabon = (anschlag, suffix = "", image = "lissabon.webp") =>
+  LISSABON.map(([cm, sku]) =>
+    article({ product: "Falttür - Lissabon", cm, size: `${cm} cm`, sku, name: `Falttür Lissabon${suffix}`, slug: "falttuer-lissabon", image, anschlag }),
+  );
+const nischeFalt = (anschlag) => [
+  ...LISSABON.map(([cm, sku]) =>
+    article({ product: "Falttür - Lissabon", cm, size: `${cm} cm · Lissabon`, sku, name: "Falttür Lissabon", slug: "falttuer-lissabon", image: "lissabon.webp", anschlag }),
+  ),
+  article({ product: "Faltür mit Festteil - Rom", cm: 140, size: "140 cm · Rom mit Festteil", sku: "PRI80DK22", name: "Falttür mit Festteil Rom", slug: "falttuer-rom", image: "rom.webp", anschlag }),
+  article({ product: "Faltür mit Festteil - Stockholm", cm: 171, size: "171 cm · Stockholm mit Festteil", sku: "PRI80DK09", name: "Falttür mit Festteil Stockholm", slug: "falttuer-stockholm", image: "stockholm.webp", anschlag }),
+];
+const UNTEN = "Schiebetür - Madrid (Wand-offen, unten geführt)";
+const OBEN = "Schiebetür - Madrid (Wand-Wand, oben geführt)";
+const madrid = (anschlag) => [
+  article({ product: UNTEN, cm: 140, size: "140 cm", sku: "PRI71DK14", name: "Schiebetür Madrid", slug: "schiebetuer-madrid", image: "madrid.webp", anschlag }),
+  article({ product: UNTEN, cm: 160, size: "160 cm · untengeführt", sku: "PRI71DK15", name: "Schiebetür Madrid untengeführt", slug: "schiebetuer-madrid", image: "madrid.webp", anschlag }),
+  article({ product: OBEN, cm: 160, size: "160 cm · obengeführt", sku: "PRI71DK17", name: "Schiebetür Madrid obengeführt", slug: "schiebetuer-madrid", image: "madrid.webp", anschlag }),
+  article({ product: UNTEN, cm: 180, size: "180 cm", sku: "PRI71DK16", name: "Schiebetür Madrid", slug: "schiebetuer-madrid", image: "madrid.webp", anschlag }),
+];
+const wienFest = (anschlag, image, frontHint) =>
+  WIEN_FEST.map(([cm, sku]) =>
+    article({
+      product: "Walk in - Wien",
+      cm,
+      size: frontHint ? `${cm} cm (Front ${cm + 40} cm)` : `${cm} cm`,
+      sku,
+      name: "Festglas Wien",
+      slug: "duschglas-wien",
+      image,
+      anschlag,
+    }),
+  );
+const pendel = (anschlag) => [
+  article({ product: "Pendel - Wien", cm: 40, size: "40 cm", sku: "PRI80DK12", name: "Pendeltür Wien", slug: "duschglas-wien", image: "wien-pendel.webp", anschlag }),
+];
+
+// --- structure ------------------------------------------------------------------------
+const EINBAU = [
+  { value: "nische", label: "Nische — zwischen zwei Wänden, Glas nur vorn" },
+  { value: "ecke", label: "Ecke — zwei Wände, Glas über Eck" },
+  { value: "walkin", label: "Walk-In — feste Glaswand, offener Einstieg" },
+];
+const TUER = [
+  { value: "falt", label: "Falttür — faltet nach innen und außen, braucht wenig Platz" },
+  { value: "schiebe", label: "Schiebetür — gleitet zur Seite, 140 bis 180 cm" },
+  { value: "pendel", label: "Pendeltür — Festglas mit schmaler Tür" },
+  { value: "falt_eck", label: "Falttür übers Eck — zwei Falttüren, Einstieg über Eck" },
+];
+const ANSCHLAG = [
+  { value: "falt_links", label: "Anschlag links (Griff rechts)", text: "Anschlag links" },
+  { value: "falt_rechts", label: "Anschlag rechts (Griff links)", text: "Anschlag rechts" },
+  { value: "schiebe_links", label: "Einstieg links (festes Glas rechts)", text: "Einstieg links" },
+  { value: "schiebe_rechts", label: "Einstieg rechts (festes Glas links)", text: "Einstieg rechts" },
+  { value: "pendel_links", label: "Festglas links (Tür öffnet rechts)", text: "Festglas links" },
+  { value: "pendel_rechts", label: "Festglas rechts (Tür öffnet links)", text: "Festglas rechts" },
+  { value: "walkin_links", label: "Wandanschluss links", text: "Wandanschluss links" },
+  { value: "walkin_rechts", label: "Wandanschluss rechts", text: "Wandanschluss rechts" },
+];
+const anschlagText = (v) => ANSCHLAG.find((a) => a.value === v)?.text;
+
 const leaves = [];
+const leafValues = [];
 const images = {};
+function leaf(sel, { id, label, image, components }) {
+  images[id] = `${IMG}/${image}`;
+  leafValues.push({ value: id, label, imageId: id });
+  leaves.push({ selections: { ...sel, Duschabtrennung: id }, finish: [], components });
+}
 
-cat.products.forEach((p, idx) => {
-  const value = `${String(idx + 1).padStart(3, "0")}_${slug(p.name)}`;
-  const file = PRODUCT_IMAGES[value];
-  if (file) {
-    images[value] = `${IMAGE_BASE}/${file}`;
-    values.push({ value, label: p.name, imageId: value });
-  } else {
-    values.push({ value, label: p.name });
-  }
-
-  const breite = [];
-  const articles = [];
-  for (const row of p.prices || []) {
-    const disp = sizeDisplay(row.masse_cm);
-    breite.push(disp);
-    const list = Number(row.preis) || 0;
-    articles.push({
-      articleNumber: disp, // shown in the offer line: "<Produkt> (<Maß>)"
-      width: disp, // engine matches article.width === chosen size
-      height: "", // single sentinel height (fixed 195 cm per spec) → no Höhe axis
-      sizeLabel: null,
-      list, // net list price from the PDF (pre-discount)
-      discount, // e.g. 0.20 — kept first-class, not baked away
-      net: round2(list * (1 - discount)), // effective net used by pricing.js
-      gros: list, // no separate gross sell price for badolux
-      currency: "EUR",
-      label: `${p.name} ${disp}`,
-      spec: p.spec || "",
-      note: p.note || "",
-    });
-  }
-
-  leaves.push({
-    selections: { Produkt: value },
-    finish: [],
+for (const side of ["links", "rechts"]) {
+  const a = `falt_${side}`;
+  leaf({ Einbausituation: "nische", Tuer: "falt", Anschlag: a }, {
+    id: `nische_falt_${side}`, label: "Falttür in der Nische (Lissabon / Rom / Stockholm)", image: "lissabon.webp",
+    components: [component("Tuer", "Falttür", nischeFalt(anschlagText(a)))],
+  });
+}
+for (const side of ["links", "rechts"]) {
+  const a = `schiebe_${side}`;
+  leaf({ Einbausituation: "nische", Tuer: "schiebe", Anschlag: a }, {
+    id: `nische_schiebe_${side}`, label: "Schiebetür Madrid", image: "madrid.webp",
+    components: [component("Tuer", "Schiebetür Madrid", madrid(anschlagText(a)))],
+  });
+}
+for (const side of ["links", "rechts"]) {
+  const a = `pendel_${side}`;
+  leaf({ Einbausituation: "nische", Tuer: "pendel", Anschlag: a }, {
+    id: `nische_pendel_${side}`, label: "Festglas + Pendeltür Wien", image: "wien-pendel.webp",
     components: [
-      {
-        key: "Glas",
-        label: p.name,
-        breite,
-        hoehe: [""],
-        sondermass: [],
-        articles,
-      },
+      component("Festglas", "Festglas Wien (Front = Festglas + 40 cm Pendeltür)", wienFest(anschlagText(a), "wien-pendel.webp", true)),
+      component("Pendeltuer", "Pendeltür Wien", pendel(anschlagText(a))),
     ],
   });
+}
+leaf({ Einbausituation: "ecke", Tuer: "falt_eck" }, {
+  id: "ecke_falt", label: "Eckkabine aus zwei Falttüren Lissabon", image: "lissabon-ecke.webp",
+  components: [
+    component("TuerVorn", "Falttür vorn", lissabon("Eckeinstieg", " (vorn)", "lissabon-ecke.webp")),
+    component("TuerSeite", "Falttür an der Seite", lissabon("Eckeinstieg", " (Seite)", "lissabon-ecke.webp")),
+  ],
 });
+for (const side of ["links", "rechts"]) {
+  const a = `walkin_${side}`;
+  leaf({ Einbausituation: "walkin", Anschlag: a }, {
+    id: `walkin_${side}`, label: "Walk-In Festglas Wien", image: "wien-walkin.webp",
+    components: [component("Festglas", "Festglas Walk-In Wien", wienFest(anschlagText(a), "wien-walkin.webp", false))],
+  });
+}
 
 const model = {
   meta: {
     schemaVersion: 2,
+    badoluxModel: 2,
     supplier: "BADOLUX",
-    source: src.source || "badolux-all.pdf",
-    builtFrom: "badolux-prices.json → " + CATEGORY,
+    builtFrom: `badolux-prices.json → ${CATEGORY}; scripts/data/badolux-da-cleverbad.json`,
     discount,
-    productCount: values.length,
     leafCount: leaves.length,
   },
   supplier: "BADOLUX",
-  sizeAxisLabel: "Maß (cm)", // overrides the engine UI's default "Breite (mm)" header
+  sizeAxisLabel: "Maß",
   params: [
-    {
-      id: "Produkt",
-      label: "Produkt",
-      order: 0,
-      mandatory: true,
-      values,
-    },
+    { id: "Einbausituation", label: "Wo soll die Dusche stehen?", order: 0, mandatory: true, values: EINBAU },
+    { id: "Tuer", label: "Welche Tür passt?", order: 1, mandatory: true, values: TUER },
+    { id: "Anschlag", label: "Auf welcher Seite?", order: 2, mandatory: true, values: ANSCHLAG.map(({ value, label }) => ({ value, label })) },
+    { id: "Duschabtrennung", label: "Duschabtrennung", order: 3, mandatory: true, values: leafValues },
   ],
   leaves,
   sondermass: {},
   images,
+  products,
 };
 
 writeFileSync(OUT, JSON.stringify(model, null, 2) + "\n", "utf8");
-console.log(
-  `Wrote ${OUT}\n  products: ${values.length}, discount: ${(discount * 100).toFixed(0)}%`,
-);
+console.log(`Wrote ${OUT}\n  leaves: ${leaves.length}, discount: ${(discount * 100).toFixed(0)}%`);

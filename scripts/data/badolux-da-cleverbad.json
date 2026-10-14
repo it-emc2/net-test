@@ -1,0 +1,506 @@
+{
+ "source": "cleverbad.de (Badolux-Shop), Stand 2026-10-14 — Beschreibungen, Fotos, Shop-Artikelnummern. Preise kommen NICHT von hier, sondern aus badolux-prices.json.",
+ "imgBase": "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/",
+ "products": {
+  "falttuer-lissabon": {
+   "name": "Falttür Lissabon",
+   "description": [
+    "Die Falttür Lissabon öffnet nach innen und nach außen und faltet sich dabei zusammen. In engen Bädern falten Sie sie nach innen, damit vor der Dusche kaum Platz verloren geht. Brauchen Sie mehr Bewegungsfreiheit in der Kabine, öffnen Sie nach außen.",
+    "Sie wählen zwischen der einteiligen Falttür für die Nische und der zweiteiligen Eckkabine aus zwei Falttüren. Preislich sind beide Ausführungen gleich; die Maße und das Glas bleiben identisch.",
+    "Die Tür besteht aus 6 oder 8 mm starkem Einscheiben-Sicherheitsglas. Es ist stabil im Alltag und zerfällt im seltenen Bruchfall in kleine, stumpfe Stücke statt in scharfe Scherben.",
+    "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+    "Lissabon ist in vier Nennbreiten von 80 bis 120 cm erhältlich. Wählen Sie Ausführung, Glasstärke und Maß direkt auf der Produktseite; Preis und Verfügbarkeit passen sich Ihrer Auswahl an."
+   ],
+   "features": [
+    "Einteilig oder zweiteilig wählbar",
+    "Öffnet nach innen und außen",
+    "6 oder 8 mm ESG-Sicherheitsglas",
+    "EasyClean-Beschichtung serienmäßig",
+    "Vier Nennbreiten von 80 bis 120 cm"
+   ],
+   "specs": [
+    {
+     "label": "Typ",
+     "value": "Drehfalttür, einteilig oder zweiteilige Eckkabine"
+    },
+    {
+     "label": "Glas",
+     "value": "6 oder 8 mm ESG-Sicherheitsglas"
+    },
+    {
+     "label": "Beschichtung",
+     "value": "EasyClean, schmutz- und wasserabweisend"
+    },
+    {
+     "label": "Breiten",
+     "value": "80, 90, 100 und 120 cm"
+    },
+    {
+     "label": "Artikelnummern",
+     "value": "PRI71DK12, PRI80DK01 bis PRI80DK03, PRI80DK18 bis PRI80DK21, PRI63DK05 bis PRI63DK07"
+    }
+   ],
+   "gallery": [
+    "falttuer-lissabon/lissabon-falt.webp",
+    "falttuer-lissabon/lissabon-foto-07.webp",
+    "falttuer-lissabon/lissabon-foto-14.webp",
+    "falttuer-lissabon/lissabon-foto-09.webp",
+    "falttuer-lissabon/lissabon-falt1.webp",
+    "falttuer-lissabon/lissabon-foto-03.webp",
+    "falttuer-lissabon/lissabon-foto-10.webp",
+    "falttuer-lissabon/lissabon-foto-08.webp",
+    "falttuer-lissabon/lissabon-foto-05.webp",
+    "falttuer-lissabon/lissabon-foto-02.webp",
+    "falttuer-lissabon/lissabon-foto-06.webp",
+    "falttuer-lissabon/lissabon-foto-12.webp",
+    "falttuer-lissabon/lissabon-foto-01.webp",
+    "falttuer-lissabon/lissabon-foto-04.webp",
+    "falttuer-lissabon/lissabon-foto-13.webp",
+    "falttuer-lissabon/lissabon-foto-11.webp"
+   ],
+   "variants": [
+    {
+     "sku": "PRI80DK20-Z",
+     "label": "100 cm, 8 mm",
+     "option": "Zweiteilig",
+     "widthCm": 100,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK18-Z",
+     "label": "80 cm, 8 mm",
+     "option": "Zweiteilig",
+     "widthCm": 80,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK03-Z",
+     "label": "120 cm, 6 mm",
+     "option": "Zweiteilig",
+     "widthCm": 120,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK18",
+     "label": "80 cm, 8 mm",
+     "option": "Einteilig",
+     "widthCm": 80,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK19",
+     "label": "90 cm, 8 mm",
+     "option": "Einteilig",
+     "widthCm": 90,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK01",
+     "label": "90 cm, 6 mm",
+     "option": "Einteilig",
+     "widthCm": 90,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK21",
+     "label": "120 cm, 8 mm",
+     "option": "Einteilig",
+     "widthCm": 120,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK01-Z",
+     "label": "90 cm, 6 mm",
+     "option": "Zweiteilig",
+     "widthCm": 90,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK19-Z",
+     "label": "90 cm, 8 mm",
+     "option": "Zweiteilig",
+     "widthCm": 90,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK21-Z",
+     "label": "120 cm, 8 mm",
+     "option": "Zweiteilig",
+     "widthCm": 120,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK20",
+     "label": "100 cm, 8 mm",
+     "option": "Einteilig",
+     "widthCm": 100,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK02",
+     "label": "100 cm, 6 mm",
+     "option": "Einteilig",
+     "widthCm": 100,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK03",
+     "label": "120 cm, 6 mm",
+     "option": "Einteilig",
+     "widthCm": 120,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI71DK12",
+     "label": "80 cm, 6 mm",
+     "option": "Einteilig",
+     "widthCm": 80,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI71DK12-Z",
+     "label": "80 cm, 6 mm",
+     "option": "Zweiteilig",
+     "widthCm": 80,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK02-Z",
+     "label": "100 cm, 6 mm",
+     "option": "Zweiteilig",
+     "widthCm": 100,
+     "glassMm": 6
+    }
+   ]
+  },
+  "schiebetuer-madrid": {
+   "name": "Schiebetür Madrid",
+   "description": [
+    "Die Schiebetür Madrid ist die Lösung für breite Duschen: Das Türelement gleitet zur Seite, ohne in den Raum zu schwenken. So bleibt vor der Dusche voller Bewegungsraum.",
+    "Madrid besteht aus 8 mm starkem Einscheiben-Sicherheitsglas und läuft ruhig in der Führung. In 160 cm gibt es die Tür untengeführt oder obengeführt.",
+    "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+    "Erhältlich ist die Serie in 140, 160 und 180 cm. Wählen Sie das passende Maß direkt auf der Produktseite; Preis und Verfügbarkeit passen sich Ihrer Auswahl an."
+   ],
+   "features": [
+    "Gleitet zur Seite, schwenkt nicht in den Raum",
+    "8 mm ESG-Sicherheitsglas",
+    "EasyClean-Beschichtung serienmäßig",
+    "Breiten von 140 bis 180 cm",
+    "In 160 cm auch obengeführt"
+   ],
+   "specs": [
+    {
+     "label": "Typ",
+     "value": "Schiebetür"
+    },
+    {
+     "label": "Glas",
+     "value": "8 mm ESG-Sicherheitsglas"
+    },
+    {
+     "label": "Beschichtung",
+     "value": "EasyClean, schmutz- und wasserabweisend"
+    },
+    {
+     "label": "Breiten",
+     "value": "140, 160 und 180 cm"
+    },
+    {
+     "label": "Artikelnummern",
+     "value": "PRI71DK14 bis PRI71DK17, PRI80DK23, PRI80DK24"
+    }
+   ],
+   "gallery": [
+    "schiebetuer-madrid/madrid-produkt.webp",
+    "schiebetuer-madrid/madrid-w-w.webp"
+   ],
+   "variants": [
+    {
+     "sku": "PRI71DK16",
+     "label": "180 cm",
+     "option": null,
+     "widthCm": 180,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI71DK14",
+     "label": "140 cm",
+     "option": null,
+     "widthCm": 140,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI71DK15",
+     "label": "160 cm",
+     "option": null,
+     "widthCm": 160,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI71DK17",
+     "label": "160 cm, obengeführt",
+     "option": null,
+     "widthCm": 160,
+     "glassMm": 8
+    }
+   ]
+  },
+  "falttuer-rom": {
+   "name": "Falttür Rom mit Festteil",
+   "description": [
+    "Die Serie Rom kombiniert ein festes Glasteil mit einer platzsparenden Falttür. Das Festteil übernimmt den Spritzschutz, die Falttür öffnet den Einstieg, ohne weit in den Raum zu schwenken.",
+    "Beide Elemente bestehen aus 6 oder 8 mm starkem Einscheiben-Sicherheitsglas. Die Kombination eignet sich für 140 cm breite Duschen, etwa als Front vor einer Duschwanne in Standardgröße.",
+    "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+    "Sie erhalten Festteil und Falttür als aufeinander abgestimmtes Set. Bei Fragen zur Aufteilung und zur Anschlagseite berät Sie unser Fachteam gern vor der Bestellung."
+   ],
+   "features": [
+    "Festteil und Falttür im Set",
+    "6 oder 8 mm ESG-Sicherheitsglas",
+    "EasyClean-Beschichtung serienmäßig",
+    "Für 140 cm breite Duschen",
+    "Platzsparender Einstieg"
+   ],
+   "specs": [
+    {
+     "label": "Typ",
+     "value": "Falttür mit Festteil"
+    },
+    {
+     "label": "Glas",
+     "value": "6 oder 8 mm ESG-Sicherheitsglas"
+    },
+    {
+     "label": "Beschichtung",
+     "value": "EasyClean, schmutz- und wasserabweisend"
+    },
+    {
+     "label": "Breite",
+     "value": "140 cm"
+    },
+    {
+     "label": "Artikelnummern",
+     "value": "PRI80DK04, PRI80DK22"
+    }
+   ],
+   "gallery": [
+    "falttuer-rom/rom-140er-falt-fest.webp",
+    "falttuer-rom/rom-foto-06.webp",
+    "falttuer-rom/rom-foto-07.webp",
+    "falttuer-rom/rom-foto-02.webp",
+    "falttuer-rom/rom-foto-05.webp",
+    "falttuer-rom/rom-foto-01.webp",
+    "falttuer-rom/rom-foto-04.webp",
+    "falttuer-rom/rom-foto-03.webp"
+   ],
+   "variants": [
+    {
+     "sku": "PRI80DK22",
+     "label": "140 cm",
+     "option": "8 mm",
+     "widthCm": 140,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK04",
+     "label": "140 cm",
+     "option": "6 mm",
+     "widthCm": 140,
+     "glassMm": 6
+    }
+   ]
+  },
+  "duschglas-wien": {
+   "name": "Duschglas Wien",
+   "description": [
+    "Die Serie Wien deckt zwei Aufgaben ab: Als Festglas bildet sie die offene Walk-in-Abtrennung ohne Tür, als Pendeltür ergänzt sie ein schmales, schwenkbares Element, etwa am Ende einer festen Glaswand.",
+    "Das Festglas gibt es in Breiten von 60 bis 120 cm, die Pendeltür in 30 und 40 cm. Beide Ausführungen bestehen aus Einscheiben-Sicherheitsglas in 6 oder 8 mm Stärke, die Stärke wählen Sie zusammen mit der Breite.",
+    "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+    "Wählen Sie zuerst die Ausführung und dann die Breite direkt auf der Produktseite. Festglas und Pendeltür lassen sich auch kombinieren; unser Fachteam hilft bei der Planung gern weiter."
+   ],
+   "features": [
+    "Festglas oder Pendeltür wählbar",
+    "ESG-Sicherheitsglas in 6 oder 8 mm",
+    "EasyClean-Beschichtung serienmäßig",
+    "Festglas von 60 bis 120 cm",
+    "Pendeltür in 30 und 40 cm"
+   ],
+   "specs": [
+    {
+     "label": "Typ",
+     "value": "Festglas (Walk-in) und Pendeltür"
+    },
+    {
+     "label": "Glas",
+     "value": "6 oder 8 mm ESG-Sicherheitsglas"
+    },
+    {
+     "label": "Beschichtung",
+     "value": "EasyClean, schmutz- und wasserabweisend"
+    },
+    {
+     "label": "Breiten Festglas",
+     "value": "60 bis 120 cm"
+    },
+    {
+     "label": "Breiten Pendeltür",
+     "value": "30 und 40 cm"
+    },
+    {
+     "label": "Artikelnummern",
+     "value": "PRI80DK05 bis PRI80DK17, PRI63DK16, PRI71DK02 bis PRI71DK19, PRI96DK07"
+    }
+   ],
+   "gallery": [
+    "duschglas-wien/wien-glas-fest.webp",
+    "duschglas-wien/wien-fest-pendel.webp",
+    "duschglas-wien/wien-foto-09.webp",
+    "duschglas-wien/wien-foto-03.webp",
+    "duschglas-wien/wien-foto-02.webp",
+    "duschglas-wien/wien-foto-04.webp",
+    "duschglas-wien/wien-foto-05.webp",
+    "duschglas-wien/wien-foto-06.webp",
+    "duschglas-wien/wien-foto-07.webp",
+    "duschglas-wien/wien-foto-08.webp",
+    "duschglas-wien/wien-foto-01.webp"
+   ],
+   "variants": [
+    {
+     "sku": "PRI80DK13",
+     "label": "60 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 60,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK14",
+     "label": "70 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 70,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK15",
+     "label": "80 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 80,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI63DK16",
+     "label": "90 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 90,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK12",
+     "label": "40 cm, 8 mm",
+     "option": "Pendeltür",
+     "widthCm": 40,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK05",
+     "label": "40 cm, 6 mm",
+     "option": "Pendeltür",
+     "widthCm": 40,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK10",
+     "label": "60 cm, 6 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 60,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK07",
+     "label": "90 cm, 6 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 90,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK06",
+     "label": "80 cm, 6 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 80,
+     "glassMm": 6
+    },
+    {
+     "sku": "PRI80DK17",
+     "label": "120 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 120,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK16",
+     "label": "100 cm, 8 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 100,
+     "glassMm": 8
+    },
+    {
+     "sku": "PRI80DK11",
+     "label": "70 cm, 6 mm",
+     "option": "Festglas (Walk-in)",
+     "widthCm": 70,
+     "glassMm": 6
+    }
+   ]
+  },
+  "falttuer-stockholm": {
+   "name": "Falttür Stockholm mit Festteil",
+   "description": [
+    "Die Serie Stockholm verschließt breite Duschbereiche mit einer Kombination aus festem Glasteil und Falttür. Sie eignet sich besonders als Front vor langen, bodengleichen Duschwannen.",
+    "Das 6 mm starke Einscheiben-Sicherheitsglas gibt der breiten Front die nötige Stabilität. Die Falttür öffnet platzsparend, das Festteil übernimmt den dauerhaften Spritzschutz.",
+    "Serienmäßig tragen die Glasflächen EasyClean, eine schmutz- und wasserabweisende Beschichtung. Wasser perlt ab, Kalk und Schmutz haften kaum. Nach dem Duschen reicht oft ein kurzes Abziehen.",
+    "Stockholm ist auf 171 cm Breite ausgelegt. Ob die Aufteilung zu Ihrem Grundriss passt, klären wir gern vorab; unser Fachteam prüft Ihre Maße vor der Bestellung."
+   ],
+   "features": [
+    "Für breite Duschen bis 171 cm",
+    "6 mm ESG-Sicherheitsglas",
+    "EasyClean-Beschichtung serienmäßig",
+    "Festteil und Falttür kombiniert",
+    "Ideal vor langen Duschwannen"
+   ],
+   "specs": [
+    {
+     "label": "Typ",
+     "value": "Falttür mit Festteil"
+    },
+    {
+     "label": "Glas",
+     "value": "6 mm ESG-Sicherheitsglas"
+    },
+    {
+     "label": "Beschichtung",
+     "value": "EasyClean, schmutz- und wasserabweisend"
+    },
+    {
+     "label": "Breite",
+     "value": "171 cm"
+    },
+    {
+     "label": "Artikelnummer",
+     "value": "PRI80DK09"
+    }
+   ],
+   "gallery": [
+    "falttuer-stockholm/stockholm-foto-01.webp",
+    "falttuer-stockholm/stockholm-foto-02.webp",
+    "falttuer-stockholm/stockholm-foto-03.webp"
+   ],
+   "variants": [
+    {
+     "sku": "PRI80DK09",
+     "label": "171 cm",
+     "option": null,
+     "widthCm": 171,
+     "glassMm": 6
+    }
+   ]
+  }
+ }
+}
