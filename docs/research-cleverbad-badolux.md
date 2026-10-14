@@ -126,3 +126,56 @@ Nicht enthalten: Keramico-Zubehör (Kleber, Abschlussleiste), Arbeitszeit, Premi
 
 **Unser Stand:** Badolux-Modell = 1 Parameter „Produkt" (7 Produkte) → 1 Glas-Komponente → 1 Artikel. Vigour-Modell = 23 Parameter, 109 Konfigurationen mit 1–3 Komponenten. Engine (engine.js) kann mehrstufige Struktur, Finish und Größe je Komponente bereits.
 **Daten:** 156 Angebote / 598 Entwürfe mit Duschabtrennung (neu) — alle Vigour, 0 × Badolux. Preise sind beim Speichern eingefroren (quickAdd), der Zustand dient nur dem Wiederöffnen; fehlendes `__supplier` = Vigour.
+
+## 11. Badolux-Warenkorb-Datei für n8n (Vorschlag, 2026-10-14)
+
+**Ziel:** wie `Hassmann_Warenkorb_<Angebot>.csv` eine zweite Datei je gesendetem Angebot, an die Bitrix-Timeline gehängt; eine n8n-Automation legt damit den Warenkorb auf cleverbad.de an.
+
+**Vorschlag: zwei Dateien**
+- `Badolux_Warenkorb_<Angebot>.csv` — gleiches Format wie Hassmann (`ART;<Artikelnummer>;<Menge>`), nur Artikel mit cleverbad-Nummer.
+- `Badolux_Warenkorb_<Angebot>.json` — alles, was ein Bot zum Suchen und Prüfen braucht:
+
+```json
+{
+  "format": "badolux-warenkorb/1",
+  "offerNumber": "ANG2026-1014-101500",
+  "dealId": "65462",
+  "createdAt": "2026-10-14T10:15:00+02:00",
+  "shop": "https://cleverbad.de",
+  "items": [
+    { "sku": "PRI70DW08", "qty": 1, "section": "Duschwanne",
+      "name": "Duschwanne Riviera 100 × 100 cm, Weiß",
+      "url": "https://cleverbad.de/produkt/duschwanne-riviera?breite=100&laenge=100",
+      "variant": { "widthCm": 100, "lengthCm": 100, "option": "Weiß" },
+      "ourProductId": "DW020", "ourNetEach": 235.20 },
+    { "sku": "PRI80DK19-Z", "qty": 1, "section": "Duschabtrennung",
+      "name": "Falttür Lissabon 90 cm (vorn)",
+      "url": "https://cleverbad.de/produkt/falttuer-lissabon?breite=90",
+      "variant": { "widthCm": 90, "glassMm": 8, "option": "Zweiteilig" },
+      "ourNetEach": 242.06, "note": "Eckeinstieg" },
+    { "sku": "PRI73WP10", "qty": 6, "section": "Wandverkleidung",
+      "name": "Wandpaneel Keramico Grau 95 × 255 cm",
+      "url": "https://cleverbad.de/produkt/wandpaneel-keramico-grau",
+      "ourProductId": "WP003", "ourNetEach": 116.10 }
+  ],
+  "manual": [
+    { "ourProductId": "BP003", "name": "Hydroträgerplatte creme", "qty": 10,
+      "reason": "nicht im cleverbad-Shop" }
+  ]
+}
+```
+
+`url` preselects the variant the same way the shop's own configurator links do (`?breite=`, trays `?breite=&laenge=`); `sku` is the authoritative match. `manual` lists Badolux items the bot cannot buy.
+
+**Zuordnung unsere Artikel → cleverbad**
+
+| Bereich | Unsere ID | cleverbad | Status |
+|---|---|---|---|
+| Duschabtrennung (neu) | Zeile trägt bereits `PRI…` | gleich | fertig |
+| Duschwanne Standard | DW001–DW025 | Riviera `PRI70DW…`/`PRI119DK…` (alle 25 Maße vorhanden) | Mapping-Tabelle nötig |
+| Wandpaneele | WP001–006 | `PRI73WP08`–`13` | Mapping-Tabelle nötig |
+| Sonder-Dekor | WP007 + `wvMotif` | Motiv-SKU `PRE97WP…`, eigenes Motiv `PRI73WP999` | aus `wvMotif` |
+| Boden | BP001–005 | nicht im Shop | `manual` |
+| Abfluss | AGB001 | evtl. Siphon Bridge 90 `PR95DW001` — unbestätigt | `manual` bis geklärt |
+
+**Duschwannen-Abgleich (Riviera, randlos):** alle 25 DB-Größen im Shop. Nur im Shop: 70 × 100 (`PRI119DK01`), 70 × 120 (`PRI119DK02`), 80 × 170 **Grau** (`PRI70DW19`). Serie Amalfi (mit Rand, 3,5 cm): 12 Größen / 19 Varianten, nicht in unserer DB. Nichts entfernt.
