@@ -52,14 +52,14 @@
         },
         {
           "name": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
-          "spec": "Schiebetür, 160 x 195 x 0,6 cm, Wand zu Wand Montage, oben geführt",
+          "spec": "Schiebetür, 160 x 195 x 0,8 cm (korrigiert 2026-10-14 lt. cleverbad.de, vorher 0,6), Wand zu Wand Montage, oben geführt",
           "prices": [
             { "masse_cm": "160", "preis": 516.43 }
           ]
         },
         {
           "name": "Schiebetür - Madrid (Wand-offen, unten geführt)",
-          "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
+          "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,8 cm (korrigiert 2026-10-14 lt. cleverbad.de, vorher 0,6), unten geführt",
           "prices": [
             { "masse_cm": "140", "preis": 486.85 },
             { "masse_cm": "160", "preis": 502.78 },
