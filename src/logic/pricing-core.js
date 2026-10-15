@@ -287,6 +287,8 @@ export default (ProductModel, deps = {}) => {
       } else if (key.startsWith("qty_")) {
   const k = key.slice(4);
   if (k === "BASIN_SONDER") continue;
+  // Legacy drafts: WC alias seat tiles posted qty_alias_<id>__pair_<wc> (UI mirror only).
+  if (k.startsWith("alias_")) continue;
 
   // ✅ IMPORTANT: if we already have opt_<k>, it will handle qty_<k> there
   // so we must NOT push again here (prevents duplicates)

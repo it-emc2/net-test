@@ -19280,7 +19280,9 @@ cat_SHOWER: "menu_SHOWER",
         const optId = `opt_${item.productId}${idSuffix}`;
         const qtyId = `qty_${item.productId}${idSuffix}`;
         const wrapId = `${qtyId}_wrap`;
-        const qtyName = isAlias ? `qty_alias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
+        // Alias qty must NOT start with "qty_": pricing-core reads every qty_<id> key
+        // as a product, which put a phantom "alias_DERSIAS__pair_…" 0 € line on the Kosten tab.
+        const qtyName = isAlias ? `wcalias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
         const cbName = isAlias ? `optWcWall_alias[]` : `optWcWall[]`;
         const card = document.createElement("div");
         card.className = "opt-item";
@@ -19502,7 +19504,7 @@ cat_SHOWER: "menu_SHOWER",
         }),
       );
 
-      // Alias seat tiles carry a decorative qty input (qty_alias_*) the server
+      // Alias seat tiles carry a decorative qty input (wcalias_*) the server
       // ignores; pricing reads the canonical qty_<seatId>. Mirror edits into it,
       // otherwise changing the Menge of a seat shown in a second pair (e.g.
       // DERSIAS under DEDWWC) never reaches the price.
