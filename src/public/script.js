@@ -19148,6 +19148,7 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "DERSIAS",
+        dims: [["Breite", 361], ["Länge", 433]], // mm, Vigour Datenblatt
         image: "./assets/DERSIAS.jpg",
         fallbackName: "WC-Sitz derby rund",
         category: "seat",
@@ -19160,13 +19161,19 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "DERWWCOSVP",
-        image: "./assets/DERWWCOSVP.jpg",
+        dims: [["Höhe", 430], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/DERWWCOSVP.jpg",
+          "./assets/DERWWCOSVP1.jpg",
+          "./assets/DERWWCOSVP2.jpg",
+        ],
         fallbackName: "Wand-Tiefspül-WC derby rund",
         category: "wc",
         seatId: "DERSIAS",
       },
       {
         productId: "DEDWWC",
+        dims: [["Höhe", 400], ["Breite", 370], ["Tiefe", 594]], // mm, Vigour Datenblatt
         images: [
           "./assets/DEDWWC.jpg",
           "./assets/DEDWWC1.png",
@@ -19188,6 +19195,7 @@ cat_SHOWER: "menu_SHOWER",
       // Bodenmontage (montage defaults to "Wandmontage" for everything above)
       {
         productId: "CLPWCF10",
+        dims: [["Höhe", 490], ["Breite", 354], ["Tiefe", 457]], // mm, Vigour Datenblatt
         image: "./assets/CLPWCF10.jpg",
         fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
         category: "floor",
@@ -19202,6 +19210,7 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLPSSI",
+        dims: [["Höhe", 45], ["Breite", 373], ["Länge", 435]], // mm, Vigour Datenblatt
         image: "./assets/CLPSSI.jpg",
         fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
         category: "floor",
@@ -19276,8 +19285,8 @@ cat_SHOWER: "menu_SHOWER",
             const slides = item.images.map((src, i) =>
               `<span class="img-carousel__slide"><img src="${src}" alt="${item.fallbackName} – Bild ${i + 1}" /></span>`
             ).join("");
-            const dots = item.images.map((_, i) =>
-              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" aria-label="Bild ${i + 1}"></button>`
+            const dots = item.images.map((src, i) =>
+              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" style="--thumb:url('${src}')" aria-label="Bild ${i + 1}"></button>`
             ).join("");
             return `
               <span class="img-carousel" data-carousel>
@@ -19288,8 +19297,8 @@ cat_SHOWER: "menu_SHOWER",
                 <button type="button" class="img-carousel__btn img-carousel__btn--next" aria-label="Nächstes Bild">
                   <svg viewBox="0 0 14 14"><polyline points="5,2 10,7 5,12"/></svg>
                 </button>
-                <span class="img-carousel__dots">${dots}</span>
-              </span>`;
+              </span>
+              <span class="img-carousel__dots">${dots}</span>`;
           }
           const src = item.image || (item.images && item.images[0]) || "";
           return `<span class="img-wrap"><img src="${src}" alt="${item.fallbackName}" /></span>`;
@@ -19300,6 +19309,7 @@ cat_SHOWER: "menu_SHOWER",
             <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
             ${imgHtml}
             <span class="caption">${item.fallbackName}</span>
+            ${item.dims ? `<span class="wc-dims" aria-label="Maße in Millimetern">${item.dims.map(([k, v]) => `<span class="wc-dims__item"><span class="wc-dims__label">${k}</span><span class="wc-dims__value">${v}&thinsp;mm</span></span>`).join("")}</span>` : ""}
           </label>
           <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
             <label for="${qtyId}" class="req">Menge</label>
@@ -19311,7 +19321,7 @@ cat_SHOWER: "menu_SHOWER",
         const carousel = card.querySelector("[data-carousel]");
         if (carousel) {
           const track = carousel.querySelector(".img-carousel__track");
-          const dots = carousel.querySelectorAll(".img-carousel__dot");
+          const dots = card.querySelectorAll(".img-carousel__dot");
           const total = item.images.length;
           let current = 0;
 
