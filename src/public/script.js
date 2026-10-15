@@ -19155,6 +19155,7 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLSIAS",
+        dims: [["Höhe", 59], ["Breite", 365], ["Länge", 450]], // mm, Vigour Datenblatt
         image: "./assets/CLSIAS.jpg",
         fallbackName: "WC-Sitz clivia",
         category: "seat",
@@ -19186,6 +19187,7 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLPWWCOS5",
+        dims: [["Höhe", 450], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
         image: "./assets/CLPWWCOS5.jpg",
         fallbackName: "WC-Erhöhung CLPWWCOS5",
         category: "wc",
