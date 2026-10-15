@@ -9323,12 +9323,601 @@ details.az-group[open] > summary.az-group-title::before {
   color: var(--muted);
 }
 
+.wc-dims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wc-dims__item {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--section-bg, #f8fafc);
+  line-height: 1.25;
+}
+
+.wc-dims__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wc-dims__value {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, inherit);
+}
+
 .wc-db-price {
   display: block;
   margin-top: 2px;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--accent-strong);
+}
+
+/* ===== WC selectors: Montageart cards + Sitzhöhe pills (presentation only) =====
+   Same radio inputs/ids/names; only the look changes. Numbered steps come from a
+   CSS counter, so Sitzhöhe is "2" only while it is actually shown (Wandmontage). */
+#page-Optional #menu_WC {
+  counter-reset: wc-step;
+  gap: 28px;
+}
+
+#page-Optional #menu_WC > .wc-option-group {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 12px;
+}
+
+#page-Optional #menu_WC > .wc-option-group > label.req {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+}
+
+#page-Optional #menu_WC > .wc-option-group > label.req::before {
+  counter-increment: wc-step;
+  content: counter(wc-step);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text, #111827);
+  color: var(--panel, #fff);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Montageart: two vertical photo cards, fixed width, radio dot in the footer */
+#page-Optional #menu_WC .wc-montage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  #page-Optional #menu_WC .wc-montage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+#page-Optional #menu_WC .wc-montage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1.5px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#page-Optional #menu_WC .wc-montage-card:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+#page-Optional #menu_WC .wc-montage-card .img-wrap {
+  border: 0;
+  border-radius: 0;
+  background: #f5f6f8;
+}
+
+#page-Optional #menu_WC .wc-montage-card .caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+}
+
+#page-Optional #menu_WC .wc-montage-card .caption::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong, #cbd5e1);
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+#page-Optional #menu_WC .wc-montage-card:has(input:checked) .caption {
+  color: var(--accent-strong);
+}
+
+#page-Optional #menu_WC .wc-montage-card:has(input:checked) .caption::after {
+  border-color: var(--accent);
+  background: radial-gradient(circle, #fff 0 3.5px, var(--accent) 4px);
+}
+
+/* Sitzhöhe: radio pills with an unmistakable selected state */
+#wcSeatHeightWrap .radio-group {
+  gap: 12px;
+}
+
+#wcSeatHeightWrap .radio-pill {
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 150px;
+  padding: 12px 20px;
+  border: 1.5px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  font-size: 0.95rem;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+#wcSeatHeightWrap .radio-pill:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+#wcSeatHeightWrap .radio-pill .circle {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-strong, #cbd5e1);
+}
+
+#wcSeatHeightWrap .radio-pill:has(input:checked) {
+  border-width: 2px;
+  padding: 11.5px 19.5px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel, #fff));
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+#wcSeatHeightWrap .radio-pill input:checked + .circle {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+#wcSeatHeightWrap .radio-pill input:checked + .circle::after {
+  background: #fff;
+}
+
+/* ===== WC product cards (presentation only; markup/ids/JS selection logic untouched) =====
+   Accessories / extras : 3-up product cards (big photo, name, qty footer)
+   WC + seat            : 2-up cards, square photo + thumbnail strip, seat as footer row */
+#wcWallProductsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+#wcWallProductsGrid .wc-generated-group > h4 {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* -- shared: photo frame, caption, article number, dimensions -- */
+#wcWallProductsGrid .image-check .img-wrap {
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: #f5f6f8;
+}
+
+#wcWallProductsGrid .image-check .img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+#wcWallProductsGrid .image-check .caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text, inherit);
+  overflow-wrap: anywhere;
+}
+
+#wcWallProductsGrid .image-check:has(input:checked) .caption {
+  color: var(--accent-strong);
+}
+
+#wcWallProductsGrid .wc-db-meta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+#wcWallProductsGrid .wc-dims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+#wcWallProductsGrid .wc-dims__item {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#wcWallProductsGrid .wc-dims__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--muted);
+}
+
+#wcWallProductsGrid .wc-dims__value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+}
+
+/* Quantity: "Menge [ 1 ]" footer row */
+#wcWallProductsGrid .opt-item > .field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: none !important;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: transparent;
+}
+
+#wcWallProductsGrid .opt-item > .field[hidden] {
+  display: none;
+}
+
+#wcWallProductsGrid .opt-item > .field > label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+#wcWallProductsGrid .opt-item > .field > input[type="number"] {
+  width: 84px;
+  min-height: 0;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+/* -- accessories / extras: 3-up cards -- */
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) > .opt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  align-items: stretch;
+  gap: 14px;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .opt-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  background: var(--panel, #fff);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .opt-item:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .opt-item:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .opt-item > label.image-check {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .image-check .img-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 14px;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .image-check .caption {
+  flex: 1 1 auto;
+  padding: 12px 14px 0;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .wc-dims {
+  margin-top: auto;
+  padding: 10px 14px 0;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .image-check::after {
+  content: "";
+  height: 12px;
+}
+
+/* selected tick on the photo */
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) label.image-check:has(input:checked) .img-wrap::after {
+  content: "✓";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-strong, var(--accent));
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+#wcWallProductsGrid .wc-generated-group:not([data-kind="wc"]) .image-check .img-wrap {
+  position: relative;
+}
+
+/* -- WC + seat: 2-up cards -- */
+#wcWallProductsGrid .wc-generated-group > .wc-pairs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  #wcWallProductsGrid .wc-generated-group > .wc-pairs-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+#wcWallProductsGrid .wc-pair {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  background: var(--panel, #fff);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+#wcWallProductsGrid .wc-pair:has(> .opt-item:first-child input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item {
+  flex: 0 0 auto;
+  max-width: none;
+  min-width: 0;
+  gap: 0;
+}
+
+/* WC part */
+#wcWallProductsGrid .wc-pair > .opt-item:first-child {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child > label.image-check {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child .img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child .img-wrap img {
+  position: absolute;
+  inset: 16px;
+  width: calc(100% - 32px);
+  height: calc(100% - 32px);
+}
+
+/* Carousel: square ratio box; the track is absolute so slide images never stretch it */
+#wcWallProductsGrid .wc-pair .img-carousel {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  height: 0;
+  padding: 0 0 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: #fff;
+}
+
+#wcWallProductsGrid .wc-pair .img-carousel__track {
+  position: absolute;
+  inset: 0;
+}
+
+#wcWallProductsGrid .wc-pair .img-carousel__slide img {
+  box-sizing: border-box;
+  padding: 16px;
+}
+
+/* Thumbnail strip (the former dots) */
+#wcWallProductsGrid .wc-pair .img-carousel__dots {
+  position: static;
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  transform: none;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: #fff;
+}
+
+#wcWallProductsGrid .wc-pair .img-carousel__dot {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: #fff var(--thumb) center / contain no-repeat;
+  opacity: 0.65;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+
+#wcWallProductsGrid .wc-pair .img-carousel__dot:hover {
+  opacity: 1;
+}
+
+#wcWallProductsGrid .wc-pair .img-carousel__dot.is-active {
+  border: 2px solid var(--accent);
+  opacity: 1;
+  transform: none;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child .caption {
+  flex: 1 1 auto;
+  padding: 14px 16px 0;
+  font-size: 0.95rem;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child .wc-dims {
+  margin-top: auto;
+  padding: 12px 16px 14px;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:first-child > .field {
+  padding: 8px 16px;
+}
+
+/* Seat part: footer row */
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: #f8f9fb;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) > label.image-check {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) .img-wrap {
+  grid-row: 1 / span 3;
+  align-self: start;
+  width: 44px;
+  height: 44px;
+  aspect-ratio: auto;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--panel, #fff);
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) > .field {
+  padding: 0 0 0 54px;
+  border-top: 0;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) .caption {
+  align-self: end;
+  font-size: 0.82rem;
+}
+
+#wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) .wc-dims {
+  grid-column: 2;
+  margin-top: 2px;
 }
 
 /* Hide WC auto-product prices inside Optional cards */

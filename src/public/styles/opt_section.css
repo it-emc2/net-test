@@ -68,59 +68,13 @@
   max-height: 100%;
 }
 
-/* WC accessories grid: equal-height cards */
-#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: stretch;
-}
-
-#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item {
-  display: flex;
-  flex-direction: column;
-}
-
-#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;
-}
-
-#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check .caption {
-  flex: 1;
-}
+/* WC accessory rows + WC/seat cards are styled in style.css (WC product cards). */
 
 .wc-products-subheader {
   color: var(--text);   /* or just: color: #000; */
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 8px;
-}
-
-.wc-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 220px));
-  gap: 14px;
-  width: fit-content;   /* pair shrinks to cards, no leftover space */
-}
-
-.wc-pair > .opt-item {
-  display: flex;
-  flex-direction: column;
-  max-width: unset;
-}
-
-.wc-pair > .opt-item > .image-check {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;
-}
-
-.wc-pair > .opt-item > .image-check .caption {
-  flex: 1;
 }
 
 #wcWallProductsGrid .img-carousel__btn {

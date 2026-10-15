@@ -19117,61 +19117,69 @@ cat_SHOWER: "menu_SHOWER",
     const WC_WALL_PRODUCTS = [
       {
         productId: "CVIS3WCT112",
-        image: "./assets/CVIS3WCT112.jpg",
+        image: "./assets/wc/CVIS3WCT112/CVIS3WCT112-1.jpg",
         fallbackName: "VIS WC-Element E3 für Trockenbau",
         category: "accessory",
       },
       {
         productId: "SCHALL",
-        image: "./assets/SCHALL.jpg",
+        image: "./assets/wc/SCHALL/SCHALL-1.jpg",
         fallbackName: "Montageset für Wand-WC / WD-Bidet",
         category: "accessory",
       },
       {
         productId: "V1DON",
-        image: "./assets/V1DON.jpg",
+        image: "./assets/wc/V1DON/V1DON-1.jpg",
         fallbackName: "Betätigungsplatte V1 DON weiß",
         category: "accessory",
       },
       {
         productId: "0601010003",
-        image: "./assets/Gipskarton.jpg",
+        image: "./assets/wc/0601010003/0601010003-1.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
         category: "accessory",
       },
       {
         productId: "WWCAG90",
-        image: "./assets/WWCAG90.jpg",
+        image: "./assets/wc/WWCAG90/WWCAG90-1.jpg",
         fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
         category: "accessory",
         montage: "both", // one tile, moved into the visible montage group
       },
       {
         productId: "DERSIAS",
-        image: "./assets/DERSIAS.jpg",
+        dims: [["Breite", 361], ["Länge", 433]], // mm, Vigour Datenblatt
+        image: "./assets/wc/DERSIAS/DERSIAS-1.jpg",
         fallbackName: "WC-Sitz derby rund",
         category: "seat",
       },
       {
         productId: "CLSIAS",
-        image: "./assets/CLSIAS.jpg",
+        dims: [["Höhe", 59], ["Breite", 365], ["Länge", 450]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLSIAS/CLSIAS-1.jpg",
         fallbackName: "WC-Sitz clivia",
         category: "seat",
       },
       {
         productId: "DERWWCOSVP",
-        image: "./assets/DERWWCOSVP.jpg",
+        dims: [["Höhe", 430], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-1.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-2.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-3.jpg",
+        ],
         fallbackName: "Wand-Tiefspül-WC derby rund",
         category: "wc",
         seatId: "DERSIAS",
       },
       {
         productId: "DEDWWC",
+        dims: [["Höhe", 400], ["Breite", 370], ["Tiefe", 594]], // mm, Vigour Datenblatt
         images: [
-          "./assets/DEDWWC.jpg",
-          "./assets/DEDWWC1.png",
-          "./assets/DEDWWC2.png",
-          "./assets/DEDWWC3.png",
+          "./assets/wc/DEDWWC/DEDWWC-1.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-2.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-3.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-4.jpg",
         ],
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
@@ -19179,7 +19187,13 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLPWWCOS5",
-        image: "./assets/CLPWWCOS5.jpg",
+        dims: [["Höhe", 450], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-1.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-2.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-3.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-4.jpg",
+        ],
         fallbackName: "WC-Erhöhung CLPWWCOS5",
         category: "wc",
         requiredSeatHeight: "erhoeht",
@@ -19188,21 +19202,23 @@ cat_SHOWER: "menu_SHOWER",
       // Bodenmontage (montage defaults to "Wandmontage" for everything above)
       {
         productId: "CLPWCF10",
-        image: "./assets/CLPWCF10.jpg",
+        dims: [["Höhe", 490], ["Breite", 354], ["Tiefe", 457]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPWCF10/CLPWCF10-1.jpg",
         fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "WCBF",
-        image: "./assets/WCBF.jpg",
+        image: "./assets/wc/WCBF/WCBF-1.jpg",
         fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "CLPSSI",
-        image: "./assets/CLPSSI.jpg",
+        dims: [["Höhe", 45], ["Breite", 373], ["Länge", 435]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPSSI/CLPSSI-1.jpg",
         fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
         category: "floor",
         montage: "Bodenmontage",
@@ -19264,7 +19280,9 @@ cat_SHOWER: "menu_SHOWER",
         const optId = `opt_${item.productId}${idSuffix}`;
         const qtyId = `qty_${item.productId}${idSuffix}`;
         const wrapId = `${qtyId}_wrap`;
-        const qtyName = isAlias ? `qty_alias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
+        // Alias qty must NOT start with "qty_": pricing-core reads every qty_<id> key
+        // as a product, which put a phantom "alias_DERSIAS__pair_…" 0 € line on the Kosten tab.
+        const qtyName = isAlias ? `wcalias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
         const cbName = isAlias ? `optWcWall_alias[]` : `optWcWall[]`;
         const card = document.createElement("div");
         card.className = "opt-item";
@@ -19276,8 +19294,8 @@ cat_SHOWER: "menu_SHOWER",
             const slides = item.images.map((src, i) =>
               `<span class="img-carousel__slide"><img src="${src}" alt="${item.fallbackName} – Bild ${i + 1}" /></span>`
             ).join("");
-            const dots = item.images.map((_, i) =>
-              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" aria-label="Bild ${i + 1}"></button>`
+            const dots = item.images.map((src, i) =>
+              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" style="--thumb:url('${src}')" aria-label="Bild ${i + 1}"></button>`
             ).join("");
             return `
               <span class="img-carousel" data-carousel>
@@ -19288,8 +19306,8 @@ cat_SHOWER: "menu_SHOWER",
                 <button type="button" class="img-carousel__btn img-carousel__btn--next" aria-label="Nächstes Bild">
                   <svg viewBox="0 0 14 14"><polyline points="5,2 10,7 5,12"/></svg>
                 </button>
-                <span class="img-carousel__dots">${dots}</span>
-              </span>`;
+              </span>
+              <span class="img-carousel__dots">${dots}</span>`;
           }
           const src = item.image || (item.images && item.images[0]) || "";
           return `<span class="img-wrap"><img src="${src}" alt="${item.fallbackName}" /></span>`;
@@ -19300,6 +19318,7 @@ cat_SHOWER: "menu_SHOWER",
             <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
             ${imgHtml}
             <span class="caption">${item.fallbackName}</span>
+            ${item.dims ? `<span class="wc-dims" aria-label="Maße in Millimetern">${item.dims.map(([k, v]) => `<span class="wc-dims__item"><span class="wc-dims__label">${k}</span><span class="wc-dims__value">${v}&thinsp;mm</span></span>`).join("")}</span>` : ""}
           </label>
           <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
             <label for="${qtyId}" class="req">Menge</label>
@@ -19311,7 +19330,7 @@ cat_SHOWER: "menu_SHOWER",
         const carousel = card.querySelector("[data-carousel]");
         if (carousel) {
           const track = carousel.querySelector(".img-carousel__track");
-          const dots = carousel.querySelectorAll(".img-carousel__dot");
+          const dots = card.querySelectorAll(".img-carousel__dot");
           const total = item.images.length;
           let current = 0;
 
@@ -19484,6 +19503,22 @@ cat_SHOWER: "menu_SHOWER",
           }
         }),
       );
+
+      // Alias seat tiles carry a decorative qty input (wcalias_*) the server
+      // ignores; pricing reads the canonical qty_<seatId>. Mirror edits into it,
+      // otherwise changing the Menge of a seat shown in a second pair (e.g.
+      // DERSIAS under DEDWWC) never reaches the price.
+      wallProductsGrid
+        .querySelectorAll('.opt-item[data-alias="true"] input[type="number"]')
+        .forEach((aliasQty) => {
+          const productId = aliasQty.closest(".opt-item")?.dataset.productId;
+          const mirror = () => {
+            const canonicalQty = document.getElementById(`qty_${productId}`);
+            if (canonicalQty) canonicalQty.value = aliasQty.value;
+          };
+          aliasQty.addEventListener("input", mirror);
+          aliasQty.addEventListener("change", mirror);
+        });
 
       // Wire alias seat tiles so clicking one selects its pair's WC (which
       // then drives the seat sync). Without this, alias tiles are pure visual
