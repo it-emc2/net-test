@@ -7,36 +7,15 @@ import { PDFDocument } from "pdf-lib";
 import https from "node:https";
 import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 import PostalSend from "../models/PostalSend.js";
+import { claimSendLock } from "../lib/sendLock.js";
 
 const router = express.Router();
 
 const RESEND_BLOCK_MS = 24 * 60 * 60 * 1000; // a 2nd letter for the same deal within 24h needs forceResend
 const IN_FLIGHT_MS = 2 * 60 * 1000; // lock survives a crashed request for at most 2 min
 
-// Atomically claims the deal for one send. The filter only matches a free,
-// not-recently-sent row; otherwise the upsert hits the unique dealId index
-// (E11000), which is how a concurrent or repeated send is rejected.
-export async function claimPostalSend(dealId, forceResend) {
-  const now = new Date();
-  const sentCutoff = forceResend ? now : new Date(now.getTime() - RESEND_BLOCK_MS);
-  try {
-    await PostalSend.findOneAndUpdate(
-      {
-        dealId,
-        $and: [
-          { $or: [{ inFlightUntil: null }, { inFlightUntil: { $lt: now } }] },
-          { $or: [{ sentAt: null }, { sentAt: { $lt: sentCutoff } }] },
-        ],
-      },
-      { $set: { inFlightUntil: new Date(now.getTime() + IN_FLIGHT_MS) } },
-      { upsert: true },
-    );
-    return null;
-  } catch (err) {
-    if (err?.code !== 11000) throw err;
-    return (await PostalSend.findOne({ dealId }).lean()) || {};
-  }
-}
+export const claimPostalSend = (dealId, forceResend) =>
+  claimSendLock(PostalSend, dealId, forceResend, { inFlightMs: IN_FLIGHT_MS, resendBlockMs: RESEND_BLOCK_MS });
 
 // onlinebrief24.de / letterei.de API v1 (Stand 30.07.2026, docs1/refs/onlinebrief24-api.pdf.pdf).
 // One request does everything: POST /v1/printjobs with the letter as base64.
