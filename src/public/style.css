@@ -9364,6 +9364,160 @@ details.az-group[open] > summary.az-group-title::before {
   color: var(--accent-strong);
 }
 
+/* ===== WC selectors: Montageart cards + Sitzhöhe pills (presentation only) =====
+   Same radio inputs/ids/names; only the look changes. Numbered steps come from a
+   CSS counter, so Sitzhöhe is "2" only while it is actually shown (Wandmontage). */
+#page-Optional #menu_WC {
+  counter-reset: wc-step;
+  gap: 28px;
+}
+
+#page-Optional #menu_WC > .wc-option-group {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 12px;
+}
+
+#page-Optional #menu_WC > .wc-option-group > label.req {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+}
+
+#page-Optional #menu_WC > .wc-option-group > label.req::before {
+  counter-increment: wc-step;
+  content: counter(wc-step);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text, #111827);
+  color: var(--panel, #fff);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Montageart: two vertical photo cards, fixed width, radio dot in the footer */
+#page-Optional #menu_WC .wc-montage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 14px;
+}
+
+@media (max-width: 480px) {
+  #page-Optional #menu_WC .wc-montage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+#page-Optional #menu_WC .wc-montage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1.5px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#page-Optional #menu_WC .wc-montage-card:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+#page-Optional #menu_WC .wc-montage-card .img-wrap {
+  border: 0;
+  border-radius: 0;
+  background: #f5f6f8;
+}
+
+#page-Optional #menu_WC .wc-montage-card .caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+}
+
+#page-Optional #menu_WC .wc-montage-card .caption::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong, #cbd5e1);
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+#page-Optional #menu_WC .wc-montage-card:has(input:checked) .caption {
+  color: var(--accent-strong);
+}
+
+#page-Optional #menu_WC .wc-montage-card:has(input:checked) .caption::after {
+  border-color: var(--accent);
+  background: radial-gradient(circle, #fff 0 3.5px, var(--accent) 4px);
+}
+
+/* Sitzhöhe: radio pills with an unmistakable selected state */
+#wcSeatHeightWrap .radio-group {
+  gap: 12px;
+}
+
+#wcSeatHeightWrap .radio-pill {
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 150px;
+  padding: 12px 20px;
+  border: 1.5px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  font-size: 0.95rem;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+#wcSeatHeightWrap .radio-pill:hover {
+  border-color: var(--border-strong, #cbd5e1);
+}
+
+#wcSeatHeightWrap .radio-pill .circle {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--border-strong, #cbd5e1);
+}
+
+#wcSeatHeightWrap .radio-pill:has(input:checked) {
+  border-width: 2px;
+  padding: 11.5px 19.5px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel, #fff));
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+#wcSeatHeightWrap .radio-pill input:checked + .circle {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+#wcSeatHeightWrap .radio-pill input:checked + .circle::after {
+  background: #fff;
+}
+
 /* ===== WC product cards (presentation only; markup/ids/JS selection logic untouched) =====
    Accessories / extras : 3-up product cards (big photo, name, qty footer)
    WC + seat            : 2-up cards, square photo + thumbnail strip, seat as footer row */
