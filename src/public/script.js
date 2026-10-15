@@ -19177,9 +19177,9 @@ cat_SHOWER: "menu_SHOWER",
         dims: [["Höhe", 400], ["Breite", 370], ["Tiefe", 594]], // mm, Vigour Datenblatt
         images: [
           "./assets/wc/DEDWWC/DEDWWC-1.jpg",
-          "./assets/wc/DEDWWC/DEDWWC-2.png",
-          "./assets/wc/DEDWWC/DEDWWC-3.png",
-          "./assets/wc/DEDWWC/DEDWWC-4.png",
+          "./assets/wc/DEDWWC/DEDWWC-2.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-3.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-4.jpg",
         ],
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
