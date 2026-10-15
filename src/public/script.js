@@ -19502,6 +19502,22 @@ cat_SHOWER: "menu_SHOWER",
         }),
       );
 
+      // Alias seat tiles carry a decorative qty input (qty_alias_*) the server
+      // ignores; pricing reads the canonical qty_<seatId>. Mirror edits into it,
+      // otherwise changing the Menge of a seat shown in a second pair (e.g.
+      // DERSIAS under DEDWWC) never reaches the price.
+      wallProductsGrid
+        .querySelectorAll('.opt-item[data-alias="true"] input[type="number"]')
+        .forEach((aliasQty) => {
+          const productId = aliasQty.closest(".opt-item")?.dataset.productId;
+          const mirror = () => {
+            const canonicalQty = document.getElementById(`qty_${productId}`);
+            if (canonicalQty) canonicalQty.value = aliasQty.value;
+          };
+          aliasQty.addEventListener("input", mirror);
+          aliasQty.addEventListener("change", mirror);
+        });
+
       // Wire alias seat tiles so clicking one selects its pair's WC (which
       // then drives the seat sync). Without this, alias tiles are pure visual
       // mirrors with no listeners — clicks would leave the form in an
