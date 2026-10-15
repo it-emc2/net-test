@@ -28,9 +28,12 @@ node scripts/add-product.mjs WWCAG90 --dry    # look only, no writes
 - Downloads `images[0]` to `src/public/assets/<ID>.jpg`.
 - **Many Vigor items have no image** (the script then says
   "falls back to vk-brutto.jpg" — ignore that, it is an unrelated product photo).
-  Get a product photo elsewhere and save it as `src/public/assets/<ID>.jpg`
-  (convert PNG: `sips -s format jpeg in.png --out src/public/assets/<ID>.jpg`).
-  The same file is used by the tile and by the "Produktbilder-PDF" email attachment.
+  Get a product photo elsewhere and save it as `src/public/assets/wc/<ID>/<ID>-1.jpg`
+  (convert PNG: `sips -s format jpeg in.png --out src/public/assets/wc/<ID>/<ID>-1.jpg`).
+  More photos: `<ID>-2`, `<ID>-3`, … in the same folder (list them in `images: [...]`).
+  `<ID>-1` is also what the "Produktbilder-PDF" email attachment uses (`src/lib/productImagePdf.js`),
+  so the first photo must keep that exact name. `add-product.mjs` still writes to
+  `assets/<ID>.jpg` — move that file into `assets/wc/<ID>/<ID>-1.jpg` for WC products.
 - Not in Vigor at all: `node scripts/add-product.mjs --id=XY01 --name="…" --price=12.34 --image=<url|file>`.
 
 Without step 1 the tile shows `fallbackName` and **prices at 0 €**.
@@ -42,7 +45,7 @@ Without step 1 the tile shows `fallbackName` and **prices at 0 €**.
 ```js
 {
   productId: "WWCAG90",                 // = Products.productId, becomes opt_/qty_WWCAG90
-  image: "./assets/WWCAG90.jpg",        // or images: [a, b, c] → carousel
+  image: "./assets/wc/WWCAG90/WWCAG90-1.jpg", // or images: [a, b, c] → carousel (thumbnails)
   fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm", // shown until the DB name loads
   category: "accessory",                // see table below
   montage: "both",                      // "Wandmontage" (default) | "Bodenmontage" | "both"
@@ -95,11 +98,11 @@ on the hidden side, so nothing invisible is priced.
 Example — a new required Spülkasten for Wand plus a Boden WC with seat:
 
 ```js
-{ productId: "SPK123", image: "./assets/SPK123.jpg", fallbackName: "Spülkasten …", category: "accessory" },
+{ productId: "SPK123", image: "./assets/wc/SPK123/SPK123-1.jpg", fallbackName: "Spülkasten …", category: "accessory" },
 
-{ productId: "STSEAT1", image: "./assets/STSEAT1.jpg", fallbackName: "WC-Sitz …",
+{ productId: "STSEAT1", image: "./assets/wc/STSEAT1/STSEAT1-1.jpg", fallbackName: "WC-Sitz …",
   category: "seat", montage: "Bodenmontage" },
-{ productId: "STWC1", image: "./assets/STWC1.jpg", fallbackName: "Stand-WC …",
+{ productId: "STWC1", image: "./assets/wc/STWC1/STWC1-1.jpg", fallbackName: "Stand-WC …",
   category: "wc", seatId: "STSEAT1", montage: "Bodenmontage" },
 ```
 
