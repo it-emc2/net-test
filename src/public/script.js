@@ -1941,7 +1941,8 @@ function computeArbeitszeitSuggestion() {
       0,
     );
   };
-  if (document.getElementById("wv997")?.checked) {
+  const wvOn = !!document.getElementById("wvEnabled")?.checked;
+  if (wvOn && document.getElementById("wv997")?.checked) {
     const main997 = parseArbeitszeitNumber(
       document.getElementById("wvQty997")?.value || 0,
     );
@@ -1951,7 +1952,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
   }
-  if (document.getElementById("wv1497")?.checked) {
+  if (wvOn && document.getElementById("wv1497")?.checked) {
     const main1497 = parseArbeitszeitNumber(
       document.getElementById("wvQty1497")?.value || 0,
     );
@@ -1961,7 +1962,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
-  if (document.getElementById("wvSilikonSelected")?.checked) {
+  if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
     pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
@@ -3386,7 +3387,7 @@ function formToObject(form) {
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
   const page = document.getElementById("page-Wandverkleidung");
-  if (!page) return;
+  if (!page || !document.getElementById("wvEnabled")?.checked) return;
 
   const out = [];
   function pushIfSelected(cbSel, qtySel, friendlyName) {
@@ -4612,6 +4613,7 @@ function buildPayload() {
       const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
       const wv = (payload.wandverkleidung ||= {});
+      wv.wvEnabled = !!document.getElementById("wvEnabled")?.checked;
       wv.wvColor = globalColor;
       wv.wvSonderConfigNr = (fdWV.get("wvSonderConfigNr") || "").toString().trim();
 
@@ -6431,24 +6433,46 @@ function validateWandverkleidung() {
   }
   return true;
 }
-// D_65418: Dekor defaults to "Marmor weiß" and wvKind to "Fliesenspiegel", so a
-// forgotten Plattenformat (997/1497) silently drops every panel, profile and
-// consumable from Angebot + Kalkulation. Same totals as pricing-core.
-function wvPanelsMissing(payload, offerType) {
-  if (offerType !== "bu") return false;
+// D_65418: a forgotten Plattenformat (997/1497) silently dropped every panel,
+// profile and consumable from Angebot + Kalkulation. Since #wvEnabled, Art and
+// Dekor are mandatory once WV is ticked; 0 panels stays a warning.
+// Legacy payloads (no wvEnabled key) only get the 0-panel warning.
+// Returns null (ok) or { title, text, blocking }.
+function wvCheck(payload, offerType) {
+  if (offerType !== "bu") return null;
   const wv = payload?.wandverkleidung;
-  if (!wv?.wvKind || wv.wvKind === "Keine") return false;
+  if (!wv || wv.wvEnabled === false) return null;
+  const kind = wv.wvKind && wv.wvKind !== "Keine" ? wv.wvKind : "";
+  if (wv.wvEnabled === true && !kind) {
+    return { title: "Art der Wandverkleidung fehlt", text: "Bitte wählen Sie, welche Art der Wandverkleidung benötigt wird.", blocking: true };
+  }
+  if (wv.wvEnabled === true && !wv.wvColor) {
+    return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
+  }
+  if (!kind) return null;
   const extras = Object.values(wv.extraColors || {}).flat();
   const total =
     (Number(wv.wvQty997) || 0) +
     (Number(wv.wvQty1497) || 0) +
     extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
-  return total === 0;
+  if (total > 0) return null;
+  return {
+    title: "Wandverkleidung ohne Platten",
+    text: `Wandverkleidung „${kind}“ ist gewählt, aber kein Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.`,
+    blocking: false,
+  };
 }
-window.wvPanelsMissing = wvPanelsMissing;
-// Resolves true = proceed anyway, false = back to the WV tab.
+window.wvCheck = wvCheck;
+// A legacy "Keine" radio is hidden now; clear it once WV is switched on.
+document.addEventListener("change", (e) => {
+  if (e.target?.id !== "wvEnabled" || !e.target.checked) return;
+  const keine = document.querySelector('input[name="wvKind"][value="Keine"]');
+  if (keine) keine.checked = false;
+});
+// Resolves true = proceed, false = back to the WV tab.
 window.confirmWvPanels = function (payload, offerType) {
-  if (!wvPanelsMissing(payload, offerType)) return Promise.resolve(true);
+  const issue = wvCheck(payload, offerType);
+  if (!issue) return Promise.resolve(true);
   return new Promise((resolve) => {
     document.getElementById("wvMissingOverlay")?.remove();
     const overlay = document.createElement("div");
@@ -6456,14 +6480,11 @@ window.confirmWvPanels = function (payload, offerType) {
     overlay.className = "ang-stage-overlay";
     overlay.innerHTML = `
       <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
-        <h3 id="wvMissingTitle" class="ang-stage-title">Wandverkleidung ohne Platten</h3>
-        <p class="ang-stage-text">
-          Wandverkleidung „${escapeHtml(payload.wandverkleidung.wvKind)}“ ist gewählt, aber kein
-          Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.
-        </p>
+        <h3 id="wvMissingTitle" class="ang-stage-title">${escapeHtml(issue.title)}</h3>
+        <p class="ang-stage-text">${escapeHtml(issue.text)}</p>
         <div class="ang-stage-actions">
           <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
-          <button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>
+          ${issue.blocking ? "" : '<button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>'}
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -6473,7 +6494,7 @@ window.confirmWvPanels = function (payload, offerType) {
       resolve(value);
     };
     overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
-    overlay.querySelector("#wvMissingGo").addEventListener("click", () => close(true));
+    overlay.querySelector("#wvMissingGo")?.addEventListener("click", () => close(true));
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) close(false);
     });
@@ -7773,17 +7794,6 @@ function setupWandverkleidungPage() {
     }
   };
   page.__syncWvSonderDecorUi = syncSonderDecorUi;
-
-  // ---- keep legacy default behavior (only if nothing restored) ----
-  const defaultColor = page.querySelector(
-    'input[type="radio"][name="wvColor"][value="Marmor weiß"]',
-  );
-  const anyColorChecked = page.querySelector(
-    'input[type="radio"][name="wvColor"]:checked',
-  );
-  if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
-    defaultColor.checked = true;
-  }
 
   page
     .querySelectorAll('input[type="radio"][name="wvColor"]')
@@ -14748,6 +14758,11 @@ function restoreWV(wv) {
   window.__RESTORING__ = true;
   // ensure additive WV extras UI exists before restoring
   try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
+  // Legacy payloads have no wvEnabled: WV counts as on unless "Keine" was picked.
+  const wvEnabledEl = document.getElementById("wvEnabled");
+  if (wvEnabledEl) {
+    wvEnabledEl.checked = "wvEnabled" in wv ? !!wv.wvEnabled : wv.wvKind !== "Keine";
+  }
   // Kind is a radio
     if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
@@ -14776,7 +14791,6 @@ function restoreWV(wv) {
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
-  if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
   if (pageWV?.__syncWvSonderDecorUi) pageWV.__syncWvSonderDecorUi();
 
 
