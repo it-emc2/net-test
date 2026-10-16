@@ -9920,6 +9920,30 @@ details.az-group[open] > summary.az-group-title::before {
   margin-top: 2px;
 }
 
+/* ===== WC panel: dark mode =====
+   The light-theme surfaces above are hard-coded; without these overrides the seat
+   footer stayed white under light text. Product photos keep a white frame (their
+   backgrounds are white and use multiply blending). */
+[data-mode="dark"] #wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) {
+  background: var(--section-bg);
+}
+
+[data-mode="dark"] #wcWallProductsGrid .wc-pair > .opt-item:not(:first-child) .img-wrap {
+  background: #fff;
+}
+
+[data-mode="dark"] #wcWallProductsGrid .wc-pair .img-carousel__dots {
+  background: transparent;
+}
+
+[data-mode="dark"] #wcWallProductsGrid .wc-pair .img-carousel__dot {
+  background-color: #fff;
+}
+
+[data-mode="dark"] #wcWallProductsGrid .wc-pair:has(> .opt-item:first-child input:checked) {
+  border-color: var(--accent);
+}
+
 /* Hide WC auto-product prices inside Optional cards */
 #page-Optional .wc-db-price,
 #page-Optional #wcWallProductsGrid .wc-db-price,
