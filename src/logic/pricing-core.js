@@ -704,7 +704,23 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
           ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
           : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
 
-      add(floorPid, panels, floorLabel);
+      // Hassmann export article. V5FB02 is the billing id for all five colors;
+      // the order needs the color-specific V5FB0x. AVP-W is billed per 0.3 m²
+      // Paneele but physically a V3WVK07 WV panel (997×2550 mm) → order those.
+      const FLOOR_HASSMANN = {
+        "Schiefer-Beige": "V5FB01", "Lava-Beige": "V5FB02", "Loft-Grau": "V5FB03",
+        "Speckstein-Schwarz": "V5FB04", "Eiche-Natur": "V5FB05",
+      };
+      const floorMeta =
+        floorPid === "AVP-W"
+          ? {
+              hassmannArticle: "V3WVK07",
+              hassmannQty: ceilSafe((floorArea * floorWaste) / (0.997 * 2.55)),
+            }
+          : floorPid === "V5FB02" && FLOOR_HASSMANN[color]
+            ? { hassmannArticle: FLOOR_HASSMANN[color] }
+            : null;
+      add(floorPid, panels, floorLabel, null, null, floorMeta);
 
       // Flächenkleber
       const adhesiveCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
@@ -1655,6 +1671,7 @@ color: metaColor || null,
   // Today's vigor net price when it differs from the quoted one (saved offers only).
   currentNet: l?.meta?.currentNet ?? lineCurrentNet,
   hassmannArticle: l?.meta?.hassmannArticle || null,
+  hassmannQty: l?.meta?.hassmannQty || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
 };
