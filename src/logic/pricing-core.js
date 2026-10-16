@@ -363,7 +363,9 @@ function grossToNet(gross, taxRate) {
   // Build zero-cost "work notes" for DOCX and UI
   function computeWorkNotes(payload) {
     const opt = payload?.optional || {};
-    const kind = payload?.wandverkleidung?.wvKind || "";
+    // wvEnabled === false = WV checkbox unticked; missing key = legacy offer (on).
+    const wvOn = payload?.wandverkleidung?.wvEnabled !== false;
+    const kind = wvOn ? payload?.wandverkleidung?.wvKind || "" : "";
     const dusch = payload?.duschwanne || {};
     const floorKind = dusch?.floorKind || "";
     const hasFlooring = !!dusch?.addFlooring;
@@ -534,6 +536,7 @@ function grossToNet(gross, taxRate) {
     for (const key of dwTasks) {
       const k = String(key).trim();
       if (k === "wandverkleidung_duschbereich") {
+        if (!wvOn) continue;
         const cm = String(payload?.duschwanne?.wandverkleidungHoehe ?? "").trim();
         picked.add(
           `Wandverkleidung in Duschbereich${cm ? ` bis in einer Höhe von ${cm} cm` : ""}`,
@@ -603,7 +606,8 @@ function grossToNet(gross, taxRate) {
     let vigorPriceDrift = null;
 
     const dusch = payload?.duschwanne || {};
-    const wv = payload?.wandverkleidung || {};
+    // Unticked WV checkbox: hidden form values stay in the payload but bill nothing.
+    const wv = payload?.wandverkleidung?.wvEnabled === false ? {} : payload?.wandverkleidung || {};
     const opt = payload?.optional || {};
     const bwt = payload?.bwt || {};
     const hl = payload?.hl || {};

@@ -1839,6 +1839,12 @@ a.btn {
   display: none;
 }
 
+/* WV page: everything but the toggle + nav stays hidden until #wvEnabled is ticked.
+   CSS-only so form.reset() and every restore path stay in sync for free. */
+#form-wandverkleidung:has(#wvEnabled:not(:checked)) > :not(.wv-toggle):not(.actions) {
+  display: none !important;
+}
+
 /* ---------- Checkbox pill ---------- */
 .check-pill {
   display: inline-flex;
