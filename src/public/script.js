@@ -11088,16 +11088,18 @@ function trayStockState(p) {
 // a missing field means Premium, so every offer saved before this (all 3075 of
 // them — none carries any of these fields) restores exactly as it did.
 // Only `budgetMode` reaches the pricing rules (it swaps the Duschwanne accessories
-// AGB001/AC004 ↔ AGD9060/KM02); the other two decide which tiles are offered, and
+// Ablaufgarnitur AGD9060 ↔ Siphon Bridge 90 PR95DW001; Kleinmaterial is KM02 on
+// both); the other two decide which tiles are offered, and
 // the chosen product carries its own price either way.
 const PRODUKT_LINES = {
   duschwanne: {
     toggle: "budgetToggle",
     page: "page-Duschwanne",
-    // No premium id: there is nothing to hide on that side, the row simply doesn't
-    // exist for Premium. setGroupActive/clearHiddenLineSelection no-op on a
-    // missing element, so leaving it out is safe.
-    groups: [{ premium: "", standard: "dwAbflussBadoluxRow", what: "Abfluss (Badolux)" }],
+    // No groups: the Ablaufgarnitur tile is the same on both lines; Standard shows
+    // and bills the Siphon Bridge 90 instead of AGD9060 (BadoluxManager swaps the
+    // photo/caption, pricing-core the article). The interim Standard-only row
+    // "Abfluss (Badolux)" (AGB001) was retired on 2026-10-19.
+    groups: [],
   },
   fussboden: {
     toggle: "floorLineToggle",
@@ -11274,8 +11276,8 @@ async function setLine(key, tier, { keepSelection = false } = {}) {
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
 
-  // Switching the line can change the offer (the Duschwanne line adds or removes
-  // the Standard-only Badolux drain row AGB001), so ask for a recompute. The
+  // Switching the line can change the offer (the Duschwanne line swaps the
+  // Ablaufgarnitur AGD9060 ↔ Siphon Bridge 90 PR95DW001), so ask for a recompute. The
   // live-pricing watcher can't do it for us: it ignores untrusted events on
   // purpose (a restore fires plenty of synthetic ones), and the click lands on a
   // button while the event comes from the hidden checkbox we flip.
@@ -12479,7 +12481,7 @@ function initSmartTraySearch() {
   // A saved offer can hold a tray from the OTHER line: until this redesign both
   // rows were always visible, so nothing stopped a premium offer from carrying a
   // Badolux tray. Show it pinned instead of switching the line automatically —
-  // the line drives the accessory articles (AGB001/AC004 vs AGD9060/KM02), so
+  // the line drives the Ablaufgarnitur (PR95DW001 vs AGD9060), so
   // switching it would silently reprice a saved offer.
   const buildPinned = (product, otherRow) => `
       <div class="suggestion-pinned">
@@ -16605,7 +16607,6 @@ function restoreDuschwanne(dw) {
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
   setCheckbox("abdichtSet", !!dw.abdichtSet);
   setCheckbox("drainSet", !!dw.drainSet);
-  setCheckbox("drainBadolux", dw.drainBadolux == null ? true : !!dw.drainBadolux);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
   if (dw.stelzlagerQty != null) {
@@ -17874,7 +17875,7 @@ function restoreDuschwanne(dw) {
   // in every premium offer (the checkbox only serializes when checked), so a missing
   // value must restore as OFF — otherwise a leftover sessionStorage["dw_budget_mode"]
   // from an earlier offer in the same tab would flip this one to Badolux pricing
-  // (AGB001/AC004 instead of AGD9060/KM02). Set before the rest: BadoluxManager starts
+  // (Siphon Bridge PR95DW001 instead of AGD9060). Set before the rest: BadoluxManager starts
   // fetching the Badolux floor/panel tiles on this change event.
   const isOn = (v) => v === "1" || v === 1 || v === true;
   setCheckbox("budgetToggle", isOn(dw.budgetMode));
@@ -17901,7 +17902,6 @@ function restoreDuschwanne(dw) {
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
   setCheckbox("abdichtSet", !!dw.abdichtSet);
   setCheckbox("drainSet", !!dw.drainSet);
-  setCheckbox("drainBadolux", dw.drainBadolux == null ? true : !!dw.drainBadolux);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
   if (dw.stelzlagerQty != null) {

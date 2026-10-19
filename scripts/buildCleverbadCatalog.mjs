@@ -24,6 +24,7 @@ const SHOP = "https://cleverbad.de";
 
 const SLUGS = [
   "duschwanne-riviera",
+  "siphon-bridge-90",
   "falttuer-lissabon",
   "falttuer-rom",
   "falttuer-stockholm",

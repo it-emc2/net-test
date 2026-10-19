@@ -719,13 +719,16 @@ function grossToNet(gross, taxRate) {
     setCat("Kleinmaterial");
     if (dusch.abdichtSet) add("TRWDB", 1);
 
-    // Standard/Premium only swaps the accessory images (BadoluxManager); price and
-    // product stay AGD9060/KM02 either way, so switching the line never changes an
-    // already-priced offer.
-    if (dusch.drainSet) add("AGD9060", 1);
+    // Ablaufgarnitur follows the Duschwanne line (decided 2026-10-19): Standard
+    // (Badolux) = Siphon Bridge 90 (PR95DW001, cleverbad.de article), Premium =
+    // AGD9060. Same test for the Standard line as production used for its old
+    // AGB001 swap. Kleinmaterial is KM02 on both lines — AC004 is not used any more.
+    // The interim extra row "drainBadolux" (AGB001) is retired: with the swap it
+    // would bill a second drain.
+    const isStandardLine =
+      !!dusch?.budgetMode || dusch?.budgetMode === "1" || dusch?.budgetMode === 1 || dusch?.budgetMode === true;
+    if (dusch.drainSet) add(isStandardLine ? "PR95DW001" : "AGD9060", 1);
     if (dusch.smallMaterial) add("KM02", 1);
-    // Standard-only extra row: Badolux drain, on top of the Ablaufgarnitur above.
-    if (dusch.drainBadolux) add("AGB001", 1);
     if (dusch.stelzlager) {
       const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || cfg.get('BU_STELZLAGER_DEFAULT_QTY', 8));
       add("PLA5282", stelzQty);

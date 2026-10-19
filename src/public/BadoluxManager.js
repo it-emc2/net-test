@@ -44,9 +44,17 @@ export function initBadoluxManager(options = {}) {
       TRWDB: `${cfg.assetsBase}/BL-Dichtband.png`,
       TRWDSET5: `${cfg.assetsBase}/BL-Dichtbahn.png`,
       PLA5282: `${cfg.assetsBase}/BL-Stelzlager.png`,
-      AGD9060: `${cfg.assetsBase}/AGB001.png`,
-      KM02: `${cfg.assetsBase}/AC004.png`,
+      // Standard Ablaufgarnitur = Siphon Bridge 90 (PR95DW001), priced as such in
+      // pricing-core. Kleinmaterial stays KM02 on both lines → no swap.
+      AGD9060: `${cfg.assetsBase}/PR95DW001.webp`,
     };
+    // Captions that change with the line (the Standard tile is a different product).
+    const captions = { AGD9060: "Siphon Bridge 90 PR95DW001" };
+    const heading = document.getElementById("dwDrainHeading");
+    if (heading) {
+      if (!heading.dataset.textOriginal) heading.dataset.textOriginal = heading.textContent;
+      heading.textContent = on ? "Ablaufgarnitur Siphon Bridge 90, Ablauf 90 mm (Badolux)" : heading.dataset.textOriginal;
+    }
 
     Object.entries(map).forEach(([pid, budgetSrc]) => {
       const label =
@@ -60,6 +68,12 @@ export function initBadoluxManager(options = {}) {
       // store original once
       if (!img.dataset.srcOriginal) {
         img.dataset.srcOriginal = img.getAttribute("src") || "";
+      }
+
+      const cap = label?.querySelector(".caption");
+      if (cap && captions[pid]) {
+        if (!cap.dataset.textOriginal) cap.dataset.textOriginal = cap.textContent;
+        cap.textContent = on ? captions[pid] : cap.dataset.textOriginal;
       }
 
       if (on) {

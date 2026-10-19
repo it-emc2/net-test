@@ -1,6 +1,6 @@
 {
  "shop": "https://cleverbad.de",
- "generatedAt": "2026-10-14T10:11:16.317Z",
+ "generatedAt": "2026-10-19T07:23:03.953Z",
  "variants": {
   "PRI119DK06": {
    "slug": "duschwanne-riviera",
@@ -252,6 +252,15 @@
    "option": "Grau",
    "widthCm": 80,
    "lengthCm": 170,
+   "glassMm": null
+  },
+  "PR95DW001": {
+   "slug": "siphon-bridge-90",
+   "name": "Siphon Bridge 90",
+   "label": "Ablaufgarnitur komplett",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
    "glassMm": null
   },
   "PRI80DK20-Z": {

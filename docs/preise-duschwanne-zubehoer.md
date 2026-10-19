@@ -6,24 +6,24 @@ Es gibt dafür **keine Oberfläche** — das Admin-Panel (`/admin/`) verwaltet n
 
 ## Welcher Artikel gehört zu welcher Zeile
 
-> **Stand 2026-10-05 (seit PR #232): kein Tausch mehr.** Beide Linien rechnen dieselben
-> Grundartikel ab; `budgetMode` tauscht nichts mehr aus. Standard hat eine **zusätzliche**,
-> abwählbare Zeile „Abfluss (Badolux)" `AGB001`. `AC004` wird nicht mehr berechnet.
-> Der Block „Zwei Auffälligkeiten" weiter unten beschreibt den alten Tausch und ist damit erledigt
-> (die Preise selbst sind unverändert).
+> **Stand 2026-10-19 (Entscheidung):** Die Ablaufgarnitur folgt der Duschwannen-Linie —
+> Standard (Badolux) = **Siphon Bridge 90 `PR95DW001`, 25,08 €** (cleverbad.de-Artikel, neu in
+> `Products`, `source: badolux`), Premium = `AGD9060`. Kleinmaterial ist auf beiden Linien `KM02`
+> (150 €); `AC004` wird nicht mehr verwendet. Die Zwischenlösung aus PR #232 (Standard-Zusatzzeile
+> „Abfluss (Badolux)" `AGB001`) ist entfernt. Der Block „Zwei Auffälligkeiten" weiter unten ist erledigt.
 
 Die Zuordnung steht in [`src/logic/pricing-core.js`](../src/logic/pricing-core.js) im Block `------- Duschwanne ancillary`.
 
 | Zeile im Konfigurator | Premium | Standard | Abrechnung |
 |---|---|---|---|
 | Wannenabdichtband-Set 3,4 m, DIN 18534 | `TRWDB` | `TRWDB` | wenn angehakt |
-| Ablaufgarnitur Rohbauset m. Sifon BH60mm | `AGD9060` | `AGD9060` | wenn angehakt (`drainSet`) |
+| Ablaufgarnitur | `AGD9060` (20,20 €) | `PR95DW001` Siphon Bridge 90 (25,08 €) | wenn angehakt (`drainSet`) |
 | Kleinmaterial | `KM02` | `KM02` | wenn angehakt (`smallMaterial`) |
-| Abfluss (Badolux) | — | `AGB001` | nur Standard, wenn angehakt (`drainBadolux`) |
 | Stelzlager / Plattenlager Pro 64–110 mm | `PLA5282` | `PLA5282` | Menge über `stelzlagerQty` |
 
-Nur die Bilder werden zusätzlich getauscht (`src/public/assets/budget/*.png`, Zuordnung in
-[`BadoluxManager.js`](../src/public/BadoluxManager.js) `swapAccessoryImages`) — das hat mit dem Preis nichts zu tun.
+Foto und Beschriftung der Ablaufgarnitur wechseln mit der Linie (`assets/budget/PR95DW001.webp`,
+[`BadoluxManager.js`](../src/public/BadoluxManager.js) `swapAccessoryImages`); die anderen Kacheln
+tauschen nur das Bild.
 
 ## Stand 2026-09-10
 
