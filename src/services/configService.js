@@ -156,10 +156,18 @@ export const CONFIG_SCHEMA = [
     label: 'Wohnumfeld-Zuschuss (2 Personen)', unit: '€', type: 'euro', section: 'zuschuss', order: 2,
     description: 'KK-Zuschuss – zwei Personen mit Pflegegrad',
   },
+  // Neukundenbonus: new offers snapshot both values into payload.pricingRules
+  // (bonusNeuGross / bonusNeuThreshold). Offers without that snapshot keep the
+  // old rule (252,10 € netto = 300 € brutto, ab 3.000 €) — see pricing-core.js.
   {
-    key: 'BONUS_NEW_CUSTOMER_GROSS', value: 252.1,
+    key: 'NEUKUNDENBONUS_BRUTTO', value: 250,
     label: 'Neukundenbonus (Brutto)', unit: '€', type: 'euro', section: 'zuschuss', order: 3,
-    description: 'Bruttowert des Neukundenbonus (Bonus 300)',
+    description: 'Bruttowert des Neukundenbonus. Gilt für neue Angebote — gespeicherte Angebote/Entwürfe behalten ihren Wert.',
+  },
+  {
+    key: 'NEUKUNDENBONUS_SCHWELLE', value: 5000,
+    label: 'Neukundenbonus ab Auftragswert', unit: '€', type: 'euro', section: 'zuschuss', order: 3.5,
+    description: 'Neukundenbonus nur wählbar, wenn der Gesamtwert (brutto, nach Rabatt) diesen Betrag übersteigt. Gilt für neue Angebote.',
   },
   {
     key: 'GRAB_BONUS_MATERIAL_NET', value: 100,

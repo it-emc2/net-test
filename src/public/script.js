@@ -3207,6 +3207,7 @@ function startOfferFlow(offerKey) {
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
   window.__grabBonusIdsPinned = false;
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
+  window.__applyBonusNeuSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -4389,6 +4390,13 @@ function buildPayload() {
   // adopt today's config before the user has chosen to.
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
+
+  // Neukundenbonus: snapshot amount + threshold so later admin edits never
+  // reprice this offer. Legacy offers stay without it (old 3.000 € rule).
+  if (!window.__bonusNeuLegacyOffer) {
+    payload.pricingRules.bonusNeuGross = Number(window.__bonusNeuGross ?? 250);
+    payload.pricingRules.bonusNeuThreshold = Number(window.__bonusNeuThreshold ?? 5000);
+  }
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -6904,6 +6912,34 @@ window.__bwtKmFreeThreshold = 200;
 // split as the BWT Freigrenzen above.
 window.__grabBonusIdsLive = ["CLPESG30"];
 window.__grabBonusIds = ["CLPESG30"];
+// Neukundenbonus (NEUKUNDENBONUS_BRUTTO / _SCHWELLE): same Live/pinned split.
+// Legacy offers (no pricingRules.bonusNeuGross) keep 252,10 € netto / 3.000 €.
+window.__bonusNeuGrossLive = 250;
+window.__bonusNeuThresholdLive = 5000;
+window.__bonusNeuGross = 250;
+window.__bonusNeuThreshold = 5000;
+window.__bonusNeuLegacyOffer = false;
+window.__bonusNeuPinned = false;
+// Called on restore (saved payload) and on a fresh offer (null).
+window.__applyBonusNeuSnapshot = function (p) {
+  const pr = p?.pricingRules || {};
+  if (!p) {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = false;
+    window.__bonusNeuGross = Number(window.__bonusNeuGrossLive ?? 250);
+    window.__bonusNeuThreshold = Number(window.__bonusNeuThresholdLive ?? 5000);
+  } else if (pr.bonusNeuGross == null) {
+    window.__bonusNeuLegacyOffer = true;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = 300;
+    window.__bonusNeuThreshold = 3000;
+  } else {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = Number(pr.bonusNeuGross);
+    window.__bonusNeuThreshold = Number(pr.bonusNeuThreshold) || 0;
+  }
+};
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
@@ -6950,6 +6986,14 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
         // Re-price so the "Haltegriff gratis" checkbox follows the new list.
         if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
       }
+    }
+    if (typeof d.NEUKUNDENBONUS_BRUTTO === "number") {
+      window.__bonusNeuGrossLive = d.NEUKUNDENBONUS_BRUTTO;
+      if (!window.__bonusNeuPinned) window.__bonusNeuGross = d.NEUKUNDENBONUS_BRUTTO;
+    }
+    if (typeof d.NEUKUNDENBONUS_SCHWELLE === "number") {
+      window.__bonusNeuThresholdLive = d.NEUKUNDENBONUS_SCHWELLE;
+      if (!window.__bonusNeuPinned) window.__bonusNeuThreshold = d.NEUKUNDENBONUS_SCHWELLE;
     }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
@@ -16133,6 +16177,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
+    window.__applyBonusNeuSnapshot?.(p);
+
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -17843,7 +17889,7 @@ window.setPricingData = function setPricingData(data) {
     );
     syncKleinAufschlagToggle();
 
-    // Show/hide 300€ bonus based on threshold (after rab.)
+    // Show/hide Neukundenbonus based on the offer's threshold (after rab.)
     (function gateBonus300() {
       const afterRab = Number(data?.totalAfterRabatt || 0);
       const cb300 = document.getElementById("rb-bonus-300");
@@ -17853,7 +17899,16 @@ window.setPricingData = function setPricingData(data) {
         cb300?.parentElement ||
         null;
 
-      const shouldShow = afterRab > 3000;
+      const legacy = window.__bonusNeuLegacyOffer === true;
+      const threshold = Number(window.__bonusNeuThreshold ?? 5000);
+      const shouldShow = afterRab > threshold;
+
+      const txt = document.getElementById("rb-bonus-300-text");
+      if (txt) {
+        txt.textContent = legacy
+          ? "Möchten Sie den Neukundenbonus in Höhe von 252,10 € hinzufügen? (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)"
+          : `Möchten Sie den Neukundenbonus in Höhe von ${Number(window.__bonusNeuGross ?? 250).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € brutto hinzufügen? (ab einem Gesamtwert über ${threshold.toLocaleString("de-DE")} €)`;
+      }
 
       if (row) {
         row.style.display = shouldShow ? "" : "none";
@@ -17861,10 +17916,11 @@ window.setPricingData = function setPricingData(data) {
         row.setAttribute("aria-hidden", String(!shouldShow));
       }
 
-      // If ineligible, clear silently (no 'change' dispatch → no race)
-      // if (!shouldShow && cb300 && cb300.checked) {
-      // cb300.checked = false;
-      //}
+      // New rule: ineligible → clear silently (pricing already dropped it;
+      // no 'change' dispatch → no race). Legacy offers keep the old behavior.
+      if (!legacy && !shouldShow && cb300 && cb300.checked) {
+        cb300.checked = false;
+      }
     })();
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
