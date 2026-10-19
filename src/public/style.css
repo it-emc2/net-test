@@ -11835,7 +11835,7 @@ details.az-group[open] > summary.az-group-title::before {
    width. One column below 640 px. */
 #wvPanelField997, #wvPanelField1497 { flex: 1 1 calc(50% - 7px); min-width: 0 !important; margin-top: 0; }
 #wvPanelField997 > label.image-check, #wvPanelField1497 > label.image-check { width: 100%; max-width: none; box-sizing: border-box; }
-#wvPanelField997 > label.image-check .img-wrap, #wvPanelField1497 > label.image-check .img-wrap { width: 100%; aspect-ratio: auto; height: 260px; }
+#wvPanelField997 > label.image-check .img-wrap, #wvPanelField1497 > label.image-check .img-wrap { width: 100%; aspect-ratio: 4 / 5; height: auto; }
 #wvPanelField997 > label.image-check .img-wrap img, #wvPanelField1497 > label.image-check .img-wrap img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
 #wvQty997Wrap, #wvQty1497Wrap { max-width: none !important; }
 #wvPanelField997 select, #wvPanelField1497 select,

@@ -96,7 +96,7 @@ const PRECACHE = [
   // (Badolux WP*) photos, whose path is built client-side from productId
   // (script.js loadBudgetWandPanels()) and so never appears as an <img src>
   // for discoverShellAssets to find either way.
-  "/assets/2213de9935c01b8fba3425df1cd46c4b.jpg",
+  "/assets/wv-alu-marmor-weiss.webp",
   "/assets/585c6146589e2f4c59e026c2b5373966.jpg",
   "/assets/6dd521ee32b126983e37b93433b29b95.jpg",
   "/assets/Aragon grau.jpeg",
