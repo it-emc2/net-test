@@ -1933,6 +1933,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: body.auftragId || b.customerNumber || b.bitrixContactId || "",
+    // "Referenz" in Angebot.docx (BU) + AH-Angebot.docx = Bitrix deal.
+    DealId: body.auftragId || body.dealId || b.dealId || "",
     Greeting:
       b.salutation === "Frau"
         ? "Sehr geehrte Frau"

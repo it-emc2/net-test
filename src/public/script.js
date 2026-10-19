@@ -6521,6 +6521,17 @@ function focusFirstBereichConditionalError() {
   }
   return false;
 }
+// Human-readable name of a form control for error messages.
+function fieldLabel(el) {
+  const text =
+    (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.textContent) ||
+    el.closest('[role="radiogroup"]')?.getAttribute("aria-label") ||
+    el.getAttribute("aria-label") ||
+    el.parentElement?.closest("div")?.querySelector(":scope > label:not(.radio-pill)")?.textContent ||
+    el.placeholder ||
+    el.name;
+  return String(text || "").replace(/[\s*]+/g, " ").trim();
+}
 function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
   if (typeof window.validateAufschlagSelection === "function") {
@@ -6548,19 +6559,26 @@ function requireBereichValid() {
   // Kundendaten tab is hidden, so we must NOT switch tabs first — doing that
   // unconditionally yanked the user to Kundendaten on every export even when
   // everything was valid (the PDF then generated anyway from another handler).
-  if (form.checkValidity()) return true;
+  // Fields hidden for this offer type (data-offer → display:none) must never
+  // block: a stale `required` from a previously opened offer type (e.g. BU's
+  // Vermieter-Genehmigung after loading an AH offer) made the export fail
+  // with nothing visibly red.
+  const invalid = [...form.querySelectorAll(":invalid")].filter(
+    (el) => el.tagName !== "FIELDSET" && !el.closest('[data-offer][style*="display: none"]')
+  );
+  if (!invalid.length) return true;
 
   // Invalid: now reveal the Kundendaten tab so the highlight/bubble is visible,
   // then show exactly what's missing.
   if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
     window.setStep("Kundendaten");
   }
-  form.reportValidity();
-  flashInvalid(form.querySelector(":invalid"));
+  invalid[0].reportValidity();
+  flashInvalid(invalid[0]);
   focusFirstBereichConditionalError();
   window.toast?.error(
     "Angaben unvollständig",
-    "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+    `Bitte in „Kundendaten“ ausfüllen: ${[...new Set(invalid.map(fieldLabel))].join(", ")}`
   );
   return false;
 }
