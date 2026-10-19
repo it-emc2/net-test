@@ -4,10 +4,13 @@
 // non-configurator sections can pull them. The Duschabtrennung (neu) configurator does NOT
 // use these — it reads src/public/configurator/badolux-model.json (see buildBadoluxModel.js).
 //
-// Products are generated from the read-only source price lists:
-//   src/templates/test/badolux-prices.json            (glass, panels, floor, accessories …)
-//   src/templates/test/duschwanne-badolux-prices.json (shower trays)
+// Products are generated from the read-only source price list
+//   src/templates/test/badolux-prices.json (glass, panels, floor, accessories …)
 // Stored `price` = effective NET (list price minus the category discount), rounded to cents.
+//
+// Shower trays are NOT seeded here (any more): offers use DW001–DW025, priced from
+// their list price minus BU_BADOLUX_DISCOUNT (Admin panel). The BDX-DW-* copies this
+// script used to create were never used and were deleted on 2026-10-19.
 //
 // Run: node scripts/seedBadolux.js   (requires MONGODB_URI)
 
@@ -26,9 +29,6 @@ const MONGODB_DB = process.env.MONGODB_DB || 'KonfiguratorDB';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const prices = JSON.parse(
   readFileSync(join(__dirname, '../src/templates/test/badolux-prices.json'), 'utf8'),
-);
-const trays = JSON.parse(
-  readFileSync(join(__dirname, '../src/templates/test/duschwanne-badolux-prices.json'), 'utf8'),
 );
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -61,7 +61,6 @@ const disc = {
   glass: parsePct(cats['Duschabtrennungen (Gläser)']?.discount ?? prices.discounts?.Glaeser),
   panel: parsePct(cats['Wandpaneele']?.discount ?? prices.discounts?.Wandpaneele),
   floor: parsePct(cats['Boden (Bodenbelag)']?.discount ?? prices.discounts?.Bodenbelag),
-  tray: parsePct(trays.discount ?? prices.discounts?.Duschwannen),
 };
 
 // --- Duschabtrennungen (Gläser) — 20% ---
@@ -113,19 +112,6 @@ for (const p of cats['Winkelleisten'].products) {
     push(`BDX-WL-${slug(p.name)}-${slug(String(variant))}`, `${p.name}${variant ? ` ${variant}` : ''}`, unit);
   }
 }
-
-// --- Duschwannen — 25% ---
-const trayHeight = (() => {
-  const m = String(trays.spec).match(/Höhe\s*([\d.,]+)\s*cm/i);
-  return m ? Number(m[1].replace(',', '.')) : 2.6;
-})();
-trays.prices.forEach((row) => {
-  const m = String(row.masse_cm);
-  push(`BDX-DW-${slug(m)}`, `Duschwanne ${m} cm (${trays.spec})`, net(row.preis, disc.tray), {
-    ...dims(m),
-    heightCm: trayHeight,
-  });
-});
 
 // --- Manual extras not present in the price lists ---
 push('AGB001', 'Abfluss für Duschwanne mit und ohne Rand', 33.42);
