@@ -75,6 +75,16 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
 // Aufschlag applies only to material we order at Hassmann. Products sourced
 // elsewhere are billed through at cost — list their article number here to
 // exempt them from the markup (and from the Zuschlag column in the Kalkulation).
+// Slate tray colour → vigor article suffix (Weiß is the base article).
+const SLATE_COLOR_SUFFIX = {
+  Weiss: "",
+  Elfenbein: "EF",
+  Steingrau: "ST",
+  Beton: "BT",
+  Anthrazit: "AZ",
+  Schwarz: "SW",
+};
+
 export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
@@ -2388,11 +2398,32 @@ try {
               // dynamic color (backward compatible)
               const trayColorRaw = String(payload?.duschwanne?.trayColor || "").trim();
               const trayColor = trayColorRaw || "Weiss";
-              const colorSuffix = isSlateTray ? ` — Farbe: ${trayColor}` : "";
+              const colorName = trayColor === "Weiss" ? "Weiß" : trayColor;
+              const colorSuffix = isSlateTray ? ` — Farbe: ${colorName}` : "";
+
+              // Slate colours are separate vigor articles: base id + suffix
+              // (Weiß = base id). Quote that article at its live vigor price;
+              // vigor down / article missing → base article at the DB price.
+              let articleId = p.productId;
+              let name = p.name || "";
+              if (isSlateTray) {
+                const sfx = SLATE_COLOR_SUFFIX[trayColor] ?? "";
+                let live = new Map();
+                try {
+                  live = await getLiveVigourNetPrices([p.productId + sfx]);
+                } catch (e) {
+                  console.error("[pricing] vigor live price lookup failed for Slate tray:", e?.message || e);
+                }
+                if (live.has(p.productId + sfx)) {
+                  articleId = p.productId + sfx;
+                  unit = live.get(articleId);
+                  name = name.replace(/\bwei(ss|ß)\b/i, colorName);
+                }
+              }
 
               const line = {
-                productId: p.productId,
-                name: p.name || "",
+                productId: articleId,
+                name,
                 qty,
                 unitPrice: unit,
                 lineTotal: round2(unit * qty),
@@ -2406,7 +2437,7 @@ try {
 
               selectedTray = {
                 productId: p.productId,
-                name: p.name || "",
+                name,
                 sizeLabel,
                 unitPrice: unit,
               };
