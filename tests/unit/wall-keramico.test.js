@@ -54,6 +54,28 @@ describe("keramicoPanelPlan (cleverbad.de rule)", () => {
   });
 });
 
+describe("keramicoPanelPlan — cladding height", () => {
+  test("50 cm high: one panel gives 5 strips, so 6 columns need 2 panels", () => {
+    // U-Form 100 / 200 / 90 = 6 columns (see the shop example above)
+    const p = keramicoPanelPlan("u", { links: 100, back: 200, rechts: 90 }, { heightCm: 50 });
+    expect([p.perPanel, p.gesamt]).toEqual([5, 2]);
+    expect(p.pieces.map((x) => x.platte)).toEqual([1, 1, 1, 1, 1, 2]);
+    // panel 1: 5 strips, 5 cm left → 5 height cuts; panel 2: 1 strip → 1; + 3 width cuts
+    expect([p.hoehenSchnitte, p.breitenSchnitte, p.schnitte]).toEqual([6, 3, 9]);
+  });
+  test("the saw cut counts: 51 cm fits 4×, not 5×, into 255 cm", () => {
+    expect(keramicoPanelPlan("wand", { back: 500 }, { heightCm: 51 }).perPanel).toBe(4);
+  });
+  test("motif panels are only shortened, never shared", () => {
+    const p = keramicoPanelPlan("u", { links: 100, back: 200, rechts: 90 }, { heightCm: 50, reuse: false });
+    expect([p.perPanel, p.gesamt, p.hoehenSchnitte]).toEqual([1, 6, 6]);
+  });
+  test("full height or none: the plain rule", () => {
+    for (const heightCm of [null, "", 255, 300])
+      expect(keramicoPanelPlan("u", { links: 100, back: 200, rechts: 90 }, { heightCm }).gesamt).toBe(6);
+  });
+});
+
 describe("Keramico wall (Standard) pricing", () => {
   test("counted from widths, Alu quantities ignored, −10 %", async () => {
     const ls = await lines({ wvColor: "WP003|grau", wvKSituation: "u", wvKLinks: "100", wvKBack: "200", wvKRechts: "90", wvQty997: 2 });
@@ -62,6 +84,16 @@ describe("Keramico wall (Standard) pricing", () => {
     expect(k.unitPrice).toBeCloseTo(116.1, 2);
     expect(k.label).toBe("- 6 Stk Wandpaneel 950×2550 mm — Farbe: grau (U-Form: 100 + 200 + 90 cm, 3 Zuschnitte)");
     expect(ls.find((l) => /997|1497/.test(l.label || ""))).toBeUndefined();
+  });
+
+  test("cladding height and manual quantity reach the offer", async () => {
+    const low = await lines({ wvColor: "WP003|grau", wvKSituation: "u", wvKLinks: "100", wvKBack: "200", wvKRechts: "90", wvKHoehe: "50" });
+    expect(low.find((l) => l.productId === "WP003").label).toBe("- 2 Stk Wandpaneel 950×2550 mm — Farbe: grau (U-Form: 100 + 200 + 90 cm, Höhe 50 cm, 9 Zuschnitte)");
+    const manual = await lines({ wvColor: "WP003|grau", wvKSituation: "wand", wvKBack: "180", wvKQty: "5" });
+    expect(manual.find((l) => l.productId === "WP003")).toMatchObject({ qty: 5 });
+    expect(manual.find((l) => l.productId === "WP003").label).toMatch(/Menge manuell\)$/);
+    const onlyManual = await lines({ wvColor: "WP003|grau", wvKQty: "3" });
+    expect(onlyManual.find((l) => l.productId === "WP003").label).toBe("- 3 Stk Wandpaneel 950×2550 mm — Farbe: grau (Menge manuell)");
   });
 
   test("no widths → no Keramico line", async () => {

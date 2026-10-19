@@ -11899,6 +11899,11 @@ makeFloorCalc({
 
   const sitEl = document.getElementById("wvKSituation");
   const heightEl = document.getElementById("wvKHoehe");
+  const qtyEl = document.getElementById("wvKQty");
+  const qtyReset = document.getElementById("kcQtyReset");
+  const qtyNote = document.getElementById("kcQtyNote");
+  // Sonder-Dekor: the motif runs over the whole panel, so strips can't be reused.
+  const isMotif = () => /^WP007\|/i.test(document.querySelector('input[name="wvColor"]:checked')?.value || "");
   const warnEl = document.getElementById("kcHeightWarn");
   const cutListEl = document.getElementById("kcCutList");
   const inputs = {
@@ -11998,7 +12003,7 @@ makeFloorCalc({
     });
 
     const widths = { links: num(inputs.links), back: num(inputs.back), rechts: num(inputs.rechts) };
-    const plan = core.keramicoPanelPlan(sit, widths);
+    const plan = core.keramicoPanelPlan(sit, widths, { heightCm: num(heightEl), reuse: !isMotif() });
 
     // ---- geometry: walls drawn at their real width, or a preview width while empty
     const drawn = {};
@@ -12027,7 +12032,9 @@ makeFloorCalc({
       oy: (VIEW.h - (maxY - minY) * s) / 2 - minY * s,
     };
     const P = (wall, p, y) => project(...toXYZ[wall](p, y), cam);
-    const quad = (wall, a, b) => [P(wall, a, 0), P(wall, b, 0), P(wall, b, DRAW_H), P(wall, a, DRAW_H)];
+    const quad = (wall, a, b, h = DRAW_H) => [P(wall, a, 0), P(wall, b, 0), P(wall, b, h), P(wall, a, h)];
+    // Panels cover the wall up to the cladding height (all of it without one).
+    const PH = DRAW_H * Math.min(plan.heightCm || core.KERAMICO_HEIGHT_CM, core.KERAMICO_HEIGHT_CM) / core.KERAMICO_HEIGHT_CM;
 
     // The chosen decor on the walls: one image per 95-cm panel, slanted with
     // the wall. The pattern's own space is wall-local (u = cm along the wall,
@@ -12064,15 +12071,15 @@ makeFloorCalc({
       for (const pc of pieces) {
         const k = `${sit}-${key}-${pc.platte}-${pc.breite}`;
         nowKeys.add(k);
-        const q = quad(key, pc.start, pc.start + pc.breite);
+        const q = quad(key, pc.start, pc.start + pc.breite, PH);
         const isNew = !shownKeys.has(k);
         const fill = tex ? `fill:url(#kcTex${i});fill-opacity:1;` : "";
         out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="${fill}--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
         if (pc.start > 0.5) {
-          const a = P(key, pc.start, 0), b = P(key, pc.start, DRAW_H);
+          const a = P(key, pc.start, 0), b = P(key, pc.start, PH);
           out += `<line class="kc-seam" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}"/>`;
         }
-        const c = P(key, pc.start + pc.breite / 2, DRAW_H * 0.52);
+        const c = P(key, pc.start + pc.breite / 2, PH * 0.52);
         const bucket = key === "back" ? "inline" : key === "links" ? "left" : "right";
         labels[bucket].push({ c, pc, i });
       }
@@ -12100,21 +12107,38 @@ makeFloorCalc({
     applyFocus();
 
     // ---- results
-    setCount(document.getElementById("kcCount"), plan.gesamt);
+    // A typed quantity overrides the computed one (same rule in pricing-core).
+    const manual = Math.round(num(qtyEl));
+    setCount(document.getElementById("kcCount"), manual > 0 ? manual : plan.gesamt);
+    qtyReset.hidden = !(manual > 0);
+    qtyNote.hidden = !(manual > 0);
+    qtyNote.textContent = manual > 0
+      ? `Manuell festgelegt — berechnet wären ${plan.gesamt}${manual < plan.gesamt ? " (weniger als berechnet!)" : ""}.`
+      : "";
+    qtyNote.classList.toggle("is-low", manual > 0 && manual < plan.gesamt);
+    qtyEl.placeholder = plan.gesamt > 0 ? `berechnet: ${plan.gesamt}` : "berechnet";
     setCount(document.getElementById("kcCuts"), plan.schnitte);
     const unitEl = document.getElementById("kcCutsUnit");
     if (unitEl) unitEl.textContent = plan.schnitte === 1 ? "Schnitt" : "Schnitte";
     const cuts = plan.pieces.filter((p) => p.zuschnitt);
-    cutListEl.hidden = cuts.length === 0;
-    cutListEl.innerHTML = cuts.length
-      ? `<b>${cuts.length === 1 ? "1 Zuschnitt" : `${cuts.length} Zuschnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (95 × 255 cm). Zuschnitt: ${cuts.map((p) => `Platte ${p.platte} auf ${fmtCm(p.breite)} cm`).join(", ")}. Verschnitt gesamt ${fmtCm(plan.verschnitt)} cm Breite.</span>`
+    const H = plan.heightCm;
+    const parts = [];
+    if (plan.perPanel > 1)
+      parts.push(`Höhe: aus jedem Paneel ${plan.perPanel} Stücke à ${fmtCm(H)} cm schneiden — ${plan.pieces.length} Felder brauchen ${plan.gesamt} ${plan.gesamt === 1 ? "Paneel" : "Paneele"}.`);
+    else if (H)
+      parts.push(`Höhe: jedes Paneel auf ${fmtCm(H)} cm kürzen${isMotif() ? " (Motiv-Paneele werden nicht geteilt, das Motiv läuft über das ganze Paneel)" : ""}.`);
+    if (cuts.length)
+      parts.push(`Breite: ${cuts.map((p) => `${plan.perPanel > 1 ? `Feld ${p.feld}` : `Platte ${p.platte}`} auf ${fmtCm(p.breite)} cm`).join(", ")} (Verschnitt ${fmtCm(plan.verschnitt)} cm Breite).`);
+    cutListEl.hidden = plan.schnitte === 0;
+    cutListEl.innerHTML = plan.schnitte
+      ? `<b>${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (95 × 255 cm).</span>${parts.map((t) => `<span>${t}</span>`).join("")}`
       : "";
 
     const h = num(heightEl);
     const maxH = core.KERAMICO_HEIGHT_CM;
     warnEl.hidden = !(h > maxH);
     warnEl.textContent = h > maxH
-      ? `Wandhöhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
+      ? `Höhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
       : "";
     paintPrice();
   }
@@ -12169,7 +12193,19 @@ makeFloorCalc({
       applyFocus();
     });
   }
-  heightEl?.addEventListener("input", render);
+  heightEl?.addEventListener("input", () => {
+    render();
+    refresh("keramico-height"); // the height changes how many panels are billed
+  });
+  qtyEl?.addEventListener("input", () => {
+    render();
+    refresh("keramico-qty");
+  });
+  qtyReset?.addEventListener("click", () => {
+    qtyEl.value = "";
+    render();
+    refresh("keramico-qty");
+  });
   // Repaint the walls when the decor or the Sonder-Dekor motif changes.
   document.addEventListener("change", (e) => {
     if (e.target?.name === "wvColor") render();
@@ -12185,10 +12221,16 @@ makeFloorCalc({
   window.renderKeramicoCalc = render;
   // For the send-time "0 Platten" check (wvCheck): panels for a payload's wall
   // widths, or null while pricing-core isn't loaded.
-  window.keramicoPanelCount = (wv) =>
-    core
-      ? core.keramicoPanelPlan(wv?.wvKSituation, { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts }).gesamt
-      : null;
+  window.keramicoPanelCount = (wv) => {
+    if (!core) return null;
+    const manual = Math.round(Number(String(wv?.wvKQty ?? "").replace(",", ".")) || 0);
+    if (manual > 0) return manual;
+    return core.keramicoPanelPlan(
+      wv?.wvKSituation,
+      { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts },
+      { heightCm: wv?.wvKHoehe, reuse: !/^WP007\|/i.test(String(wv?.wvColor || "")) },
+    ).gesamt;
+  };
 })();
 
 /* ========== Sonder-Dekor: Motiv-Scroller (Wandverkleidung, Standard) ==========
@@ -16049,7 +16091,7 @@ function restoreWV(wv) {
   // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
   setInputByNameOrId("wvArea", wv.wvArea || "");
   setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
-  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvMotif"]) setInputByNameOrId(k, wv[k] || "");
+  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif"]) setInputByNameOrId(k, wv[k] || "");
   window.renderKeramicoCalc?.();
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();

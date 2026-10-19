@@ -119,7 +119,18 @@ export const KERAMICO_SITUATIONS = {
   ecke: { label: "Ecke", walls: ["links", "back"] },
   u: { label: "U-Form", walls: ["links", "back", "rechts"] },
 };
-export function keramicoPanelPlan(situation, widths = {}) {
+// Saw cut per height cut: a 51-cm strip fits 4×, not 5×, into one 255-cm panel.
+export const KERAMICO_CUT_CM = 0.5;
+
+/**
+ * Columns per wall in 95-cm strips (see above). With a cladding height below the
+ * panel height, one panel is cut into ⌊(255 + cut) ÷ (height + cut)⌋ strips, so
+ * several columns come out of one panel (e.g. 50 cm → 5 strips per panel).
+ * `reuse: false` (Sonder-Dekor: the motif runs over the whole panel) keeps one
+ * panel per column and only shortens it. Without a height it is the plain rule.
+ * `platte` = the panel a column is cut from, `feld` = the column (1-based).
+ */
+export function keramicoPanelPlan(situation, widths = {}, { heightCm = null, reuse = true } = {}) {
   const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
   const panelMm = KERAMICO_PANEL_CM * 10;
   const pieces = [];
@@ -128,24 +139,42 @@ export function keramicoPanelPlan(situation, widths = {}) {
     const mm = cm > 0 ? Math.round(cm * 10) : 0;
     for (let x = 0; x < mm; x += panelMm) {
       const w = Math.min(panelMm, mm - x);
-      pieces.push({
-        wall: index,
-        key,
-        platte: pieces.length + 1,
-        start: x / 10,
-        breite: w / 10,
-        zuschnitt: w < panelMm - 5,
-      });
+      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < panelMm - 5 });
     }
     return { key, index, cm: mm / 10 };
   });
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const low = H > 0 && H < KERAMICO_HEIGHT_CM - 0.5;
+  const perPanel = low && reuse
+    ? Math.max(1, Math.floor((KERAMICO_HEIGHT_CM + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  pieces.forEach((p, i) => {
+    p.feld = i + 1;
+    p.platte = Math.floor(i / perPanel) + 1;
+  });
+  const gesamt = Math.ceil(pieces.length / perPanel);
+  // Height cuts: one per strip taken from a panel; the last strip needs none when
+  // it ends exactly at the panel's end.
+  let hoehenSchnitte = 0;
+  if (low) {
+    for (let k = 0; k < gesamt; k++) {
+      const strips = Math.min(perPanel, pieces.length - k * perPanel);
+      const rest = KERAMICO_HEIGHT_CM - strips * H - (strips - 1) * KERAMICO_CUT_CM;
+      hoehenSchnitte += rest > 0.5 ? strips : strips - 1;
+    }
+  }
+  const breitenSchnitte = pieces.filter((p) => p.zuschnitt).length;
   const total = walls.reduce((a, w) => a + w.cm, 0);
   return {
     situation: sit,
     walls,
     pieces,
-    gesamt: pieces.length,
-    schnitte: pieces.filter((p) => p.zuschnitt).length,
+    heightCm: low ? H : null,
+    perPanel,
+    gesamt,
+    breitenSchnitte,
+    hoehenSchnitte,
+    schnitte: breitenSchnitte + hoehenSchnitte,
     verschnitt: Math.round((pieces.length * KERAMICO_PANEL_CM - total) * 10) / 10,
   };
 }
@@ -971,12 +1000,16 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     // Keramico Standard-Wandpaneele: quantity from the wall widths, the same
     // rule as the calculator on the page (keramicoPanelPlan above).
     if (isKeramico) {
-      const plan = keramicoPanelPlan(wv?.wvKSituation, {
-        links: wv?.wvKLinks,
-        back: wv?.wvKBack,
-        rechts: wv?.wvKRechts,
-      });
-      if (plan.gesamt > 0) {
+      // Sonder-Dekor (WP007) prints one motif over the whole panel → no strip reuse.
+      const plan = keramicoPanelPlan(
+        wv?.wvKSituation,
+        { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts },
+        { heightCm: wv?.wvKHoehe, reuse: !/^WP007$/i.test(keramicoPid) },
+      );
+      // A quantity typed in the calculator overrides the computed one.
+      const manualQty = Math.round(Number(String(wv?.wvKQty ?? "").replace(",", ".")) || 0);
+      const kQty = manualQty > 0 ? manualQty : plan.gesamt;
+      if (kQty > 0) {
         const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
         const widthsTxt = plan.walls
           .filter((w) => w.cm > 0)
@@ -994,10 +1027,16 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         const kDiscount = /^WP00[1-6]$/i.test(keramicoPid)
           ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10)
           : 0;
+        const details = [
+          widthsTxt ? `${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm` : "",
+          plan.heightCm ? `Höhe ${String(plan.heightCm).replace(".", ",")} cm` : "",
+          widthsTxt ? cutsTxt : "",
+          manualQty > 0 ? "Menge manuell" : "",
+        ].filter(Boolean).join(", ");
         add(
           keramicoPid,
-          plan.gesamt,
-          `- ${plan.gesamt} Stk Wandpaneel 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
+          kQty,
+          `- ${kQty} Stk Wandpaneel 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt}${details ? ` (${details})` : ""}`,
           undefined,
           null,
           kDiscount > 0 ? { discount: kDiscount } : null,

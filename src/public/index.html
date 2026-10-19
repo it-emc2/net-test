@@ -4918,7 +4918,7 @@ button.dm-btn-danger:focus-visible {
                 <label class="kc-row" data-wall="links"><span class="kc-dot"></span><span class="kc-name">Linke Wand</span><input id="wvKLinks" name="wvKLinks" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
                 <label class="kc-row" data-wall="back"><span class="kc-dot"></span><span class="kc-name">Rückwand</span><input id="wvKBack" name="wvKBack" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="180" /><span class="kc-unit">cm</span></label>
                 <label class="kc-row" data-wall="rechts"><span class="kc-dot"></span><span class="kc-name">Rechte Wand</span><input id="wvKRechts" name="wvKRechts" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
-                <label class="kc-row kc-row--height"><span class="kc-dot kc-dot--h">H</span><span class="kc-name">Wandhöhe</span><input id="wvKHoehe" name="wvKHoehe" type="number" inputmode="decimal" min="0" max="1000" step="1" placeholder="255" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row kc-row--height"><span class="kc-dot kc-dot--h">H</span><span class="kc-name">Höhe der Verkleidung</span><input id="wvKHoehe" name="wvKHoehe" type="number" inputmode="decimal" min="0" max="1000" step="1" placeholder="255" /><span class="kc-unit">cm</span></label>
               </div>
               <div id="kcHeightWarn" class="kc-warn" role="status" hidden></div>
               <div class="kc-stats">
@@ -4927,6 +4927,13 @@ button.dm-btn-danger:focus-visible {
                 <div class="kc-stat"><span class="kc-stat-label">Materialpreis</span><span><b id="kcPrice">–</b></span></div>
               </div>
               <div id="kcCutList" class="kc-cutlist" hidden></div>
+              <!-- Manuelle Menge: überschreibt die berechnete Anzahl im Angebot (wvKQty). -->
+              <div class="kc-manual">
+                <label for="wvKQty">Anzahl Paneele manuell</label>
+                <input id="wvKQty" name="wvKQty" type="number" inputmode="numeric" min="0" max="200" step="1" placeholder="berechnet" />
+                <button type="button" id="kcQtyReset" class="secondary" hidden>Berechnete Menge verwenden</button>
+                <span id="kcQtyNote" class="kc-qty-note" hidden></span>
+              </div>
             </div>
 
             <label id="wvPanelsLabel" class="req">Wandverkleidung</label>

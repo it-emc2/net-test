@@ -11819,3 +11819,13 @@ details.az-group[open] > summary.az-group-title::before {
 .tray-line-hint button { flex: 0 0 auto; min-height: 40px; }
 [data-mode="dark"] .tray-line-hint { background: rgba(34,197,94,0.1); border-color: rgba(134,197,164,0.5); color: #bbf7d0; }
 [data-mode="dark"] .tray-line-hint .tlh-text span { color: #a7d7b9; }
+
+/* Keramico calculator: manual panel count (overrides the computed one) */
+.kc-manual { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.1); }
+.kc-manual label { margin: 0; font-weight: 600; font-size: 0.88rem; }
+.kc-manual input, #wvKQty { width: 160px; max-width: 160px; height: 44px; font-size: 1rem; }
+.kc-manual button { min-height: 40px; }
+.kc-manual button[hidden], .kc-qty-note[hidden] { display: none; }
+.kc-qty-note { flex-basis: 100%; font-size: 0.82rem; color: #6b7280; }
+.kc-qty-note.is-low { color: #b45309; font-weight: 600; }
+.kc-cutlist span + span { display: block; margin-top: 2px; }
