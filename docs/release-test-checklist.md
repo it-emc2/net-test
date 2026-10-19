@@ -34,6 +34,9 @@ The app is one page for all types; fields of other types are only hidden
 | Kalkulation PDF | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Hassmann-Warenkorb CSV (card + Bitrix timeline) | ✓ | ✓ | ✓ | ✓ | – | – | – |
 
+Header fields in every offer PDF are filled: Angebot-Nr., Datum, Gültig bis,
+Ansprechpartner, **Referenz/Kundennummer = Bitrix Auftrag ID** (no empty label).
+
 Check: Zusammenfassung → Dokumentenstudio shows only the ✓ cards; "Angebots-PDF
 an Bitrix senden" status log lists only the ✓ documents (send to a **test deal**).
 
