@@ -1534,6 +1534,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   // onError turns the all-or-nothing behaviour into best-effort: the e-mail
   // send omits it and aborts on the first failure (never mail a partial set),
   // the postal send passes it so a broken document can't block the postage.
+  const SERVICE_ONLY_OFFERS = ["ah", "hms", "wd"];
+  const offerTypeOf = (payload) =>
+    String(payload?.activeOffer || window.getCurrentOfferType?.() || "").toLowerCase();
   async function collectBitrixDocs(
     payload,
     offerNumber,
@@ -1547,7 +1550,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
-    ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
+    ]
+      .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
+      // AH/HMS/WD sell services only — no products, so no Hassmann cart.
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && j.endpoint.includes("hassmann")));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
