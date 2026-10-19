@@ -54,6 +54,10 @@ function isHassmannProduct(id, manufacturer) {
   if (s === "OPT_CUSTOM") return false;
   if (s === "REHA_DELIVERY") return false;
   if (INTERNAL_NON_HASSMANN.has(s)) return false;
+  // Badolux articles from the Duschabtrennung (neu) configurator (cleverbad.de
+  // numbers, e.g. PRI80DK19-Z) aren't in Products, so no manufacturer to check —
+  // they belong in the Badolux cart only.
+  if (cleverbadCatalog.variants[s]) return false;
   if (!isHassmannManufacturer(manufacturer)) return false;
 
   return true;
