@@ -6509,6 +6509,17 @@ function wvCheck(payload, offerType) {
     return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
   }
   if (!kind) return null;
+  // Standard (Keramico WP*) has no 997/1497 panels — it is counted from the wall
+  // widths by the same rule pricing-core uses. Unknown (calculator not loaded yet)
+  // → no warning rather than a false one.
+  if (/^WP/i.test(String(wv.wvColor || ""))) {
+    if (window.keramicoPanelCount?.(wv) !== 0) return null;
+    return {
+      title: "Wandverkleidung ohne Platten",
+      text: `Wandverkleidung „${kind}“ ist gewählt, aber im Bedarfsrechner sind keine Wandbreiten eingetragen – im Angebot stehen 0 Platten.`,
+      blocking: false,
+    };
+  }
   const extras = Object.values(wv.extraColors || {}).flat();
   const total =
     (Number(wv.wvQty997) || 0) +
@@ -11336,11 +11347,12 @@ function ensureRadioDefault(groupEl) {
       `input[type="radio"][name="${name}"]:checked`,
     );
     if (anyChecked) continue;
-    // Prefer the line's own default from the markup (the `checked` attribute)
-    // over "whatever comes first", so returning to Premium restores „Marmor
-    // weiß" rather than silently picking another decor.
+    // Only restore a default the markup itself sets (the `checked` attribute).
+    // Never invent one: since main's 3991d0f4 the Dekor starts empty on purpose
+    // and is mandatory on send, so picking "whatever comes first" would hand the
+    // customer a decor nobody chose.
     const inGroup = radios.filter((r) => r.name === name);
-    const first = inGroup.find((r) => r.defaultChecked) || inGroup[0];
+    const first = inGroup.find((r) => r.defaultChecked);
     if (first) {
       first.checked = true;
       if (typeof highlightTileForInput === "function") highlightTileForInput(first, true);
@@ -12169,6 +12181,12 @@ makeFloorCalc({
   svg.addEventListener("pointerleave", () => applyFocus());
   window.addEventListener("pricing:updated", paintPrice);
   window.renderKeramicoCalc = render;
+  // For the send-time "0 Platten" check (wvCheck): panels for a payload's wall
+  // widths, or null while pricing-core isn't loaded.
+  window.keramicoPanelCount = (wv) =>
+    core
+      ? core.keramicoPanelPlan(wv?.wvKSituation, { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts }).gesamt
+      : null;
 })();
 
 /* ========== Sonder-Dekor: Motiv-Scroller (Wandverkleidung, Standard) ==========
