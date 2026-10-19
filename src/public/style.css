@@ -11829,3 +11829,18 @@ details.az-group[open] > summary.az-group-title::before {
 .kc-qty-note { flex-basis: 100%; font-size: 0.82rem; color: #6b7280; }
 .kc-qty-note.is-low { color: #b45309; font-weight: 600; }
 .kc-cutlist span + span { display: block; margin-top: 2px; }
+
+/* Wandverkleidung (Premium): 997 / 1497 cards side by side, each half of the row,
+   with tile, Farbe select, Menge and "+ Farbe hinzufügen" at the column's full
+   width. One column below 640 px. */
+#wvPanelField997, #wvPanelField1497 { flex: 1 1 calc(50% - 7px); min-width: 0 !important; margin-top: 0; }
+#wvPanelField997 > label.image-check, #wvPanelField1497 > label.image-check { width: 100%; max-width: none; box-sizing: border-box; }
+#wvPanelField997 > label.image-check .img-wrap, #wvPanelField1497 > label.image-check .img-wrap { width: 100%; aspect-ratio: auto; height: 260px; }
+#wvPanelField997 > label.image-check .img-wrap img, #wvPanelField1497 > label.image-check .img-wrap img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+#wvQty997Wrap, #wvQty1497Wrap { max-width: none !important; }
+#wvPanelField997 select, #wvPanelField1497 select,
+#wvPanelField997 input[type="number"], #wvPanelField1497 input[type="number"],
+#wvPanelField997 .wv-extras-wrap > .btn, #wvPanelField1497 .wv-extras-wrap > .btn { width: 100%; box-sizing: border-box; }
+#wvPanelField997 .wv-extra-row select, #wvPanelField1497 .wv-extra-row select { flex: 1 1 auto; min-width: 0; width: auto; }
+#wvPanelField997 .wv-extra-row input[type="number"], #wvPanelField1497 .wv-extra-row input[type="number"] { width: 80px; }
+@media (max-width: 640px) { #wvPanelField997, #wvPanelField1497 { flex-basis: 100%; } }
