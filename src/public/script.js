@@ -12317,6 +12317,56 @@ function initSmartTraySearch() {
 
   const makeLabel = (w, l, h) => (w && l && h ? `${w} x ${l} x ${h} cm` : "");
 
+  // Both lines' results of the last search: the active one is shown, the other
+  // one is what the "same size, cheaper" hint below compares against.
+  let lastLists = { hassmann: [], badolux: [] };
+
+  // Premium tray picked and Badolux has the same size cheaper → offer the switch.
+  // Drafts and new offers only: a sent offer keeps its price (pinned server-side),
+  // so the hint is hidden in sent mode (body.is-sent-offer, see style.css) and
+  // appears once "Neue Version erstellen" turns it into a draft.
+  const lineHint = document.createElement("div");
+  lineHint.className = "tray-line-hint";
+  lineHint.hidden = true;
+  out.insertAdjacentElement("afterend", lineHint);
+  const sizeKey = (p) => [Number(p?.widthCm), Number(p?.lengthCm)].sort((a, b) => a - b).join("x");
+  const euroDe = (n) => Number(n).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const updateLineHint = () => {
+    const pid = hiddenId?.value || "";
+    const prem = getTrayTier() === "premium" ? lastLists.hassmann.find((p) => p.productId === pid) : null;
+    const alt = prem
+      ? lastLists.badolux
+          .filter((b) => sizeKey(b) === sizeKey(prem) && Number.isFinite(Number(b.price)))
+          .sort((a, b) => Number(a.price) - Number(b.price))[0]
+      : null;
+    const save = alt ? Number(prem.price) - Number(alt.price) : 0;
+    if (!alt || !(save >= 0.01)) {
+      lineHint.hidden = true;
+      lineHint.innerHTML = "";
+      return;
+    }
+    lineHint.dataset.pid = alt.productId;
+    lineHint.innerHTML = `
+      <div class="tlh-text">
+        <strong>Diese Größe gibt es auch als Standard (Badolux) — ${euroDe(save)} € günstiger.</strong>
+        <span>${escapeHtml(alt.name || alt.productId)} · ${alt.widthCm} × ${alt.lengthCm} cm · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
+      </div>
+      <button type="button" class="secondary" data-tray-line-switch>Auf Standard wechseln</button>`;
+    lineHint.hidden = false;
+  };
+  lineHint.addEventListener("click", (e) => {
+    if (!e.target?.closest?.("[data-tray-line-switch]")) return;
+    const alt = lastLists.badolux.find((p) => p.productId === lineHint.dataset.pid);
+    if (!alt) return;
+    // Make the Badolux tray the saved choice, then switch: the line change keeps
+    // the saved selection and re-selects it in the Standard list.
+    try {
+      sessionStorage.setItem("dw_tray_touched", "1");
+    } catch {}
+    persistSelection(alt.productId, makeLabel(alt.widthCm, alt.lengthCm, alt.heightCm), alt.name);
+    setTrayTier("standard", { keepSelection: true });
+  });
+
   const applySelectedStyles = () => {
     const cards = Array.from(out.querySelectorAll(".suggestion-card"));
     const checked = out.querySelector('input[name="traySuggestion"]:checked');
@@ -12367,6 +12417,7 @@ function initSmartTraySearch() {
       inputEl.closest(".suggestion-card")?.querySelector(".sc-title")?.textContent?.trim(),
     );
     applySelectedStyles();
+    updateLineHint();
   };
 
   const updateTraySizeFromInputs = () => {
@@ -12384,6 +12435,7 @@ function initSmartTraySearch() {
       hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
     }
     toggleSlateTrayColorVisibility();
+    updateLineHint();
   };
 
   // ----- render -----
@@ -12554,6 +12606,7 @@ function initSmartTraySearch() {
       hassmannLocal,
       badoluxLocal,
     };
+    lastLists = { hassmann: lists.hassmann, badolux: lists.badolux };
     const tier = getTrayTier();
     const active = rowFor(tier, lists);
     const other = rowFor(tier === "standard" ? "premium" : "standard", lists);
@@ -12600,6 +12653,7 @@ function initSmartTraySearch() {
     }
 
     applySelectedStyles();
+    updateLineHint();
     updateCustomPostVisibility(!active.list.length && !other.list.length);
   }
 
