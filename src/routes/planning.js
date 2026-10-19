@@ -108,4 +108,21 @@ router.get("/planning/stream", async (req, res) => {
   }
 });
 
+// Tells the route planner a termin didn't happen, so it marks today's entry
+// cancelled and puts the lead back into its Warteschlange. Never throws: the
+// Bitrix move already succeeded and must not be reported as failed.
+export async function notifyTerminNotHeld({ dealId, reason, by }) {
+  try {
+    const upstream = await fetch(buildPlanningUrl("/api/planning/termin-not-held"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", ...apiKeyHeader() },
+      body: JSON.stringify({ dealId, reason, by }),
+    });
+    const body = await upstream.json().catch(() => ({}));
+    return upstream.ok ? { ok: true, found: Boolean(body?.found) } : { ok: false, error: body?.message || `HTTP ${upstream.status}` };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+}
+
 export default router;

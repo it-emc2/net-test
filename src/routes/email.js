@@ -12,6 +12,8 @@ import net from "net";
 import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
+import EmailSend from "../models/EmailSend.js";
+import { claimSendLock } from "../lib/sendLock.js";
 import UserActionLog from "../models/UserActionLog.js";
 import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
@@ -466,6 +468,13 @@ router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
 // files: attachments[], editedDocx (optional: hand-edited Angebot-DOCX used instead of a fresh render)
+// Per-deal guard for offer emails (see EmailSend). The in-flight window covers
+// a slow send (upload + PDF + SMTP has taken >60 s) that the client gave up on.
+const EMAIL_RESEND_BLOCK_MS = 24 * 60 * 60 * 1000; // a 2nd offer email for the same deal within 24h needs forceResend
+const EMAIL_IN_FLIGHT_MS = 5 * 60 * 1000; // lock survives a crashed request for at most 5 min
+export const claimEmailSend = (dealId, forceResend) =>
+  claimSendLock(EmailSend, dealId, forceResend, { inFlightMs: EMAIL_IN_FLIGHT_MS, resendBlockMs: EMAIL_RESEND_BLOCK_MS });
+
 router.post(
   "/send-offer",
   upload.fields([
@@ -479,6 +488,8 @@ router.post(
   const uploaded = req.files?.attachments || [];
   const bitrixDocFiles = req.files?.bitrixDocs || [];
   const editedDocxFile = req.files?.editedDocx?.[0] || null;
+  // Deal whose EmailSend lock this request holds; cleared once the mail went out.
+  let lockedDealId = "";
 
   try {
     const to = String(req.body.to || "").trim();
@@ -508,6 +519,25 @@ router.post(
     const contactId = String(req.body.contactId || "").trim();
     if (dealId) payload.bitrixDealId = dealId;
     if (contactId) payload.bitrixContactId = contactId;
+
+    // ponytail: sends without a deal are not guarded — there is no key to lock on.
+    if (dealId && !bitrixOnly) {
+      const forceResend = ["1", "true"].includes(String(req.body.forceResend || ""));
+      const existing = await claimEmailSend(dealId, forceResend);
+      if (existing) {
+        const inFlight = existing.inFlightUntil && new Date(existing.inFlightUntil) > new Date();
+        console.warn("[email] duplicate send blocked", { dealId, offerNumber, inFlight });
+        return res.status(409).json({
+          code: inFlight ? "SEND_IN_PROGRESS" : "ALREADY_SENT",
+          error: inFlight
+            ? "Für diesen Deal wird gerade bereits eine Angebots-E-Mail versendet."
+            : `Für diesen Deal wurde bereits eine Angebots-E-Mail versendet (${existing.offerNumber || "-"}).`,
+          lastSentAt: existing.sentAt || null,
+          lastOfferNumber: existing.offerNumber || "",
+        });
+      }
+      lockedDealId = dealId;
+    }
 
     // Re-derive Ansprechpartner name from the selected email server-side —
     // the PDF (mapData below), the internal signature-image lookup, and the
@@ -759,6 +789,16 @@ router.post(
       };
       info = await transporter.sendMail(mailOptions);
 
+      // Record right after SMTP accepted it — later steps failing must not
+      // free the deal for a resend of a mail the customer already has.
+      if (lockedDealId) {
+        await EmailSend.updateOne(
+          { dealId: lockedDealId },
+          { $set: { inFlightUntil: null, sentAt: new Date(), offerNumber: payload?.offerNumber || offerNumber } },
+        ).catch((e) => console.warn("[email] EmailSend record failed:", e?.message || e));
+        lockedDealId = "";
+      }
+
       // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
       try {
         const sent = await saveToSentFolder(mailOptions);
@@ -844,6 +884,10 @@ router.post(
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });
   } finally {
+    // Nothing went out (validation error, PDF/SMTP failure) — free the deal.
+    if (lockedDealId) {
+      await EmailSend.updateOne({ dealId: lockedDealId }, { $set: { inFlightUntil: null } }).catch(() => {});
+    }
     // Cleanup temp uploads (customer attachments + forwarded Bitrix docs + edited DOCX)
     await Promise.all(
       [...uploaded, ...bitrixDocFiles, ...(editedDocxFile ? [editedDocxFile] : [])].map(

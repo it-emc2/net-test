@@ -59,9 +59,11 @@ export async function resolveProductImages(productIds, assetsDir, noCustomIds = 
       // assets/produktbilder/<id>.<ext> overrides the section image in assets/.
       // WV 997 (V3WVKnn) shares the 1497 photo (V3WVnn) — same decor.
       const custom = path.join(assetsDir, "produktbilder");
+      // WC panel products live in assets/wc/<id>/<id>-1.<ext> (first = main photo).
+      const wc = [path.join(assetsDir, "wc", id), `${id}-1`];
       const candidates = noCustomIds.has(id)
-        ? [[assetsDir, id]]
-        : [[custom, id], [custom, id.replace(/^V3WVK/, "V3WV")], [assetsDir, id]];
+        ? [[assetsDir, id], wc]
+        : [[custom, id], [custom, id.replace(/^V3WVK/, "V3WV")], wc, [assetsDir, id]];
       for (const [dir, name] of candidates) {
         for (const ext of LOCAL_EXTS) {
           const p = path.join(dir, `${name}${ext}`);

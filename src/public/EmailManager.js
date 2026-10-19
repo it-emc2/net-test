@@ -547,6 +547,7 @@ export function initEmailManager(options = {}) {
   const $customerEmail = document.querySelector("#email");
   const $lastName = document.querySelector("#lastName");
   const $cpEmail = document.querySelector("#cp_email");
+  const $customerCc = document.querySelector("#emailCc");
   const $cpName = document.querySelector("#cp_name");
 
   function getCustomerSalutation() {
@@ -629,6 +630,14 @@ export function initEmailManager(options = {}) {
     updatePreview();
   }
 
+  // Same gate as the payload in script.js: the tick only counts while Rabatt is "ja".
+  function bonusGrabOn() {
+    return (
+      document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja" &&
+      !!document.getElementById("rb-bonus-grab")?.checked
+    );
+  }
+
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
     const isSelbstzahler =
@@ -677,8 +686,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
 • Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
 • Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
-• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.
-
+${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
@@ -893,8 +901,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
   function updateCcDefault() {
     if (ccTouched || !$cc) return;
-    const v = ($cpEmail?.value || "").trim();
-    $cc.value = v;
+    const v = [$customerCc?.value, $cpEmail?.value].map((x) => (x || "").trim()).filter(Boolean);
+    $cc.value = [...new Set(v)].join(", ");
   }
 
   function updateBodyDefault() {
@@ -914,6 +922,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   $customerEmail?.addEventListener("input", updateRecipientDefault);
   $customerEmail?.addEventListener("change", updateRecipientDefault);
 
+  $customerCc?.addEventListener("input", updateCcDefault);
+  $customerCc?.addEventListener("change", updateCcDefault);
   $cpEmail?.addEventListener("input", updateCcDefault);
   $cpEmail?.addEventListener("change", updateCcDefault);
 
@@ -944,6 +954,11 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     const el = document.getElementById(id);
     el?.addEventListener("input", updateBodyDefault);
     el?.addEventListener("change", updateBodyDefault);
+  });
+
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", updateBodyDefault);
+  document.querySelectorAll('input[name="rb-add-rabatt"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
   });
 
   $antragGestellt?.addEventListener("change", () => {
@@ -1598,6 +1613,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
+      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+        return false;
+      }
+
       try {
         await cfg.hooks.saveDraftBeforeSend?.();
       } catch (e) {
@@ -1675,17 +1694,33 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       for (const f of bitrixFiles) fd.append("bitrixDocs", f, f.name);
       if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
-      const sendTimeout = AbortSignal.timeout(60000);
-      let res;
-      try {
-        res = await fetch(cfg.apiUrl, { method: "POST", body: fd, signal: sendTimeout });
-      } catch (err) {
-        if (err.name === "TimeoutError" || err.name === "AbortError") {
-          throw new Error(
-            "Zeitüberschreitung — der Server antwortet nicht. Bitte nicht neu laden, kurz warten und Bitrix prüfen, ob die Mail trotzdem verschickt wurde, bevor erneut gesendet wird.",
-          );
+      const post = async () => {
+        try {
+          return await fetch(cfg.apiUrl, { method: "POST", body: fd, signal: AbortSignal.timeout(60000) });
+        } catch (err) {
+          if (err.name === "TimeoutError" || err.name === "AbortError") {
+            throw new Error(
+              "Zeitüberschreitung — der Server antwortet nicht. Bitte nicht neu laden, kurz warten und Bitrix prüfen, ob die Mail trotzdem verschickt wurde, bevor erneut gesendet wird.",
+            );
+          }
+          throw err;
         }
-        throw err;
+      };
+      let res = await post();
+      // Server-side per-deal lock: a 2nd offer email within 24h needs an explicit OK.
+      if (res.status === 409) {
+        const conflict = await res.json().catch(() => ({}));
+        if (conflict.code !== "ALREADY_SENT") throw new Error(conflict.error || "Versand läuft bereits.");
+        const when = conflict.lastSentAt ? new Date(conflict.lastSentAt).toLocaleString("de-DE") : "kürzlich";
+        const again = window.confirm(
+          `Für diesen Deal wurde bereits am ${when} eine Angebots-E-Mail versendet (${conflict.lastOfferNumber || "-"}).\n\nWirklich erneut senden?`,
+        );
+        if (!again) {
+          pushStatus("Nicht erneut gesendet.", "info");
+          return false;
+        }
+        fd.set("forceResend", "1");
+        res = await post();
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

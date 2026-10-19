@@ -40,6 +40,7 @@ async function getBrowser() {
  * @param {string} html  full HTML document string
  * @param {object} [opts]
  * @param {string} [opts.format="A4"]
+ * @param {string} [opts.footerTemplate] Puppeteer footer HTML (inline styles only)
  * @param {object} [opts.margin] page margins (CSS units), default 18mm all round
  * @returns {Promise<Buffer>} PDF bytes
  */
@@ -51,6 +52,12 @@ export async function htmlToPdfBuffer(html, opts = {}) {
     const pdf = await page.pdf({
       format: opts.format || "A4",
       printBackground: true,
+      // Optional per-page footer drawn inside the bottom margin.
+      ...(opts.footerTemplate && {
+        displayHeaderFooter: true,
+        headerTemplate: "<span></span>",
+        footerTemplate: opts.footerTemplate,
+      }),
       margin: opts.margin || {
         top: "18mm",
         bottom: "18mm",

@@ -742,6 +742,7 @@ function normalizeSourceLine(raw) {
     // Export-only article number (e.g. color-specific Wandverkleidung code for
     // the Hassmann CSV). Falls back to materialNumber when absent.
     hassmannArticle: raw.hassmannArticle || null,
+    hassmannQty: Number(raw.hassmannQty) || null,
   };
 }
 
@@ -766,6 +767,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
           unit: l.unit || "Stck.",
           label: l.label || "",
           hassmannArticle: l.hassmannArticle || null,
+          hassmannQty: l.hassmannQty || null,
         }),
       );
     }
@@ -837,10 +839,12 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
       quantity: 0,
       remarks: "",
       hassmannArticle: l.hassmannArticle || null,
+      hassmannQty: l.hassmannQty || null,
     };
     // Preserve the export-only article number when merging lines.
     if (!prev.hassmannArticle && l.hassmannArticle)
       prev.hassmannArticle = l.hassmannArticle;
+    if (!prev.hassmannQty && l.hassmannQty) prev.hassmannQty = l.hassmannQty;
 
     // Prefer the longer/more descriptive name when merging
     if (l.name && (!prev.name || l.name.length > prev.name.length))
@@ -1294,9 +1298,13 @@ async function mapData(body = {}, computed = {}) {
         .toFixed(2)
         .replace(/\.00$/, "");
       const nameOrId = stripBrandNames(l.name || l.productId || "");
-      const rendered = l.label
+      let rendered = l.label
         ? stripBrandNames(l.label)
         : `- ${qtyStr} Stk ${nameOrId}`;
+      // Duschabtrennung (neu) / Duschvorhang configurator lines: show the
+      // Ausführung (finish) — shared by the Angebot DOCX/PDF and the signing form.
+      const finish = l.source === "vigour_config" ? stripBrandNames(l.finish) : "";
+      if (finish && !rendered.includes(finish)) rendered += ` — ${finish}`;
       return { MaterialLine: rendered, _raw: l };
     })
     .filter((row) => {
@@ -1321,6 +1329,7 @@ async function mapData(body = {}, computed = {}) {
     "Zubehör",
     "Duschwanne",
     "Duschabtrennung",
+    "Duschvorhang",
     "Weiteres",
   ];
   // HL's fallback bucket (Speditionskosten and any other uncategorized line)
@@ -2028,8 +2037,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
     // for Regie-Stundensatz
     RegieRateFmt,
-    // for the toggle is on (ebenerdigNote / ebenerdigeMontage
-    EbenerdigHinweis,
+    // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
+    // Nur Badumbau — bei BWT/HL/BL nie (Wichtige Hinweise).
+    EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
+
+    // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
+    // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.
+    VermieterZustimmungHinweis:
+      (!offerKey || ["bu", "bwt", "hl"].includes(offerKey)) &&
+      toBoolish(b.vermieterGenehmigungErforderlich) &&
+      b.vermieterGenehmigung !== "Ja",
+    // Pflegekassen-Bewilligungs-Satz: alle Kassenkunden-Angebote.
+    IsKassenkunde: isKK,
 
     // BWT table rows (used only in Angebot-BWT.docx)
     BwtRows,
@@ -2495,7 +2514,7 @@ router.post("/material-overview", async (req, res) => {
       // Materialübersicht matches the Hassmann CSV; blank stays blank for V5FB02.
       materialNumber: m.hassmannArticle || m.materialNumber || "", // blank for V5FB02 (floor panels)
       name: stripBrandNames(m.name || ""),
-      quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
+      quantity: formatQtyForOverview(m.hassmannQty || m.quantity, m.unit || "Stck."),
       unit: m.unit || "Stck.",
       remarks: m.remarks || "",
     }));

@@ -75,6 +75,16 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
 // Aufschlag applies only to material we order at Hassmann. Products sourced
 // elsewhere are billed through at cost — list their article number here to
 // exempt them from the markup (and from the Zuschlag column in the Kalkulation).
+// Slate tray colour → vigor article suffix (Weiß is the base article).
+const SLATE_COLOR_SUFFIX = {
+  Weiss: "",
+  Elfenbein: "EF",
+  Steingrau: "ST",
+  Beton: "BT",
+  Anthrazit: "AZ",
+  Schwarz: "SW",
+};
+
 export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
@@ -331,6 +341,8 @@ export default (ProductModel, deps = {}) => {
       } else if (key.startsWith("qty_")) {
   const k = key.slice(4);
   if (k === "BASIN_SONDER") continue;
+  // Legacy drafts: WC alias seat tiles posted qty_alias_<id>__pair_<wc> (UI mirror only).
+  if (k.startsWith("alias_")) continue;
 
   // ✅ IMPORTANT: if we already have opt_<k>, it will handle qty_<k> there
   // so we must NOT push again here (prevents duplicates)
@@ -405,7 +417,9 @@ function grossToNet(gross, taxRate) {
   // Build zero-cost "work notes" for DOCX and UI
   function computeWorkNotes(payload) {
     const opt = payload?.optional || {};
-    const kind = payload?.wandverkleidung?.wvKind || "";
+    // wvEnabled === false = WV checkbox unticked; missing key = legacy offer (on).
+    const wvOn = payload?.wandverkleidung?.wvEnabled !== false;
+    const kind = wvOn ? payload?.wandverkleidung?.wvKind || "" : "";
     const dusch = payload?.duschwanne || {};
     const floorKind = dusch?.floorKind || "";
     const hasFlooring = !!dusch?.addFlooring;
@@ -576,6 +590,7 @@ function grossToNet(gross, taxRate) {
     for (const key of dwTasks) {
       const k = String(key).trim();
       if (k === "wandverkleidung_duschbereich") {
+        if (!wvOn) continue;
         const cm = String(payload?.duschwanne?.wandverkleidungHoehe ?? "").trim();
         picked.add(
           `Wandverkleidung in Duschbereich${cm ? ` bis in einer Höhe von ${cm} cm` : ""}`,
@@ -645,7 +660,8 @@ function grossToNet(gross, taxRate) {
     let vigorPriceDrift = null;
 
     const dusch = payload?.duschwanne || {};
-    const wv = payload?.wandverkleidung || {};
+    // Unticked WV checkbox: hidden form values stay in the payload but bill nothing.
+    const wv = payload?.wandverkleidung?.wvEnabled === false ? {} : payload?.wandverkleidung || {};
     const opt = payload?.optional || {};
     const bwt = payload?.bwt || {};
     const hl = payload?.hl || {};
@@ -754,7 +770,23 @@ function grossToNet(gross, taxRate) {
           ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
           : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
 
-      add(floorPid, panels, floorLabel);
+      // Hassmann export article. V5FB02 is the billing id for all five colors;
+      // the order needs the color-specific V5FB0x. AVP-W is billed per 0.3 m²
+      // Paneele but physically a V3WVK07 WV panel (997×2550 mm) → order those.
+      const FLOOR_HASSMANN = {
+        "Schiefer-Beige": "V5FB01", "Lava-Beige": "V5FB02", "Loft-Grau": "V5FB03",
+        "Speckstein-Schwarz": "V5FB04", "Eiche-Natur": "V5FB05",
+      };
+      const floorMeta =
+        floorPid === "AVP-W"
+          ? {
+              hassmannArticle: "V3WVK07",
+              hassmannQty: ceilSafe((floorArea * floorWaste) / (0.997 * 2.55)),
+            }
+          : floorPid === "V5FB02" && FLOOR_HASSMANN[color]
+            ? { hassmannArticle: FLOOR_HASSMANN[color] }
+            : null;
+      add(floorPid, panels, floorLabel, null, null, floorMeta);
 
       // Flächenkleber
       const adhesiveCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
@@ -1475,6 +1507,8 @@ if (offer === "hl") {
             });
           }
 
+          // Duschvorhang lines ride along in this array but get their own heading
+          setCat(x?.group === "Duschvorhang" ? "Duschvorhang" : "Duschabtrennung");
           add(
             pid,
             qty,
@@ -1756,6 +1790,7 @@ color: metaColor || null,
   // Today's vigor net price when it differs from the quoted one (saved offers only).
   currentNet: l?.meta?.currentNet ?? lineCurrentNet,
   hassmannArticle: l?.meta?.hassmannArticle || null,
+  hassmannQty: l?.meta?.hassmannQty || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
 };
@@ -2468,11 +2503,32 @@ try {
               // dynamic color (backward compatible)
               const trayColorRaw = String(payload?.duschwanne?.trayColor || "").trim();
               const trayColor = trayColorRaw || "Weiss";
-              const colorSuffix = isSlateTray ? ` — Farbe: ${trayColor}` : "";
+              const colorName = trayColor === "Weiss" ? "Weiß" : trayColor;
+              const colorSuffix = isSlateTray ? ` — Farbe: ${colorName}` : "";
+
+              // Slate colours are separate vigor articles: base id + suffix
+              // (Weiß = base id). Quote that article at its live vigor price;
+              // vigor down / article missing → base article at the DB price.
+              let articleId = p.productId;
+              let name = p.name || "";
+              if (isSlateTray) {
+                const sfx = SLATE_COLOR_SUFFIX[trayColor] ?? "";
+                let live = new Map();
+                try {
+                  live = await getLiveVigourNetPrices([p.productId + sfx]);
+                } catch (e) {
+                  console.error("[pricing] vigor live price lookup failed for Slate tray:", e?.message || e);
+                }
+                if (live.has(p.productId + sfx)) {
+                  articleId = p.productId + sfx;
+                  unit = live.get(articleId);
+                  name = name.replace(/\bwei(ss|ß)\b/i, colorName);
+                }
+              }
 
               const line = {
-                productId: p.productId,
-                name: p.name || "",
+                productId: articleId,
+                name,
                 qty,
                 unitPrice: unit,
                 lineTotal: round2(unit * qty),
@@ -2486,7 +2542,7 @@ try {
 
               selectedTray = {
                 productId: p.productId,
-                name: p.name || "",
+                name,
                 sizeLabel,
                 unitPrice: unit,
               };
@@ -2801,5 +2857,8 @@ try {
         material_plus_aufschlag,
       };
     },
+    // Pure on the payload (no DB) — lets the Kalkulation backfill time
+    // reporting for locked offers whose snapshot predates timeBreakdown.
+    computeServiceCosts,
   };
 };

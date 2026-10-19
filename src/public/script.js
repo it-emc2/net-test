@@ -1941,7 +1941,8 @@ function computeArbeitszeitSuggestion() {
       0,
     );
   };
-  if (document.getElementById("wv997")?.checked) {
+  const wvOn = !!document.getElementById("wvEnabled")?.checked;
+  if (wvOn && document.getElementById("wv997")?.checked) {
     const main997 = parseArbeitszeitNumber(
       document.getElementById("wvQty997")?.value || 0,
     );
@@ -1951,7 +1952,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
   }
-  if (document.getElementById("wv1497")?.checked) {
+  if (wvOn && document.getElementById("wv1497")?.checked) {
     const main1497 = parseArbeitszeitNumber(
       document.getElementById("wvQty1497")?.value || 0,
     );
@@ -1961,7 +1962,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
-  if (document.getElementById("wvSilikonSelected")?.checked) {
+  if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
     pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
@@ -3386,7 +3387,7 @@ function formToObject(form) {
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
   const page = document.getElementById("page-Wandverkleidung");
-  if (!page) return;
+  if (!page || !document.getElementById("wvEnabled")?.checked) return;
 
   const out = [];
   function pushIfSelected(cbSel, qtySel, friendlyName) {
@@ -3653,7 +3654,7 @@ function collectDuschabtrennungConfigurator(doc) {
     qa.push({
       kind: "config",
       label: ln.label || "Duschabtrennung (Konfigurator)",
-      qty: 1,
+      qty: Math.max(1, Number(ln?.qty) || 1),
       // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
       // avoiding the German-format ambiguity where "411.6" would parse to 4116.
       price: price,
@@ -3707,6 +3708,7 @@ function collectDuschvorhangConfigurator(doc) {
       price: price,
       productId: ln.articleNumber || "",
       finish: ln.finish || null,
+      group: "Duschvorhang", // own Material heading in Kosten + Angebot PDF
     });
   }
   doc.duschabtrennung.quickAdd = qa;
@@ -4611,6 +4613,7 @@ function buildPayload() {
       const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
       const wv = (payload.wandverkleidung ||= {});
+      wv.wvEnabled = !!document.getElementById("wvEnabled")?.checked;
       wv.wvColor = globalColor;
       wv.wvSonderConfigNr = (fdWV.get("wvSonderConfigNr") || "").toString().trim();
 
@@ -6489,6 +6492,74 @@ function validateWandverkleidung() {
   }
   return true;
 }
+// D_65418: a forgotten Plattenformat (997/1497) silently dropped every panel,
+// profile and consumable from Angebot + Kalkulation. Since #wvEnabled, Art and
+// Dekor are mandatory once WV is ticked; 0 panels stays a warning.
+// Legacy payloads (no wvEnabled key) only get the 0-panel warning.
+// Returns null (ok) or { title, text, blocking }.
+function wvCheck(payload, offerType) {
+  if (offerType !== "bu") return null;
+  const wv = payload?.wandverkleidung;
+  if (!wv || wv.wvEnabled === false) return null;
+  const kind = wv.wvKind && wv.wvKind !== "Keine" ? wv.wvKind : "";
+  if (wv.wvEnabled === true && !kind) {
+    return { title: "Art der Wandverkleidung fehlt", text: "Bitte wählen Sie, welche Art der Wandverkleidung benötigt wird.", blocking: true };
+  }
+  if (wv.wvEnabled === true && !wv.wvColor) {
+    return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
+  }
+  if (!kind) return null;
+  const extras = Object.values(wv.extraColors || {}).flat();
+  const total =
+    (Number(wv.wvQty997) || 0) +
+    (Number(wv.wvQty1497) || 0) +
+    extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
+  if (total > 0) return null;
+  return {
+    title: "Wandverkleidung ohne Platten",
+    text: `Wandverkleidung „${kind}“ ist gewählt, aber kein Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.`,
+    blocking: false,
+  };
+}
+window.wvCheck = wvCheck;
+// A legacy "Keine" radio is hidden now; clear it once WV is switched on.
+document.addEventListener("change", (e) => {
+  if (e.target?.id !== "wvEnabled" || !e.target.checked) return;
+  const keine = document.querySelector('input[name="wvKind"][value="Keine"]');
+  if (keine) keine.checked = false;
+});
+// Resolves true = proceed, false = back to the WV tab.
+window.confirmWvPanels = function (payload, offerType) {
+  const issue = wvCheck(payload, offerType);
+  if (!issue) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    document.getElementById("wvMissingOverlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "wvMissingOverlay";
+    overlay.className = "ang-stage-overlay";
+    overlay.innerHTML = `
+      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
+        <h3 id="wvMissingTitle" class="ang-stage-title">${escapeHtml(issue.title)}</h3>
+        <p class="ang-stage-text">${escapeHtml(issue.text)}</p>
+        <div class="ang-stage-actions">
+          <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
+          ${issue.blocking ? "" : '<button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>'}
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = (value) => {
+      overlay.remove();
+      if (!value) location.hash = "Wandverkleidung";
+      resolve(value);
+    };
+    overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
+    overlay.querySelector("#wvMissingGo")?.addEventListener("click", () => close(true));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
+  });
+};
 function validateOptional() {
   return true;
 }
@@ -7782,17 +7853,6 @@ function setupWandverkleidungPage() {
     }
   };
   page.__syncWvSonderDecorUi = syncSonderDecorUi;
-
-  // ---- keep legacy default behavior (only if nothing restored) ----
-  const defaultColor = page.querySelector(
-    'input[type="radio"][name="wvColor"][value="Marmor weiß"]',
-  );
-  const anyColorChecked = page.querySelector(
-    'input[type="radio"][name="wvColor"]:checked',
-  );
-  if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
-    defaultColor.checked = true;
-  }
 
   page
     .querySelectorAll('input[type="radio"][name="wvColor"]')
@@ -9683,10 +9743,140 @@ function pgbReveal(el, on) {
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
     if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
+    // Miete → "Genehmigung des Vermieters erforderlich?" = Ja, Eigentum → Nein.
+    // Beim Wiederherstellen eines Entwurfs nicht, dort zählt der gespeicherte Wert.
+    if (name === "wohnsituation" && !window.__restoring) {
+      if (e.target.value === "Miete") setRadio("vermieterGenehmigungErforderlich", "Ja");
+      if (e.target.value === "Eigentum") setRadio("vermieterGenehmigungErforderlich", "Nein");
+    }
   });
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// BU/BWT: Vermieter-Genehmigung aus dem Bitrix-Deal vorbelegen.
+// Sobald #auftragId eine Deal-ID bekommt (Kalender, Hauptmenü, Planung, Hand),
+// liefert GET /api/bitrix/deal/:id -> vermieter { erforderlich, liegtVor }
+// (je true/false/null). null = unbekannt -> Formular bleibt wie es ist.
+// Doku: docs/vermieter-genehmigung.md
+// -------------------------------------------------------------------------
+// Foto/Datei-Uploads -> Bitrix-Auftrag (Feld + Timeline-Notiz): Kasse, Vermieter.
+// Doku: docs/kasse-freigabe-upload.md
+(function initDealUploads() {
+  const setup = (type, inputId, statusId, onDone) => {
+    const input = document.getElementById(inputId);
+    const status = document.getElementById(statusId);
+    const box = document.querySelector(`label.dealUploadBox[for="${inputId}"]`);
+    if (!input || !status || !box) return;
+    const title = box.querySelector(".du-title");
+    const hint = box.querySelector(".du-hint");
+    const done = [];
+    // state: "" | busy | ok | err — shown inside the box, mirrored to the aria-live span
+    const show = (state, t, h) => {
+      if (state) box.dataset.state = state; else delete box.dataset.state;
+      box.setAttribute("aria-busy", state === "busy" ? "true" : "false");
+      title.textContent = t;
+      hint.textContent = h;
+      status.textContent = `${t} ${h}`;
+    };
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      const dealId = (document.getElementById("auftragId")?.value || "").trim();
+      if (!/^\d+$/.test(dealId)) return show("err", "Auftrag ID fehlt", "Bitte zuerst eine Auftrag ID eintragen und erneut wählen.");
+      if (file.size > 15 * 1024 * 1024) return show("err", "Datei zu groß", "Maximal 15 MB. Bitte erneut wählen.");
+      show("busy", "Wird hochgeladen …", file.name);
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] || "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch(`/api/bitrix/deal/${dealId}/upload/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name || `${type}.jpg`, base64 }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || resp.status);
+        done.push(file.name);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei${data.kept === false ? " (Hinweis: Feld enthält nur die neueste Datei, frühere siehe Timeline)" : ""}`);
+        if (onDone) onDone();
+      } catch (e) {
+        show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);
+      }
+    });
+  };
+
+  setup("kasse", "kasseFreigabeFile", "kasseFreigabeStatus");
+  // Vermieter-Bestätigung hochgeladen => "liegt vor" = Ja (Satz entfällt im Angebot)
+  setup("vermieter", "vermieterUploadFile", "vermieterUploadStatus", () =>
+    setRadio("vermieterGenehmigung", "Ja"),
+  );
+
+  // Vermieter-Upload nur zeigen, wenn Genehmigung erforderlich = Ja
+  const row = document.getElementById("vermieterUploadRow");
+  const sync = () => {
+    if (row) row.hidden = document.querySelector('input[name="vermieterGenehmigungErforderlich"]:checked')?.value !== "Ja";
+  };
+  document
+    .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+    .forEach((el) => el.addEventListener("change", sync));
+  window.addEventListener("offerflow:changed", sync);
+  sync();
+})();
+
+(function initVermieterFromDeal() {
+  const input = document.getElementById("auftragId");
+  if (!input) return;
+  let lastId = "";
+
+  input.addEventListener("change", async () => {
+    const id = input.value.trim();
+    if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
+    if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
+    if (!["bu", "bwt", "hl"].includes(currentOfferKey)) return;
+    lastId = id;
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      if (!res.ok || input.value.trim() !== id) return; // Fehler oder ID inzwischen geändert
+      const { contact, vermieter } = await res.json();
+
+      // Schutz: manche Flows schreiben eine Kontakt-ID ins Feld. Gehört der
+      // Deal zu einem anderen Kontakt als im Formular, nichts übernehmen.
+      const formContactId = document.getElementById("bitrixContactId")?.value.trim();
+      if (formContactId && contact?.ID && String(contact.ID) !== formContactId) return;
+
+      if (vermieter?.erforderlich === true) {
+        setRadio("wohnsituation", "Miete");
+        setRadio("vermieterGenehmigungErforderlich", "Ja");
+      } else if (vermieter?.erforderlich === false) {
+        setRadio("wohnsituation", "Eigentum");
+        setRadio("vermieterGenehmigungErforderlich", "Nein");
+      }
+      if (vermieter?.liegtVor === true) setRadio("vermieterGenehmigung", "Ja");
+      if (vermieter?.liegtVor === false) setRadio("vermieterGenehmigung", "Nein");
+    } catch (e) {
+      console.warn("[vermieter] Deal konnte nicht geladen werden:", e);
+    }
+  });
+
+  // Pflichtfeld nur bei BU/BWT/HL. Bei anderen Angeboten ist die Zeile nur
+  // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
+  // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
+  const syncRequired = () => {
+    const on = ["bu", "bwt", "hl"].includes(currentOfferKey);
+    document
+      .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+      .forEach((el) => { el.required = on; });
+  };
+  window.addEventListener("offerflow:changed", syncRequired);
+  syncRequired();
 })();
 
 // -------------------------------------------------------------------------
@@ -9850,6 +10040,7 @@ function getKundendatenPageData() {
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
     vermieterGenehmigung:
       data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
+    vermieterGenehmigungErforderlich: checkedValue("vermieterGenehmigungErforderlich"), // "Ja" | "Nein" | ""
     zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
     badStockwerk:
       (checkedValue("badStockwerk") === "Anderes OG"
@@ -13674,7 +13865,7 @@ function escapeHtml(s) {
     }
     return out;
   }
-  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
@@ -15740,6 +15931,11 @@ function restoreWV(wv) {
   if (String(wv.wvColor || "").trim()) markLineChoice("wand", true);
   // ensure additive WV extras UI exists before restoring
   try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
+  // Legacy payloads have no wvEnabled: WV counts as on unless "Keine" was picked.
+  const wvEnabledEl = document.getElementById("wvEnabled");
+  if (wvEnabledEl) {
+    wvEnabledEl.checked = "wvEnabled" in wv ? !!wv.wvEnabled : wv.wvKind !== "Keine";
+  }
   // Kind is a radio
     if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
@@ -15784,7 +15980,6 @@ function restoreWV(wv) {
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
-  if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
   if (pageWV?.__syncWvSonderDecorUi) pageWV.__syncWvSonderDecorUi();
 
 
@@ -16227,6 +16422,9 @@ function restoreKundendaten(k, offer) {
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
+  // Ältere Entwürfe speicherten einen Boolean (Checkbox): true → "Ja", false → offen lassen.
+  const vgErf = k.vermieterGenehmigungErforderlich === true ? "Ja" : k.vermieterGenehmigungErforderlich;
+  if (vgErf === "Ja" || vgErf === "Nein") setRadio("vermieterGenehmigungErforderlich", vgErf);
   setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
   const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
   const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);
@@ -16246,6 +16444,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
   setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("emailCc", k.emailCc);
   setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
@@ -16271,6 +16470,10 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  setByNameOrId("partnerGeburtsdatum", k.partnerGeburtsdatum);
+  setByNameOrId("partnerKvnr", k.partnerKvnr);
+  setByNameOrId("partnerPflegegradSeit", k.partnerPflegegradSeit);
+  setByNameOrId("partnerKrankenkasseAdresse", k.partnerKrankenkasseAdresse);
   // Two-person PDF name/greeting overrides (Zusammenfassung).
   window.applyTwoPersonSummaryFields?.(k);
 
@@ -20139,61 +20342,69 @@ cat_SHOWER: "menu_SHOWER",
     const WC_WALL_PRODUCTS = [
       {
         productId: "CVIS3WCT112",
-        image: "./assets/CVIS3WCT112.jpg",
+        image: "./assets/wc/CVIS3WCT112/CVIS3WCT112-1.jpg",
         fallbackName: "VIS WC-Element E3 für Trockenbau",
         category: "accessory",
       },
       {
         productId: "SCHALL",
-        image: "./assets/SCHALL.jpg",
+        image: "./assets/wc/SCHALL/SCHALL-1.jpg",
         fallbackName: "Montageset für Wand-WC / WD-Bidet",
         category: "accessory",
       },
       {
         productId: "V1DON",
-        image: "./assets/V1DON.jpg",
+        image: "./assets/wc/V1DON/V1DON-1.jpg",
         fallbackName: "Betätigungsplatte V1 DON weiß",
         category: "accessory",
       },
       {
         productId: "0601010003",
-        image: "./assets/Gipskarton.jpg",
+        image: "./assets/wc/0601010003/0601010003-1.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
         category: "accessory",
       },
       {
         productId: "WWCAG90",
-        image: "./assets/WWCAG90.jpg",
+        image: "./assets/wc/WWCAG90/WWCAG90-1.jpg",
         fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
         category: "accessory",
         montage: "both", // one tile, moved into the visible montage group
       },
       {
         productId: "DERSIAS",
-        image: "./assets/DERSIAS.jpg",
+        dims: [["Breite", 361], ["Länge", 433]], // mm, Vigour Datenblatt
+        image: "./assets/wc/DERSIAS/DERSIAS-1.jpg",
         fallbackName: "WC-Sitz derby rund",
         category: "seat",
       },
       {
         productId: "CLSIAS",
-        image: "./assets/CLSIAS.jpg",
+        dims: [["Höhe", 59], ["Breite", 365], ["Länge", 450]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLSIAS/CLSIAS-1.jpg",
         fallbackName: "WC-Sitz clivia",
         category: "seat",
       },
       {
         productId: "DERWWCOSVP",
-        image: "./assets/DERWWCOSVP.jpg",
+        dims: [["Höhe", 430], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-1.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-2.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-3.jpg",
+        ],
         fallbackName: "Wand-Tiefspül-WC derby rund",
         category: "wc",
         seatId: "DERSIAS",
       },
       {
         productId: "DEDWWC",
+        dims: [["Höhe", 400], ["Breite", 370], ["Tiefe", 594]], // mm, Vigour Datenblatt
         images: [
-          "./assets/DEDWWC.jpg",
-          "./assets/DEDWWC1.png",
-          "./assets/DEDWWC2.png",
-          "./assets/DEDWWC3.png",
+          "./assets/wc/DEDWWC/DEDWWC-1.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-2.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-3.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-4.jpg",
         ],
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
@@ -20201,7 +20412,13 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLPWWCOS5",
-        image: "./assets/CLPWWCOS5.jpg",
+        dims: [["Höhe", 450], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-1.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-2.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-3.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-4.jpg",
+        ],
         fallbackName: "WC-Erhöhung CLPWWCOS5",
         category: "wc",
         requiredSeatHeight: "erhoeht",
@@ -20210,21 +20427,23 @@ cat_SHOWER: "menu_SHOWER",
       // Bodenmontage (montage defaults to "Wandmontage" for everything above)
       {
         productId: "CLPWCF10",
-        image: "./assets/CLPWCF10.jpg",
+        dims: [["Höhe", 490], ["Breite", 354], ["Tiefe", 457]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPWCF10/CLPWCF10-1.jpg",
         fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "WCBF",
-        image: "./assets/WCBF.jpg",
+        image: "./assets/wc/WCBF/WCBF-1.jpg",
         fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "CLPSSI",
-        image: "./assets/CLPSSI.jpg",
+        dims: [["Höhe", 45], ["Breite", 373], ["Länge", 435]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPSSI/CLPSSI-1.jpg",
         fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
         category: "floor",
         montage: "Bodenmontage",
@@ -20286,7 +20505,9 @@ cat_SHOWER: "menu_SHOWER",
         const optId = `opt_${item.productId}${idSuffix}`;
         const qtyId = `qty_${item.productId}${idSuffix}`;
         const wrapId = `${qtyId}_wrap`;
-        const qtyName = isAlias ? `qty_alias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
+        // Alias qty must NOT start with "qty_": pricing-core reads every qty_<id> key
+        // as a product, which put a phantom "alias_DERSIAS__pair_…" 0 € line on the Kosten tab.
+        const qtyName = isAlias ? `wcalias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
         const cbName = isAlias ? `optWcWall_alias[]` : `optWcWall[]`;
         const card = document.createElement("div");
         card.className = "opt-item";
@@ -20298,8 +20519,8 @@ cat_SHOWER: "menu_SHOWER",
             const slides = item.images.map((src, i) =>
               `<span class="img-carousel__slide"><img src="${src}" alt="${item.fallbackName} – Bild ${i + 1}" /></span>`
             ).join("");
-            const dots = item.images.map((_, i) =>
-              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" aria-label="Bild ${i + 1}"></button>`
+            const dots = item.images.map((src, i) =>
+              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" style="--thumb:url('${src}')" aria-label="Bild ${i + 1}"></button>`
             ).join("");
             return `
               <span class="img-carousel" data-carousel>
@@ -20310,8 +20531,8 @@ cat_SHOWER: "menu_SHOWER",
                 <button type="button" class="img-carousel__btn img-carousel__btn--next" aria-label="Nächstes Bild">
                   <svg viewBox="0 0 14 14"><polyline points="5,2 10,7 5,12"/></svg>
                 </button>
-                <span class="img-carousel__dots">${dots}</span>
-              </span>`;
+              </span>
+              <span class="img-carousel__dots">${dots}</span>`;
           }
           const src = item.image || (item.images && item.images[0]) || "";
           return `<span class="img-wrap"><img src="${src}" alt="${item.fallbackName}" /></span>`;
@@ -20322,6 +20543,7 @@ cat_SHOWER: "menu_SHOWER",
             <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
             ${imgHtml}
             <span class="caption">${item.fallbackName}</span>
+            ${item.dims ? `<span class="wc-dims" aria-label="Maße in Millimetern">${item.dims.map(([k, v]) => `<span class="wc-dims__item"><span class="wc-dims__label">${k}</span><span class="wc-dims__value">${v}&thinsp;mm</span></span>`).join("")}</span>` : ""}
           </label>
           <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
             <label for="${qtyId}" class="req">Menge</label>
@@ -20333,7 +20555,7 @@ cat_SHOWER: "menu_SHOWER",
         const carousel = card.querySelector("[data-carousel]");
         if (carousel) {
           const track = carousel.querySelector(".img-carousel__track");
-          const dots = carousel.querySelectorAll(".img-carousel__dot");
+          const dots = card.querySelectorAll(".img-carousel__dot");
           const total = item.images.length;
           let current = 0;
 
@@ -20506,6 +20728,22 @@ cat_SHOWER: "menu_SHOWER",
           }
         }),
       );
+
+      // Alias seat tiles carry a decorative qty input (wcalias_*) the server
+      // ignores; pricing reads the canonical qty_<seatId>. Mirror edits into it,
+      // otherwise changing the Menge of a seat shown in a second pair (e.g.
+      // DERSIAS under DEDWWC) never reaches the price.
+      wallProductsGrid
+        .querySelectorAll('.opt-item[data-alias="true"] input[type="number"]')
+        .forEach((aliasQty) => {
+          const productId = aliasQty.closest(".opt-item")?.dataset.productId;
+          const mirror = () => {
+            const canonicalQty = document.getElementById(`qty_${productId}`);
+            if (canonicalQty) canonicalQty.value = aliasQty.value;
+          };
+          aliasQty.addEventListener("input", mirror);
+          aliasQty.addEventListener("change", mirror);
+        });
 
       // Wire alias seat tiles so clicking one selects its pair's WC (which
       // then drives the seat sync). Without this, alias tiles are pure visual
@@ -24279,6 +24517,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -24391,6 +24630,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -28205,6 +28445,7 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
+let todayPlanningPause = null;
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
@@ -28306,8 +28547,8 @@ function openPlanningNoContactDialog(dealId) {
   if (!modal) return;
   _noContactDealId = String(dealId || "").trim();
   // Fresh state every time — the modal is reused across cards.
-  const first = modal.querySelector('input[name="planningNoContactReason"]');
-  if (first) first.checked = true;
+  const boxes = modal.querySelectorAll('input[name="planningNoContactReason"]');
+  boxes.forEach((b, i) => { b.checked = i === 0; });
   const note = document.getElementById("planningNoContactNote");
   if (note) note.value = "";
   const submit = document.getElementById("planningNoContactSubmit");
@@ -28328,9 +28569,12 @@ async function submitPlanningNoContact() {
   const dealId = _noContactDealId;
   if (!dealId) return;
   const modal = document.getElementById("planningNoContactModal");
-  const reason = modal?.querySelector('input[name="planningNoContactReason"]:checked')?.value || "Kunde nicht erreichbar";
+  const reasons = [...(modal?.querySelectorAll('input[name="planningNoContactReason"]:checked') || [])].map(i => i.value);
+  if (!reasons.length) reasons.push("Kunde nicht erreichbar");
   const note = String(document.getElementById("planningNoContactNote")?.value || "").trim();
-  const comment = `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reason}` + (note ? `\n${note}` : "");
+  const comment = reasons.length === 1
+    ? `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reasons[0]}` + (note ? `\n${note}` : "")
+    : `\u{1F4F5} Termin nicht zustande gekommen:\n${reasons.map(r => `\u2022 ${r}`).join("\n")}` + (note ? `\n${note}` : "");
 
   const submit = document.getElementById("planningNoContactSubmit");
   if (submit) { submit.disabled = true; submit.textContent = "Verschiebe\u2026"; }
@@ -28338,7 +28582,7 @@ async function submitPlanningNoContact() {
     const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-besichtigung`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ comment, reason: reasons.join(", ") + (note ? ` – ${note}` : "") }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -28348,8 +28592,10 @@ async function submitPlanningNoContact() {
     (typeof showToast === "function") && showToast(
       data?.commentFailed
         ? "Deal verschoben \u2014 Kommentar konnte nicht gespeichert werden."
-        : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
-      data?.commentFailed ? "error" : "success",
+        : data?.plannerSynced === false
+          ? "Deal verschoben \u2014 Routenplaner nicht aktualisiert, bitte Innendienst informieren."
+          : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
+      data?.commentFailed || data?.plannerSynced === false ? "error" : "success",
     );
   } catch (e) {
     console.error("[planning] move-besichtigung failed:", e);
@@ -29076,7 +29322,22 @@ function renderTodayPlanningAppointments(){
     return;
   }
 
-  list.innerHTML = todayPlanningAppointmentsFiltered.map(entry => {
+  // Pause pill rides on the travel row after the last appointment starting
+  // before the pause; no start time -> after the last appointment.
+  const pauseText = formatTodayPause({ todayPause: todayPlanningPause });
+  const [ph, pm] = String(todayPlanningPause?.start || "").split(":").map(Number);
+  const pauseStart = ph * 60 + pm;
+  let pauseIndex = todayPlanningAppointmentsFiltered.length - 1;
+  if(Number.isFinite(pauseStart)){
+    const after = todayPlanningAppointmentsFiltered.findIndex(e => Number(e?.manualStartMinutes) > pauseStart);
+    if(after !== -1) pauseIndex = Math.max(after - 1, 0);
+  }
+  const pauseHtml = pauseText
+    ? `<span class="today-pause-chip"><i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}</span>`
+    : "";
+
+  list.innerHTML = todayPlanningAppointmentsFiltered.map((entry, index) => {
+    const pausePill = index === pauseIndex ? pauseHtml : "";
     const isCancelled = isPlanningEntryCancelled(entry);
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
@@ -29109,9 +29370,9 @@ function renderTodayPlanningAppointments(){
           const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
             ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
             : "";
-          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}${pausePill}</div>`;
         })()
-      : "";
+      : (pausePill ? `<div class="planning-travel-connector planning-pause-row">${pausePill}</div>` : "");
 
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
@@ -29351,14 +29612,7 @@ function applyPlanningPayload(payload){
   const list = document.getElementById("todayPlanningList");
   const { day, entries, planning } = buildPlanningEntries(payload || {});
 
-  const pauseChip = document.getElementById("todayPlanningPause");
-  if(pauseChip){
-    const pauseText = formatTodayPause(planning);
-    pauseChip.hidden = !pauseText;
-    pauseChip.innerHTML = pauseText
-      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
-      : "";
-  }
+  todayPlanningPause = planning?.todayPause || null;
 
   todayPlanningAppointments = entries;
   // Deal "done" state is tracked locally (markDealStage) whenever *this app*
