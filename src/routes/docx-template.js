@@ -2135,6 +2135,8 @@ const AH_FREQ = {
 const AH_ANFAHRT_PER_EINSATZ = 7.96;
 const AH_STUNDENSATZ_HND     = 40.56;
 const AH_STUNDENSATZ_AB      = 53.04;
+// Sätze oben sind netto; Selbstzahler sehen zzgl. 7 % MwSt. (Buchhaltung, 10/2026)
+const AH_MWST_SATZ           = 0.07;
 
 function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
@@ -2252,6 +2254,12 @@ function buildAhData(body) {
   if (verhinderungspflege > 0) abzugParts.push("Verhinderungspflege § 39 SGB XI");
   if (umwidmung > 0) abzugParts.push("Umwidmung § 45a Abs. 4 SGB XI");
   const abzugLabel = "abzgl. " + abzugParts.join(", ");
+
+  // Selbstzahler: Netto / MwSt. / Brutto ausweisen (Kassenkunde unverändert)
+  const isSelbstzahler =
+    String(body?.Kundendaten?.payer || "").toUpperCase() === "SELBSTZAHLER";
+  const ahMwst = r2(gesamt * AH_MWST_SATZ);
+  const ahBrutto = r2(gesamt + ahMwst);
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2386,6 +2394,12 @@ function buildAhData(body) {
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
+    // Template: {#AhIsSZ} Netto / zzgl. MwSt. / Gesamtbetrag brutto {/AhIsSZ}
+    AhIsSZ: isSelbstzahler && gesamt > 0,
+    AhGesamtLabel: isSelbstzahler && gesamt > 0 ? "Nettobetrag" : "Gesamtbetrag",
+    AhMwstLabel: `zzgl. ${Math.round(AH_MWST_SATZ * 100)} % MwSt.`,
+    AhMwst: fmtCurrency(ahMwst),
+    AhBrutto: fmtCurrency(ahBrutto),
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
     AhHasEigenanteil: hasEigenanteil,
     AhAbzugLabel: abzugLabel,
