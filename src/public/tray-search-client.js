@@ -24,7 +24,7 @@ export async function suggestTraysLocally({ w, l, h, series, source, budget }) {
       matchesTrayDims(p, { w, l, h }),
   );
 
-  const badoluxDiscount = inputs.config?.BU_BADOLUX_DISCOUNT ?? 0.20;
+  const badoluxDiscount = inputs.config?.BU_BADOLUX_DISCOUNT ?? 0.25;
   const results = scoreAndRank(candidates, { w, l, h, budget }, badoluxDiscount);
   return { input: { w, l, h }, results, _local: true };
 }

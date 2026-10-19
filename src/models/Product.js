@@ -16,6 +16,10 @@ const productSchema = new mongoose.Schema(
     // appear in the Hassmann Warenkorb CSV: anything explicitly marked as a
     // non-Hassmann manufacturer is excluded from the export.
     manufacturer: { type: String, default: null },
+    // The supplier's own article number when it differs from productId, e.g. the
+    // cleverbad.de number of a Badolux tray (DW020 → PRI70DW08). Set by
+    // scripts/syncCleverbadArticleNumbers.mjs.
+    articleNumber: { type: String, default: null },
   },
   { timestamps: true, collection: "Products" },
 );

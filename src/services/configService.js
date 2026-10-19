@@ -90,9 +90,9 @@ export const CONFIG_SCHEMA = [
     description: 'Standard-Anzahl Stelzlager (PLA5282) bei Duschwanne',
   },
   {
-    key: 'BU_BADOLUX_DISCOUNT', value: 0.20,
+    key: 'BU_BADOLUX_DISCOUNT', value: 0.25,
     label: 'Badolux Rabatt', unit: '%', type: 'percent', section: 'bu', order: 5,
-    description: 'Rabatt auf Badolux-Duschwannen (0.20 = 20 %). Wird auf den Listenpreis angewandt; verändert die DB nicht.',
+    description: 'Rabatt auf Badolux-Duschwannen (0.25 = 25 %, laut Händler-Preisliste). Wird auf den Listenpreis angewandt; verändert die DB nicht.',
   },
   // ── BWT – BADEWANNENTÜR ──────────────────────────────────────────────────
   {

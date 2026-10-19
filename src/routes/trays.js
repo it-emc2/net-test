@@ -105,10 +105,11 @@ r.get("/suggest", async (req, res) => {
         lengthCm: 1,
         heightCm: 1,
         source: 1,
+        articleNumber: 1,
       },
     ).lean();
 
-    const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
+    const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.25);
     const results = scoreAndRank(docs, { w, l, h, budget: wantBudget }, badoluxDiscount);
 
     await attachStock(results);

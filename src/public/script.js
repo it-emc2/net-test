@@ -12446,6 +12446,8 @@ function initSmartTraySearch() {
     if (sourceLabel === "Badolux" && p.heightCm) {
       dims += ` · H ${String(p.heightCm).replace(".", ",")} cm`;
     }
+    // Badolux: the cleverbad.de article number (what gets ordered).
+    if (p.articleNumber) dims += ` · Art.-Nr. ${escapeHtml(p.articleNumber)}`;
     const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
     const title = p.name || p.productId || "Duschwanne";
     const value = p.productId || "";

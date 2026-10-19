@@ -2497,7 +2497,7 @@ try {
                 String(p.source || "").toLowerCase() === "badolux" ||
                 /^DW/i.test(String(p.productId || ""));
               if (isBadolux) {
-                const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
+                const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.25);
                 unit = round2(unit * (1 - badoluxDiscount));
               }
 
