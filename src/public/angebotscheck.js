@@ -147,9 +147,9 @@ export const RULES = [
         .map((l) => `Preis 0,00 €: ${name(l)}`),
   },
   {
-    // The Duschwanne switch is off. Only a hint — plenty of Badumbau offers
-    // have no tray (Badewanne, Wanne bleibt) — unless the old tray is being
-    // removed, then the missing replacement is worth a closer look.
+    // The Duschwanne switch is off while the old tray is being removed — the
+    // missing replacement is worth a look. With nothing tray-related chosen
+    // there is no row at all: plenty of Badumbau offers simply have no tray.
     // "Einbau der Duschwanne" ticked with the switch off is red, but that row
     // belongs to the work-task coupling, so this one steps aside.
     id: "duschwanne-aus",
@@ -159,11 +159,11 @@ export const RULES = [
     severity: "gelb",
     needsSelection: true,
     applies: ({ sel }) =>
-      sel.trayEnabled() === false && !sel.tasks.has("install_tray"),
-    test: ({ sel }) =>
-      sel.tasks.has("remove_showertub")
-        ? "Alte Duschwanne wird entfernt, aber keine neue Duschwanne im Angebot."
-        : "Keine Duschwanne im Angebot.",
+      sel.trayEnabled() === false &&
+      sel.tasks.has("remove_showertub") &&
+      !sel.tasks.has("install_tray"),
+    test: () =>
+      "Alte Duschwanne wird entfernt, aber keine neue Duschwanne im Angebot.",
   },
   {
     // Everything a tray needs to actually be installed. Adding a fifth item

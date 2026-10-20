@@ -195,8 +195,9 @@ nicht daran gekoppelt.
   immer alles wie gespeichert her.
 - `duschwanne.trayEnabled` und `zusammenfassung` zählen nicht zum
   Preis-Fingerprint.
-- Angebotscheck: Einbau der Duschwanne + aus → 🔴; aus ohne diese Aufgabe →
-  🟡 „Keine Duschwanne im Angebot" (bzw. „Alte Duschwanne wird entfernt …").
+- Angebotscheck: Einbau der Duschwanne + aus → 🔴; aus + „Entfernen der
+  Duschwanne" → 🟡 „Alte Duschwanne wird entfernt …"; aus ohne beides → keine
+  Zeile.
 
 ## Zubehör-Regeln
 

@@ -437,19 +437,17 @@ function withSwitch(on, tasks = [], extra = "") {
   );
 }
 
-test("switch off, no tray task: one yellow 'Keine Duschwanne im Angebot'", () => {
+test("switch off and nothing tray-related chosen: no row at all", () => {
   withSwitch(false);
-  const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus");
-  expect(found.status).toBe("gelb");
-  expect(found.details[0]).toBe("Keine Duschwanne im Angebot.");
-  expect(found.target).toBe("Duschwanne");
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus")).toBeUndefined();
 });
 
-test("switch off while the old tray is removed: the hint says so", () => {
+test("switch off while the old tray is removed: yellow hint", () => {
   withSwitch(false, ["remove_showertub"]);
-  expect(
-    row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus").details[0],
-  ).toContain("Alte Duschwanne wird entfernt");
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus");
+  expect(found.status).toBe("gelb");
+  expect(found.details[0]).toContain("Alte Duschwanne wird entfernt");
+  expect(found.target).toBe("Duschwanne");
 });
 
 test("switch off with 'Einbau der Duschwanne' ticked: red, and it names the switch", () => {
