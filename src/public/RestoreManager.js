@@ -160,6 +160,9 @@ export function initRestoreManager({
       window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
       window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
+      // Neukundenbonus: pin to the offer's snapshot; none → legacy 3.000 € rule.
+      window.__applyBonusNeuSnapshot?.(payload);
+
       // Aktion Haltegriff: only an offer that actually got the bonus is pinned
       // to its saved grab-bar list (no snapshot → the 30 cm-only rule it was
       // priced with). Without the bonus there's no price to protect, so it

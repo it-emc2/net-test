@@ -4,6 +4,8 @@
 
 `net-test` is the EMC2 Konfigurator backend + frontend server (Express + Mongoose). It provides API routes, PDF/docx/LaTeX templating, and a small frontend served from `public/`.
 
+**Glossary:** OC = our app (this Konfigurator); TR = Thomas Raithel (Bitrix user 2028).
+
 ## Quick start
 
 - Prerequisites: Node >= 18.17, npm

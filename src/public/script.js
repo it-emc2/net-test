@@ -1945,7 +1945,8 @@ function computeArbeitszeitSuggestion() {
       0,
     );
   };
-  if (document.getElementById("wv997")?.checked) {
+  const wvOn = !!document.getElementById("wvEnabled")?.checked;
+  if (wvOn && document.getElementById("wv997")?.checked) {
     const main997 = parseArbeitszeitNumber(
       document.getElementById("wvQty997")?.value || 0,
     );
@@ -1955,7 +1956,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
   }
-  if (document.getElementById("wv1497")?.checked) {
+  if (wvOn && document.getElementById("wv1497")?.checked) {
     const main1497 = parseArbeitszeitNumber(
       document.getElementById("wvQty1497")?.value || 0,
     );
@@ -1965,7 +1966,7 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
-  if (document.getElementById("wvSilikonSelected")?.checked) {
+  if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
     pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
@@ -3222,6 +3223,7 @@ function startOfferFlow(offerKey) {
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
   window.__grabBonusIdsPinned = false;
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
+  window.__applyBonusNeuSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -3402,7 +3404,7 @@ function formToObject(form) {
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
   const page = document.getElementById("page-Wandverkleidung");
-  if (!page) return;
+  if (!page || !document.getElementById("wvEnabled")?.checked) return;
 
   const out = [];
   function pushIfSelected(cbSel, qtySel, friendlyName) {
@@ -3723,6 +3725,7 @@ function collectDuschvorhangConfigurator(doc) {
       price: price,
       productId: ln.articleNumber || "",
       finish: ln.finish || null,
+      group: "Duschvorhang", // own Material heading in Kosten + Angebot PDF
     });
   }
   doc.duschabtrennung.quickAdd = qa;
@@ -4404,6 +4407,13 @@ function buildPayload() {
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
+  // Neukundenbonus: snapshot amount + threshold so later admin edits never
+  // reprice this offer. Legacy offers stay without it (old 3.000 € rule).
+  if (!window.__bonusNeuLegacyOffer) {
+    payload.pricingRules.bonusNeuGross = Number(window.__bonusNeuGross ?? 250);
+    payload.pricingRules.bonusNeuThreshold = Number(window.__bonusNeuThreshold ?? 5000);
+  }
+
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
@@ -4627,6 +4637,7 @@ function buildPayload() {
       const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
       const wv = (payload.wandverkleidung ||= {});
+      wv.wvEnabled = !!document.getElementById("wvEnabled")?.checked;
       wv.wvColor = globalColor;
       wv.wvSonderConfigNr = (fdWV.get("wvSonderConfigNr") || "").toString().trim();
 
@@ -6460,24 +6471,46 @@ function validateWandverkleidung() {
   }
   return true;
 }
-// D_65418: Dekor defaults to "Marmor weiß" and wvKind to "Fliesenspiegel", so a
-// forgotten Plattenformat (997/1497) silently drops every panel, profile and
-// consumable from Angebot + Kalkulation. Same totals as pricing-core.
-function wvPanelsMissing(payload, offerType) {
-  if (offerType !== "bu") return false;
+// D_65418: a forgotten Plattenformat (997/1497) silently dropped every panel,
+// profile and consumable from Angebot + Kalkulation. Since #wvEnabled, Art and
+// Dekor are mandatory once WV is ticked; 0 panels stays a warning.
+// Legacy payloads (no wvEnabled key) only get the 0-panel warning.
+// Returns null (ok) or { title, text, blocking }.
+function wvCheck(payload, offerType) {
+  if (offerType !== "bu") return null;
   const wv = payload?.wandverkleidung;
-  if (!wv?.wvKind || wv.wvKind === "Keine") return false;
+  if (!wv || wv.wvEnabled === false) return null;
+  const kind = wv.wvKind && wv.wvKind !== "Keine" ? wv.wvKind : "";
+  if (wv.wvEnabled === true && !kind) {
+    return { title: "Art der Wandverkleidung fehlt", text: "Bitte wählen Sie, welche Art der Wandverkleidung benötigt wird.", blocking: true };
+  }
+  if (wv.wvEnabled === true && !wv.wvColor) {
+    return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
+  }
+  if (!kind) return null;
   const extras = Object.values(wv.extraColors || {}).flat();
   const total =
     (Number(wv.wvQty997) || 0) +
     (Number(wv.wvQty1497) || 0) +
     extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
-  return total === 0;
+  if (total > 0) return null;
+  return {
+    title: "Wandverkleidung ohne Platten",
+    text: `Wandverkleidung „${kind}“ ist gewählt, aber kein Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.`,
+    blocking: false,
+  };
 }
-window.wvPanelsMissing = wvPanelsMissing;
-// Resolves true = proceed anyway, false = back to the WV tab.
+window.wvCheck = wvCheck;
+// A legacy "Keine" radio is hidden now; clear it once WV is switched on.
+document.addEventListener("change", (e) => {
+  if (e.target?.id !== "wvEnabled" || !e.target.checked) return;
+  const keine = document.querySelector('input[name="wvKind"][value="Keine"]');
+  if (keine) keine.checked = false;
+});
+// Resolves true = proceed, false = back to the WV tab.
 window.confirmWvPanels = function (payload, offerType) {
-  if (!wvPanelsMissing(payload, offerType)) return Promise.resolve(true);
+  const issue = wvCheck(payload, offerType);
+  if (!issue) return Promise.resolve(true);
   return new Promise((resolve) => {
     document.getElementById("wvMissingOverlay")?.remove();
     const overlay = document.createElement("div");
@@ -6485,14 +6518,11 @@ window.confirmWvPanels = function (payload, offerType) {
     overlay.className = "ang-stage-overlay";
     overlay.innerHTML = `
       <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
-        <h3 id="wvMissingTitle" class="ang-stage-title">Wandverkleidung ohne Platten</h3>
-        <p class="ang-stage-text">
-          Wandverkleidung „${escapeHtml(payload.wandverkleidung.wvKind)}“ ist gewählt, aber kein
-          Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.
-        </p>
+        <h3 id="wvMissingTitle" class="ang-stage-title">${escapeHtml(issue.title)}</h3>
+        <p class="ang-stage-text">${escapeHtml(issue.text)}</p>
         <div class="ang-stage-actions">
           <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
-          <button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>
+          ${issue.blocking ? "" : '<button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>'}
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -6502,7 +6532,7 @@ window.confirmWvPanels = function (payload, offerType) {
       resolve(value);
     };
     overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
-    overlay.querySelector("#wvMissingGo").addEventListener("click", () => close(true));
+    overlay.querySelector("#wvMissingGo")?.addEventListener("click", () => close(true));
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) close(false);
     });
@@ -6528,6 +6558,17 @@ function focusFirstBereichConditionalError() {
     return window.__bereichFocusFirstError__();
   }
   return false;
+}
+// Human-readable name of a form control for error messages.
+function fieldLabel(el) {
+  const text =
+    (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.textContent) ||
+    el.closest('[role="radiogroup"]')?.getAttribute("aria-label") ||
+    el.getAttribute("aria-label") ||
+    el.parentElement?.closest("div")?.querySelector(":scope > label:not(.radio-pill)")?.textContent ||
+    el.placeholder ||
+    el.name;
+  return String(text || "").replace(/[\s*]+/g, " ").trim();
 }
 function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
@@ -6556,19 +6597,26 @@ function requireBereichValid() {
   // Kundendaten tab is hidden, so we must NOT switch tabs first — doing that
   // unconditionally yanked the user to Kundendaten on every export even when
   // everything was valid (the PDF then generated anyway from another handler).
-  if (form.checkValidity()) return true;
+  // Fields hidden for this offer type (data-offer → display:none) must never
+  // block: a stale `required` from a previously opened offer type (e.g. BU's
+  // Vermieter-Genehmigung after loading an AH offer) made the export fail
+  // with nothing visibly red.
+  const invalid = [...form.querySelectorAll(":invalid")].filter(
+    (el) => el.tagName !== "FIELDSET" && !el.closest('[data-offer][style*="display: none"]')
+  );
+  if (!invalid.length) return true;
 
   // Invalid: now reveal the Kundendaten tab so the highlight/bubble is visible,
   // then show exactly what's missing.
   if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
     window.setStep("Kundendaten");
   }
-  form.reportValidity();
-  flashInvalid(form.querySelector(":invalid"));
+  invalid[0].reportValidity();
+  flashInvalid(invalid[0]);
   focusFirstBereichConditionalError();
   window.toast?.error(
     "Angaben unvollständig",
-    "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+    `Bitte in „Kundendaten“ ausfüllen: ${[...new Set(invalid.map(fieldLabel))].join(", ")}`
   );
   return false;
 }
@@ -6912,6 +6960,34 @@ window.__bwtKmFreeThreshold = 200;
 // split as the BWT Freigrenzen above.
 window.__grabBonusIdsLive = ["CLPESG30"];
 window.__grabBonusIds = ["CLPESG30"];
+// Neukundenbonus (NEUKUNDENBONUS_BRUTTO / _SCHWELLE): same Live/pinned split.
+// Legacy offers (no pricingRules.bonusNeuGross) keep 252,10 € netto / 3.000 €.
+window.__bonusNeuGrossLive = 250;
+window.__bonusNeuThresholdLive = 5000;
+window.__bonusNeuGross = 250;
+window.__bonusNeuThreshold = 5000;
+window.__bonusNeuLegacyOffer = false;
+window.__bonusNeuPinned = false;
+// Called on restore (saved payload) and on a fresh offer (null).
+window.__applyBonusNeuSnapshot = function (p) {
+  const pr = p?.pricingRules || {};
+  if (!p) {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = false;
+    window.__bonusNeuGross = Number(window.__bonusNeuGrossLive ?? 250);
+    window.__bonusNeuThreshold = Number(window.__bonusNeuThresholdLive ?? 5000);
+  } else if (pr.bonusNeuGross == null) {
+    window.__bonusNeuLegacyOffer = true;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = 300;
+    window.__bonusNeuThreshold = 3000;
+  } else {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = Number(pr.bonusNeuGross);
+    window.__bonusNeuThreshold = Number(pr.bonusNeuThreshold) || 0;
+  }
+};
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
@@ -6958,6 +7034,14 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
         // Re-price so the "Haltegriff gratis" checkbox follows the new list.
         if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
       }
+    }
+    if (typeof d.NEUKUNDENBONUS_BRUTTO === "number") {
+      window.__bonusNeuGrossLive = d.NEUKUNDENBONUS_BRUTTO;
+      if (!window.__bonusNeuPinned) window.__bonusNeuGross = d.NEUKUNDENBONUS_BRUTTO;
+    }
+    if (typeof d.NEUKUNDENBONUS_SCHWELLE === "number") {
+      window.__bonusNeuThresholdLive = d.NEUKUNDENBONUS_SCHWELLE;
+      if (!window.__bonusNeuPinned) window.__bonusNeuThreshold = d.NEUKUNDENBONUS_SCHWELLE;
     }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
@@ -7802,17 +7886,6 @@ function setupWandverkleidungPage() {
     }
   };
   page.__syncWvSonderDecorUi = syncSonderDecorUi;
-
-  // ---- keep legacy default behavior (only if nothing restored) ----
-  const defaultColor = page.querySelector(
-    'input[type="radio"][name="wvColor"][value="Marmor weiß"]',
-  );
-  const anyColorChecked = page.querySelector(
-    'input[type="radio"][name="wvColor"]:checked',
-  );
-  if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
-    defaultColor.checked = true;
-  }
 
   page
     .querySelectorAll('input[type="radio"][name="wvColor"]')
@@ -9799,7 +9872,7 @@ function pgbReveal(el, on) {
     const id = input.value.trim();
     if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
     if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
-    if (!["bu", "bwt"].includes(currentOfferKey)) return;
+    if (!["bu", "bwt", "hl"].includes(currentOfferKey)) return;
     lastId = id;
 
     try {
@@ -9826,11 +9899,11 @@ function pgbReveal(el, on) {
     }
   });
 
-  // Pflichtfeld nur bei BU/BWT. Bei anderen Angeboten ist die Zeile nur
+  // Pflichtfeld nur bei BU/BWT/HL. Bei anderen Angeboten ist die Zeile nur
   // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
   // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
   const syncRequired = () => {
-    const on = ["bu", "bwt"].includes(currentOfferKey);
+    const on = ["bu", "bwt", "hl"].includes(currentOfferKey);
     document
       .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
       .forEach((el) => { el.required = on; });
@@ -12795,7 +12868,7 @@ function escapeHtml(s) {
     }
     return out;
   }
-  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
@@ -14853,6 +14926,11 @@ function restoreWV(wv) {
   window.__RESTORING__ = true;
   // ensure additive WV extras UI exists before restoring
   try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
+  // Legacy payloads have no wvEnabled: WV counts as on unless "Keine" was picked.
+  const wvEnabledEl = document.getElementById("wvEnabled");
+  if (wvEnabledEl) {
+    wvEnabledEl.checked = "wvEnabled" in wv ? !!wv.wvEnabled : wv.wvKind !== "Keine";
+  }
   // Kind is a radio
     if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
@@ -14881,7 +14959,6 @@ function restoreWV(wv) {
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
-  if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
   if (pageWV?.__syncWvSonderDecorUi) pageWV.__syncWvSonderDecorUi();
 
 
@@ -15372,6 +15449,10 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  setByNameOrId("partnerGeburtsdatum", k.partnerGeburtsdatum);
+  setByNameOrId("partnerKvnr", k.partnerKvnr);
+  setByNameOrId("partnerPflegegradSeit", k.partnerPflegegradSeit);
+  setByNameOrId("partnerKrankenkasseAdresse", k.partnerKrankenkasseAdresse);
   // Two-person PDF name/greeting overrides (Zusammenfassung).
   window.applyTwoPersonSummaryFields?.(k);
 
@@ -16219,6 +16300,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
     window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+    window.__applyBonusNeuSnapshot?.(p);
 
     // normalize offerType
     const rawOfferType =
@@ -17935,7 +18018,7 @@ window.setPricingData = function setPricingData(data) {
     );
     syncKleinAufschlagToggle();
 
-    // Show/hide 300€ bonus based on threshold (after rab.)
+    // Show/hide Neukundenbonus based on the offer's threshold (after rab.)
     (function gateBonus300() {
       const afterRab = Number(data?.totalAfterRabatt || 0);
       const cb300 = document.getElementById("rb-bonus-300");
@@ -17945,7 +18028,16 @@ window.setPricingData = function setPricingData(data) {
         cb300?.parentElement ||
         null;
 
-      const shouldShow = afterRab > 3000;
+      const legacy = window.__bonusNeuLegacyOffer === true;
+      const threshold = Number(window.__bonusNeuThreshold ?? 5000);
+      const shouldShow = afterRab > threshold;
+
+      const txt = document.getElementById("rb-bonus-300-text");
+      if (txt) {
+        txt.textContent = legacy
+          ? "Möchten Sie den Neukundenbonus in Höhe von 252,10 € hinzufügen? (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)"
+          : `Möchten Sie den Neukundenbonus in Höhe von ${Number(window.__bonusNeuGross ?? 250).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € brutto hinzufügen? (ab einem Gesamtwert über ${threshold.toLocaleString("de-DE")} €)`;
+      }
 
       if (row) {
         row.style.display = shouldShow ? "" : "none";
@@ -17953,10 +18045,11 @@ window.setPricingData = function setPricingData(data) {
         row.setAttribute("aria-hidden", String(!shouldShow));
       }
 
-      // If ineligible, clear silently (no 'change' dispatch → no race)
-      // if (!shouldShow && cb300 && cb300.checked) {
-      // cb300.checked = false;
-      //}
+      // New rule: ineligible → clear silently (pricing already dropped it;
+      // no 'change' dispatch → no race). Legacy offers keep the old behavior.
+      if (!legacy && !shouldShow && cb300 && cb300.checked) {
+        cb300.checked = false;
+      }
     })();
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
@@ -19223,61 +19316,69 @@ cat_SHOWER: "menu_SHOWER",
     const WC_WALL_PRODUCTS = [
       {
         productId: "CVIS3WCT112",
-        image: "./assets/CVIS3WCT112.jpg",
+        image: "./assets/wc/CVIS3WCT112/CVIS3WCT112-1.jpg",
         fallbackName: "VIS WC-Element E3 für Trockenbau",
         category: "accessory",
       },
       {
         productId: "SCHALL",
-        image: "./assets/SCHALL.jpg",
+        image: "./assets/wc/SCHALL/SCHALL-1.jpg",
         fallbackName: "Montageset für Wand-WC / WD-Bidet",
         category: "accessory",
       },
       {
         productId: "V1DON",
-        image: "./assets/V1DON.jpg",
+        image: "./assets/wc/V1DON/V1DON-1.jpg",
         fallbackName: "Betätigungsplatte V1 DON weiß",
         category: "accessory",
       },
       {
         productId: "0601010003",
-        image: "./assets/Gipskarton.jpg",
+        image: "./assets/wc/0601010003/0601010003-1.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
         category: "accessory",
       },
       {
         productId: "WWCAG90",
-        image: "./assets/WWCAG90.jpg",
+        image: "./assets/wc/WWCAG90/WWCAG90-1.jpg",
         fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
         category: "accessory",
         montage: "both", // one tile, moved into the visible montage group
       },
       {
         productId: "DERSIAS",
-        image: "./assets/DERSIAS.jpg",
+        dims: [["Breite", 361], ["Länge", 433]], // mm, Vigour Datenblatt
+        image: "./assets/wc/DERSIAS/DERSIAS-1.jpg",
         fallbackName: "WC-Sitz derby rund",
         category: "seat",
       },
       {
         productId: "CLSIAS",
-        image: "./assets/CLSIAS.jpg",
+        dims: [["Höhe", 59], ["Breite", 365], ["Länge", 450]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLSIAS/CLSIAS-1.jpg",
         fallbackName: "WC-Sitz clivia",
         category: "seat",
       },
       {
         productId: "DERWWCOSVP",
-        image: "./assets/DERWWCOSVP.jpg",
+        dims: [["Höhe", 430], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-1.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-2.jpg",
+          "./assets/wc/DERWWCOSVP/DERWWCOSVP-3.jpg",
+        ],
         fallbackName: "Wand-Tiefspül-WC derby rund",
         category: "wc",
         seatId: "DERSIAS",
       },
       {
         productId: "DEDWWC",
+        dims: [["Höhe", 400], ["Breite", 370], ["Tiefe", 594]], // mm, Vigour Datenblatt
         images: [
-          "./assets/DEDWWC.jpg",
-          "./assets/DEDWWC1.png",
-          "./assets/DEDWWC2.png",
-          "./assets/DEDWWC3.png",
+          "./assets/wc/DEDWWC/DEDWWC-1.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-2.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-3.jpg",
+          "./assets/wc/DEDWWC/DEDWWC-4.jpg",
         ],
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
@@ -19285,7 +19386,13 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "CLPWWCOS5",
-        image: "./assets/CLPWWCOS5.jpg",
+        dims: [["Höhe", 450], ["Breite", 355], ["Tiefe", 540]], // mm, Vigour Datenblatt
+        images: [
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-1.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-2.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-3.jpg",
+          "./assets/wc/CLPWWCOS5/CLPWWCOS5-4.jpg",
+        ],
         fallbackName: "WC-Erhöhung CLPWWCOS5",
         category: "wc",
         requiredSeatHeight: "erhoeht",
@@ -19294,21 +19401,23 @@ cat_SHOWER: "menu_SHOWER",
       // Bodenmontage (montage defaults to "Wandmontage" for everything above)
       {
         productId: "CLPWCF10",
-        image: "./assets/CLPWCF10.jpg",
+        dims: [["Höhe", 490], ["Breite", 354], ["Tiefe", 457]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPWCF10/CLPWCF10-1.jpg",
         fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "WCBF",
-        image: "./assets/WCBF.jpg",
+        image: "./assets/wc/WCBF/WCBF-1.jpg",
         fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
         category: "floor",
         montage: "Bodenmontage",
       },
       {
         productId: "CLPSSI",
-        image: "./assets/CLPSSI.jpg",
+        dims: [["Höhe", 45], ["Breite", 373], ["Länge", 435]], // mm, Vigour Datenblatt
+        image: "./assets/wc/CLPSSI/CLPSSI-1.jpg",
         fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
         category: "floor",
         montage: "Bodenmontage",
@@ -19370,7 +19479,9 @@ cat_SHOWER: "menu_SHOWER",
         const optId = `opt_${item.productId}${idSuffix}`;
         const qtyId = `qty_${item.productId}${idSuffix}`;
         const wrapId = `${qtyId}_wrap`;
-        const qtyName = isAlias ? `qty_alias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
+        // Alias qty must NOT start with "qty_": pricing-core reads every qty_<id> key
+        // as a product, which put a phantom "alias_DERSIAS__pair_…" 0 € line on the Kosten tab.
+        const qtyName = isAlias ? `wcalias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
         const cbName = isAlias ? `optWcWall_alias[]` : `optWcWall[]`;
         const card = document.createElement("div");
         card.className = "opt-item";
@@ -19382,8 +19493,8 @@ cat_SHOWER: "menu_SHOWER",
             const slides = item.images.map((src, i) =>
               `<span class="img-carousel__slide"><img src="${src}" alt="${item.fallbackName} – Bild ${i + 1}" /></span>`
             ).join("");
-            const dots = item.images.map((_, i) =>
-              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" aria-label="Bild ${i + 1}"></button>`
+            const dots = item.images.map((src, i) =>
+              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" style="--thumb:url('${src}')" aria-label="Bild ${i + 1}"></button>`
             ).join("");
             return `
               <span class="img-carousel" data-carousel>
@@ -19394,8 +19505,8 @@ cat_SHOWER: "menu_SHOWER",
                 <button type="button" class="img-carousel__btn img-carousel__btn--next" aria-label="Nächstes Bild">
                   <svg viewBox="0 0 14 14"><polyline points="5,2 10,7 5,12"/></svg>
                 </button>
-                <span class="img-carousel__dots">${dots}</span>
-              </span>`;
+              </span>
+              <span class="img-carousel__dots">${dots}</span>`;
           }
           const src = item.image || (item.images && item.images[0]) || "";
           return `<span class="img-wrap"><img src="${src}" alt="${item.fallbackName}" /></span>`;
@@ -19406,6 +19517,7 @@ cat_SHOWER: "menu_SHOWER",
             <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
             ${imgHtml}
             <span class="caption">${item.fallbackName}</span>
+            ${item.dims ? `<span class="wc-dims" aria-label="Maße in Millimetern">${item.dims.map(([k, v]) => `<span class="wc-dims__item"><span class="wc-dims__label">${k}</span><span class="wc-dims__value">${v}&thinsp;mm</span></span>`).join("")}</span>` : ""}
           </label>
           <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
             <label for="${qtyId}" class="req">Menge</label>
@@ -19417,7 +19529,7 @@ cat_SHOWER: "menu_SHOWER",
         const carousel = card.querySelector("[data-carousel]");
         if (carousel) {
           const track = carousel.querySelector(".img-carousel__track");
-          const dots = carousel.querySelectorAll(".img-carousel__dot");
+          const dots = card.querySelectorAll(".img-carousel__dot");
           const total = item.images.length;
           let current = 0;
 
@@ -19590,6 +19702,22 @@ cat_SHOWER: "menu_SHOWER",
           }
         }),
       );
+
+      // Alias seat tiles carry a decorative qty input (wcalias_*) the server
+      // ignores; pricing reads the canonical qty_<seatId>. Mirror edits into it,
+      // otherwise changing the Menge of a seat shown in a second pair (e.g.
+      // DERSIAS under DEDWWC) never reaches the price.
+      wallProductsGrid
+        .querySelectorAll('.opt-item[data-alias="true"] input[type="number"]')
+        .forEach((aliasQty) => {
+          const productId = aliasQty.closest(".opt-item")?.dataset.productId;
+          const mirror = () => {
+            const canonicalQty = document.getElementById(`qty_${productId}`);
+            if (canonicalQty) canonicalQty.value = aliasQty.value;
+          };
+          aliasQty.addEventListener("input", mirror);
+          aliasQty.addEventListener("change", mirror);
+        });
 
       // Wire alias seat tiles so clicking one selects its pair's WC (which
       // then drives the seat sync). Without this, alias tiles are pure visual

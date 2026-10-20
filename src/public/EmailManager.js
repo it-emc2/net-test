@@ -1538,6 +1538,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   // onError turns the all-or-nothing behaviour into best-effort: the e-mail
   // send omits it and aborts on the first failure (never mail a partial set),
   // the postal send passes it so a broken document can't block the postage.
+  const SERVICE_ONLY_OFFERS = ["ah", "hms", "wd"];
+  const offerTypeOf = (payload) =>
+    String(payload?.activeOffer || window.getCurrentOfferType?.() || "").toLowerCase();
   async function collectBitrixDocs(
     payload,
     offerNumber,
@@ -1551,7 +1554,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
-    ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
+    ]
+      .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
+      // AH/HMS/WD sell services only — no products, so no Hassmann cart.
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && j.endpoint.includes("hassmann")));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
@@ -1688,17 +1694,33 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       for (const f of bitrixFiles) fd.append("bitrixDocs", f, f.name);
       if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
-      const sendTimeout = AbortSignal.timeout(60000);
-      let res;
-      try {
-        res = await fetch(cfg.apiUrl, { method: "POST", body: fd, signal: sendTimeout });
-      } catch (err) {
-        if (err.name === "TimeoutError" || err.name === "AbortError") {
-          throw new Error(
-            "Zeitüberschreitung — der Server antwortet nicht. Bitte nicht neu laden, kurz warten und Bitrix prüfen, ob die Mail trotzdem verschickt wurde, bevor erneut gesendet wird.",
-          );
+      const post = async () => {
+        try {
+          return await fetch(cfg.apiUrl, { method: "POST", body: fd, signal: AbortSignal.timeout(60000) });
+        } catch (err) {
+          if (err.name === "TimeoutError" || err.name === "AbortError") {
+            throw new Error(
+              "Zeitüberschreitung — der Server antwortet nicht. Bitte nicht neu laden, kurz warten und Bitrix prüfen, ob die Mail trotzdem verschickt wurde, bevor erneut gesendet wird.",
+            );
+          }
+          throw err;
         }
-        throw err;
+      };
+      let res = await post();
+      // Server-side per-deal lock: a 2nd offer email within 24h needs an explicit OK.
+      if (res.status === 409) {
+        const conflict = await res.json().catch(() => ({}));
+        if (conflict.code !== "ALREADY_SENT") throw new Error(conflict.error || "Versand läuft bereits.");
+        const when = conflict.lastSentAt ? new Date(conflict.lastSentAt).toLocaleString("de-DE") : "kürzlich";
+        const again = window.confirm(
+          `Für diesen Deal wurde bereits am ${when} eine Angebots-E-Mail versendet (${conflict.lastOfferNumber || "-"}).\n\nWirklich erneut senden?`,
+        );
+        if (!again) {
+          pushStatus("Nicht erneut gesendet.", "info");
+          return false;
+        }
+        fd.set("forceResend", "1");
+        res = await post();
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

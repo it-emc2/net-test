@@ -132,7 +132,7 @@ async function buildMaterialOverviewDocx(body = {}) {
     // Materialübersicht matches the Hassmann CSV; falls back to the ID.
     materialNumber: m.hassmannArticle || m.materialNumber,
     name: m.name,
-    quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
+    quantity: formatQtyForOverview(m.hassmannQty || m.quantity, m.unit || "Stck."),
     unit: m.unit || "Stck.",
     remarks: m.remarks || "",
   }));
@@ -290,24 +290,18 @@ router.post("/hassmann-cart", async (req, res) => {
       }
     }
 
-    const filtered = rows.filter(
-      (r) =>
-        isHassmannProduct(
-          r.materialNumber,
-          manufacturerById.get(String(r.materialNumber || "").trim()),
-        ) && Number(r.quantity || 0) > 0,
-    );
-
-    const lines = [
-      //";Artikelnummer;Menge",
-      ...filtered.map((r) => {
-        const qty = Math.round(Number(r.quantity || 0));
-        // Prefer the export-only article number (e.g. color-specific
-        // Wandverkleidung code) when present; otherwise the material number.
-        const artNo = String(r.hassmannArticle || r.materialNumber || "").trim();
-        return `ART;${artNo};${qty}`;
-      }),
-    ];
+    // Floor panels have an empty materialNumber (hidden in the Angebot) but a
+    // real hassmannArticle (V5FB0x / V3WVK07), so key on the export article.
+    // Same article from different sources (e.g. Fußboden + WV tab) is merged.
+    const cart = new Map();
+    for (const r of rows) {
+      const artNo = String(r.hassmannArticle || r.materialNumber || "").trim();
+      const qty = Math.round(Number(r.hassmannQty || r.quantity || 0));
+      const id = String(r.materialNumber || "").trim() || artNo;
+      if (qty <= 0 || !isHassmannProduct(artNo, manufacturerById.get(id))) continue;
+      cart.set(artNo, (cart.get(artNo) || 0) + qty);
+    }
+    const lines = [...cart].map(([artNo, qty]) => `ART;${artNo};${qty}`);
 
     const csv = "\ufeff" + lines.join("\r\n");
     const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";

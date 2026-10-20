@@ -2,7 +2,7 @@
 
 Mieter brauchen die schriftliche Zustimmung des Vermieters. Das Angebot zeigt dann:
 
-> Der Auftrag kommt erst mit schriftlicher Zustimmung des Vermieters zustande.
+> Dieser Auftrag setzt die schriftliche Zustimmung Ihres Vermieters voraus. Bitte senden Sie uns diese spätestens mit der Zuschussbestätigung Ihrer Pflegekasse zu.
 
 ## Ablauf
 

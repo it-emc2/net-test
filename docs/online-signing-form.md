@@ -40,3 +40,6 @@ Modi: `display` (interaktiv: Radios + Signaturpad) · `pdf` (eingebrannt). `doc.
 1. Feld in `docx-template.js` (Rückgabeobjekt) ergänzen → landet als `d.<Feld>`.
 2. In `signing-docs.js` rendern, immer über `esc()`.
 3. BU **und** AH Builder prüfen (beide nutzen gemeinsame Blöcke wie `closingBlock`).
+
+## Zwei Personen (BU, 8360 €)
+`twoPersons` + Partnername → zusätzlich `vollmacht_p2` + `abtretung_p2` (Reihenfolge: Angebot, V1, A1, V2, A2). `resolveFields` liest für `_p2` die `partner*`-Felder (Kundendaten: `partnerGeburtsdatum`, `partnerKvnr`, `partnerPflegegradSeit`, `partnerKrankenkasseAdresse`); Adresse/Telefon/E-Mail gemeinsam. Nach Abschluss: Partner-Kontakt in Bitrix suchen/anlegen (`ensurePartnerContact`), Deal verknüpfen, PDFs je Person am eigenen Kontakt (`filePerPersonDocs`). Mehrdeutig → Deal-Kommentar, manuelle Zuordnung. AH noch nicht.

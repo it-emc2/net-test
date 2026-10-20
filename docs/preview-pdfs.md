@@ -42,6 +42,7 @@ PDF-Name. Vorhanden:
 | `ah-hd-ab-entlastungsbetrag` | AH, HnD + Alltagsbegleitung, Entlastungsbetrag § 45b bestätigt |
 | `ah-hd-only-entlastungsbetrag` | AH, nur HnD (ein Konditionen-Block) |
 | `ah-hd-ab-ohne-entlastungsbetrag` | AH ohne Entlastungsbetrag → keine Eigenanteil-Zeile |
+| `ah-selbstzahler-mwst` | AH Selbstzahler → Nettobetrag, zzgl. 7 % MwSt., Gesamtbetrag brutto |
 
 Zwei Sonderschlüssel, die nicht Teil des Payloads sind:
 

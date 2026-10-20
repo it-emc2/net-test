@@ -742,6 +742,7 @@ function normalizeSourceLine(raw) {
     // Export-only article number (e.g. color-specific Wandverkleidung code for
     // the Hassmann CSV). Falls back to materialNumber when absent.
     hassmannArticle: raw.hassmannArticle || null,
+    hassmannQty: Number(raw.hassmannQty) || null,
   };
 }
 
@@ -766,6 +767,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
           unit: l.unit || "Stck.",
           label: l.label || "",
           hassmannArticle: l.hassmannArticle || null,
+          hassmannQty: l.hassmannQty || null,
         }),
       );
     }
@@ -837,10 +839,12 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
       quantity: 0,
       remarks: "",
       hassmannArticle: l.hassmannArticle || null,
+      hassmannQty: l.hassmannQty || null,
     };
     // Preserve the export-only article number when merging lines.
     if (!prev.hassmannArticle && l.hassmannArticle)
       prev.hassmannArticle = l.hassmannArticle;
+    if (!prev.hassmannQty && l.hassmannQty) prev.hassmannQty = l.hassmannQty;
 
     // Prefer the longer/more descriptive name when merging
     if (l.name && (!prev.name || l.name.length > prev.name.length))
@@ -1294,9 +1298,13 @@ async function mapData(body = {}, computed = {}) {
         .toFixed(2)
         .replace(/\.00$/, "");
       const nameOrId = stripBrandNames(l.name || l.productId || "");
-      const rendered = l.label
+      let rendered = l.label
         ? stripBrandNames(l.label)
         : `- ${qtyStr} Stk ${nameOrId}`;
+      // Duschabtrennung (neu) / Duschvorhang configurator lines: show the
+      // Ausführung (finish) — shared by the Angebot DOCX/PDF and the signing form.
+      const finish = l.source === "vigour_config" ? stripBrandNames(l.finish) : "";
+      if (finish && !rendered.includes(finish)) rendered += ` — ${finish}`;
       return { MaterialLine: rendered, _raw: l };
     })
     .filter((row) => {
@@ -1321,6 +1329,7 @@ async function mapData(body = {}, computed = {}) {
     "Zubehör",
     "Duschwanne",
     "Duschabtrennung",
+    "Duschvorhang",
     "Weiteres",
   ];
   // HL's fallback bucket (Speditionskosten and any other uncategorized line)
@@ -1650,9 +1659,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false,
   );
 
-  const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false,
-  );
+  // Pricing reports the Neukundenbonus it actually applied (0 below the
+  // threshold); older saved pricing lacks it → fall back to the flag.
+  const hasBonus300 = computed?.bonusNeuNet != null
+    ? Number(computed.bonusNeuNet) > 0
+    : Boolean(pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false);
+  const bonusNeuNet = Number(computed?.bonusNeuNet ?? 252.1);
+  const bonusNeuPreis = `-${bonusNeuNet.toFixed(2).replace(".", ",")} €`;
+  const bonusNeuDetail = `-- Rabatt von ${Number(computed?.bonusNeuGross ?? 300).toLocaleString("de-DE")} € ab einem Gesamtwert von ${Number(computed?.bonusNeuThreshold ?? 3000).toLocaleString("de-DE")}`;
 
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
@@ -1678,9 +1692,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Neukundenbonus:",
-      BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
-      preis: "-252,10 €",
-      gesamt: "-252,10 €",
+      BonusDetail: bonusNeuDetail,
+      preis: bonusNeuPreis,
+      gesamt: bonusNeuPreis,
     });
   }
 
@@ -1924,6 +1938,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: body.auftragId || b.customerNumber || b.bitrixContactId || "",
+    // "Referenz" in Angebot.docx (BU) + AH-Angebot.docx = Bitrix deal.
+    DealId: body.auftragId || body.dealId || b.dealId || "",
     Greeting:
       b.salutation === "Frau"
         ? "Sehr geehrte Frau"
@@ -2033,9 +2049,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
 
     // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
-    // Vermieter-Satz: BU/BWT, Checkbox an und Genehmigung liegt nicht schon vor.
+    // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.
     VermieterZustimmungHinweis:
-      (!offerKey || offerKey === "bu" || offerKey === "bwt") &&
+      (!offerKey || ["bu", "bwt", "hl"].includes(offerKey)) &&
       toBoolish(b.vermieterGenehmigungErforderlich) &&
       b.vermieterGenehmigung !== "Ja",
     // Pflegekassen-Bewilligungs-Satz: alle Kassenkunden-Angebote.
@@ -2126,6 +2142,8 @@ const AH_FREQ = {
 const AH_ANFAHRT_PER_EINSATZ = 7.96;
 const AH_STUNDENSATZ_HND     = 40.56;
 const AH_STUNDENSATZ_AB      = 53.04;
+// Sätze oben sind netto; Selbstzahler sehen zzgl. 7 % MwSt. (Buchhaltung, 10/2026)
+const AH_MWST_SATZ           = 0.07;
 
 function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
@@ -2243,6 +2261,12 @@ function buildAhData(body) {
   if (verhinderungspflege > 0) abzugParts.push("Verhinderungspflege § 39 SGB XI");
   if (umwidmung > 0) abzugParts.push("Umwidmung § 45a Abs. 4 SGB XI");
   const abzugLabel = "abzgl. " + abzugParts.join(", ");
+
+  // Selbstzahler: Netto / MwSt. / Brutto ausweisen (Kassenkunde unverändert)
+  const isSelbstzahler =
+    String(body?.Kundendaten?.payer || "").toUpperCase() === "SELBSTZAHLER";
+  const ahMwst = r2(gesamt * AH_MWST_SATZ);
+  const ahBrutto = r2(gesamt + ahMwst);
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2377,6 +2401,12 @@ function buildAhData(body) {
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
+    // Template: {#AhIsSZ} Netto / zzgl. MwSt. / Gesamtbetrag brutto {/AhIsSZ}
+    AhIsSZ: isSelbstzahler && gesamt > 0,
+    AhGesamtLabel: isSelbstzahler && gesamt > 0 ? "Nettobetrag" : "Gesamtbetrag",
+    AhMwstLabel: `zzgl. ${Math.round(AH_MWST_SATZ * 100)} % MwSt.`,
+    AhMwst: fmtCurrency(ahMwst),
+    AhBrutto: fmtCurrency(ahBrutto),
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
     AhHasEigenanteil: hasEigenanteil,
     AhAbzugLabel: abzugLabel,
@@ -2505,7 +2535,7 @@ router.post("/material-overview", async (req, res) => {
       // Materialübersicht matches the Hassmann CSV; blank stays blank for V5FB02.
       materialNumber: m.hassmannArticle || m.materialNumber || "", // blank for V5FB02 (floor panels)
       name: stripBrandNames(m.name || ""),
-      quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
+      quantity: formatQtyForOverview(m.hassmannQty || m.quantity, m.unit || "Stck."),
       unit: m.unit || "Stck.",
       remarks: m.remarks || "",
     }));

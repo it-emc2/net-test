@@ -111,11 +111,33 @@ export const ABTRETUNG_REQUIRED_FIELDS = [
 
 // Resolve all Vollmacht/Abtretung fields: customer edits (doc.editedFields)
 // override the snapshot (prefill for contact data, Kundendaten for Kasse data).
+// Partner documents (two-person offers) use the key suffix "_p2"; they share
+// the main customer's household contact data but read the partner* fields.
+export const isPartnerKey = (key) => /_p2$/.test(String(key || ""));
+export const baseDocKey = (key) => String(key || "").replace(/_p2$/, "");
+
 export function resolveFields(sr, doc) {
   const p = sr.prefill || {};
   const k = sr.payloadSnapshot?.Kundendaten || {};
   const e = doc?.editedFields || {};
   const pick = (key, dflt) => (e[key] !== undefined ? e[key] : dflt);
+  if (isPartnerKey(doc?.key)) {
+    return {
+      firstName: pick("firstName", k.partnerFirstName || ""),
+      lastName: pick("lastName", k.partnerLastName || ""),
+      street: pick("street", p.street || ""),
+      postalCode: pick("postalCode", p.postalCode || ""),
+      city: pick("city", p.city || ""),
+      phone: pick("phone", p.phone || ""),
+      email: pick("email", p.email || ""),
+      geburtsdatum: pick("geburtsdatum", k.partnerGeburtsdatum || ""),
+      kassenkundeName: pick("kassenkundeName", k.partnerKassenkundeName || ""),
+      kk_versichertennr: pick("kk_versichertennr", k.partnerKvnr || ""),
+      pflegegrad: pick("pflegegrad", String(k.partnerPflegegrad || "")),
+      kk_pflegegradSeit: pick("kk_pflegegradSeit", k.partnerPflegegradSeit || ""),
+      kk_krankenkasseAdresse: pick("kk_krankenkasseAdresse", k.partnerKrankenkasseAdresse || ""),
+    };
+  }
   return {
     firstName: pick("firstName", p.firstName || ""),
     lastName: pick("lastName", p.lastName || ""),
@@ -449,11 +471,13 @@ function festpreisBlock(d) {
   }
   if (isKK) {
     out.push(
-      `Der Auftrag kommt erst mit schriftlicher Bewilligung des Zuschusses durch die Pflegekasse zustande. Wird der Zuschuss abgelehnt, können Sie – wenn gewünscht – den Auftrag auch auf eigene Kosten erteilen. Es gilt dann der angebotene Preis.`,
+      `Sollte die Pflegekasse den Zuschuss endgültig ablehnen – auch trotz eingereichtem Widerspruch – wird der Auftrag nichtig. Sie können aber – wenn gewünscht – den Auftrag auch auf eigene Kosten erteilen. Es gilt dann der angebotene Preis.`,
     );
   }
   if (d.VermieterZustimmungHinweis) {
-    out.push(`Der Auftrag kommt erst mit schriftlicher Zustimmung des Vermieters zustande.`);
+    out.push(
+      `Dieser Auftrag setzt die schriftliche Zustimmung Ihres Vermieters voraus.${isKK ? " Bitte senden Sie uns diese spätestens mit der Zuschussbestätigung Ihrer Pflegekasse zu." : ""}`,
+    );
   }
   return `<div class="hinweise"><p class="b">Wichtige Hinweise:</p><ul>${out.map((t) => `<li>${t}</li>`).join("")}</ul></div>`;
 }
@@ -512,7 +536,15 @@ export function buildAngebotHtml(data, opts = {}) {
   // Nettobetrag/MwSt/Gesamtsumme in one table; Zuschuss/Eigenanteil (KK only)
   // in a second table below, with a gap between them.
   const baseTotalsRows = totals.filter((t) => !t.isSubsidyRow);
-  const subsidyTotalsRows = totals.filter((t) => t.isSubsidyRow);
+  let subsidyTotalsRows = totals.filter((t) => t.isSubsidyRow);
+  // BWT/HL/BL: Totals ends at Gesamtsumme (DOCX layout); the online form
+  // still shows Zuschuss + Eigenanteil rows for Kassenkunde.
+  if (!subsidyTotalsRows.length && d.hasSubsidyTotals) {
+    subsidyTotalsRows = [
+      { label: "Ihr voraussichtlicher Zuschuss nach §40 SGB XI abzüglich bereits erhaltener Leistung", value: d.IhrZuschussFmt, isAlt: true },
+      { label: "Ihr Eigenanteil", value: d.SelbstkostenanteilFmt, isEigenanteil: true },
+    ];
+  }
   const totalsTable =
     renderTotalsTable(baseTotalsRows) + renderTotalsTable(subsidyTotalsRows);
 
