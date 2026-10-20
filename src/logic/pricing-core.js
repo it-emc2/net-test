@@ -2588,13 +2588,24 @@ try {
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1 + TAX_RATE));
 
-      // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
+      // Neukundenbonus: amount + threshold come from the offer's own snapshot
+      // (pricingRules, written by buildPayload from the admin config at save
+      // time). No snapshot → offer predates the rule change and keeps the old
+      // 252,10 € netto (300 € brutto) / 3.000 € rule, threshold unenforced
+      // here exactly as before.
+      const bonusRules = payload?.pricingRules || {};
+      const bonusNeuLegacy = bonusRules.bonusNeuGross == null;
+      const bonusNeuThreshold = bonusNeuLegacy ? 3000 : Number(bonusRules.bonusNeuThreshold) || 0;
+      const bonusNeuGrossDisplay = bonusNeuLegacy ? 300 : Number(bonusRules.bonusNeuGross) || 0;
+      const bonusNeuValue = bonusNeuLegacy
+        ? 252.1
+        : round2(bonusNeuGrossDisplay / (1 + TAX_RATE));
+      if (!bonusNeuLegacy && !(totalAfterRabatt > bonusNeuThreshold)) flags.bonus_neu = false;
       let bonusGross = 0;
       let bonus_neu = 0;
       if (flags.bonus_neu) {
-        const bonusVal = cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1);
-        bonusGross += bonusVal;
-        bonus_neu += bonusVal;
+        bonusGross += bonusNeuValue;
+        bonus_neu += bonusNeuValue;
       }
       // Angebot display of the free grab bar: fixed Material + Arbeit values
       // (= 175 € brutto) added to Pos. 001/002 and taken back off in its own
@@ -2717,6 +2728,10 @@ try {
 
         // rabatt + bonus:
         bonusGross,
+        bonusNeuNet: bonus_neu,
+        bonusNeuGross: bonusNeuGrossDisplay,
+        bonusNeuThreshold,
+        bonusNeuLegacy,
         grabBonusMaterial,
         grabBonusArbeit,
         grabBonusReal,

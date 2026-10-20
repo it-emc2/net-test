@@ -531,9 +531,14 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const hasBonusGrab = Boolean(
     pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false,
   );
-  const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false,
-  );
+  // Pricing reports the Neukundenbonus it actually applied (0 below the
+  // threshold); older saved pricing lacks it → fall back to the flag.
+  const hasBonus300 = computed?.bonusNeuNet != null
+    ? Number(computed.bonusNeuNet) > 0
+    : Boolean(pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false);
+  const bonusNeuNet = Number(computed?.bonusNeuNet ?? 252.1);
+  const bonusNeuPreis = `-${bonusNeuNet.toFixed(2).replace(".", ",")} €`;
+  const bonusNeuDetail = `-- Rabatt von ${Number(computed?.bonusNeuGross ?? 300).toLocaleString("de-DE")} € ab einem Gesamtwert von ${Number(computed?.bonusNeuThreshold ?? 3000).toLocaleString("de-DE")}`;
 
   const BonusRows = [];
   let pos = "003";
@@ -556,9 +561,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Neukundenbonus:",
-      BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
-      preis: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
-      gesamt: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
+      BonusDetail: bonusNeuDetail,
+      preis: bonusNeuPreis,
+      gesamt: bonusNeuPreis,
     });
   }
 

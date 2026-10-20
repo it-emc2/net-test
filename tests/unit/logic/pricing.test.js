@@ -200,6 +200,31 @@ describe('Pricing Module', () => {
         expect(result.bonusGross).toBeGreaterThanOrEqual(252.1);
       });
 
+      describe('Neukundenbonus snapshot (pricingRules.bonusNeuGross/Threshold)', () => {
+        const run = (pricingRules) =>
+          pricing.computePrices(createBasePayload({ rabatt: { bonus300: true }, pricingRules }));
+
+        test('legacy offer (no snapshot) keeps 252,10 € netto, no threshold check', async () => {
+          const r = await run(undefined);
+          expect(r.bonusNeuNet).toBe(252.1);
+          expect(r.bonusNeuThreshold).toBe(3000);
+          expect(r.bonusFlags.bonus_neu).toBe(true);
+        });
+
+        test('new offer above threshold gets 250 € brutto (210,08 € netto)', async () => {
+          const r = await run({ bonusNeuGross: 250, bonusNeuThreshold: -1 });
+          expect(r.bonusNeuNet).toBe(210.08);
+          expect(r.bonusGross).toBe(210.08);
+        });
+
+        test('new offer not above threshold gets no bonus', async () => {
+          const r = await run({ bonusNeuGross: 250, bonusNeuThreshold: 1e9 });
+          expect(r.bonusNeuNet).toBe(0);
+          expect(r.bonusGross).toBe(0);
+          expect(r.bonusFlags.bonus_neu).toBe(false);
+        });
+      });
+
       test('recognizes bonusGrab flag', async () => {
         const payload = createBasePayload({
           rabatt: { bonusGrab: true }
