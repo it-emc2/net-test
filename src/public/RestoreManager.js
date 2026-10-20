@@ -274,6 +274,7 @@ export function initRestoreManager({
     // Zusammenfassung: how/when this offer was sent (docs/zf-plan.md).
     window.setZfVersand?.(payload?.zusammenfassung?.versand);
     window.setZfCheckliste?.(payload?.zusammenfassung?.checkliste);
+    window.setZfCheckAck?.(payload?.zusammenfassung?.checkAck);
 
     try {
       const mail = payload?.mail || {};

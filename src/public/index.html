@@ -2008,6 +2008,26 @@
       line-height: 1.2;
     }
     #page-Angebotscheck .zf-check-empty { color: var(--muted); }
+    /* Rows the user can confirm as not needed: row + "Nicht nötig" tick. */
+    #page-Angebotscheck .zf-check-row-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    #page-Angebotscheck .zf-check-row-wrap > .zf-check-row {
+      flex: 1;
+    }
+    #page-Angebotscheck .zf-check-ack {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: none;
+      padding: 9px 10px;
+      font-size: 0.86rem;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+    }
 
     /* Zusammenfassung: document workspace */
     #page-Zusammenfassung .export-cards {

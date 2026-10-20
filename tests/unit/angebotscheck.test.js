@@ -474,3 +474,214 @@ test("switch on: no hint, accessories are checked", () => {
   expect(row(r, "duschwanne-aus")).toBeUndefined();
   expect(row(r, "duschwanne-zubehoer").status).toBe("rot"); // none ticked
 });
+
+/* ------------------------------------- Wandverkleidung / Waschtisch / WC / DA */
+
+const wvOffer = (extra = []) => ({
+  ...ok,
+  materialsDisplayUI: {
+    sum: 1,
+    lines: [
+      { productId: "V3WVK02", category: "Wandverkleidung", qty: 1, lineTotal: 175 },
+      { productId: "V3WV02", category: "Wandverkleidung", qty: 2, lineTotal: 552 },
+      ...extra,
+    ],
+  },
+});
+const wvFull = [
+  { productId: "TRWDSET5", category: "Wandverkleidung", qty: 1, lineTotal: 152 },
+  { productId: "R_4260602", category: "Wandverkleidung", qty: 6, lineTotal: 70 },
+  { productId: "2000302", category: "Kleinmaterial", qty: 5, lineTotal: 25 },
+  { productId: "V3A", category: "Wandverkleidung", qty: 5, lineTotal: 147 },
+  { productId: "V3V", category: "Wandverkleidung", qty: 2, lineTotal: 59 },
+];
+
+describe("Wandverkleidung", () => {
+  beforeEach(() => {
+    document.body.innerHTML =
+      '<input type="checkbox" id="wvSilikonSelected" checked /><input id="wvCornersCount" value="0" />';
+  });
+
+  test("complete WV: all three rows green", () => {
+    const p = wvOffer(wvFull);
+    const r = runAngebotscheck(p, readSelection(p));
+    expect(row(r, "wandverkleidung-zubehoer").status).toBe("gruen");
+    expect(row(r, "wandverkleidung-abschlussprofil").status).toBe("gruen");
+    expect(row(r, "wandverkleidung-verbindungsprofil").status).toBe("gruen");
+  });
+
+  test("defaults (profiles ticked, Menge empty): Silikon is reported with the reason", () => {
+    const p = wvOffer(wvFull.filter((l) => !["V3A", "V3V", "2000302"].includes(l.productId)));
+    const r = runAngebotscheck(p, readSelection(p));
+    const z = row(r, "wandverkleidung-zubehoer");
+    expect(z.status).toBe("rot");
+    expect(z.details.join(" ")).toContain("folgt der Menge des Abschlussprofils");
+    expect(row(r, "wandverkleidung-abschlussprofil").status).toBe("gelb");
+    // 3 panels, 0 corners → 2 needed, 0 in the offer
+    expect(row(r, "wandverkleidung-verbindungsprofil").details[0]).toContain("2 Verbindungsprofil(e) nötig");
+  });
+
+  test("outside corners lower the Verbindungsprofil need", () => {
+    document.getElementById("wvCornersCount").value = "2";
+    const p = wvOffer(wvFull.filter((l) => l.productId !== "V3V"));
+    expect(row(runAngebotscheck(p, readSelection(p)), "wandverkleidung-verbindungsprofil").status)
+      .toBe("gruen"); // 3 − 1 − 2 = 0
+  });
+
+  test("the Fußboden Flächenkleber does not count for the Wandverkleidung", () => {
+    const p = wvOffer([
+      ...wvFull.filter((l) => l.productId !== "R_4260602"),
+      { productId: "R_4260602", category: "Fußboden", qty: 4, lineTotal: 40 },
+    ]);
+    expect(row(runAngebotscheck(p, readSelection(p)), "wandverkleidung-zubehoer").details.join(" "))
+      .toContain("Flächenkleber");
+  });
+
+  test("no WV panels → no WV rows", () => {
+    const r = runAngebotscheck(ok, readSelection(ok));
+    expect(row(r, "wandverkleidung-zubehoer")).toBeUndefined();
+  });
+});
+
+// Waschtisch + WC read the priced lines: after reopening an offer the boxes
+// do not reliably reflect it (seat ticked under its pair alias, Sonder basin
+// not restored).
+const withOptional = (ids) => ({
+  ...ok,
+  optionalDisplayUI: {
+    sum: 1,
+    lines: ids.map((productId) => ({ productId, qty: 1, lineTotal: 10, source: "optional" })),
+  },
+});
+
+describe("Waschtisch", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+
+  test("a basin without its accessories is red, naming each", () => {
+    const p = withOptional(["CL60", "WTBF"]);
+    const found = row(runAngebotscheck(p, readSelection(p)), "waschtisch-zubehoer");
+    expect(found.status).toBe("rot");
+    expect(found.details).toEqual([
+      "Nicht im Angebot: Röhrensiphon (RSL).",
+      "Nicht im Angebot: Eckventil (EV).",
+    ]);
+  });
+
+  test("all three in the offer: green", () => {
+    const p = withOptional(["DEP65U", "WTBF", "RSL", "EV"]);
+    expect(row(runAngebotscheck(p, readSelection(p)), "waschtisch-zubehoer").status).toBe("gruen");
+  });
+
+  test("a ticked Sonderprodukt basin counts as a basin", () => {
+    document.body.innerHTML = '<input type="checkbox" name="optBasin[]" id="opt_BASIN_SONDER" checked />';
+    const found = row(runAngebotscheck(ok, readSelection(ok)), "waschtisch-zubehoer");
+    expect(found.status).toBe("rot");
+    expect(found.details).toHaveLength(3);
+  });
+
+  test("no basin: no row", () => {
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "waschtisch-zubehoer")).toBeUndefined();
+  });
+});
+
+describe("WC", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+  afterEach(() => { window.__zfCheckAck = {}; });
+
+  test("wall WC needs all five accessories and a seat", () => {
+    const p = withOptional(["DERWWCOSVP"]);
+    const found = row(runAngebotscheck(p, readSelection(p)), "wc-zubehoer");
+    expect(found.status).toBe("rot");
+    expect(found.details).toHaveLength(6);
+    expect(found.showAck).toBe(true);
+  });
+
+  test("the seat counts when it is priced, whatever box it was ticked under", () => {
+    const p = withOptional(["DEDWWC", "DERSIAS", "CVIS3WCT112", "SCHALL", "V1DON", "0601010003", "WWCAG90"]);
+    expect(row(runAngebotscheck(p, readSelection(p)), "wc-zubehoer").status).toBe("gruen");
+  });
+
+  test("floor WC has its own list", () => {
+    const p = withOptional(["CLPWCF10", "WCBF", "CLPSSI"]);
+    expect(row(runAngebotscheck(p, readSelection(p)), "wc-zubehoer").details)
+      .toEqual(["Nicht im Angebot: Anschlussgarnitur."]);
+  });
+
+  test("'Nicht nötig' turns the row green and can be taken back", () => {
+    const p = withOptional(["DERWWCOSVP"]);
+    window.__zfCheckAck = { "wc-zubehoer": true };
+    const acked = row(runAngebotscheck(p, readSelection(p)), "wc-zubehoer");
+    expect(acked.status).toBe("gruen");
+    expect(acked.details).toEqual(["Als nicht nötig markiert."]);
+    expect(acked.showAck).toBe(true);
+    window.__zfCheckAck = {};
+    expect(row(runAngebotscheck(p, readSelection(p)), "wc-zubehoer").status).toBe("rot");
+  });
+
+  test("no WC: no row", () => {
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "wc-zubehoer")).toBeUndefined();
+  });
+});
+
+describe("Duschabtrennung Verbreiterungsprofil", () => {
+  afterEach(() => { delete window.__daConfigurator; window.__zfCheckAck = {}; });
+  const da = (lines, supplier = "VIGOUR") => {
+    window.__daConfigurator = { getLines: () => lines, getState: () => [{ __supplier: supplier }] };
+  };
+
+  test("Vigour enclosure without a profile: yellow, with the tick", () => {
+    document.body.innerHTML = "";
+    da([{ articleNumber: "V2PT83LC", net: 500 }]);
+    const found = row(runAngebotscheck(ok, readSelection(ok)), "duschabtrennung-verbreiterung");
+    expect(found.status).toBe("gelb");
+    expect(found.showAck).toBe(true);
+  });
+
+  test("a picked VZVP profile makes it green", () => {
+    da([{ articleNumber: "V2PT83LC" }, { articleNumber: "VZVP1195" }]);
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "duschabtrennung-verbreiterung").status)
+      .toBe("gruen");
+  });
+
+  test("'Nicht nötig' makes it green", () => {
+    da([{ articleNumber: "V2PT83LC" }]);
+    window.__zfCheckAck = { "duschabtrennung-verbreiterung": true };
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "duschabtrennung-verbreiterung").status)
+      .toBe("gruen");
+  });
+
+  test("Badolux models have no Verbreiterungsprofil — no row", () => {
+    da([{ articleNumber: "BX1" }], "BADOLUX");
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "duschabtrennung-verbreiterung"))
+      .toBeUndefined();
+  });
+});
+
+test("the tick renders next to the row, not inside its button", () => {
+  document.body.innerHTML = "";
+  const p = withOptional(["DERWWCOSVP"]);
+  const root = document.createElement("div");
+  renderAngebotscheck(root, runAngebotscheck(p, readSelection(p)));
+  const box = root.querySelector('input[data-ack="wc-zubehoer"]');
+  expect(box).not.toBeNull();
+  expect(box.closest("button")).toBeNull();
+  expect(box.closest(".zf-check-row-wrap").querySelector("button.zf-check-row")).not.toBeNull();
+});
+
+test("static selectors of the new rows exist in index.html", async () => {
+  const fs = await import("node:fs");
+  const { JSDOM } = await import("jsdom");
+  const doc = new JSDOM(fs.readFileSync("src/public/index.html", "utf8")).window.document;
+  for (const id of ["wvSilikonSelected", "wvCornersCount", "opt_BASIN_SONDER"]) {
+    expect(doc.getElementById(id)).not.toBeNull();
+  }
+  expect(doc.querySelector('input[name="optBasin[]"]')).not.toBeNull();
+});
+
+test("work-task couplings accept the priced basin / WC, not only the boxes", () => {
+  const p = withOptional(["DEP65U", "WTBF", "RSL", "EV", "DEDWWC", "DERSIAS"]);
+  withTasks(["install_sink", "install_toilet"]); // no boxes ticked at all
+  const r = runAngebotscheck(p, readSelection(p));
+  expect(row(r, "arbeit-install_sink").status).toBe("gruen");
+  expect(row(r, "arbeit-install_toilet").status).toBe("gruen");
+});

@@ -26,6 +26,50 @@ const total = (l) => Number(l?.lineTotal) || 0;
 const name = (l) => String(l?.label || l?.name || l?.productId || "Position");
 const hasCategory = (ls, cat) =>
   ls.some((l) => String(l?.category || "").toLowerCase() === cat.toLowerCase());
+const idOf = (l) => String(l?.productId || l?.id || "");
+const inCategory = (l, cat) =>
+  !cat || String(l?.category || "").toLowerCase() === cat.toLowerCase();
+
+/** Summed quantity of one article in the priced material (optionally per category). */
+const lineQty = (materials, pid, cat) =>
+  lines(materials)
+    .filter((l) => idOf(l) === pid && inCategory(l, cat))
+    .reduce((n, l) => n + (Number(l?.qty) || 0), 0);
+
+/** A Wandverkleidung line — the Fußboden uses the same Flächenkleber article. */
+const wvLine = (materials, pid) => lineQty(materials, pid, "Wandverkleidung") > 0;
+
+/** Wandverkleidung panels in the offer (V3WV… / V3WVK…, colour variants included). */
+const wvPanels = (materials) =>
+  lines(materials)
+    .filter((l) => /^V3WV/i.test(idOf(l)) && inCategory(l, "Wandverkleidung"))
+    .reduce((n, l) => n + (Number(l?.qty) || 0), 0);
+
+/**
+ * Article numbers actually in the offer (material + optional lines).
+ * Waschtisch and WC read these instead of the checkboxes: after reopening an
+ * offer the boxes do not reliably reflect it (a seat is ticked under its pair
+ * alias, a Sonderprodukt basin is not restored at all), the priced lines do.
+ */
+const pricedIds = ({ materials, optionals }) =>
+  new Set([...lines(materials), ...lines(optionals)].map(idOf));
+
+const WC_WALL = ["DERWWCOSVP", "DEDWWC", "CLPWWCOS5"];
+const WC_FLOOR = ["CLPWCF10"];
+/** "wall" | "floor" | null — which kind of WC is in the offer. */
+const wcKind = (ctx) => {
+  const ids = pricedIds(ctx);
+  if (WC_WALL.some((p) => ids.has(p))) return "wall";
+  if (WC_FLOOR.some((p) => ids.has(p))) return "floor";
+  return null;
+};
+
+const BASINS = ["CL60", "CL65", "CL55", "ON35", "COAIR40", "DEP65U"];
+const BASIN_ACC = [
+  ["WTBF", "Befestigungssatz (WTBF)"],
+  ["RSL", "Röhrensiphon (RSL)"],
+  ["EV", "Eckventil (EV)"],
+];
 
 /**
  * Standing checks — they apply to every offer.
@@ -148,6 +192,140 @@ export const RULES = [
         .map(([, label]) => `Nicht gewählt: ${label}.`),
   },
   {
+    // Wandverkleidung — the three consumables every installation needs. Read
+    // from the priced lines, not the boxes: Silikon is ticked by default but
+    // its quantity follows the Abschlussprofil, so it can sit ticked at 0.
+    id: "wandverkleidung-zubehoer",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Zubehör zur Wandverkleidung vollständig",
+    severity: "rot",
+    applies: ({ materials }) => wvPanels(materials) > 0,
+    test: ({ materials, sel }) => {
+      const missing = [];
+      if (!wvLine(materials, "TRWDSET5")) missing.push("Nicht im Angebot: Wandabdichtung BASIS-Set.");
+      if (!wvLine(materials, "R_4260602")) missing.push("Nicht im Angebot: Flächenkleber.");
+      if (!lineQty(materials, "2000302")) {
+        missing.push(
+          sel?.ticked("wvSilikonSelected")
+            ? "Silikon: Menge 0 — folgt der Menge des Abschlussprofils."
+            : "Nicht im Angebot: Silikon.",
+        );
+      }
+      return missing;
+    },
+  },
+  {
+    // Not sure-fire enough to be red: a panel run can end flush in a corner.
+    id: "wandverkleidung-abschlussprofil",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Abschlussprofil im Angebot",
+    severity: "gelb",
+    applies: ({ materials }) => wvPanels(materials) > 0,
+    test: ({ materials }) =>
+      !wvLine(materials, "V3A") &&
+      "Kein Abschlussprofil im Angebot — bitte Menge eintragen.",
+  },
+  {
+    // Same count pricing uses when the field is left empty:
+    // panels − 1 − outside corners.
+    id: "wandverkleidung-verbindungsprofil",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Verbindungsprofile ausreichend",
+    severity: "gelb",
+    needsSelection: true,
+    applies: ({ materials }) => wvPanels(materials) > 0,
+    test: ({ materials, sel }) => {
+      const corners = Number(sel.value("wvCornersCount")) || 0;
+      const needed = Math.max(0, wvPanels(materials) - 1 - corners);
+      const have = lineQty(materials, "V3V", "Wandverkleidung");
+      return (
+        have < needed &&
+        `${needed} Verbindungsprofil(e) nötig (Platten − 1 − Außenecken), ${have} im Angebot.`
+      );
+    },
+  },
+  {
+    // Every basin needs its fixing set, siphon and angle valve. They are
+    // ticked automatically with the basin but can be unticked again.
+    id: "waschtisch-zubehoer",
+    group: "optional",
+    target: "Optional",
+    title: "Zubehör zum Waschtisch vollständig",
+    severity: "rot",
+    // A catalog basin in the offer, a ticked basin tile (also covers the
+    // Sonderprodukt, whose line id is whatever was typed), or its accessories.
+    applies: (ctx) => {
+      const ids = pricedIds(ctx);
+      return (
+        BASINS.some((p) => ids.has(p)) ||
+        !!ctx.sel?.opt("optBasin[]") ||
+        BASIN_ACC.some(([p]) => ids.has(p))
+      );
+    },
+    test: (ctx) => {
+      const ids = pricedIds(ctx);
+      return BASIN_ACC.filter(([p]) => !ids.has(p)).map(
+        ([, label]) => `Nicht im Angebot: ${label}.`,
+      );
+    },
+  },
+  {
+    // A new wall-hung WC needs its frame and fittings. Mounting a new bowl on
+    // an existing frame does not — that is what "Nicht nötig" is for (in past
+    // offers roughly every fourth wall WC came without them).
+    id: "wc-zubehoer",
+    group: "optional",
+    target: "Optional",
+    title: "Zubehör zum WC vollständig",
+    severity: "rot",
+    ackable: true,
+    applies: (ctx) => wcKind(ctx) !== null,
+    test: (ctx) => {
+      const ids = pricedIds(ctx);
+      const kind = wcKind(ctx);
+      const required =
+        kind === "wall"
+          ? [
+              ["CVIS3WCT112", "WC-Element"],
+              ["SCHALL", "Montageset"],
+              ["V1DON", "Betätigungsplatte"],
+              ["0601010003", "Gipskarton-Bauplatte"],
+              ["WWCAG90", "Anschlussgarnitur"],
+            ]
+          : [
+              ["WCBF", "Befestigungssatz (WCBF)"],
+              ["CLPSSI", "WC-Sitz für Stand-WC"],
+              ["WWCAG90", "Anschlussgarnitur"],
+            ];
+      const missing = required
+        .filter(([pid]) => !ids.has(pid))
+        .map(([, label]) => `Nicht im Angebot: ${label}.`);
+      if (kind === "wall" && !ids.has("DERSIAS") && !ids.has("CLSIAS")) {
+        missing.push("Nicht im Angebot: WC-Sitz.");
+      }
+      return missing;
+    },
+  },
+  {
+    // Whether a Verbreiterungsprofil is needed depends on the measured niche,
+    // which the configurator does not know — so only a reminder, and the user
+    // can confirm it is not needed.
+    id: "duschabtrennung-verbreiterung",
+    group: "material",
+    target: "DuschabtrennungNeu",
+    title: "Verbreiterungsprofil geprüft",
+    severity: "gelb",
+    ackable: true,
+    needsSelection: true,
+    applies: ({ sel }) => sel.daVigour(),
+    test: ({ sel }) =>
+      !sel.daLines().some((l) => /^VZVP/i.test(String(l?.articleNumber || ""))) &&
+      "Kein Verbreiterungsprofil gewählt — nötig, wenn die Nische breiter ist als die Abtrennung.",
+  },
+  {
     id: "duschwanne-ohne-abtrennung",
     group: "material",
     title: "Duschwanne mit Abtrennung",
@@ -232,7 +410,9 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
-    has: (sel) => sel.opt("optBasin[]"),
+    // The box, or the priced basin: a reopened offer does not always restore
+    // the box (Sonderprodukt basin), the priced line is the truth.
+    has: (sel) => sel.opt("optBasin[]") || BASINS.some((p) => sel.priced(p)),
   },
   {
     task: "install_shower_basket",
@@ -273,7 +453,7 @@ export const WORK_RULES = [
     target: "Optional",
     severity: "rot",
     catalog: "menu_WC",
-    has: (sel) => sel.panel("menu_WC"),
+    has: (sel) => sel.panel("menu_WC") || [...WC_WALL, ...WC_FLOOR].some((p) => sel.priced(p)),
     sharesWith: ["install_shower_wc"],
   },
   {
@@ -284,7 +464,7 @@ export const WORK_RULES = [
     target: "Optional",
     severity: "rot",
     catalog: "menu_WC",
-    has: (sel) => sel.panel("menu_WC"),
+    has: (sel) => sel.panel("menu_WC") || [...WC_WALL, ...WC_FLOOR].some((p) => sel.priced(p)),
     sharesWith: ["install_toilet"],
   },
   {
@@ -379,6 +559,9 @@ export function readSelection(pricing, doc = document) {
   const matLines = lines(
     pricing?.materialsDisplayUI || pricing?.materials || {},
   );
+  const pricedSet = new Set(
+    [...matLines, ...lines(pricing?.optionalDisplayUI || {})].map(idOf),
+  );
   return {
     tasks,
     opt: (name) => checked(`input[name="${name}"]:checked`),
@@ -386,6 +569,31 @@ export function readSelection(pricing, doc = document) {
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
     value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
     ticked: (id) => !!doc.getElementById(id)?.checked,
+    // An article actually in the offer — see pricedIds() for why.
+    priced: (id) => pricedSet.has(id),
+    // Duschabtrennung (neu) configurator.
+    daLines: () => {
+      try {
+        return window.__daConfigurator?.getLines?.() || [];
+      } catch {
+        return [];
+      }
+    },
+    // A configured Vigour enclosure — Badolux models have no Verbreiterungsprofil.
+    daVigour: () => {
+      try {
+        const states = window.__daConfigurator?.getState?.() || [];
+        const lines = window.__daConfigurator?.getLines?.() || [];
+        return (
+          lines.length > 0 &&
+          states.some((st) => String(st?.__supplier || "").toUpperCase() !== "BADOLUX")
+        );
+      } catch {
+        return false;
+      }
+    },
+    // "Nicht nötig" ticks on ackable rows (payload.zusammenfassung.checkAck).
+    acked: (id) => !!window.__zfCheckAck?.[id],
     // Duschwanne an/aus on the Duschwanne page; null where the page is absent.
     trayEnabled: () => {
       const el = doc.getElementById("dwTrayToggle");
@@ -486,13 +694,19 @@ function standingRows(ctx) {
     }
     const details = (Array.isArray(hits) ? hits : [hits]).filter(Boolean);
     const group = GROUPS.find((g) => g.key === rule.group);
+    // The user confirmed this one is not needed for this offer.
+    const acked = !!(rule.ackable && details.length && ctx.sel?.acked(rule.id));
     return {
       id: rule.id,
       group: rule.group,
       target: rule.target || group?.target,
       title: rule.title,
-      status: details.length ? rule.severity : "gruen",
-      details,
+      status: details.length && !acked ? rule.severity : "gruen",
+      details: acked ? ["Als nicht nötig markiert."] : details,
+      ackable: !!rule.ackable,
+      acked,
+      // Offer the tick while the row is open, or to take it back.
+      showAck: !!rule.ackable && (details.length > 0 || acked),
     };
   }).filter(Boolean);
 }
@@ -565,7 +779,18 @@ function renderRow(row) {
   }
   node.appendChild(text);
   if (row.target) node.appendChild(el("span", "zf-check-row__go", "›"));
-  return node;
+  if (!row.showAck) return node;
+
+  // A checkbox cannot live inside the row's <button>, so wrap both.
+  const wrap = el("div", "zf-check-row-wrap");
+  const ack = el("label", "zf-check-ack");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.dataset.ack = row.id;
+  box.checked = !!row.acked;
+  ack.append(box, el("span", null, "Nicht nötig"));
+  wrap.append(node, ack);
+  return wrap;
 }
 
 export function renderAngebotscheck(root, result) {
@@ -623,19 +848,39 @@ function paint() {
   );
 }
 
+/** Restore / set the "Nicht nötig" ticks (payload.zusammenfassung.checkAck). */
+export function setCheckAck(ack) {
+  window.__zfCheckAck =
+    ack && typeof ack === "object" ? Object.fromEntries(
+      Object.entries(ack).filter(([, v]) => v === true),
+    ) : {};
+  if (typeof document !== "undefined") paint();
+}
+
 if (typeof document !== "undefined") {
+  window.__zfCheckAck = window.__zfCheckAck || {};
+  window.setZfCheckAck = setCheckAck;
   window.addEventListener("pricing:updated", paint);
   window.addEventListener("hashchange", paint);
   document.addEventListener("DOMContentLoaded", () => {
     paint();
     // Row → the page that fixes it. Hash navigation only switches the step,
     // so nothing the user entered is lost.
-    document
-      .getElementById("page-Angebotscheck")
-      ?.addEventListener("click", (e) => {
-        const target = e.target.closest("[data-target]")?.dataset.target;
-        if (target) location.hash = `#${target}`;
-      });
+    const page = document.getElementById("page-Angebotscheck");
+    page?.addEventListener("click", (e) => {
+      if (e.target.closest(".zf-check-ack")) return; // the tick, not the row
+      const target = e.target.closest("[data-target]")?.dataset.target;
+      if (target) location.hash = `#${target}`;
+    });
+    page?.addEventListener("change", (e) => {
+      const id = e.target?.dataset?.ack;
+      if (!id) return;
+      const next = { ...(window.__zfCheckAck || {}) };
+      if (e.target.checked) next[id] = true;
+      else delete next[id];
+      window.__zfCheckAck = next;
+      paint();
+    });
   });
   window.repaintAngebotscheck = paint;
 }

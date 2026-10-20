@@ -198,6 +198,30 @@ nicht daran gekoppelt.
 - Angebotscheck: Einbau der Duschwanne + aus → 🔴; aus ohne diese Aufgabe →
   🟡 „Keine Duschwanne im Angebot" (bzw. „Alte Duschwanne wird entfernt …").
 
+## Zubehör-Regeln
+
+| Regel | 🚦 | Quelle |
+|---|---|---|
+| Zubehör zur Duschwanne (TRWDB, AGD9060, KM02, PLA5282) | 🔴 | Haken |
+| Zubehör zur Wandverkleidung (Wandabdichtung, Flächenkleber, Silikon) | 🔴 | bepreiste Zeilen |
+| Abschlussprofil im Angebot | 🟡 | bepreiste Zeilen |
+| Verbindungsprofile ausreichend (Platten − 1 − Außenecken) | 🟡 | bepreiste Zeilen |
+| Zubehör zum Waschtisch (WTBF, RSL, EV) | 🔴 | bepreiste Zeilen |
+| Zubehör zum WC (Wand: Element, Montageset, Betätigungsplatte, Gipskarton, Anschlussgarnitur, Sitz · Stand: WCBF, CLPSSI, Anschlussgarnitur) | 🔴 + „Nicht nötig" | bepreiste Zeilen |
+| Verbreiterungsprofil geprüft (nur Vigour) | 🟡 + „Nicht nötig" | Konfigurator |
+
+Fußboden-Zubehör wird automatisch berechnet — keine Regel.
+
+**Bepreiste Zeilen statt Haken:** Nach dem Öffnen eines Angebots spiegeln die
+Haken nicht zuverlässig, was im Angebot steht (Sitz unter Pair-Alias
+angehakt, Sonderprodukt-Waschtisch wird gar nicht wiederhergestellt). Die
+bepreisten Zeilen sind die Wahrheit.
+
+**„Nicht nötig"**: ein Haken neben der Zeile setzt sie auf 🟢, gespeichert in
+`payload.zusammenfassung.checkAck` (nicht im Preis-Fingerprint). Für den WC,
+weil in 63 historischen Angeboten ~ein Viertel der Wand-WCs ohne Element kam
+(neue Keramik auf bestehendem Element).
+
 ## Darstellung
 
 Gesamtstatus oben, darunter je Abschnitt eine nach Schwere sortierte Liste

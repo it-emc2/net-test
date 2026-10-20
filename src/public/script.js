@@ -5153,6 +5153,9 @@ if (anschlag) {
       skizzeErstellt: false,
       fotosErstellt: false,
     },
+    // Angebotscheck rows the user marked "Nicht nötig" (WC-Zubehör,
+    // Verbreiterungsprofil). Workflow state — not part of the price fingerprint.
+    checkAck: window.__zfCheckAck || {},
   };
 
   payload.mail = {
