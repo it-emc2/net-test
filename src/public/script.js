@@ -15678,6 +15678,16 @@ function restoreDuschwanne(dw) {
 function restoreOptionalPage(opt) {
   if (!opt) return;
 
+  // Opening an offer does not reset the form first, so a quantity the new
+  // offer does not mention would keep the previous offer's value — and
+  // restoreOptional() ticks every box whose qty > 0. Zero them all first,
+  // exactly as restoreOptional() already unticks every box.
+  document
+    .querySelectorAll('#form-optional input[type="number"][id^="qty_"]')
+    .forEach((el) => {
+      el.value = "0";
+    });
+
   // qty_* fields
   for (const [k, v] of Object.entries(opt)) {
     if (k.startsWith("qty_")) {
@@ -15700,22 +15710,27 @@ function restoreOptionalPage(opt) {
   // initOptionalSonderprodukte so each row is created via createRow() and
   // gets the proper input listeners. Falls back to a minimal inline rebuild
   // if init hasn't run yet (e.g., DOM order edge case).
+  // Waschbecken Sonderprodukt: its row lives in quickAdd but belongs in the
+  // basin checkbox's own name/price fields. Always written — an offer without
+  // one (or without any quickAdd) must clear the previous offer's values, or a
+  // later save would carry them over.
+  const basinSonder = Array.isArray(opt.quickAdd)
+    ? opt.quickAdd.find((x) => x?.source === "BASIN_SONDER")
+    : null;
+  {
+    const nameEl = document.getElementById("basinSonderName");
+    const artikelEl = document.getElementById("basinSonderArtikel");
+    const priceEl = document.getElementById("basinSonderPrice");
+    if (nameEl) nameEl.value = basinSonder?.label ?? "";
+    if (artikelEl) artikelEl.value = basinSonder?.productId ?? "";
+    if (priceEl)
+      priceEl.value =
+        basinSonder?.price != null ? String(basinSonder.price).replace(".", ",") : "";
+  }
+
   if (Array.isArray(opt.quickAdd)) {
-    // Pull the Waschbecken Sonderprodukt row(s) out before handing the rest
-    // to the global Sonderprodukte panel restore, and put them back into
-    // the basin checkbox's own name/price fields instead.
-    const basinSonder = opt.quickAdd.find((x) => x?.source === "BASIN_SONDER");
+    // Hand everything but the basin Sonderprodukt to the global panel restore.
     const restQuickAdd = opt.quickAdd.filter((x) => x?.source !== "BASIN_SONDER");
-    if (basinSonder) {
-      const nameEl = document.getElementById("basinSonderName");
-      const artikelEl = document.getElementById("basinSonderArtikel");
-      const priceEl = document.getElementById("basinSonderPrice");
-      if (nameEl) nameEl.value = basinSonder.label ?? "";
-      if (artikelEl) artikelEl.value = basinSonder.productId ?? "";
-      if (priceEl)
-        priceEl.value =
-          basinSonder.price != null ? String(basinSonder.price).replace(".", ",") : "";
-    }
 
     if (typeof window.restoreOptionalSonderprodukteFromPayload === "function") {
       window.restoreOptionalSonderprodukteFromPayload(restQuickAdd);
@@ -15775,7 +15790,11 @@ function restoreOptionalPage(opt) {
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
+      // opt_BASIN_SONDER belongs here too: offers save no cat_BASIN, so the
+      // category is derived from these kids — without it a Sonderprodukt-only
+      // basin left cat_BASIN off and its change handler (resetPanel) wiped the
+      // restored basin and its WTBF/RSL/EV. Keep all three basin lists in sync.
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
@@ -20085,7 +20104,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
@@ -20131,7 +20150,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
     // any basin keeps the required block open, not just CL60
-    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"]
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"]
       .map((id) => document.getElementById(id))
       .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");

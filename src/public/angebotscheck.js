@@ -48,8 +48,8 @@ const wvPanels = (materials) =>
 /**
  * Article numbers actually in the offer (material + optional lines).
  * Waschtisch and WC read these instead of the checkboxes: after reopening an
- * offer the boxes do not reliably reflect it (a seat is ticked under its pair
- * alias, a Sonderprodukt basin is not restored at all), the priced lines do.
+ * offer the boxes do not always reflect it (a WC seat is ticked under its pair
+ * alias, not its own box); the priced lines are what the offer contains.
  */
 const pricedIds = ({ materials, optionals }) =>
   new Set([...lines(materials), ...lines(optionals)].map(idOf));
@@ -410,8 +410,7 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
-    // The box, or the priced basin: a reopened offer does not always restore
-    // the box (Sonderprodukt basin), the priced line is the truth.
+    // The box, or the priced basin — the priced line is what the offer contains.
     has: (sel) => sel.opt("optBasin[]") || BASINS.some((p) => sel.priced(p)),
   },
   {

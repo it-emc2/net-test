@@ -213,9 +213,8 @@ nicht daran gekoppelt.
 Fußboden-Zubehör wird automatisch berechnet — keine Regel.
 
 **Bepreiste Zeilen statt Haken:** Nach dem Öffnen eines Angebots spiegeln die
-Haken nicht zuverlässig, was im Angebot steht (Sitz unter Pair-Alias
-angehakt, Sonderprodukt-Waschtisch wird gar nicht wiederhergestellt). Die
-bepreisten Zeilen sind die Wahrheit.
+Haken nicht immer, was im Angebot steht (WC-Sitz unter Pair-Alias angehakt).
+Die bepreisten Zeilen sind die Wahrheit.
 
 **„Nicht nötig"**: ein Haken neben der Zeile setzt sie auf 🟢, gespeichert in
 `payload.zusammenfassung.checkAck` (nicht im Preis-Fingerprint). Für den WC,
