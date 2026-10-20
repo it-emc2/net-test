@@ -513,8 +513,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }
 
   let regieRateNum;
-  if (isKK) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
-  else if (isSZ) regieRateNum = cfg.get('LABOR_RATE_SZ', 59.5);
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto); LABOR_RATE_SZ
+  // gilt nur für die Kalkulation, nicht für den Regie-Hinweis.
+  if (isKK || isSZ) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
   else regieRateNum = Number(services?.laborRate) || 0;
 
   const RegieRateFmt = regieRateNum

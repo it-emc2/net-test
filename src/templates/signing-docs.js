@@ -445,7 +445,7 @@ function materialBlock(d) {
 //   1. Festpreis (immer)
 //   2. Ihr Eigenanteil (Kassenkunde mit gewährtem Zuschuss)
 //   3. Ebenerdige Montage + Regie (nur wenn eine Duschwanne montiert wird;
-//      Stundensatz aus RegieRateFmt, 59,50€ SZ / 69,50€ KK)
+//      Stundensatz aus RegieRateFmt, 69,50€ für KK und SZ)
 //   4. Pflegekassen-Bewilligung (alle Kassenkunden)
 //   5. Vermieter-Zustimmung (VermieterZustimmungHinweis aus docx-template.js)
 // Doku: docs/vermieter-genehmigung.md
