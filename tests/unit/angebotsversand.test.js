@@ -40,3 +40,17 @@ test("restore keeps a valid state and drops a broken one", () => {
 test("both send paths of showSentDialog are covered", () => {
   expect(Object.keys(VERSAND_LABEL).sort()).toEqual(["mail", "post"]);
 });
+
+test("the page heading follows the sidebar label: Angebotsversand for bu only", async () => {
+  document.body.innerHTML =
+    '<section id="zfVersand"><div class="bitrix-card"><div id="zfVersandStatus"></div></div></section>' +
+    '<h2 id="zfPageTitle">Zusammenfassung</h2>';
+  window.getCurrentOfferType = () => "bu";
+  window.dispatchEvent(new Event("hashchange"));
+  expect(document.getElementById("zfPageTitle").textContent).toBe("Angebotsversand");
+
+  window.getCurrentOfferType = () => "bwt";
+  window.dispatchEvent(new Event("hashchange"));
+  expect(document.getElementById("zfPageTitle").textContent).toBe("Zusammenfassung");
+  delete window.getCurrentOfferType;
+});

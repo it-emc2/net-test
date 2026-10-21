@@ -68,6 +68,10 @@ function paint() {
     String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
   const card = document.getElementById("zfVersandStatus")?.closest(".bitrix-card");
   if (card) card.hidden = !isBu;
+  // For bu this page is the "Angebotsversand" step of the Zusammenfassung
+  // group — the heading follows the sidebar label. Other offers keep theirs.
+  const title = document.getElementById("zfPageTitle");
+  if (title) title.textContent = isBu ? "Angebotsversand" : "Zusammenfassung";
   publish();
 }
 
