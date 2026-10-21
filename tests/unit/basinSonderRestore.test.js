@@ -32,3 +32,4 @@ test("Optional restore clears leftover quantities and the Sonderprodukt fields",
   expect(sonderAt).toBeGreaterThan(-1);
   expect(sonderAt).toBeLessThan(quickAddBranch);
 });
+

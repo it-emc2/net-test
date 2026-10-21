@@ -1613,7 +1613,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
-      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+      if (window.confirmBeforeSend && !(await window.confirmBeforeSend(payload, payload.activeOffer))) {
         return false;
       }
 

@@ -6542,6 +6542,15 @@ window.confirmWvPanels = function (payload, offerType) {
     setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
   });
 };
+// Everything that must be cleared before an offer leaves the house (mail,
+// post, signing link, signing on site): the Wandverkleidung check above, then
+// one confirmation per main item that is not selected (angebotscheck.js).
+// Resolves true = send, false = back.
+window.confirmBeforeSend = async function (payload, offerType) {
+  if (!(await window.confirmWvPanels(payload, offerType))) return false;
+  if (typeof window.confirmHauptpunkte !== "function") return true;
+  return window.confirmHauptpunkte(payload, offerType);
+};
 function validateOptional() {
   return true;
 }
@@ -23513,7 +23522,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
-    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
+    if (!(await window.confirmBeforeSend(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -23626,7 +23635,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
-    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
+    if (!(await window.confirmBeforeSend(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -30110,6 +30119,11 @@ document.addEventListener("DOMContentLoaded", () => {
         fillPostalDefaults();
         validate();
         if (!(await requireDealId())) return;
+        // Same pre-send checks as the mail send (main items, Wandverkleidung).
+        if (!(await window.confirmBeforeSend(buildPayload(), getActiveOfferForPostal()))) {
+          setStatus("Versand abgebrochen.", "info");
+          return;
+        }
 
         const offerNumber = getResolvedOfferNumberForPostal();
 

@@ -739,6 +739,183 @@ export function runAngebotscheck(pricing, selection = null) {
   };
 }
 
+/* ------------------------------------------------ Hauptpunkte vor Versand */
+
+/**
+ * Main items of a BU offer. Before an offer goes out, every one that is not
+ * selected has to be confirmed by hand ("Es wurde keine … ausgewählt. Ist das
+ * korrekt?") — so nothing is forgotten by accident. This list is the
+ * checkpoint list for approval; adding or removing an item is one entry.
+ *
+ * selected(payload, env): env carries what the payload alone cannot tell —
+ * the two configurators and the priced optional lines (see sendEnv()).
+ */
+export const HAUPTPUNKTE = [
+  {
+    key: "duschwanne",
+    page: "Duschwanne",
+    question: "Es wurde keine Duschwanne ausgewählt.",
+    selected: (p) => p?.duschwanne?.trayEnabled === true,
+  },
+  {
+    key: "fussboden",
+    page: "Fussboden",
+    question: "Es wurde kein Fußboden ausgewählt.",
+    selected: (p) => !!(p?.duschwanne?.addFlooring || p?.duschwanne?.addWallCladding),
+  },
+  {
+    key: "wandverkleidung",
+    page: "Wandverkleidung",
+    question: "Es wurde keine Wandverkleidung ausgewählt.",
+    selected: (p) => p?.wandverkleidung?.wvEnabled === true,
+  },
+  {
+    key: "duschabtrennung",
+    page: "DuschabtrennungNeu",
+    question: "Es wurde keine Duschabtrennung ausgewählt.",
+    selected: (p, env) => env.daLines > 0 || env.daOldPicks > 0,
+  },
+  {
+    key: "duschvorhang",
+    page: "Duschvorhang",
+    question: "Es wurde kein Duschvorhang ausgewählt.",
+    selected: (p, env) => env.curtainLines > 0,
+  },
+  {
+    key: "optional",
+    page: "Optional",
+    question: "Es wurden keine optionalen Produkte ausgewählt (z. B. Haltegriffe, Waschtisch, WC, Badewanne).",
+    selected: (p, env) =>
+      env.optionalLines > 0 ||
+      !!(p?.duschwanne?.chosenBathtubProductId || p?.duschwanne?.chosenScreenProductId),
+  },
+];
+
+/** What the payload alone does not show, read at the moment of sending. */
+export function sendEnv(payload, win = window) {
+  const safe = (fn) => {
+    try {
+      return fn() || [];
+    } catch {
+      return [];
+    }
+  };
+  const daLines = safe(() => win.__daConfigurator?.getLines?.());
+  const curtain = safe(() => win.__vorhangConfigurator?.getLines?.());
+  const curtainIds = new Set(curtain.map((l) => String(l?.articleNumber || "")));
+  const daIds = new Set(daLines.map((l) => String(l?.articleNumber || "")));
+  // Old Duschabtrennung page picks also land in duschabtrennung.quickAdd —
+  // next to the configurator and curtain lines, which are excluded here.
+  const quickAdd = Array.isArray(payload?.duschabtrennung?.quickAdd)
+    ? payload.duschabtrennung.quickAdd
+    : [];
+  const daOldPicks = quickAdd.filter((q) => {
+    const id = String(q?.productId || "");
+    return !curtainIds.has(id) && !daIds.has(id);
+  }).length;
+  return {
+    daLines: daLines.length,
+    daOldPicks,
+    curtainLines: curtain.length,
+    optionalLines: lines(win.__pricing?.optionalDisplayUI || {}).length,
+  };
+}
+
+/** The main items not selected in this offer (BU only). */
+export function missingHauptpunkte(payload, env, offerType = "bu") {
+  if (String(offerType || "").toLowerCase() !== "bu") return [];
+  return HAUPTPUNKTE.filter((h) => {
+    try {
+      return !h.selected(payload, env);
+    } catch {
+      return false; // a broken check must never block sending
+    }
+  });
+}
+
+/**
+ * Popup before sending: one confirmation per main item that is not selected.
+ * "Senden" stays disabled until every one is confirmed. Resolves true to send,
+ * false to go back (and jumps to the page of the item clicked, if any).
+ */
+export function confirmHauptpunkte(payload, offerType) {
+  const missing = missingHauptpunkte(payload, sendEnv(payload), offerType);
+  if (!missing.length) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    document.getElementById("hpConfirmOverlay")?.remove();
+    const overlay = el("div", "ang-stage-overlay");
+    overlay.id = "hpConfirmOverlay";
+    const modal = el("div", "ang-stage-modal hp-confirm");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "hpConfirmTitle");
+
+    const title = el("h3", "ang-stage-title", "Bitte vor dem Versand bestätigen");
+    title.id = "hpConfirmTitle";
+    const intro = el(
+      "p",
+      "ang-stage-text",
+      "Diese Punkte sind im Angebot nicht enthalten. Bitte jeden einzeln bestätigen.",
+    );
+
+    const list = el("div", "hp-confirm-list");
+    for (const item of missing) {
+      const rowEl = el("div", "hp-confirm-row");
+      const label = el("label", "hp-confirm-check");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.dataset.hp = item.key;
+      label.append(box, el("span", null, `${item.question} Ist das korrekt?`));
+      const go = el("button", "hp-confirm-go", "Zur Seite");
+      go.type = "button";
+      go.dataset.page = item.page;
+      rowEl.append(label, go);
+      list.appendChild(rowEl);
+    }
+
+    const actions = el("div", "ang-stage-actions");
+    const back = el("button", "ang-stage-btn", "Zurück");
+    back.type = "button";
+    const send = el("button", "ang-stage-btn ang-stage-btn--primary", "Bestätigt – senden");
+    send.type = "button";
+    send.disabled = true;
+    actions.append(back, send);
+
+    modal.append(title, intro, list, actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const close = (value, page) => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+      if (page) location.hash = `#${page}`;
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+    };
+    document.addEventListener("keydown", onKey);
+
+    list.addEventListener("change", () => {
+      const boxes = [...list.querySelectorAll("input[data-hp]")];
+      send.disabled = !boxes.every((b) => b.checked);
+    });
+    list.addEventListener("click", (e) => {
+      const page = e.target.closest("[data-page]")?.dataset.page;
+      if (page) close(false, page);
+    });
+    back.addEventListener("click", () => close(false));
+    send.addEventListener("click", () => {
+      if (!send.disabled) close(true);
+    });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    setTimeout(() => list.querySelector("input")?.focus(), 50);
+  });
+}
+
 /* ---------------------------------------------------------------- rendering */
 
 const AMPEL = { gruen: "🟢", gelb: "🟡", rot: "🔴" };
@@ -859,6 +1036,7 @@ export function setCheckAck(ack) {
 if (typeof document !== "undefined") {
   window.__zfCheckAck = window.__zfCheckAck || {};
   window.setZfCheckAck = setCheckAck;
+  window.confirmHauptpunkte = confirmHauptpunkte;
   window.addEventListener("pricing:updated", paint);
   window.addEventListener("hashchange", paint);
   document.addEventListener("DOMContentLoaded", () => {
