@@ -40,12 +40,13 @@ async function ensureLocalImage(articleNumber, url) {
 
 
 // Parse the width/length (in mm) a product covers, from its article code + name.
-// Curtains: HEWIDV<width_cm>200W → width in cm (e.g. HEWIDV140200W = 140 cm).
+// Curtains: HEWIDV<width_cm><height_cm>W → width in cm (e.g. HEWIDV140200W = 140 cm).
 // Rails:    DEPVS<len_cm>        → length in cm (e.g. DEPVS150 = 1500 mm = 150 cm).
 // Ceiling braces: DEPDS<len_cm>  → brace length (30/50/80 cm), NOT a coverage width.
+const CURTAIN_RE = /^HEWIDV(\d{2,3})(\d{3})W$/;
 function parseSizeCm(article, name) {
   const a = String(article || "").toUpperCase();
-  let m = a.match(/^HEWIDV(\d{2,3})200W$/); // curtain
+  let m = a.match(CURTAIN_RE); // curtain
   if (m) return Number(m[1]);
   m = a.match(/^DEPVS(\d{2,3})$/); // rod length code (90 = 90cm, 180 = 180cm)
   if (m) return Number(m[1]);
@@ -74,6 +75,8 @@ async function toItem(d) {
     finish: d.finish || null,
     image: await ensureLocalImage(d.articleNumber, sourceUrl),
     sizeCm: parseSizeCm(d.articleNumber, d.name),
+    // curtain height (HEWIDV140200W → 200 cm); null for everything else
+    heightCm: Number(String(d.articleNumber || "").toUpperCase().match(CURTAIN_RE)?.[2]) || null,
   };
 }
 

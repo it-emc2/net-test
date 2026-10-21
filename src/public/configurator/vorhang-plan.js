@@ -96,6 +96,10 @@ export function fromSaved(saved) {
   };
 }
 
+// "Duschvorhang 140 × 200 cm" (B × H); width only when the height is unknown.
+export const curtainLabel = (c) =>
+  c && c.sizeCm != null ? `${c.name} ${c.sizeCm}${c.heightCm ? ` × ${c.heightCm}` : ""} cm` : c?.name;
+
 // Net lines for the offer. Order and labels match the pre-shape configurator for
 // legacy states (curtain, rod, mandatory, optional).
 export function buildLines(state, catalog) {
@@ -110,8 +114,8 @@ export function buildLines(state, catalog) {
   let first = true;
   for (const [art, qty] of Object.entries(state.curtainQty || {})) {
     const c = find(catalog.curtains, art);
-    // curtain names are identical across widths, so append the width
-    let label = c && c.sizeCm != null ? `${c.name} ${c.sizeCm} cm` : c?.name;
+    // curtain names are identical across widths, so append width × height
+    let label = curtainLabel(c);
     if (c && qty > 0 && first && cfg) label += ` (${cfg})`;
     if (c && qty > 0) first = false;
     push(c, qty, label);
