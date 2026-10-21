@@ -1851,8 +1851,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
   let regieRateNum;
-  if (isKK) regieRateNum = 69.5;
-  else if (isSZ) regieRateNum = 59.5;
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto)
+  if (isKK || isSZ) regieRateNum = 69.5;
   else regieRateNum = Number(services?.laborRate) || 0;
 
   // Format exactly like "69,50€" (no space) to match your paragraph
