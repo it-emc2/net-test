@@ -16939,6 +16939,29 @@ function restoreDuschwanne(dw) {
     setCheckbox("addFlooring", !!dw.addFlooring);
   }
 
+  // Wandverkleidung als Fußboden (initWallCladdingSection). It shipped without
+  // a restore, so a reopened offer lost the floor panels and "Neue Version"
+  // dropped them from the offer. Always written — an offer without it must
+  // clear the previous offer's values. Order matters: the suggestion cards
+  // re-render on area/colour changes and mark whatever size is set by then.
+  {
+    const kind = dw.wallCladdingKind;
+    if (kind) setRadio("wallCladdingKind", kind);
+    else
+      document
+        .querySelectorAll('input[name="wallCladdingKind"]')
+        .forEach((r) => { r.checked = false; });
+    setRadio("wallCladdingColor", dw.wallCladdingColor || "Marmor weiß");
+    setHiddenById("wallCladdingPanelSize", dw.wallCladdingPanelSize);
+    setHiddenById("wallCladdingQty", dw.wallCladdingQty);
+    const qtyInput = document.getElementById("wallCladdingQtyInput");
+    if (qtyInput) qtyInput.value = dw.wallCladdingQty ?? "";
+    const qtyRow = document.getElementById("wallCladdingQtyRow");
+    if (qtyRow) qtyRow.hidden = !(Number(dw.wallCladdingQty) > 0);
+    setNumber("wallCladdingArea", dw.wallCladdingArea ?? "");
+    setCheckbox("addWallCladding", !!dw.addWallCladding);
+  }
+
   // flooring color from payload
   (function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;

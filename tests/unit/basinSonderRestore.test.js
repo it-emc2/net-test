@@ -33,3 +33,20 @@ test("Optional restore clears leftover quantities and the Sonderprodukt fields",
   expect(sonderAt).toBeLessThan(quickAddBranch);
 });
 
+// "Wandverkleidung als Fußboden" shipped without a restore: a reopened offer
+// lost addWallCladding and its area/size/qty/colour, and a new version
+// dropped the floor panels. restoreDuschwanne must write every one of them.
+test("restoreDuschwanne restores Wandverkleidung als Fußboden", () => {
+  const start = SCRIPT.lastIndexOf("\nfunction restoreDuschwanne(dw) {");
+  const body = SCRIPT.slice(start, SCRIPT.indexOf("\nfunction ", start + 10));
+  for (const field of [
+    '"addWallCladding"',
+    '"wallCladdingArea"',
+    '"wallCladdingKind"',
+    '"wallCladdingColor"',
+    '"wallCladdingPanelSize"',
+    '"wallCladdingQty"',
+  ]) {
+    expect(body).toContain(field);
+  }
+});
