@@ -531,15 +531,15 @@ describe('Pricing Module', () => {
       expect(result.services.laborRate).toBe(69.5);
     });
 
-    test('uses Selbstzahler labor rate of 59.5', async () => {
+    test('uses Selbstzahler labor rate of 69.5 (same as Kassenkunde)', async () => {
       const payload = createBasePayload({
         Kundendaten: { payer: 'Selbstzahler' },
         Arbeitszeit: { ArbeitHoursNumeric: 2 }
       });
 
       const result = await pricing.computePrices(payload);
-      
-      expect(result.services.laborRate).toBe(59.5);
+
+      expect(result.services.laborRate).toBe(69.5);
     });
   });
 

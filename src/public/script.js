@@ -2109,7 +2109,7 @@ function renderTravelCostDebug() {
 
   const laborRate = isBwt
     ? 79.5
-    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
+    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 69.5 : 0;
 
   const laborHours = Number(window.arbeit_hours_numeric ?? 0) || 0;
   const travelHours = Number(window.reise_hours_numeric ?? 0) || 0;
@@ -4849,7 +4849,7 @@ function buildPayload() {
           (document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0,
         secondWorkerRate: travelSecondWorkerRate,
         workCost:
@@ -4857,14 +4857,14 @@ function buildPayload() {
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelDriverCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) *
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelSecondWorkerCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) * travelSecondWorkerRate,
