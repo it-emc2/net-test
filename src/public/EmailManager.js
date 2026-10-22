@@ -1499,7 +1499,19 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     markInvalid($mainAuftragId, false);
   }
 
+  // A restored or hand-edited subject/body counts as touched, so the defaults
+  // above never rebuild it — but the offer number in it must still follow a
+  // new version, or the mail/Bitrix comment names the previous offer.
+  function syncOfferNumberInMail(nr = ($offerNumber?.value || "").trim()) {
+    if (!nr) return;
+    for (const el of [$subject, $body]) {
+      const next = el.value.replace(/ANG\d{4}-\d{4}-\d{6}/g, nr);
+      if (next !== el.value) el.value = next;
+    }
+  }
+
   function refreshPrefills() {
+    syncOfferNumberInMail();
     updateSubjectDefault();
     updateMailPrefills();
     renderList();
@@ -1625,7 +1637,12 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         console.warn("Auto-Entwurf vor dem Senden fehlgeschlagen:", e);
       }
 
+      // The draft save may have given this offer a fresh number (Entwurf under
+      // a sent number) — PDF, subject and body must all carry that one.
       const offerNumber = getOfferNumber();
+      if (offerNumber) payload.offerNumber = offerNumber;
+      syncOfferNumberInMail(offerNumber);
+      updatePreview();
       const dealId = String($leadId?.value || $mainAuftragId?.value || "").trim();
       const contactId = String(
         document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",

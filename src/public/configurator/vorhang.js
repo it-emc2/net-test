@@ -6,7 +6,7 @@
 // lines flow into the offer via window.__vorhangConfigurator.getLines(),
 // consumed by buildPayload() (collectDuschvorhangConfigurator in script.js).
 
-import { SHAPES, ART, legValues, configLabel, planParts, applyPlan, fromSaved, buildLines } from "./vorhang-plan.js";
+import { SHAPES, ART, legValues, configLabel, planParts, applyPlan, fromSaved, buildLines, curtainLabel } from "./vorhang-plan.js";
 
 const mountEl = document.getElementById("vorhang-mount");
 
@@ -145,7 +145,7 @@ if (mountEl) {
   const tile = (item, kind) => {
     const qty = state[QTY_MAP[kind]]?.[item.articleNumber] || 0;
     const on = qty > 0;
-    const caption = kind === "curtain" && item.sizeCm != null ? `${item.name} ${item.sizeCm} cm` : item.packNote ? `${item.name} (${item.packNote})` : item.name;
+    const caption = kind === "curtain" && item.sizeCm != null ? curtainLabel(item) : item.packNote ? `${item.name} (${item.packNote})` : item.name;
     return `
     <div class="opt-item vh-acc" data-kind="${kind}" data-art="${esc(item.articleNumber)}">
       <label class="image-check">

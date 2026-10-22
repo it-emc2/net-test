@@ -513,8 +513,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }
 
   let regieRateNum;
-  if (isKK) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
-  else if (isSZ) regieRateNum = cfg.get('LABOR_RATE_SZ', 59.5);
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto); LABOR_RATE_SZ
+  // gilt nur für die Kalkulation, nicht für den Regie-Hinweis.
+  if (isKK || isSZ) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
   else regieRateNum = Number(services?.laborRate) || 0;
 
   const RegieRateFmt = regieRateNum
@@ -547,9 +548,12 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Aktion: Haltegriff",
-      BonusDetail:
-        "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
+      // New rule (only the 30 cm value free) → new wording; older offers keep
+      // the text they were sent with.
+      BonusLabel: body?.pricingRules?.grabBonusRefId ? "Aktion" : "Aktion: Haltegriff",
+      BonusDetail: body?.pricingRules?.grabBonusRefId
+        ? "Haltegriff-Bonus - für Ihre Sicherheit 175 € Rabatt auf Ihren gewählten Haltegriff"
+        : "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
       preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
       gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });

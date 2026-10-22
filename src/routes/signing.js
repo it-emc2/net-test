@@ -13,6 +13,7 @@
 // The customer email link uses the supervisor-mandated intro text (see plan §7a).
 
 import express from "express";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -459,6 +460,10 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
     if (!payload || typeof payload !== "object") {
       return res.status(400).json({ error: "payload ist erforderlich" });
     }
+
+    // Same normalization as email.js: the on-site path posts here directly, so
+    // the printed Ansprechpartner must be re-derived from the User record too.
+    payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user);
 
     const result = await createSigningRequest({
       payload,

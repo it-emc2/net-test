@@ -9,14 +9,21 @@
 // is logged in.
 import User from "../models/User.js";
 
+// Only active users WITH a signature may be Ansprechpartner (same rule as
+// GET /api/users). Anyone else falls back to the logged-in user if eligible,
+// else AP_DEFAULT_EMAIL, else the oldest eligible user — never an admin account.
+const ELIGIBLE = { active: true, signatureDataUrl: { $exists: true, $ne: "" } };
+const find = (email) => (email ? User.findOne({ ...ELIGIBLE, email }).lean() : null);
+
 export async function resolveAnsprechpartner(kundendaten, reqUser) {
   const k = kundendaten || {};
   const apEmail = String(k.ansprechpartner || "").trim().toLowerCase();
 
-  let user = apEmail ? await User.findOne({ email: apEmail }).lean() : null;
-  if (!user && reqUser?.email) {
-    user = await User.findOne({ email: reqUser.email }).lean();
-  }
+  const user =
+    (await find(apEmail)) ||
+    (await find(String(reqUser?.email || "").toLowerCase())) ||
+    (await find(String(process.env.AP_DEFAULT_EMAIL || "").trim().toLowerCase())) ||
+    (await User.findOne(ELIGIBLE).sort({ createdAt: 1 }).lean());
   if (!user) return k;
 
   return { ...k, ansprechpartner: user.email, emc2_contact: user.name || user.email };

@@ -1678,9 +1678,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Aktion: Haltegriff",
-      BonusDetail:
-        "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
+      // New rule (only the 30 cm value free) → new wording; older offers keep
+      // the text they were sent with.
+      BonusLabel: body?.pricingRules?.grabBonusRefId ? "Aktion" : "Aktion: Haltegriff",
+      BonusDetail: body?.pricingRules?.grabBonusRefId
+        ? "Haltegriff-Bonus - für Ihre Sicherheit 175 € Rabatt auf Ihren gewählten Haltegriff"
+        : "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
       preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
       gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
@@ -1851,8 +1854,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
   let regieRateNum;
-  if (isKK) regieRateNum = 69.5;
-  else if (isSZ) regieRateNum = 59.5;
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto)
+  if (isKK || isSZ) regieRateNum = 69.5;
   else regieRateNum = Number(services?.laborRate) || 0;
 
   // Format exactly like "69,50€" (no space) to match your paragraph

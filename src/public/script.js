@@ -2113,7 +2113,7 @@ function renderTravelCostDebug() {
 
   const laborRate = isBwt
     ? 79.5
-    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
+    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 69.5 : 0;
 
   const laborHours = Number(window.arbeit_hours_numeric ?? 0) || 0;
   const travelHours = Number(window.reise_hours_numeric ?? 0) || 0;
@@ -3215,6 +3215,7 @@ function startOfferFlow(offerKey) {
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
   window.__kleinAufschlagLegacyOffer = false;
+  window.__bwtGrabSingleAufschlag = true;
 
   // Fresh offer → BWT Freigrenzen follow today's live admin config, not
   // whatever a previously-restored legacy offer pinned them to.
@@ -3223,6 +3224,7 @@ function startOfferFlow(offerKey) {
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
   window.__grabBonusIdsPinned = false;
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
+  window.__grabBonusRefId = "CLPESG30";
   window.__applyBonusNeuSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
@@ -4797,6 +4799,9 @@ function buildPayload() {
   if (payload.rabatt.bonusGrab && JSON.stringify(grabIds) !== '["CLPESG30"]') {
     payload.pricingRules.grabBonusIds = [...grabIds];
   }
+  if (payload.rabatt.bonusGrab && window.__grabBonusRefId) {
+    payload.pricingRules.grabBonusRefId = window.__grabBonusRefId;
+  }
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
@@ -4860,7 +4865,7 @@ function buildPayload() {
           (document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0,
         secondWorkerRate: travelSecondWorkerRate,
         workCost:
@@ -4868,14 +4873,14 @@ function buildPayload() {
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelDriverCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) *
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelSecondWorkerCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) * travelSecondWorkerRate,
@@ -5108,6 +5113,11 @@ if (anschlag) {
   }
 
   payload.activeOffer = currentOfferKey || null;
+  // BWT grab bars: Aufschlag only once (older BWT offers keep it doubled).
+  // Only sent for BWT so other offers keep their pricing fingerprint.
+  if (payload.activeOffer === "bwt" && window.__bwtGrabSingleAufschlag !== false) {
+    payload.pricingRules.bwtGrabSingleAufschlag = true;
+  }
 
   // Duschwanne an/aus — strips only the tray keys, never the Fußboden ones.
   applyDwTraySwitch(payload.duschwanne || (payload.duschwanne = {}), isDwTrayEnabled());
@@ -6915,6 +6925,9 @@ window.__bwtKmFreeThreshold = 200;
 // split as the BWT Freigrenzen above.
 window.__grabBonusIdsLive = ["CLPESG30"];
 window.__grabBonusIds = ["CLPESG30"];
+// Only this article's value is free (longer bars pay the difference).
+// Restored offers priced without it (null) keep the whole unit free.
+window.__grabBonusRefId = "CLPESG30";
 // Neukundenbonus (NEUKUNDENBONUS_BRUTTO / _SCHWELLE): same Live/pinned split.
 // Legacy offers (no pricingRules.bonusNeuGross) keep 252,10 € netto / 3.000 €.
 window.__bonusNeuGrossLive = 250;
@@ -16267,6 +16280,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     // Preserve the offer's original Aufschlag rule (legacy drafts → false).
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
     window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+    window.__bwtGrabSingleAufschlag = p?.pricingRules?.bwtGrabSingleAufschlag === true;
 
     // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
     const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;

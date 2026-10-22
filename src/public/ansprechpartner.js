@@ -43,7 +43,8 @@
       if (nameEl && nameEl.value.trim()) {
         syncFromOffer();
       } else {
-        var defaultEmail = me && me.email ? me.email : (users[0] && users[0].email);
+        var meInList = me && users.some(function (u) { return u.email === me.email; });
+        var defaultEmail = meInList ? me.email : (users[0] && users[0].email);
         if (defaultEmail) apply(defaultEmail);
       }
     })
@@ -69,6 +70,9 @@
         setAll(email);
         if (emailEl) emailEl.value = email;
       }
+    } else if (users.length) {
+      // Stored Ansprechpartner is no longer eligible (e.g. no signature).
+      resetAnsprechpartnerToMe();
     }
   }
   window.syncAnsprechpartner = syncFromOffer;
@@ -76,8 +80,9 @@
   // "Neue Version erstellen": the new version is the logged-in user's
   // document now, not the original sender's — reset Ansprechpartner (and
   // with it the email signature name/image, see docx-template.js) to me.
-  window.resetAnsprechpartnerToMe = function () {
-    if (me && me.email) apply(me.email);
+  var resetAnsprechpartnerToMe = window.resetAnsprechpartnerToMe = function () {
+    if (me && users.some(function (u) { return u.email === me.email; })) apply(me.email);
+    else if (users[0]) apply(users[0].email);
   };
 
   sels.forEach(function (s) {
