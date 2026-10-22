@@ -10,10 +10,10 @@ function displayName(u) {
   return full || u.name || u.email;
 }
 
-// GET /api/users — active users, for choosing an Ansprechpartner.
+// GET /api/users — active users with a signature, for choosing an Ansprechpartner.
 router.get("/", async (req, res) => {
   try {
-    const users = await User.find({ active: true })
+    const users = await User.find({ active: true, signatureDataUrl: { $exists: true, $ne: "" } })
       .sort({ firstName: 1, lastName: 1, email: 1 })
       .lean();
     res.json(
