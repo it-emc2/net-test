@@ -1789,7 +1789,7 @@ color: metaColor || null,
     const isSingleWorker = isBwt || offer === "hl";
     const handwerkerCount = isSingleWorker ? 1 : 2;
     const laborRateKK = cfg.get('LABOR_RATE_KK', 69.5);
-    const laborRateSZ = cfg.get('LABOR_RATE_SZ', 59.5);
+    const laborRateSZ = cfg.get('LABOR_RATE_SZ', 69.5);
     const bwtLaborRate = cfg.get('LABOR_RATE_BWT', 79.5);
     const kmRate = cfg.get('KM_RATE', 0.35);
     const travelSecondWorkerRateRaw =

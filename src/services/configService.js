@@ -16,7 +16,7 @@ export const CONFIG_SCHEMA = [
     description: 'Stundensatz für Kassenpatienten (KK)',
   },
   {
-    key: 'LABOR_RATE_SZ', value: 59.5,
+    key: 'LABOR_RATE_SZ', value: 69.5,
     label: 'Stundensatz Selbstzahler', unit: '€/h', type: 'euro', section: 'shared', order: 3,
     description: 'Stundensatz für Selbstzahler (SZ)',
   },
