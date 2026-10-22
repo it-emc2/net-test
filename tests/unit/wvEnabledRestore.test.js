@@ -57,11 +57,10 @@ test("explicit wvEnabled wins on restore and round-trips through buildPayload", 
   expect(window.buildPayload().wandverkleidung.wvEnabled).toBe(true);
 });
 
-test("send check: off = ok, on without Art/Dekor = blocking, legacy 0 panels = warning", () => {
-  expect(window.wvCheck({ wandverkleidung: { wvEnabled: false } }, "bu")).toBeNull();
-  expect(window.wvCheck({ wandverkleidung: { wvEnabled: true, wvColor: "Weiß" } }, "bu").blocking).toBe(true);
-  expect(window.wvCheck({ wandverkleidung: { wvEnabled: true, wvKind: "Deckenhoch" } }, "bu").blocking).toBe(true);
-  expect(window.wvCheck({ wandverkleidung: { wvEnabled: true, wvKind: "Deckenhoch", wvColor: "Weiß", wvQty997: 2 } }, "bu")).toBeNull();
-  expect(window.wvCheck({ wandverkleidung: { wvKind: "Fliesenspiegel", wvColor: "Marmor weiß" } }, "bu").blocking).toBe(false);
-  expect(window.wvCheck({ wandverkleidung: { wvEnabled: true } }, "ah")).toBeNull();
+// The send check (wvCheck) moved to angebotscheck.js — a red Angebotscheck
+// row plus the pre-send confirmation; see tests/unit/hauptpunkte.test.js and
+// tests/unit/angebotscheck.test.js ("Wandverkleidung vollständig").
+test("the old blocking send check is gone", () => {
+  expect(window.wvCheck).toBeUndefined();
+  expect(window.confirmWvPanels).toBeUndefined();
 });

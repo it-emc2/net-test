@@ -1824,6 +1824,257 @@
       overflow: hidden;
     }
 
+    /* Checkliste: nummerierte Gruppen wie in bau-formular. Pflichtpunkte
+       tragen ein *, offene Pflichtpunkte werden rot. */
+    #page-Checkliste .zf-chk-intro {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+    #page-Checkliste .zf-chk-summary {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    #page-Checkliste .zf-chk-summary.is-open { color: #b42318; }
+    #page-Checkliste .zf-chk-summary.is-done { color: var(--accent-strong); }
+    #page-Checkliste .zf-chk-group {
+      margin-top: 14px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--accent-weak);
+    }
+    #page-Checkliste .zf-chk-group h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      color: var(--accent-strong);
+    }
+    #page-Checkliste .zf-chk-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 10px;
+      line-height: 1.45;
+      cursor: pointer;
+    }
+    #page-Checkliste .zf-chk-item input {
+      margin-top: 3px;
+      flex: 0 0 auto;
+    }
+    #page-Checkliste .zf-chk-item.is-auto { cursor: default; }
+    #page-Checkliste .zf-chk-item__text small {
+      display: block;
+      color: var(--muted);
+    }
+    #page-Checkliste .zf-chk-item.is-required .zf-chk-item__label::after {
+      content: " *";
+      color: #f59e0b;
+      font-weight: 700;
+    }
+    #page-Checkliste .zf-chk-item.is-missing {
+      color: #b42318;
+      font-weight: 600;
+    }
+
+    /* Sidebar: rot, solange die Checkliste offen ist. Am <html> gesetzt, weil
+       die Sidebar bei jeder Navigation neu gebaut wird. */
+    html[data-zf-checkliste-open] .side-link[data-step="Checkliste"] .dot {
+      border-color: #ef4444;
+    }
+    html[data-zf-checkliste-open] .side-link[data-step="Checkliste"] .dot::after {
+      background: #ef4444;
+      transform: scale(1);
+    }
+
+    /* Angebotscheck: Gesamtstatus, darunter je Abschnitt ein eingerückter
+       Strang — wie ein Kommentarbaum: eine Linie links, die Zeilen daran. */
+    #page-Angebotscheck .zf-check-body {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 22px;
+      background: var(--card);
+    }
+    #page-Angebotscheck .zf-check-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+    }
+    #page-Angebotscheck .zf-check-head.is-rot { border-left-color: #ef4444; }
+    #page-Angebotscheck .zf-check-head.is-gelb { border-left-color: #f59e0b; }
+    #page-Angebotscheck .zf-check-head.is-gruen {
+      border-left-color: var(--accent);
+      background: var(--accent-weak);
+    }
+
+    #page-Angebotscheck .zf-check-group + .zf-check-group {
+      margin-top: 20px;
+    }
+    #page-Angebotscheck .zf-check-group__title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    #page-Angebotscheck .zf-check-group__counts {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    #page-Angebotscheck .zf-check-count {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    #page-Angebotscheck .zf-check-group__title > span:first-child {
+      white-space: nowrap;
+    }
+    #page-Angebotscheck .zf-check-count.is-rot {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    #page-Angebotscheck .zf-check-count.is-gelb {
+      border-color: #f59e0b;
+      color: #b45309;
+    }
+    #page-Angebotscheck .zf-check-count.is-gruen {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+    }
+
+    /* Der Strang: eine durchgehende Linie, die Zeilen hängen daran. */
+    #page-Angebotscheck .zf-check-rows {
+      display: grid;
+      gap: 1px;
+      margin-left: 7px;
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
+    }
+    #page-Angebotscheck .zf-check-row {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    /* kurzer Ast von der Linie zur Zeile */
+    #page-Angebotscheck .zf-check-row::before {
+      content: "";
+      position: absolute;
+      left: -16px;
+      top: 18px;
+      width: 12px;
+      height: 2px;
+      background: var(--border);
+    }
+    #page-Angebotscheck .zf-check-row:disabled { cursor: default; }
+    #page-Angebotscheck .zf-check-row:not(:disabled):hover {
+      background: var(--accent-weak);
+    }
+    #page-Angebotscheck .zf-check-row__dot {
+      line-height: 1.5;
+      font-size: 0.8rem;
+    }
+    #page-Angebotscheck .zf-check-row__text {
+      display: grid;
+      gap: 1px;
+      flex: 1;
+    }
+    #page-Angebotscheck .zf-check-row__detail {
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    #page-Angebotscheck .zf-check-row__go {
+      opacity: 0.45;
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+    #page-Angebotscheck .zf-check-empty { color: var(--muted); }
+    /* Vor dem Versand: eine Bestätigung je nicht gewähltem Hauptpunkt. */
+    .hp-confirm-list {
+      display: grid;
+      gap: 8px;
+      margin: 4px 0 16px;
+    }
+    .hp-confirm-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-left: 3px solid #f59e0b;
+      border-radius: 8px;
+    }
+    .hp-confirm-row:has(input:checked) {
+      border-left-color: var(--accent);
+    }
+    .hp-confirm-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      flex: 1;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .hp-confirm-check input {
+      margin-top: 3px;
+      flex: none;
+    }
+    .hp-confirm-go {
+      flex: none;
+      background: none;
+      border: 0;
+      padding: 2px 0;
+      color: var(--accent-strong);
+      font: inherit;
+      font-size: 0.86rem;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .ang-stage-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Rows the user can confirm as not needed: row + "Nicht nötig" tick. */
+    #page-Angebotscheck .zf-check-row-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    #page-Angebotscheck .zf-check-row-wrap > .zf-check-row {
+      flex: 1;
+    }
+    #page-Angebotscheck .zf-check-ack {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: none;
+      padding: 9px 10px;
+      font-size: 0.86rem;
+      color: var(--muted);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
     /* Zusammenfassung: document workspace */
     #page-Zusammenfassung .export-cards {
       display: grid;
@@ -4128,10 +4379,20 @@ button.dm-btn-danger:focus-visible {
           </div>
         </div>
 
-        <form id="form-duschwanne" autocomplete="on">
+        <form id="form-duschwanne" autocomplete="on" data-tray-off>
+
+          <!-- Duschwanne an/aus. Aus = Wanne + Abdichtband, Ablaufgarnitur und
+               Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
+               Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
+               buildPayload() schreibt duschwanne.trayEnabled selbst. -->
+          <div class="field full">
+            <label class="check-pill"><input type="checkbox" id="dwTrayToggle" /><span
+                class="box"></span><span class="dw-tray-switch__text">Möchten Sie eine Duschwanne hinzufügen?
+                <small>Ohne Duschwanne werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small></span></label>
+          </div>
 
           <!-- Put this above the radio group -->
-          <div id="traySmartSearch" class="field">
+          <div id="traySmartSearch" class="field dw-tray-only">
 
   <!-- <label>Maße (B × L × H in cm)</label> -->
             <label>Maße (B × L in cm)</label>
@@ -4148,10 +4409,10 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="traySize" name="traySize">
           </div>
 
-          <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
+          <div class="dw-tray-only"><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
 
           <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
-          <fieldset class="da-row full" id="dw-custom" aria-describedby="dw-custom-help">
+          <fieldset class="da-row full dw-tray-only" id="dw-custom" aria-describedby="dw-custom-help">
             <legend class="da-legend">Duschwanne nicht gefunden? Freier Posten</legend>
             <div class="da-items">
               <div class="da-item" data-kind="dw-custom">
@@ -4187,7 +4448,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Badewanne + Wannenaufsatz now live on the Optional tab (menu_WANNE). -->
 
-          <div class="field" id="slateTrayColorSection" hidden aria-hidden="true">
+          <div class="field dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
             <label class="req">Farbe der Duschwanne Slate</label>
             <div style="display:flex; gap:14px; flex-wrap:wrap;">
 
@@ -4238,7 +4499,7 @@ button.dm-btn-danger:focus-visible {
 
           <div class="field full dw-tray-extras-grid">
 
-          <div class="field">
+          <div class="field dw-tray-only">
             <label class="req">Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
               entspr. DIN 18534</label>
             <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
@@ -4246,7 +4507,7 @@ button.dm-btn-danger:focus-visible {
                   alt="Wannenabdichtband-Set" /></span><span class="caption">Wannenabdichtband-Set TRWDB</span></label>
           </div>
 
-          <div class="field">
+          <div class="field dw-tray-only">
   <label class="req">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
     90mm Ablauf</label>
 
@@ -4279,7 +4540,7 @@ button.dm-btn-danger:focus-visible {
 </label>
           </div>
 
-          <div class="field">
+          <div class="field dw-tray-only">
             <label>Stelzlager höhenverstellbar Set</label>
             <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span
                 class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg"
@@ -7977,13 +8238,24 @@ button.dm-btn-danger:focus-visible {
       <!-- Zusammenfassung -->
 
       <!-- Replace the existing page-Zusammenfassung content with this -->
+      <section class="card page" id="page-Angebotscheck" hidden>
+        <h2 style="margin:0 0 12px;">Angebotscheck</h2>
+            <p class="section-subtitle">Regelbasierte Prüfung: passt die Auswahl zum Angebot?</p>
+            <div class="zf-check-body"></div>
+
+        <div class="actions full">
+          <button type="button" data-nav="prev" class="secondary">Zurück</button>
+          <button type="button" data-nav="next">Weiter</button>
+        </div>
+      </section>
+
       <section id="page-Zusammenfassung" class="card page" hidden>
         <div class="zusammenfassung-container">
 
           <!-- Heading styled like the other tabs (e.g. Kosten) + Ansprechpartner.
                A <div> (not <header>) so the global sticky header rule doesn't apply. -->
           <div style="display:flex; align-items:center; gap:12px; margin: 0 0 8px;">
-            <h2 style="margin:0; flex:1;">Zusammenfassung</h2>
+            <h2 id="zfPageTitle" style="margin:0; flex:1;">Zusammenfassung</h2>
             <div class="zf-ap-field">
               <label for="zfAnsprechpartner">Ansprechpartner</label>
               <select id="zfAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
@@ -8015,22 +8287,12 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Bitrix Integration Section -->
-          <section class="bitrix-section">
-            <h2 class="section-title">Bitrix Integration</h2>
-            <div class="bitrix-card">
-              <div class="bitrix-input-group">
-                <label for="auftragId">Auftrag ID</label>
-                <input type="text" id="auftragId" placeholder="z.B. 12345" class="input-auftrag" autocomplete="off" data-lpignore="true" data-form-type="other">
-              </div>
-              <button type="button" id="sendPdfToAuftrag" class="btn-bitrix">
-                <span class="btn-icon">📤</span>
-                Angebots-PDF an Bitrix senden
-              </button>
-              <div id="auftragPdfStatus" class="bitrix-status"></div>
-            </div>
-          </section>
-
+          <!-- Angebotsversand (BU only) — Status, wie und wann das Angebot
+               rausgegangen ist. Der Versand selbst passiert weiter unten in den
+          <!-- Angebotsversand: Status plus alles, was zum Versenden gehört
+               (Dokumentenstudio, Vorschau, Unterlagen, Mail/Post). -->
+          <section id="zfVersand" class="bitrix-section">
+            <div class="bitrix-card"><div id="zfVersandStatus">Noch nicht versendet.</div></div>
           <!-- Main Export Actions -->
           <section class="export-section">
             <h2 class="section-title">Dokumentenstudio</h2>
@@ -8463,6 +8725,23 @@ button.dm-btn-danger:focus-visible {
     <div id="postStatus" class="adobe-status" hidden></div>
   </div>
 </section>
+          </section>
+
+          <!-- Bitrix Integration Section -->
+          <section class="bitrix-section">
+            <h2 class="section-title">Bitrix Integration</h2>
+            <div class="bitrix-card">
+              <div class="bitrix-input-group">
+                <label for="auftragId">Auftrag ID</label>
+                <input type="text" id="auftragId" placeholder="z.B. 12345" class="input-auftrag" autocomplete="off" data-lpignore="true" data-form-type="other">
+              </div>
+              <button type="button" id="sendPdfToAuftrag" class="btn-bitrix">
+                <span class="btn-icon">📤</span>
+                Angebots-PDF an Bitrix senden
+              </button>
+              <div id="auftragPdfStatus" class="bitrix-status"></div>
+            </div>
+          </section>
 
           <!-- Developer Tools (Hidden by Default) -->
           <section class="developer-section">
@@ -8529,10 +8808,54 @@ button.dm-btn-danger:focus-visible {
               <span class="nav-icon">←</span>
               Zurück
             </button>
+            <button type="button" data-nav="next" class="btn-nav">
+              Weiter
+              <span class="nav-icon">→</span>
+            </button>
           </nav>
 
         </div>
       </section>
+
+      <section class="card page" id="page-Checkliste" hidden>
+        <!-- Aufbau angelehnt an die Montage-Checkliste in bau-formular:
+             nummerierte Gruppen, Pflichtpunkte mit *, vom System bekannte
+             Punkte werden automatisch abgehakt und gesperrt. -->
+        <h2 style="margin:0 0 4px;">Checkliste Badumbau</h2>
+        <p class="zf-chk-intro">Bitte alle Punkte abhaken, sobald sie erledigt oder geprüft wurden.</p>
+        <div id="zfChkSummary" class="zf-chk-summary"></div>
+
+        <div class="zf-chk-group">
+          <h3>1. Angebot</h3>
+          <label class="zf-chk-item is-required is-auto">
+            <input type="checkbox" id="zfChk_check" disabled />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Angebotscheck ohne fehlende Punkte</span>
+              <small id="zfChkCheckStatus">⚪️ Noch nicht geprüft</small></span>
+          </label>
+          <label class="zf-chk-item is-required is-auto">
+            <input type="checkbox" id="zfChk_versendet" disabled />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Angebot versendet</span>
+              <small id="zfChkVersendet">Nein</small></span>
+          </label>
+        </div>
+
+        <div class="zf-chk-group">
+          <h3>2. Aufmaß &amp; Dokumentation</h3>
+          <label class="zf-chk-item is-required">
+            <input type="checkbox" id="zfChk_skizze" />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Magicplan Skizze erstellt</span></span>
+          </label>
+          <label class="zf-chk-item is-required">
+            <input type="checkbox" id="zfChk_fotos" />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Fotoaufnahmen erstellt</span></span>
+          </label>
+        </div>
+
+        <div class="actions full">
+          <button type="button" data-nav="prev" class="secondary">Zurück</button>
+        </div>
+      </section>
+
 
       <!-- Kosten-Details -->
       <section class="card page" id="page-Kosten" hidden>
@@ -10816,6 +11139,9 @@ button.dm-btn-danger:focus-visible {
   <!-- No-op in a browser; only does anything inside the iPad shell. -->
   <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
+  <script type="module" src="/angebotscheck.js"></script>
+  <script type="module" src="/angebotsversand.js"></script>
+  <script type="module" src="/checkliste.js"></script>
 
 </body>
 

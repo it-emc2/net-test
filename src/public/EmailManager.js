@@ -431,6 +431,10 @@ export function initEmailManager(options = {}) {
   // Success dialog shown after the email was sent. Offers the stage move.
   // The postal send reuses it through window.__showSentDialog (title via `via`).
   function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false, via = "mail" }) {
+    // Angebotsversand (Zusammenfassung): both the mail and the postal send end
+    // up here, so this is the single place that knows the offer went out.
+    // A Bitrix-only drop never reached the customer — not a Versand.
+    if (!bitrixOnly) window.markAngebotVersendet?.(via);
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
@@ -1621,7 +1625,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
-      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+      if (window.confirmBeforeSend && !(await window.confirmBeforeSend(payload, payload.activeOffer))) {
+        // Replace whatever the last attempt left there (e.g. a missing Lead ID).
+        setStatus("Versand abgebrochen.", "info");
         return false;
       }
 

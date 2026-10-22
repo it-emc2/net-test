@@ -107,7 +107,17 @@ function stableStringify(value) {
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
 export function computeFingerprint(payload) {
-  const { pricing, forceRecompute, ...rest } = payload || {};
+  // zusammenfassung (Versandstatus, Checkliste) is workflow state, not a price
+  // input — the same reasoning as duschwanne.trayEnabled below.
+  const { pricing, forceRecompute, zusammenfassung, ...rest } = payload || {};
+  // duschwanne.trayEnabled is a UI switch, not a price input — what it changes
+  // (the tray keys being present or not) is already in the payload. Leaving it
+  // in would give every offer saved before the switch existed a new
+  // fingerprint, and a locked offer would be repriced on its next open.
+  if (rest.duschwanne && "trayEnabled" in rest.duschwanne) {
+    const { trayEnabled, ...dw } = rest.duschwanne;
+    rest.duschwanne = dw;
+  }
   return stableStringify(rest);
 }
 
