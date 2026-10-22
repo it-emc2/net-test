@@ -5,14 +5,14 @@ import {
   confirmHauptpunkte,
 } from "../../src/public/angebotscheck.js";
 
-const noEnv = { daLines: 0, daOldPicks: 0, curtainLines: 0, optionalLines: 0 };
+const noEnv = { daLines: 0, daOldPicks: 0, curtainLines: 0, optionalLines: 0, wvPanels: 0 };
 const keys = (list) => list.map((h) => h.key);
 
 const fullOffer = {
   duschwanne: { trayEnabled: true, addFlooring: "on" },
   wandverkleidung: { wvEnabled: true },
 };
-const fullEnv = { daLines: 2, daOldPicks: 0, curtainLines: 1, optionalLines: 3 };
+const fullEnv = { daLines: 2, daOldPicks: 0, curtainLines: 1, optionalLines: 3, wvPanels: 3 };
 
 describe("which main items are missing", () => {
   test("a new, empty BU offer misses every main item", () => {
@@ -31,6 +31,12 @@ describe("which main items are missing", () => {
       "duschvorhang",
       "optional",
     ]);
+  });
+
+  test("Wandverkleidung switched on with 0 panels is asked — the D_65418 case", () => {
+    const missing = missingHauptpunkte(fullOffer, { ...fullEnv, wvPanels: 0 });
+    expect(keys(missing)).toEqual(["wandverkleidung"]);
+    expect(missing[0].question).toBe("Es wurde keine Wandverkleidungsplatte ausgewählt.");
   });
 
   test("Wandverkleidung als Fußboden counts as Fußboden", () => {
@@ -67,6 +73,15 @@ describe("reading the configurators at send time", () => {
     expect(env).toMatchObject({ daLines: 0, daOldPicks: 0, curtainLines: 1 });
   });
 
+  test("priced Wandverkleidung panels are counted, extra colours included", () => {
+    const win = { __pricing: { materialsDisplayUI: { lines: [
+      { productId: "V3WVK09", category: "Wandverkleidung", qty: 1 },
+      { productId: "V3WV07", category: "Wandverkleidung", qty: 2 },
+      { productId: "V3WVK07", category: "Fußboden", qty: 1 }, // WV als Fußboden — not wall panels
+    ] } } };
+    expect(sendEnv({}, win).wvPanels).toBe(3);
+  });
+
   test("an old Duschabtrennung page pick counts", () => {
     const win = { __pricing: {} };
     const env = sendEnv({ duschabtrennung: { quickAdd: [{ productId: "HASS123" }] } }, win);
@@ -86,7 +101,10 @@ describe("the popup", () => {
   });
 
   test("nothing missing: no popup, resolves true", async () => {
-    window.__pricing = { optionalDisplayUI: { lines: [{ productId: "X" }] } };
+    window.__pricing = {
+      optionalDisplayUI: { lines: [{ productId: "X" }] },
+      materialsDisplayUI: { lines: [{ productId: "V3WV07", category: "Wandverkleidung", qty: 2 }] },
+    };
     window.__daConfigurator = { getLines: () => [{ articleNumber: "DA" }] };
     window.__vorhangConfigurator = { getLines: () => [{ articleNumber: "VH" }] };
     await expect(confirmHauptpunkte(fullOffer, "bu")).resolves.toBe(true);

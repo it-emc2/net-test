@@ -192,6 +192,30 @@ export const RULES = [
         .map(([, label]) => `Nicht gewählt: ${label}.`),
   },
   {
+    // Wandverkleidung switched on but not usable: Art, Dekor or panels
+    // missing. Used to be a blocking popup at send time (wvCheck, D_65418:
+    // a forgotten Plattenformat silently dropped every panel, profile and
+    // consumable); now a red row, and the panels are asked again before
+    // sending — nobody is blocked from sending.
+    id: "wandverkleidung-vollstaendig",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Wandverkleidung vollständig",
+    severity: "rot",
+    needsSelection: true,
+    applies: ({ sel }) => sel.ticked("wvEnabled"),
+    test: ({ sel, materials }) => {
+      const missing = [];
+      const kind = sel.checkedValue("wvKind");
+      if (!kind || kind === "Keine") missing.push("Art der Wandverkleidung fehlt.");
+      if (!sel.checkedValue("wvColor")) missing.push("Dekor / Farbe fehlt.");
+      if (wvPanels(materials) === 0) {
+        missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt.");
+      }
+      return missing;
+    },
+  },
+  {
     // Wandverkleidung — the three consumables every installation needs. Read
     // from the priced lines, not the boxes: Silikon is ticked by default but
     // its quantity follows the Abschlussprofil, so it can sit ticked at 0.
@@ -568,6 +592,8 @@ export function readSelection(pricing, doc = document) {
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
     value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
     ticked: (id) => !!doc.getElementById(id)?.checked,
+    checkedValue: (name) =>
+      doc.querySelector(`input[name="${name}"]:checked`)?.value || "",
     // An article actually in the offer — see pricedIds() for why.
     priced: (id) => pricedSet.has(id),
     // Duschabtrennung (neu) configurator.
@@ -764,10 +790,12 @@ export const HAUPTPUNKTE = [
     selected: (p) => !!(p?.duschwanne?.addFlooring || p?.duschwanne?.addWallCladding),
   },
   {
+    // Switched on is not enough: a forgotten Plattenformat or quantity leaves
+    // the switch on with 0 panels in the offer (D_65418) — that is asked too.
     key: "wandverkleidung",
     page: "Wandverkleidung",
-    question: "Es wurde keine Wandverkleidung ausgewählt.",
-    selected: (p) => p?.wandverkleidung?.wvEnabled === true,
+    question: "Es wurde keine Wandverkleidungsplatte ausgewählt.",
+    selected: (p, env) => p?.wandverkleidung?.wvEnabled === true && env.wvPanels > 0,
   },
   {
     key: "duschabtrennung",
@@ -818,6 +846,8 @@ export function sendEnv(payload, win = window) {
     daOldPicks,
     curtainLines: curtain.length,
     optionalLines: lines(win.__pricing?.optionalDisplayUI || {}).length,
+    // Priced panels — extra colours included, which the form fields miss.
+    wvPanels: wvPanels(win.__pricing?.materialsDisplayUI || win.__pricing?.materials || {}),
   };
 }
 

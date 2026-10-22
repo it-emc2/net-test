@@ -6474,36 +6474,11 @@ function validateWandverkleidung() {
   }
   return true;
 }
-// D_65418: a forgotten Plattenformat (997/1497) silently dropped every panel,
-// profile and consumable from Angebot + Kalkulation. Since #wvEnabled, Art and
-// Dekor are mandatory once WV is ticked; 0 panels stays a warning.
-// Legacy payloads (no wvEnabled key) only get the 0-panel warning.
-// Returns null (ok) or { title, text, blocking }.
-function wvCheck(payload, offerType) {
-  if (offerType !== "bu") return null;
-  const wv = payload?.wandverkleidung;
-  if (!wv || wv.wvEnabled === false) return null;
-  const kind = wv.wvKind && wv.wvKind !== "Keine" ? wv.wvKind : "";
-  if (wv.wvEnabled === true && !kind) {
-    return { title: "Art der Wandverkleidung fehlt", text: "Bitte wählen Sie, welche Art der Wandverkleidung benötigt wird.", blocking: true };
-  }
-  if (wv.wvEnabled === true && !wv.wvColor) {
-    return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
-  }
-  if (!kind) return null;
-  const extras = Object.values(wv.extraColors || {}).flat();
-  const total =
-    (Number(wv.wvQty997) || 0) +
-    (Number(wv.wvQty1497) || 0) +
-    extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
-  if (total > 0) return null;
-  return {
-    title: "Wandverkleidung ohne Platten",
-    text: `Wandverkleidung „${kind}“ ist gewählt, aber kein Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.`,
-    blocking: false,
-  };
-}
-window.wvCheck = wvCheck;
+// D_65418 (a forgotten Plattenformat silently dropped every panel, profile
+// and consumable) used to be a blocking popup here (wvCheck/confirmWvPanels).
+// It now lives in angebotscheck.js: a red "Wandverkleidung vollständig" row,
+// and "keine Wandverkleidungsplatte" is asked in the pre-send confirmation —
+// nobody is blocked from sending.
 // A legacy "Keine" radio is hidden now; clear it once WV is switched on.
 document.addEventListener("change", (e) => {
   if (e.target?.id !== "wvEnabled" || !e.target.checked) return;
@@ -6511,43 +6486,11 @@ document.addEventListener("change", (e) => {
   if (keine) keine.checked = false;
 });
 // Resolves true = proceed, false = back to the WV tab.
-window.confirmWvPanels = function (payload, offerType) {
-  const issue = wvCheck(payload, offerType);
-  if (!issue) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    document.getElementById("wvMissingOverlay")?.remove();
-    const overlay = document.createElement("div");
-    overlay.id = "wvMissingOverlay";
-    overlay.className = "ang-stage-overlay";
-    overlay.innerHTML = `
-      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
-        <h3 id="wvMissingTitle" class="ang-stage-title">${escapeHtml(issue.title)}</h3>
-        <p class="ang-stage-text">${escapeHtml(issue.text)}</p>
-        <div class="ang-stage-actions">
-          <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
-          ${issue.blocking ? "" : '<button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>'}
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    const close = (value) => {
-      overlay.remove();
-      if (!value) location.hash = "Wandverkleidung";
-      resolve(value);
-    };
-    overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
-    overlay.querySelector("#wvMissingGo")?.addEventListener("click", () => close(true));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(false);
-    });
-    setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
-  });
-};
 // Everything that must be cleared before an offer leaves the house (mail,
-// post, signing link, signing on site): the Wandverkleidung check above, then
-// one confirmation per main item that is not selected (angebotscheck.js).
-// Resolves true = send, false = back.
+// post, signing link, signing on site): one confirmation per main item that
+// is not in the offer (angebotscheck.js). Never a hard block — confirming
+// always lets the offer go. Resolves true = send, false = back.
 window.confirmBeforeSend = async function (payload, offerType) {
-  if (!(await window.confirmWvPanels(payload, offerType))) return false;
   if (typeof window.confirmHauptpunkte !== "function") return true;
   return window.confirmHauptpunkte(payload, offerType);
 };

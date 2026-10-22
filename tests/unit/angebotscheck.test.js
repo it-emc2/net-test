@@ -683,3 +683,38 @@ test("work-task couplings accept the priced basin / WC, not only the boxes", () 
   expect(row(r, "arbeit-install_sink").status).toBe("gruen");
   expect(row(r, "arbeit-install_toilet").status).toBe("gruen");
 });
+
+/* ------------------------------------- Wandverkleidung switched on, incomplete */
+
+describe("Wandverkleidung vollständig (was the blocking wvCheck)", () => {
+  const wvForm = ({ on = true, kind = "", color = "" } = {}) =>
+    `<input type="checkbox" id="wvEnabled" ${on ? "checked" : ""} />` +
+    ["Deckenhoch", "Keine"].map((v) => `<input type="radio" name="wvKind" value="${v}" ${v === kind ? "checked" : ""} />`).join("") +
+    `<input type="radio" name="wvColor" value="Weiß" ${color ? "checked" : ""} />`;
+
+  test("switched off: no row", () => {
+    document.body.innerHTML = wvForm({ on: false });
+    expect(row(runAngebotscheck(ok, readSelection(ok)), "wandverkleidung-vollstaendig")).toBeUndefined();
+  });
+
+  test("switched on with nothing chosen: red, names Art, Dekor and the missing panels", () => {
+    document.body.innerHTML = wvForm();
+    const found = row(runAngebotscheck(ok, readSelection(ok)), "wandverkleidung-vollstaendig");
+    expect(found.status).toBe("rot");
+    expect(found.details).toHaveLength(3);
+    expect(found.details.join(" ")).toContain("Plattenformat");
+  });
+
+  test("the legacy 'Keine' kind counts as no kind", () => {
+    document.body.innerHTML = wvForm({ kind: "Keine", color: "x" });
+    const p = wvOffer();
+    expect(row(runAngebotscheck(p, readSelection(p)), "wandverkleidung-vollstaendig").details)
+      .toEqual(["Art der Wandverkleidung fehlt."]);
+  });
+
+  test("Art, Dekor and priced panels: green", () => {
+    document.body.innerHTML = wvForm({ kind: "Deckenhoch", color: "x" });
+    const p = wvOffer();
+    expect(row(runAngebotscheck(p, readSelection(p)), "wandverkleidung-vollstaendig").status).toBe("gruen");
+  });
+});

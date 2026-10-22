@@ -204,6 +204,7 @@ nicht daran gekoppelt.
 | Regel | 🚦 | Quelle |
 |---|---|---|
 | Zubehör zur Duschwanne (TRWDB, AGD9060, KM02, PLA5282) | 🔴 | Haken |
+| Wandverkleidung vollständig (eingeschaltet: Art, Dekor, Platten) | 🔴 | Formular + bepreiste Zeilen |
 | Zubehör zur Wandverkleidung (Wandabdichtung, Flächenkleber, Silikon) | 🔴 | bepreiste Zeilen |
 | Abschlussprofil im Angebot | 🟡 | bepreiste Zeilen |
 | Verbindungsprofile ausreichend (Platten − 1 − Außenecken) | 🟡 | bepreiste Zeilen |
@@ -249,3 +250,13 @@ Prüfung nie blockieren.
 - Kein manuelles „als versendet markieren" — nur ein Versand aus der App
   setzt den Status.
 - KI-basierte Prüfung: später, gleiche Ausgabestruktur.
+
+## Nichts blockiert den Versand
+
+Vor dem Versand (Mail, Post, Signatur-Link, Unterschrift vor Ort) läuft nur
+`confirmBeforeSend()`: je nicht gewähltem Hauptpunkt eine Bestätigung — nie
+eine harte Sperre. Der frühere blockierende Wandverkleidungs-Check (`wvCheck`,
+D_65418) ist darin aufgegangen: Wandverkleidung zählt nur mit Platten im
+Angebot („Es wurde keine Wandverkleidungsplatte ausgewählt"), und Art / Dekor
+/ Platten fehlen ist eine rote Angebotscheck-Zeile. Angebotscheck und
+Checkliste sind reine Anzeige.
