@@ -1614,6 +1614,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       }
 
       if (window.confirmBeforeSend && !(await window.confirmBeforeSend(payload, payload.activeOffer))) {
+        // Replace whatever the last attempt left there (e.g. a missing Lead ID).
+        setStatus("Versand abgebrochen.", "info");
         return false;
       }
 

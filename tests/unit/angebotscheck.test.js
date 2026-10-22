@@ -143,14 +143,14 @@ test("soft couplings have no reverse (Wandverkleidung without Trockenbau is fine
     .toBeUndefined();
 });
 
-test("an empty product catalog is yellow, not red", () => {
-  // menu_WC exists but has no products yet — nothing to pick.
+test("a WC task without a WC is red even before the WC tiles were ever opened", () => {
+  // The WC tiles are only built once the category is opened, so on a fresh
+  // offer #menu_WC is empty — that must not soften "fehlt" into a hint.
   withTasks(["install_toilet"], '<div id="menu_WC"></div>');
   const found = row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_toilet");
-  expect(found.status).toBe("gelb");
-  expect(found.details[0]).toContain("kein Produkt hinterlegt");
+  expect(found.status).toBe("rot");
+  expect(found.details[0]).toContain("WC");
 
-  // …and it goes green on its own once a product exists and is ticked.
   withTasks(
     ["install_toilet"],
     '<div id="menu_WC"><input type="checkbox" checked /></div>',

@@ -475,7 +475,6 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
-    catalog: "menu_WC",
     has: (sel) => sel.panel("menu_WC") || [...WC_WALL, ...WC_FLOOR].some((p) => sel.priced(p)),
     sharesWith: ["install_shower_wc"],
   },
@@ -486,7 +485,6 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
-    catalog: "menu_WC",
     has: (sel) => sel.panel("menu_WC") || [...WC_WALL, ...WC_FLOOR].some((p) => sel.priced(p)),
     sharesWith: ["install_toilet"],
   },
@@ -626,10 +624,6 @@ export function readSelection(pricing, doc = document) {
     },
     product: (productId) =>
       checked(`input[data-product-id="${productId}"]:checked`),
-    // A category whose products are loaded at runtime can be empty — then the
-    // rule is unfulfillable and saying "fehlt" would be wrong.
-    panelEmpty: (menuId) =>
-      !doc.querySelector(`#${menuId} input[type="checkbox"]`),
     configurator: (globalName) => {
       try {
         const api = window[globalName];
@@ -665,22 +659,15 @@ function workRows(selection) {
     );
 
     if (ticked) {
-      // Nothing to pick yet: the category has no products at all. That is a
-      // catalog gap, not a mistake in this offer — and it turns green by
-      // itself as soon as a product is added and selected.
-      const emptyCatalog =
-        !picked && rule.catalog && selection.panelEmpty(rule.catalog);
       rows.push({
         id: `arbeit-${rule.task}`,
         group: rule.group,
         target: rule.target,
         title: rule.label,
-        status: picked ? "gruen" : emptyCatalog ? "gelb" : rule.severity,
+        status: picked ? "gruen" : rule.severity,
         details: picked
           ? []
-          : emptyCatalog
-            ? [`In dieser Kategorie ist noch kein Produkt hinterlegt.`]
-            : [rule.missingText?.(selection) || `Es fehlt ${rule.needs}.`],
+          : [rule.missingText?.(selection) || `Es fehlt ${rule.needs}.`],
       });
     } else if (picked && !rule.noReverse && !coveredBySibling) {
       // Two tasks can want the same product group (Duschsystem with/without

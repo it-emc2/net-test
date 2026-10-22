@@ -23581,6 +23581,17 @@ async function sendPdfToAuftrag() {
       return;
     }
 
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    // Confirm before saving: the save below stores the offer as final (locked),
+    // so cancelling here must happen before anything is written.
+    if (!(await window.confirmBeforeSend(buildPayload(), activeOffer))) {
+      setStatus("Abgebrochen.", "info");
+      return;
+    }
+
     // The signing flow takes over the whole screen with no way back except by
     // reopening this offer (see the "Zurück zum Konfigurator" link on the
     // signing page) — make sure it actually has a number and is saved as a
@@ -23597,11 +23608,6 @@ async function sendPdfToAuftrag() {
 
     const payload = buildPayload();
     const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
-    const activeOffer =
-      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
-      window.activeOffer ||
-      "";
-    if (!(await window.confirmBeforeSend(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
