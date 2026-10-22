@@ -149,6 +149,7 @@ export function initRestoreManager({
       // Merken, dass dieses Angebot noch nach der alten Regel gespeichert wurde,
       // damit die Umstellen-Checkbox sichtbar (und ruecknehmbar) bleibt.
       window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+      window.__bwtGrabSingleAufschlag = payload?.pricingRules?.bwtGrabSingleAufschlag === true;
 
       // BWT Freigrenzen: pin to this offer's own saved snapshot so reopening
       // it doesn't silently reprice it to whatever the admin has configured
@@ -171,9 +172,11 @@ export function initRestoreManager({
         const grabSnap = payload?.pricingRules?.grabBonusIds;
         window.__grabBonusIds = Array.isArray(grabSnap) ? grabSnap : ["CLPESG30"];
         window.__grabBonusIdsPinned = true;
+        window.__grabBonusRefId = payload?.pricingRules?.grabBonusRefId || null;
       } else {
         window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
         window.__grabBonusIdsPinned = false;
+        window.__grabBonusRefId = "CLPESG30";
       }
 
       console.log("[SKETCH][payload-stored]", {
