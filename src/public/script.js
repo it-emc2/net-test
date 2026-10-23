@@ -23576,9 +23576,10 @@ async function sendPdfToAuftrag() {
 // Reuses the same POST /api/signing flow as the dev-tools link generator
 // above, but skips the email and opens the resulting /sign/:token page
 // directly so the rep can hand the iPad to the customer on the spot.
-(function initSignOnSite() {
-  const btn = document.getElementById("signOnSiteBtn");
-  const statusBox = document.getElementById("signOnSiteStatus");
+// Same button in both Versandart tabs (E-Mail and Post).
+[["signOnSiteBtn", "signOnSiteStatus"], ["signOnSiteBtnPost", "signOnSiteStatusPost"]].forEach(function initSignOnSite([btnId, statusId]) {
+  const btn = document.getElementById(btnId);
+  const statusBox = document.getElementById(statusId);
   const auftragInput = document.getElementById("auftragId");
   if (!btn || !statusBox) return;
 
@@ -23639,6 +23640,7 @@ async function sendPdfToAuftrag() {
             dealId,
             sendEmail: false,
             force,
+            via: btnId === "signOnSiteBtnPost" ? "post" : "",
           }),
         });
         const body = await res.json().catch(() => ({}));
@@ -23667,7 +23669,7 @@ async function sendPdfToAuftrag() {
       btn.disabled = false;
     }
   });
-})();
+});
 
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
@@ -29463,7 +29465,10 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.hidden = panel.dataset.sendPanel !== key;
     });
 
-    if (key === "post") window.__updatePostAddressWarning?.();
+    if (key === "post") {
+      window.__updatePostAddressWarning?.();
+      window.__refreshSignedPostBtn?.();
+    }
   }
 
   window.__showSendTab = showSendTab;
@@ -30232,6 +30237,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         postalSent = true;
 
+        // Same as the e-mail send: persist the sent offer, otherwise it only
+        // exists as an Entwurf and can't be found/opened as an Angebot.
+        try {
+          await window.saveFinalOfferSnapshot?.();
+        } catch (error) {
+          console.warn("[post] saveFinalOfferSnapshot failed:", error);
+        }
+
         const noteEl = document.getElementById("internalNote");
         if (noteEl) noteEl.value = "";
 
@@ -30273,6 +30286,97 @@ document.addEventListener("DOMContentLoaded", () => {
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
       } finally {
         sendBtn.disabled = postalSent;
+      }
+    });
+
+    // After a Vor-Ort/online signature: post the signed Angebot (+ the other
+    // signed documents as attachments) — the only way a customer without
+    // email gets their signed copy. Same /api/post/send as the offer letter.
+    const signedBtn = document.getElementById("sendSignedPost");
+    // Only offered once a Vor-Ort signature started from this Post tab is complete.
+    window.__refreshSignedPostBtn = async () => {
+      if (!signedBtn) return;
+      signedBtn.hidden = true;
+      const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+      if (!offerNumber) return;
+      try {
+        const list = await fetch(`/api/signing/status/${encodeURIComponent(offerNumber)}`).then((r) => r.json());
+        signedBtn.hidden = !list.some((sr) => sr.status === "completed" && sr.via === "post");
+      } catch {}
+    };
+    signedBtn?.addEventListener("click", async () => {
+      if (signedBtn.disabled) return;
+      signedBtn.disabled = true;
+      try {
+        fillPostalDefaults();
+        validate();
+        if (!(await requireDealId())) return;
+
+        const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+        if (!offerNumber) throw new Error("Keine Angebotsnummer – bitte zuerst das Angebot öffnen.");
+
+        setStatus("Lade unterschriebene Unterlagen …", "info");
+        const signedRes = await fetch(`/api/signing/status/${encodeURIComponent(offerNumber)}/signed`);
+        const signed = await signedRes.json().catch(() => ({}));
+        if (!signedRes.ok) throw new Error(signed?.error || `Fehler (${signedRes.status})`);
+
+        const main = signed.documents.find((d) => d.key === "angebot") || signed.documents[0];
+        const rest = signed.documents.filter((d) => d !== main);
+
+        if ((await getPostalMode()) !== "test") {
+          const confirmed = await confirmLiveSend({
+            offerNumber,
+            recipientLines: [
+              `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              String(fields.street?.value || "").trim(),
+              `${String(fields.zipCode?.value || "").trim()} ${String(fields.city?.value || "").trim()}`.trim(),
+            ].filter(Boolean),
+            documents: signed.documents.map((d) => d.filename),
+          });
+          if (!confirmed) {
+            setStatus("Versand abgebrochen.", "info");
+            return;
+          }
+        }
+
+        setStatus("Sende unterschriebene Unterlagen an onlinebrief24 …", "info");
+        const auftragId = String(fields.auftragId?.value || "").trim();
+        const response = await fetch("/api/post/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // A second letter for the same deal by design (the offer went first).
+            forceResend: true,
+            letterKind: "signed",
+            auftragId,
+            recipient: {
+              name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              street: String(fields.street?.value || "").trim(),
+              zipCode: String(fields.zipCode?.value || "").trim(),
+              city: String(fields.city?.value || "").trim(),
+              country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
+            },
+            document: { filename: main.filename, base64: main.base64 },
+            attachments: rest.map((d) => ({ type: "upload", filename: d.filename, base64: d.base64 })),
+            dealIdOverride,
+            meta: { offerNumber, dealId: auftragId },
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result?.ok === false) {
+          throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
+        }
+        setStatus(
+          result.mode === "test"
+            ? `Testmodus: unterschriebene Unterlagen liegen im onlinebrief24-Warenkorb (Auftrag ${result.printjobId || "-"}).`
+            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`,
+          "success",
+        );
+      } catch (error) {
+        console.error("[post] signed send error", error);
+        setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
+      } finally {
+        signedBtn.disabled = false;
       }
     });
 

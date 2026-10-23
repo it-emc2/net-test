@@ -269,13 +269,16 @@ function buildBitrixPostalComment({
   mode,
   attachmentNames,
   docWarnings,
+  letterKind,
 }) {
   const item = Array.isArray(printjob?.items) ? printjob.items[0] : null;
   const statusText = printjob?.status || item?.status || "-";
   const pages = item?.pages ? `${item.pages} Seiten` : "-";
 
   const lines = [
-    "📬 Angebot per Post versendet",
+    letterKind === "signed"
+      ? "✅📬 Unterschriebene Unterlagen per Post versendet"
+      : "📬 Angebot per Post versendet",
     "",
     `👤 Kunde: ${String(recipient?.name || "-").trim() || "-"}`,
     `📄 Angebot: ${String(offerNumber || "-").trim() || "-"}`,
@@ -524,6 +527,7 @@ router.post("/send", async (req, res) => {
         mode,
         attachmentNames: [...attachmentNames, ...extraDocs.map((doc) => doc.filename)],
         docWarnings,
+        letterKind: req.body?.letterKind,
       });
 
       // Bundle the same documents we handed to onlinebrief24 (main + attachments)

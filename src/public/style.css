@@ -3140,6 +3140,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* Export Buttons */
+.btn-export[hidden] { display: none; }
 .btn-export {
   display: inline-flex;
   align-items: center;

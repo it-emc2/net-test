@@ -68,6 +68,10 @@ const SigningRequestSchema = new Schema(
     customerEmail: { type: String, default: "" },
     customerName: { type: String, default: "" },
 
+    // "post" when Vor-Ort was started from the Post tab — unlocks
+    // "Unterschriebene Unterlagen per Post senden" once completed.
+    via: { type: String, default: "" },
+
     // SNAPSHOT of the offer payload at send time (source of prefill + PDF)
     payloadSnapshot: { type: Schema.Types.Mixed, required: true },
 
