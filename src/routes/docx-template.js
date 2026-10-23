@@ -2049,7 +2049,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
     // Nur Badumbau — bei BWT/HL/BL nie (Wichtige Hinweise).
-    EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
+    // Gleiche Bedingung für DOCX/PDF und Online-Signing (signing-docs.js liest dieses Feld):
+    // Toggle an UND Duschwanne unter den Arbeiten.
+    EbenerdigHinweis:
+      ["bwt", "hl", "bl"].includes(offerKey) ||
+      !PrimaryServiceLines.some((r) => /duschwanne/i.test(r.ServiceLine))
+        ? []
+        : EbenerdigHinweis,
 
     // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
     // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.
