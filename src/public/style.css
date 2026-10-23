@@ -473,6 +473,15 @@ h1 {
   gap: 12px;
 }
 
+/* the sidebar has a fixed height; a taller header (e.g. the sent-offer bar)
+   must not push the last menu entries out of reach */
+#sideMenu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+}
+
 .sidebar .logo-row {
   display: flex;
   align-items: center;
