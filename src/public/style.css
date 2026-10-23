@@ -5519,7 +5519,9 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .wv-product-card-name { font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wv-product-card-art { color: #6b7280; font-size: 0.8rem; }
 .wv-product-card-price { font-weight: 700; color: var(--accent-strong, #5b21b6); white-space: nowrap; }
-.wv-product-card-stock { font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+/* Vigour's stock text can be a whole sentence ("Ware im Verbundhaus Würzburg …"):
+   it wraps instead of widening the colour section past the card. */
+.wv-product-card-stock { font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; max-width: 260px; text-align: right; }
 .wv-product-card-stock.in  { background: #dcfce7; color: #166534; }
 .wv-product-card-stock.out { background: #f3f4f6; color: #6b7280; }
 [data-mode="dark"] .wv-product-card { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.25); }

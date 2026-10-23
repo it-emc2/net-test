@@ -12014,6 +12014,8 @@ makeFloorCalc({
     const pid = color.split("|")[0];
     if (/^WP00[1-6]$/i.test(pid)) return `./assets/budget/${pid.toUpperCase()}.webp`;
     if (/^WP007$/i.test(pid)) return document.querySelector(".kmp-card.is-selected img")?.src || "";
+    // Premium (Vigour): the picked colour tile's own image.
+    if (vigour()) return document.querySelector('input[name="wvColor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
     return "";
   }
 
@@ -12089,16 +12091,17 @@ makeFloorCalc({
     // Panels cover the wall up to the cladding height (all of it without one).
     const PH = DRAW_H * Math.min(plan.heightCm || core.KERAMICO_HEIGHT_CM, core.KERAMICO_HEIGHT_CM) / core.KERAMICO_HEIGHT_CM;
 
-    // The chosen decor on the walls: one image per 95-cm panel, slanted with
-    // the wall. The pattern's own space is wall-local (u = cm along the wall,
-    // v = cm down from the top), mapped to the screen by an affine matrix.
+    // The chosen decor on the walls: one image per panel (95 cm Keramico, 99,7 /
+    // 149,7 cm Vigour), slanted with the wall. Each piece has its own pattern in
+    // wall-local space (u = cm along the wall from the piece's start, v = cm down
+    // from the top), mapped to the screen by an affine matrix.
     const tex = decorImage();
     let defs = "";
     if (tex) {
-      walls.forEach((key, i) => {
-        const o = P(key, 0, DRAW_H), u = P(key, 1, DRAW_H), v = P(key, 0, DRAW_H - 1);
-        const m = [u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]].map((n) => n.toFixed(4)).join(" ");
-        defs += `<pattern id="kcTex${i}" patternUnits="userSpaceOnUse" width="${core.KERAMICO_PANEL_CM}" height="${DRAW_H}" patternTransform="matrix(${m})"><image href="${esc(tex)}" width="${core.KERAMICO_PANEL_CM}" height="${DRAW_H}" preserveAspectRatio="xMidYMid slice"/></pattern>`;
+      plan.pieces.forEach((pc, n) => {
+        const o = P(pc.key, pc.start, DRAW_H), u = P(pc.key, pc.start + 1, DRAW_H), v = P(pc.key, pc.start, DRAW_H - 1);
+        const m = [u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]].map((x) => x.toFixed(4)).join(" ");
+        defs += `<pattern id="kcTex${n}" patternUnits="userSpaceOnUse" width="${pc.size}" height="${DRAW_H}" patternTransform="matrix(${m})"><image href="${esc(tex)}" width="${pc.size}" height="${DRAW_H}" preserveAspectRatio="xMidYMid slice"/></pattern>`;
       });
     }
     let out = defs ? `<defs>${defs}</defs>` : "";
@@ -12126,7 +12129,7 @@ makeFloorCalc({
         nowKeys.add(k);
         const q = quad(key, pc.start, pc.start + pc.breite, PH);
         const isNew = !shownKeys.has(k);
-        const fill = tex ? `fill:url(#kcTex${i});fill-opacity:1;` : "";
+        const fill = tex ? `fill:url(#kcTex${plan.pieces.indexOf(pc)});fill-opacity:1;` : "";
         out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="${fill}--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
         if (pc.start > 0.5) {
           const a = P(key, pc.start, 0), b = P(key, pc.start, PH);
