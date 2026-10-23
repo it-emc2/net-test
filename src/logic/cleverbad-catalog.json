@@ -1,6 +1,6 @@
 {
  "shop": "https://cleverbad.de",
- "generatedAt": "2026-10-19T07:23:03.953Z",
+ "generatedAt": "2026-10-23T11:43:57.345Z",
  "variants": {
   "PRI119DK06": {
    "slug": "duschwanne-riviera",
@@ -636,6 +636,78 @@
    "slug": "wandpaneel-dein-design",
    "name": "Wandpaneel Dein Design",
    "label": "Wunschmotiv",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR101VBM3": {
+   "slug": "polymer-kleber-weiss",
+   "name": "Polymer Kleber Weiß",
+   "label": "Kartusche 290 ml",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR47VBM02": {
+   "slug": "dichtband-blau",
+   "name": "Dichtband Blau",
+   "label": "Meterware (je lfm)",
+   "option": "Meterware (je lfm)",
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR47VBM01": {
+   "slug": "dichtband-blau",
+   "name": "Dichtband Blau",
+   "label": "Rolle (50 lfm)",
+   "option": "Rolle (50 lfm)",
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR59VBM03": {
+   "slug": "innenecke-abdichtung",
+   "name": "Profi Abdichtung nach DIN 18534  selbstklebend, Innenecke",
+   "label": "Selbstklebend",
+   "option": "Selbstklebend",
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR59VBM05": {
+   "slug": "aussenecke-abdichtung",
+   "name": "Profi Abdichtung nach DIN 18534  selbstklebend,  Aussenecke",
+   "label": "Selbstklebend",
+   "option": "Selbstklebend",
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PR59VBM07": {
+   "slug": "wandmanschette-abdichtung",
+   "name": "Wandmanschette für Rohrdurchführungen selbstklebend",
+   "label": "Selbstklebend",
+   "option": "Selbstklebend",
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI130VBM01": {
+   "slug": "fliesenabschlussleiste",
+   "name": "Fliesenabschlussleiste",
+   "label": "Profil 2550 mm",
+   "option": null,
+   "widthCm": null,
+   "lengthCm": null,
+   "glassMm": null
+  },
+  "PRI130VBM02": {
+   "slug": "abschlusskappe",
+   "name": "Abschluss Würfel Edelstahl poliert",
+   "label": "Abschlusskappe",
    "option": null,
    "widthCm": null,
    "lengthCm": null,

@@ -62,7 +62,7 @@ function normalizeWvColorKey(color) {
 // Resolve the article number for a WV panel color.
 // Priority: explicit pid embedded in the value ("pid|color") > mapped article
 // number for (color, size) > provided fallback (the size default).
-function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
+export function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
   if (explicitPid) return explicitPid;
   let key = normalizeWvColorKey(colorDisplay);
   // "Sonderdekor 12345" / "sonderdekor <nr>" all map to the Sonderdekor entry.
@@ -134,31 +134,103 @@ export function keramicoPanelPlan(situation, widths = {}, { heightCm = null, reu
   const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
   const panelMm = KERAMICO_PANEL_CM * 10;
   const pieces = [];
-  const walls = KERAMICO_SITUATIONS[sit].walls.map((key, index) => {
-    const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
-    const mm = cm > 0 ? Math.round(cm * 10) : 0;
+  const walls = planWalls(sit, widths, (key, index, mm) => {
     for (let x = 0; x < mm; x += panelMm) {
       const w = Math.min(panelMm, mm - x);
-      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < panelMm - 5 });
+      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < panelMm - 5, size: KERAMICO_PANEL_CM });
     }
+  });
+  return finishPlan(sit, walls, pieces, heightCm, reuse);
+}
+
+// Vigour Wandverkleidung 3.0 Alu: two widths (997 / 1497 mm), both 2550 mm high.
+// Same walls and height rule as Keramico; per wall any mix of the two widths,
+// the last piece cut to the rest. The mix is the one that is cheapest for us over
+// the whole job (net purchase price per panel, `prices` = { 997, 1497 }; without
+// prices the least panel width = least waste), then the fewest pieces.
+export const VIGOUR_SIZES = [1497, 997];
+
+// Badolux accessories for the Keramico panels (Standard line, cleverbad.de article
+// numbers = our productIds). Quantities are typed by hand.
+export const BADOLUX_WV_ACCESSORIES = ["PR101VBM3", "PR47VBM02", "PR59VBM03", "PR59VBM05", "PR59VBM07", "PRI130VBM01", "PRI130VBM02"];
+export function vigourPanelPlan(situation, widths = {}, { heightCm = null, prices = {} } = {}) {
+  const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
+  const wallMm = [];
+  const walls = planWalls(sit, widths, (key, index, mm) => wallMm.push({ key, index, mm }));
+  // Per wall: for each count of 1497s the fewest 997s that still cover it.
+  const options = wallMm.map(({ mm }) => {
+    const out = [];
+    for (let b = 0; b <= Math.ceil(mm / 1497); b++) {
+      const a = Math.max(0, Math.ceil((mm - b * 1497 - 5) / 997));
+      if (!out.some((o) => o.a === a && o.b === b)) out.push({ a, b });
+    }
+    return out;
+  });
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const perPanel = H > 0 && H < KERAMICO_HEIGHT_CM - 0.5
+    ? Math.max(1, Math.floor((KERAMICO_HEIGHT_CM + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  const unit = { 997: Number(prices[997]) > 0 ? Number(prices[997]) : 99.7, 1497: Number(prices[1497]) > 0 ? Number(prices[1497]) : 149.7 };
+  let best = null;
+  const walk = (i, picked) => {
+    if (i === options.length) {
+      const a = picked.reduce((n, o) => n + o.a, 0);
+      const b = picked.reduce((n, o) => n + o.b, 0);
+      const cost = Math.ceil(a / perPanel) * unit[997] + Math.ceil(b / perPanel) * unit[1497];
+      if (!best || cost < best.cost - 0.005 || (Math.abs(cost - best.cost) <= 0.005 && a + b < best.n))
+        best = { cost, n: a + b, picked: [...picked] };
+      return;
+    }
+    for (const o of options[i]) walk(i + 1, [...picked, o]);
+  };
+  walk(0, []);
+  const pieces = [];
+  wallMm.forEach(({ key, index, mm }, i) => {
+    const { a, b } = best.picked[i];
+    let x = 0;
+    for (const size of [...Array(b).fill(1497), ...Array(a).fill(997)]) {
+      const w = Math.min(size, mm - x);
+      if (w <= 0) break;
+      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < size - 5, size: size / 10 });
+      x += w;
+    }
+  });
+  const plan = finishPlan(sit, walls, pieces, heightCm, true);
+  const n = (size) => plan.panels.filter((p) => p.size === size / 10).length;
+  return { ...plan, qty997: n(997), qty1497: n(1497) };
+}
+
+function planWalls(sit, widths, each) {
+  return KERAMICO_SITUATIONS[sit].walls.map((key, index) => {
+    const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
+    const mm = cm > 0 ? Math.round(cm * 10) : 0;
+    if (mm > 0) each(key, index, mm);
     return { key, index, cm: mm / 10 };
   });
+}
+
+// Height reuse, panel numbers and cut counts, per panel width (`size`, cm).
+function finishPlan(sit, walls, pieces, heightCm, reuse) {
   const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
   const low = H > 0 && H < KERAMICO_HEIGHT_CM - 0.5;
   const perPanel = low && reuse
     ? Math.max(1, Math.floor((KERAMICO_HEIGHT_CM + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
     : 1;
-  pieces.forEach((p, i) => {
-    p.feld = i + 1;
-    p.platte = Math.floor(i / perPanel) + 1;
-  });
-  const gesamt = Math.ceil(pieces.length / perPanel);
+  pieces.forEach((p, i) => { p.feld = i + 1; });
+  const panels = [];
+  for (const size of [...new Set(pieces.map((p) => p.size))]) {
+    pieces.filter((p) => p.size === size).forEach((p, i) => {
+      if (i % perPanel === 0) panels.push({ size, strips: 0 });
+      p.platte = panels.length;
+      panels[panels.length - 1].strips++;
+    });
+  }
+  const gesamt = panels.length;
   // Height cuts: one per strip taken from a panel; the last strip needs none when
   // it ends exactly at the panel's end.
   let hoehenSchnitte = 0;
   if (low) {
-    for (let k = 0; k < gesamt; k++) {
-      const strips = Math.min(perPanel, pieces.length - k * perPanel);
+    for (const { strips } of panels) {
       const rest = KERAMICO_HEIGHT_CM - strips * H - (strips - 1) * KERAMICO_CUT_CM;
       hoehenSchnitte += rest > 0.5 ? strips : strips - 1;
     }
@@ -169,13 +241,14 @@ export function keramicoPanelPlan(situation, widths = {}, { heightCm = null, reu
     situation: sit,
     walls,
     pieces,
+    panels,
     heightCm: low ? H : null,
     perPanel,
     gesamt,
     breitenSchnitte,
     hoehenSchnitte,
     schnitte: breitenSchnitte + hoehenSchnitte,
-    verschnitt: Math.round((pieces.length * KERAMICO_PANEL_CM - total) * 10) / 10,
+    verschnitt: Math.round((pieces.reduce((a, p) => a + p.size, 0) - total) * 10) / 10,
   };
 }
 
@@ -999,6 +1072,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
 
     // Keramico Standard-Wandpaneele: quantity from the wall widths, the same
     // rule as the calculator on the page (keramicoPanelPlan above).
+    let keramicoQty = 0;
     if (isKeramico) {
       // Sonder-Dekor (WP007) prints one motif over the whole panel → no strip reuse.
       const plan = keramicoPanelPlan(
@@ -1009,6 +1083,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // A quantity typed in the calculator overrides the computed one.
       const manualQty = Math.round(Number(String(wv?.wvKQty ?? "").replace(",", ".")) || 0);
       const kQty = manualQty > 0 ? manualQty : plan.gesamt;
+      keramicoQty = kQty;
       if (kQty > 0) {
         const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
         const widthsTxt = plan.walls
@@ -1047,7 +1122,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     if (wv?.wvSealing) add("TRWDSET5", 1);
     if (wv?.flechenkleber) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
-      const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497;
+      const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497 + 2 * keramicoQty;
       const qAdh =
         Number.isFinite(userQtyAdh) && userQtyAdh > 0
           ? userQtyAdh
@@ -1074,14 +1149,17 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       if (userV3VQty > 0) {
         add("V3V", userV3VQty, `- ${userV3VQty} Stk Verbindungsprofil(e)`);
       }
-    } else if (totalPanels >= 2) {
-      console.log("corn ", corners);
-      const qV3V = Math.max(0, totalPanels - 1 - corners);
+    } else if (totalPanels + keramicoQty >= 2) {
+      const qV3V = Math.max(0, totalPanels + keramicoQty - 1 - corners);
       add(
         "V3V",
         qV3V,
         `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1 - ecken)`,
       );
+    }
+    for (const sku of BADOLUX_WV_ACCESSORIES) {
+      const q = Math.round(Number(String(wv?.[`wvBxQty_${sku}`] ?? "").replace(",", ".")) || 0);
+      if (wv?.[`wvBx_${sku}`] && q > 0) add(sku, q);
     }
     if (wv?.wvSilikon) {
       const userQtySilikon = Number(wv?.wvSilikonQty);

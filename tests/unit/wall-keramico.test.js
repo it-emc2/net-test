@@ -3,13 +3,15 @@
  * widths like the cleverbad.de calculator: each wall ⌈Breite ÷ 95⌉, no offcut
  * carried round a corner. They rode on the 997/1497 Alu quantities before.
  */
-import pricingCore, { keramicoPanelPlan } from "../../src/logic/pricing-core.js";
+import pricingCore, { keramicoPanelPlan, vigourPanelPlan } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
   WP003: { productId: "WP003", name: "Keramico Wandpaneel", price: 129 },
   WP007: { productId: "WP007", name: "Wandpaneel Sonder-Dekor", price: 169 },
   V3WVK09: { productId: "V3WVK09", name: "Wandverkleidung 997", price: 300 },
   R_4260602: { productId: "R_4260602", name: "Flächenkleber", price: 11.82 },
+  V3V: { productId: "V3V", name: "Verbindungsprofil", price: 20 },
+  PR101VBM3: { productId: "PR101VBM3", name: "Polymer Kleber Weiß", price: 12.96, source: "badolux" },
 };
 const ProductModel = {
   find: (q) => {
@@ -120,5 +122,40 @@ describe("Keramico wall (Standard) pricing", () => {
     const ls = await lines({ wvColor: "WP003|x", wvKBack: "180" });
     overrides = {};
     expect(ls.find((l) => l.productId === "WP003").unitPrice).toBe(129);
+  });
+});
+
+describe("Keramico accessories (same as Premium + Badolux)", () => {
+  test("Flächenkleber and V3V fall back to the Keramico panel count", async () => {
+    // 180 cm → 2 panels: 2 × 2 Flächenkleber, 2 − 1 V3V
+    const ls = await lines({ wvColor: "WP003|grau", wvKBack: "180", flechenkleber: "on" });
+    expect(ls.find((l) => l.productId === "R_4260602")).toMatchObject({ qty: 4 });
+    expect(ls.find((l) => l.productId === "V3V")).toMatchObject({ qty: 1 });
+  });
+  test("Badolux accessory billed only when ticked with a quantity", async () => {
+    const on = await lines({ wvColor: "WP003|grau", wvKBack: "180", wvBx_PR101VBM3: "on", wvBxQty_PR101VBM3: "3" });
+    expect(on.find((l) => l.productId === "PR101VBM3")).toMatchObject({ qty: 3 });
+    const off = await lines({ wvColor: "WP003|grau", wvKBack: "180", wvBxQty_PR101VBM3: "3" });
+    expect(off.find((l) => l.productId === "PR101VBM3")).toBeUndefined();
+  });
+});
+
+describe("vigourPanelPlan (Premium 997 / 1497, cheapest mix)", () => {
+  const prices = { 997: 168, 1497: 240 };
+  test("one wall: cheapest of the mixes", () => {
+    expect(vigourPanelPlan("wand", { back: 180 }, { prices })).toMatchObject({ qty997: 2, qty1497: 0 });
+    expect(vigourPanelPlan("wand", { back: 140 }, { prices })).toMatchObject({ qty997: 0, qty1497: 1 });
+    // 249,4 cm (1497 + 997) is too short for 250 cm
+    expect(vigourPanelPlan("wand", { back: 250 }, { prices })).toMatchObject({ qty997: 0, qty1497: 2 });
+  });
+  test("prices decide: an expensive 1497 is replaced by 997s", () => {
+    expect(vigourPanelPlan("wand", { back: 140 }, { prices: { 997: 100, 1497: 500 } })).toMatchObject({ qty997: 2, qty1497: 0 });
+  });
+  test("cladding height shares panels per size", () => {
+    const p = vigourPanelPlan("u", { links: 90, back: 160, rechts: 90 }, { prices, heightCm: 120 });
+    expect([p.qty997, p.qty1497, p.pieces.length]).toEqual([2, 0, 4]);
+  });
+  test("without prices: least panel width", () => {
+    expect(vigourPanelPlan("wand", { back: 250 })).toMatchObject({ qty997: 3, qty1497: 0 });
   });
 });

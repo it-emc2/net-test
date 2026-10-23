@@ -11844,3 +11844,9 @@ details.az-group[open] > summary.az-group-title::before {
 #wvPanelField997 .wv-extra-row select, #wvPanelField1497 .wv-extra-row select { flex: 1 1 auto; min-width: 0; width: auto; }
 #wvPanelField997 .wv-extra-row input[type="number"], #wvPanelField1497 .wv-extra-row input[type="number"] { width: 80px; }
 @media (max-width: 640px) { #wvPanelField997, #wvPanelField1497 { flex-basis: 100%; } }
+
+/* Wall-width calculator on both lines: line-specific parts. */
+.kc[data-line="premium"] [data-only="standard"],
+.kc[data-line="standard"] [data-only="premium"] { display: none !important; }
+.kc-vigour { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 12px; }
+.kc-vigour-mix { flex: 1 1 260px; font-weight: 600; }

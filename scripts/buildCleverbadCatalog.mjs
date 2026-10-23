@@ -37,6 +37,14 @@ const SLUGS = [
   "wandpaneel-keramico-sahara",
   "wandpaneel-keramico-cafe",
   "wandpaneel-dein-design",
+  // Keramico accessories (Passendes Zubehör)
+  "polymer-kleber-weiss",
+  "dichtband-blau",
+  "innenecke-abdichtung",
+  "aussenecke-abdichtung",
+  "wandmanschette-abdichtung",
+  "fliesenabschlussleiste",
+  "abschlusskappe",
 ];
 
 // The product object embedded in a product page (Next.js payload).

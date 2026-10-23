@@ -1962,6 +1962,11 @@ function computeArbeitszeitSuggestion() {
     );
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
+  // Keramico (95 cm) takes the same time as a 997 panel.
+  const keramicoQty = wvOn ? window.keramicoCurrentCount?.() || 0 : 0;
+  if (keramicoQty > 0) {
+    pushArbeitszeitRow(rows, "wvKeramico", "Wandpaneel Keramico 950×2550", 30, keramicoQty);
+  }
   if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
     pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
@@ -8155,7 +8160,9 @@ function recomputeWVFlachenQty() {
   };
   const total997 = n("wvQty997") + sumExtras("wvExtraList997");
   const total1497 = n("wvQty1497") + sumExtras("wvExtraList1497");
-  const v = 2 * total997 + 2 * total1497;
+  // Keramico panels (Standard) take the same Flächenkleber as the Alu panels.
+  const keramico = window.keramicoCurrentCount?.() || 0;
+  const v = 2 * total997 + 2 * total1497 + 2 * keramico;
   // Write only if changed (prevents noisy loops)
   if ((parseInt(out.value || "0", 10) || 0) !== v) {
     out.value = String(v);
@@ -8164,7 +8171,7 @@ function recomputeWVFlachenQty() {
     out.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  syncWVConsumablesToPanels(total997 + total1497);
+  syncWVConsumablesToPanels(total997 + total1497 + keramico);
 }
 
 // The four consumables belong to a Wandverkleidung job, not to an empty offer:
@@ -8235,7 +8242,8 @@ function initWVConnectorsUI() {
       ? n(q1497El?.value) + sumExtras("wvExtraList1497")
       : 0;
 
-    const totalPanels = q997 + q1497;
+    // Keramico panels (Standard) take the same profiles as the Alu panels.
+    const totalPanels = q997 + q1497 + (window.keramicoCurrentCount?.() || 0);
     const ecken = Math.max(0, n(corners?.value));
     let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
     rec = Math.max(0, rec - ecken); // corners consume a joint each
@@ -8272,6 +8280,7 @@ function initWVConnectorsUI() {
   });
   cb997?.addEventListener("change", render);
   cb1497?.addEventListener("change", render);
+  window.addEventListener("keramico:count", render);
 
   // First paint
   render();
@@ -11119,9 +11128,12 @@ const PRODUKT_LINES = {
       // come back as two billed panels the moment Premium is chosen again.
       { premium: "wvPanelField997", standard: "", what: "Wandverkleidung 997×2550", resetFields: true },
       { premium: "wvPanelField1497", standard: "", what: "Wandverkleidung 1497×2550", resetFields: true },
-      // Premium: Wandfläche + 997/1497 suggestion. Standard: Keramico calculator
-      // by wall widths. Hidden inputs are disabled, so they stay out of the payload.
-      { premium: "wvAreaBlock", standard: "wvKeramicoCalc", what: "Wandmaße" },
+      // Premium: Wandfläche + 997/1497 suggestion. The wall-width calculator
+      // (wvKeramicoCalc) is on both lines: Standard bills Keramico from it, Premium
+      // takes the cheapest 997/1497 mix into the Plattenwahl by button.
+      // Hidden inputs are disabled, so they stay out of the payload.
+      { premium: "wvAreaBlock", standard: "", what: "Wandmaße" },
+      { premium: "", standard: "wvBadoluxAccSection", what: "Badolux-Zubehör", resetFields: true },
       { premium: "wvPanelsLabel", standard: "", what: "" },
     ],
   },
@@ -11848,6 +11860,11 @@ makeFloorCalc({
   // opened, and pricing reads the QUANTITY, not the checkbox — a size switched
   // off but still holding "2" would bill two extra panels.
   function apply(size, qty) {
+    applyQty({ [size]: qty });
+  }
+  // { 997: n, 1497: m } — sizes left out are cleared. Also used by the
+  // wall-width calculator's „In Plattenwahl übernehmen".
+  function applyQty(qtys) {
     const rows = [
       { size: 997, cb: "wv997", qty: "wvQty997" },
       { size: 1497, cb: "wv1497", qty: "wvQty1497" },
@@ -11856,14 +11873,15 @@ makeFloorCalc({
       const cb = document.getElementById(r.cb);
       const q = document.getElementById(r.qty);
       if (!cb || !q) continue;
-      const on = r.size === size;
-      q.value = on ? String(qty) : "0";
+      const qty = Math.max(0, Number(qtys[r.size]) || 0);
+      const on = qty > 0;
+      q.value = String(qty);
       if (cb.checked !== on) {
         cb.checked = on;
         cb.dispatchEvent(new Event("change", { bubbles: true }));
       }
       // The handler sets "1" when it switches a size on; restore the suggestion.
-      q.value = on ? String(qty) : "0";
+      q.value = String(qty);
       q.dispatchEvent(new Event("input", { bubbles: true }));
       q.dispatchEvent(new Event("change", { bubbles: true }));
     }
@@ -11883,7 +11901,27 @@ makeFloorCalc({
   document.getElementById("wv1497")?.addEventListener("change", render);
   document.getElementById("wvLineToggle")?.addEventListener("change", render);
   window.renderWvAreaSuggestion = render;
+  window.applyWvPanelQty = applyQty;
   render();
+})();
+
+/* Badolux accessories (Wandverkleidung, Standard): ticking a tile sets 1, a
+   quantity above 0 ticks it, 0 unticks it. pricing-core bills ticked + qty > 0. */
+(function initBadoluxWvAccessories() {
+  const sec = document.getElementById("wvBadoluxAccSection");
+  if (!sec) return;
+  sec.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t?.type !== "checkbox") return;
+    const q = document.getElementById(`wvBxQty_${t.name.slice(5)}`);
+    if (q) q.value = t.checked ? (Number(q.value) > 0 ? q.value : "1") : "0";
+  });
+  sec.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t?.type !== "number") return;
+    const cb = document.getElementById(`wvBx_${t.name.slice(8)}`);
+    if (cb) cb.checked = Number(t.value) > 0;
+  });
 })();
 
 /* ========== Keramico-Bedarfsrechner (Wandverkleidung, Standard) ==========
@@ -11904,6 +11942,13 @@ makeFloorCalc({
   const qtyNote = document.getElementById("kcQtyNote");
   // Sonder-Dekor: the motif runs over the whole panel, so strips can't be reused.
   const isMotif = () => /^WP007\|/i.test(document.querySelector('input[name="wvColor"]:checked')?.value || "");
+  // Premium plans Vigour 997/1497 panels on the same walls (cheapest mix, taken
+  // into the Plattenwahl by button); Standard bills Keramico from these widths.
+  const vigour = () => typeof getLine === "function" && getLine("wand") === "premium";
+  const isKeramicoDecor = () => /^WP/i.test(document.querySelector('input[name="wvColor"]:checked')?.value || "");
+  const vigourPrices = new Map(); // article → net purchase price (/api/vigor-prices)
+  let keramicoCount = 0;
+  let vigourMix = null;
   const warnEl = document.getElementById("kcHeightWarn");
   const cutListEl = document.getElementById("kcCutList");
   const inputs = {
@@ -12003,7 +12048,15 @@ makeFloorCalc({
     });
 
     const widths = { links: num(inputs.links), back: num(inputs.back), rechts: num(inputs.rechts) };
-    const plan = core.keramicoPanelPlan(sit, widths, { heightCm: num(heightEl), reuse: !isMotif() });
+    const premium = vigour();
+    root.dataset.line = premium ? "premium" : "standard";
+    const arts = premium ? vigourArticles() : null;
+    const plan = premium
+      ? core.vigourPanelPlan(sit, widths, {
+          heightCm: num(heightEl),
+          prices: { 997: vigourPrices.get(arts[997]), 1497: vigourPrices.get(arts[1497]) },
+        })
+      : core.keramicoPanelPlan(sit, widths, { heightCm: num(heightEl), reuse: !isMotif() });
 
     // ---- geometry: walls drawn at their real width, or a preview width while empty
     const drawn = {};
@@ -12108,7 +12161,7 @@ makeFloorCalc({
 
     // ---- results
     // A typed quantity overrides the computed one (same rule in pricing-core).
-    const manual = Math.round(num(qtyEl));
+    const manual = premium ? 0 : Math.round(num(qtyEl));
     setCount(document.getElementById("kcCount"), manual > 0 ? manual : plan.gesamt);
     qtyReset.hidden = !(manual > 0);
     qtyNote.hidden = !(manual > 0);
@@ -12131,7 +12184,7 @@ makeFloorCalc({
       parts.push(`Breite: ${cuts.map((p) => `${plan.perPanel > 1 ? `Feld ${p.feld}` : `Platte ${p.platte}`} auf ${fmtCm(p.breite)} cm`).join(", ")} (Verschnitt ${fmtCm(plan.verschnitt)} cm Breite).`);
     cutListEl.hidden = plan.schnitte === 0;
     cutListEl.innerHTML = plan.schnitte
-      ? `<b>${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (95 × 255 cm).</span>${parts.map((t) => `<span>${t}</span>`).join("")}`
+      ? `<b>${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (${premium ? `${mixText(plan)} mm` : "95 × 255 cm"}).</span>${parts.map((t) => `<span>${t}</span>`).join("")}`
       : "";
 
     const h = num(heightEl);
@@ -12141,6 +12194,60 @@ makeFloorCalc({
       ? `Höhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
       : "";
     paintPrice();
+    if (premium) paintVigour(plan, arts);
+
+    // Keramico panels count for Flächenkleber, V3V and Arbeitszeit like Alu panels.
+    const kc = !premium && isKeramicoDecor() ? (manual > 0 ? manual : plan.gesamt) : 0;
+    if (kc !== keramicoCount) {
+      keramicoCount = kc;
+      if (!(window.__restoring || window.__RESTORING__)) recomputeWVFlachenQty();
+      window.dispatchEvent(new Event("keramico:count"));
+      if (typeof updateKostenDetails === "function") updateKostenDetails();
+    }
+  }
+
+  const mixText = (plan) =>
+    [plan.qty1497 ? `${plan.qty1497} × 1497` : "", plan.qty997 ? `${plan.qty997} × 997` : ""].filter(Boolean).join(" + ");
+
+  // Articles of the chosen Premium colour (per-size override first); their net
+  // purchase prices are fetched once and decide the cheapest mix.
+  function vigourArticles() {
+    const raw = document.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß";
+    const main = raw.includes("|") ? raw.split("|").slice(1).join("|") : raw;
+    const color = (size) => document.getElementById(`wvColor_${size}`)?.value || main;
+    const arts = {
+      997: core.resolveWvArticle("997x2550", color(997), "", "V3WVK09"),
+      1497: core.resolveWvArticle("1497x2550", color(1497), "", "V3WV09"),
+    };
+    const missing = [arts[997], arts[1497]].filter((id) => !vigourPrices.has(id));
+    if (missing.length) {
+      missing.forEach((id) => vigourPrices.set(id, 0));
+      fetch(`/api/vigor-prices?ids=${encodeURIComponent(missing.join(","))}`)
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((d) => {
+          for (const [k, v] of Object.entries(d || {})) vigourPrices.set(k, Number(v) || 0);
+          render();
+        })
+        .catch(() => {});
+    }
+    return arts;
+  }
+
+  function paintVigour(plan, arts) {
+    const mixEl = document.getElementById("kcVigourMix");
+    const btn = document.getElementById("kcVigourApply");
+    if (!mixEl || !btn) return;
+    vigourMix = plan.gesamt ? { 997: plan.qty997, 1497: plan.qty1497 } : null;
+    btn.disabled = !vigourMix;
+    if (!vigourMix) {
+      mixEl.textContent = "Wandbreiten eintragen";
+      return;
+    }
+    const p997 = vigourPrices.get(arts[997]) || 0;
+    const p1497 = vigourPrices.get(arts[1497]) || 0;
+    const cost = p997 > 0 && p1497 > 0 ? plan.qty997 * p997 + plan.qty1497 * p1497 : 0;
+    const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} mm${cost ? ` — Einkauf netto ${eur(cost)}` : " (ohne Einkaufspreise: geringster Verschnitt)"}`;
   }
 
   // Price comes from the offer itself (pricing-core, incl. Nachlass), not from
@@ -12148,11 +12255,14 @@ makeFloorCalc({
   function paintPrice() {
     const el = document.getElementById("kcPrice");
     if (!el) return;
-    const line = (window.__pricing?.materials?.lines || []).find((l) => /^WP\d/i.test(l.productId || ""));
-    el.textContent = line
-      ? `${Number(line.lineTotal || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+    // Premium: the Alu panel lines of the Plattenwahl (what the offer bills).
+    const re = vigour() ? /^V3WVK?\d/i : /^WP\d/i;
+    const lines = (window.__pricing?.materials?.lines || []).filter((l) => re.test(l.productId || ""));
+    const total = lines.reduce((a, l) => a + (Number(l.lineTotal) || 0), 0);
+    el.textContent = lines.length
+      ? `${total.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
       : "–";
-    el.title = line ? `${line.qty} × ${Number(line.unitPrice || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })} € netto` : "";
+    el.title = lines.map((l) => `${l.qty} × ${Number(l.unitPrice || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })} € netto`).join(", ");
   }
 
   function applyFocus(hoverPlatte = null) {
@@ -12208,7 +12318,11 @@ makeFloorCalc({
   });
   // Repaint the walls when the decor or the Sonder-Dekor motif changes.
   document.addEventListener("change", (e) => {
-    if (e.target?.name === "wvColor") render();
+    if (["wvColor", "wvColor_997", "wvColor_1497"].includes(e.target?.name)) render();
+  });
+  document.getElementById("wvLineToggle")?.addEventListener("change", render);
+  document.getElementById("kcVigourApply")?.addEventListener("click", () => {
+    if (vigourMix) window.applyWvPanelQty?.(vigourMix);
   });
   document.getElementById("kmpTrack")?.addEventListener("click", () => setTimeout(render, 0));
   // Hover (mouse) or tap (iPad) on a panel highlights it and its label.
@@ -12219,6 +12333,7 @@ makeFloorCalc({
   svg.addEventListener("pointerleave", () => applyFocus());
   window.addEventListener("pricing:updated", paintPrice);
   window.renderKeramicoCalc = render;
+  window.keramicoCurrentCount = () => keramicoCount;
   // For the send-time "0 Platten" check (wvCheck): panels for a payload's wall
   // widths, or null while pricing-core isn't loaded.
   window.keramicoPanelCount = (wv) => {
@@ -16092,6 +16207,11 @@ function restoreWV(wv) {
   setInputByNameOrId("wvArea", wv.wvArea || "");
   setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
   for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif"]) setInputByNameOrId(k, wv[k] || "");
+  // Badolux accessories (Standard): wvBx_<SKU> + wvBxQty_<SKU>, absent in older offers.
+  document.querySelectorAll('#wvBadoluxAccSection input[type="checkbox"]').forEach((cb) => {
+    cb.checked = !!wv[cb.name];
+    setInputByNameOrId(`wvBxQty_${cb.name.slice(5)}`, wv[`wvBxQty_${cb.name.slice(5)}`] || "");
+  });
   window.renderKeramicoCalc?.();
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();

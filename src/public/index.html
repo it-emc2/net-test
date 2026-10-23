@@ -4899,10 +4899,11 @@ button.dm-btn-danger:focus-visible {
             <!-- Standard (Keramico 95 × 255 cm): Bedarfsrechner nach Wandbreiten, gleiche
                  Regel wie cleverbad.de (keramicoPanelPlan in pricing-core). Felder wvK* sind
                  additiv — fehlen in jedem Altangebot. -->
-            <div id="wvKeramicoCalc" class="kc" hidden aria-hidden="true">
+            <div id="wvKeramicoCalc" class="kc">
               <div class="kc-head">
                 <h3>Bedarf berechnen</h3>
-                <p class="kc-note">Ein Keramico-Paneel ist 95 cm breit und 255 cm hoch. Wandsituation wählen und die Breiten eintragen — die Paneele laufen von links über jede Wand.</p>
+                <p class="kc-note" data-only="standard">Ein Keramico-Paneel ist 95 cm breit und 255 cm hoch. Wandsituation wählen und die Breiten eintragen — die Paneele laufen von links über jede Wand.</p>
+                <p class="kc-note" data-only="premium">Vigour-Paneele gibt es 99,7 und 149,7 cm breit, 255 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.</p>
               </div>
               <div class="kc-sits" role="group" aria-label="Wandsituation">
                 <button type="button" class="kc-chip" data-sit="wand" aria-pressed="true">Eine Wand</button>
@@ -4928,7 +4929,12 @@ button.dm-btn-danger:focus-visible {
               </div>
               <div id="kcCutList" class="kc-cutlist" hidden></div>
               <!-- Manuelle Menge: überschreibt die berechnete Anzahl im Angebot (wvKQty). -->
-              <div class="kc-manual">
+              <!-- Premium: günstigste 997/1497-Kombination, per Knopf in die Plattenwahl unten. -->
+              <div id="kcVigour" class="kc-vigour" data-only="premium">
+                <span id="kcVigourMix" class="kc-vigour-mix">Wandbreiten eintragen</span>
+                <button type="button" id="kcVigourApply" class="secondary" disabled>In Plattenwahl übernehmen</button>
+              </div>
+              <div class="kc-manual" data-only="standard">
                 <label for="wvKQty">Anzahl Paneele manuell</label>
                 <input id="wvKQty" name="wvKQty" type="number" inputmode="numeric" min="0" max="200" step="1" placeholder="berechnet" />
                 <button type="button" id="kcQtyReset" class="secondary" hidden>Berechnete Menge verwenden</button>
@@ -5191,6 +5197,91 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
+          </div>
+
+          <!-- Standard (Keramico): Badolux-Zubehör aus dem cleverbad.de-Shop, Mengen von Hand
+               (wvBx_*/wvBxQty_*, additiv — fehlen in jedem Altangebot). -->
+          <div id="wvBadoluxAccSection" class="full" hidden aria-hidden="true">
+            <div class="section-title">Badolux-Zubehör (Keramico)</div>
+            <div class="product-tile-grid">
+            <div class="field wv-bx">
+              <label>Polymer Kleber Weiß</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PR101VBM3" name="wvBx_PR101VBM3" data-product-id="PR101VBM3" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PR101VBM3.webp" alt="Polymer Kleber Weiß 290 ml" loading="lazy" /></span><span class="caption">Polymer Kleber Weiß 290 ml · PR101VBM3</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PR101VBM3">Menge (Kartuschen)</label>
+                <input id="wvBxQty_PR101VBM3" name="wvBxQty_PR101VBM3" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Dichtband Blau</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PR47VBM02" name="wvBx_PR47VBM02" data-product-id="PR47VBM02" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PR47VBM02.webp" alt="Dichtband Blau" loading="lazy" /></span><span class="caption">Dichtband Blau · PR47VBM02</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PR47VBM02">Menge (lfm)</label>
+                <input id="wvBxQty_PR47VBM02" name="wvBxQty_PR47VBM02" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Abdichtung Innenecke</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM03" name="wvBx_PR59VBM03" data-product-id="PR59VBM03" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PR59VBM03.webp" alt="Abdichtung DIN 18534 Innenecke" loading="lazy" /></span><span class="caption">Abdichtung DIN 18534 Innenecke · PR59VBM03</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PR59VBM03">Menge (Stück)</label>
+                <input id="wvBxQty_PR59VBM03" name="wvBxQty_PR59VBM03" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Abdichtung Außenecke</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM05" name="wvBx_PR59VBM05" data-product-id="PR59VBM05" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PR59VBM05.webp" alt="Abdichtung DIN 18534 Außenecke" loading="lazy" /></span><span class="caption">Abdichtung DIN 18534 Außenecke · PR59VBM05</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PR59VBM05">Menge (Stück)</label>
+                <input id="wvBxQty_PR59VBM05" name="wvBxQty_PR59VBM05" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Wandmanschette</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM07" name="wvBx_PR59VBM07" data-product-id="PR59VBM07" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PR59VBM07.webp" alt="Wandmanschette Rohrdurchführung" loading="lazy" /></span><span class="caption">Wandmanschette Rohrdurchführung · PR59VBM07</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PR59VBM07">Menge (Stück)</label>
+                <input id="wvBxQty_PR59VBM07" name="wvBxQty_PR59VBM07" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Fliesenabschlussleiste</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM01" name="wvBx_PRI130VBM01" data-product-id="PRI130VBM01" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PRI130VBM01.webp" alt="Fliesenabschlussleiste Edelstahl 2550 mm" loading="lazy" /></span><span class="caption">Fliesenabschlussleiste Edelstahl 2550 mm · PRI130VBM01</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PRI130VBM01">Menge (Stück)</label>
+                <input id="wvBxQty_PRI130VBM01" name="wvBxQty_PRI130VBM01" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div class="field wv-bx">
+              <label>Abschluss-Würfel</label>
+              <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM02" name="wvBx_PRI130VBM02" data-product-id="PRI130VBM02" /><span class="img-wrap"><img
+                    src="./assets/badolux/zubehoer/PRI130VBM02.webp" alt="Abschluss-Würfel Edelstahl poliert" loading="lazy" /></span><span class="caption">Abschluss-Würfel Edelstahl poliert · PRI130VBM02</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvBxQty_PRI130VBM02">Menge (Stück)</label>
+                <input id="wvBxQty_PRI130VBM02" name="wvBxQty_PRI130VBM02" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            </div>
           </div>
 
           <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
