@@ -51,7 +51,7 @@ Code: `vermieterFromDeal()` in `src/routes/bitrix.js` (Feld-IDs und Werte-IDs al
 |---|---|---|
 | Festpreisangebot | immer | – |
 | Ihr Eigenanteil beträgt … | Zuschuss gewährt | `{#hasSubsidyLine}` |
-| Ebenerdige Montage + Regie | Ebenerdig-Toggle an **und** Duschwanne unter den Arbeiten, nur BU (bei BWT/HL/BL im Code ausgeschaltet) | `{#EbenerdigHinweis}` |
+| Ebenerdige Montage + Regie | Ebenerdig-Toggle an **und** Duschwanne im Angebot (Wanne gewählt, Schalter nicht aus – oder "Duschwanne" in den Arbeiten), nur BU (bei BWT/HL/BL im Code ausgeschaltet) | `{#EbenerdigHinweis}` |
 | Bewilligung durch die Pflegekasse | alle Kassenkunden | `{#IsKassenkunde}` (im BU-KK-Template ohne Tag, da immer KK) |
 | Zustimmung des Vermieters | siehe oben | `{#VermieterZustimmungHinweis}` |
 
