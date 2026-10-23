@@ -1247,6 +1247,12 @@ async function mapData(body = {}, computed = {}) {
 
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
+  // Duschwanne im Angebot: Wanne gewählt und Schalter nicht aus (Schalter fehlt bei Alt-Angeboten),
+  // oder eine "Duschwanne"-Zeile unter den Arbeiten.
+  const dwSel = body.duschwanne || {};
+  const hasDuschwanne =
+    (!!dwSel.chosenTrayProductId && dwSel.trayEnabled !== false) ||
+    primary.some((t) => /duschwanne/i.test(String(t)));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
   const HasIncluded = included.length > 0;
 
@@ -2049,7 +2055,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
     // Nur Badumbau — bei BWT/HL/BL nie (Wichtige Hinweise).
-    EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
+    // Gleiche Bedingung für DOCX/PDF und Online-Signing (signing-docs.js liest dieses Feld):
+    // Toggle an UND Duschwanne im Angebot (Wanne gewählt + Schalter nicht aus, oder Arbeiten-Zeile).
+    EbenerdigHinweis:
+      ["bwt", "hl", "bl"].includes(offerKey) ||
+      !hasDuschwanne
+        ? []
+        : EbenerdigHinweis,
 
     // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
     // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.

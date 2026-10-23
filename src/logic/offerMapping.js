@@ -720,7 +720,11 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
     SelfPayLines,
     RegieRateFmt,
-    EbenerdigHinweis,
+    // Toggle an UND Duschwanne unter den Arbeiten (wie docx-template.js)
+    EbenerdigHinweis: (body.duschwanne?.chosenTrayProductId && body.duschwanne?.trayEnabled !== false) ||
+    PrimaryServiceLines.some((r) => /duschwanne/i.test(r.ServiceLine))
+      ? EbenerdigHinweis
+      : [],
 
     // BWT
     BwtRows,
