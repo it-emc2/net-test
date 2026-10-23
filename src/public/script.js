@@ -23576,9 +23576,10 @@ async function sendPdfToAuftrag() {
 // Reuses the same POST /api/signing flow as the dev-tools link generator
 // above, but skips the email and opens the resulting /sign/:token page
 // directly so the rep can hand the iPad to the customer on the spot.
-(function initSignOnSite() {
-  const btn = document.getElementById("signOnSiteBtn");
-  const statusBox = document.getElementById("signOnSiteStatus");
+// Same button in both Versandart tabs (E-Mail and Post).
+[["signOnSiteBtn", "signOnSiteStatus"], ["signOnSiteBtnPost", "signOnSiteStatusPost"]].forEach(function initSignOnSite([btnId, statusId]) {
+  const btn = document.getElementById(btnId);
+  const statusBox = document.getElementById(statusId);
   const auftragInput = document.getElementById("auftragId");
   if (!btn || !statusBox) return;
 
@@ -23667,7 +23668,7 @@ async function sendPdfToAuftrag() {
       btn.disabled = false;
     }
   });
-})();
+});
 
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
@@ -30233,6 +30234,14 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         postalSent = true;
+
+        // Same as the e-mail send: persist the sent offer, otherwise it only
+        // exists as an Entwurf and can't be found/opened as an Angebot.
+        try {
+          await window.saveFinalOfferSnapshot?.();
+        } catch (error) {
+          console.warn("[post] saveFinalOfferSnapshot failed:", error);
+        }
 
         const noteEl = document.getElementById("internalNote");
         if (noteEl) noteEl.value = "";
