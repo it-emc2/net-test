@@ -355,6 +355,9 @@ const ANGEBOT_CSS = `
 .ang .sender { font-size:8.5pt; color:#333; border-bottom:1px solid #999; padding-bottom:2px; margin:6px 0 14px; }
 .ang .addr-row { display:flex; justify-content:space-between; gap:24px; }
 .ang .cust div { margin:1px 0; }
+/* Signed Angebot goes out by post: onlinebrief24's address box starts at
+   x 20.2 mm, the page margin puts text at 18 mm — indent to DIN 5008's 25 mm. */
+@media print { .ang .cust { padding-left:7mm; } }
 .ang .meta { min-width:300px; }
 .ang .mrow { display:flex; justify-content:space-between; gap:16px; margin:1px 0; }
 .ang .mrow .mlabel { color:#333; }
