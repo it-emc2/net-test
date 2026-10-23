@@ -27760,12 +27760,17 @@ function buildPlanningEntries(payload){
         shortLabel: day?.shortLabel || "",
         dayLocked: !!day?.locked,
       }))
-      .sort((a, b) => {
-        const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : Number.MAX_SAFE_INTEGER;
-        const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : Number.MAX_SAFE_INTEGER;
-        return aSlot - bSlot || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
-      }),
+      .sort(comparePlanningStart),
   };
+}
+
+// Order by start time; entries without one keep the route planner's order
+// (Array.sort is stable). Sorting locked slots first / unlocked by name
+// shuffled unlocked Termine out of their real sequence.
+function comparePlanningStart(a, b){
+  const aTime = Number(a?.manualStartMinutes);
+  const bTime = Number(b?.manualStartMinutes);
+  return (Number.isFinite(aTime) ? aTime : Infinity) - (Number.isFinite(bTime) ? bTime : Infinity) || 0;
 }
 
 function formatPlanningStartTime(entry){
@@ -28077,14 +28082,7 @@ function renderWeekCalendar(payload) {
     const isToday = dayDate ? isSamePlanningDay(dayDate, now) : false;
     const customers = Array.isArray(day?.customers) ? day.customers : [];
 
-    // Sort: locked slots first by slot index, then by start time, then by name
-    const entries = [...customers].sort((a, b) => {
-      const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : 999;
-      const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : 999;
-      const aTime = Number.isFinite(Number(a?.manualStartMinutes)) ? Number(a.manualStartMinutes) : 9999;
-      const bTime = Number.isFinite(Number(b?.manualStartMinutes)) ? Number(b.manualStartMinutes) : 9999;
-      return aSlot - bSlot || aTime - bTime || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
-    });
+    const entries = [...customers].sort(comparePlanningStart);
 
     const dateNum = dayDate ? dayDate.getDate() : "–";
     const monthName = dayDate ? dayDate.toLocaleDateString("de-DE", { month: "short" }) : "";
