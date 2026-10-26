@@ -32,3 +32,8 @@ test('no floor → no floor line', async () => {
   const res = await run({ wallCladdingKind: 'Gesamtes-Bad' });
   expect(has(res, 'Fußbodenverkleidung')).toBe(false);
 });
+
+test('WV als Fußboden adds Flächenkleber from the entered area', async () => {
+  const res = await run({ addWallCladding: true, wallCladdingKind: 'Gesamtes-Bad', wallCladdingArea: '7,91', wallCladdingQty: '4' });
+  expect(JSON.stringify(res.materials)).toContain('14 Pkg Flächenkleber');
+});

@@ -802,6 +802,15 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
         null,
         { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
       );
+
+      // Flächenkleber — same rule as the regular Fußboden; no area entered → panel coverage.
+      const wcArea =
+        Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
+        wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55;
+      const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
+      const wcPacks = ceilSafe(wcArea / wcCoverage);
+      if (wcPacks > 0)
+        add("R_4260602", wcPacks, `- ${wcPacks} Pkg Flächenkleber (1 Pkg je ${wcCoverage} m²)`);
     }
 
     // ------- Wandverkleidung
