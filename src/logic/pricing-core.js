@@ -389,8 +389,10 @@ function grossToNet(gross, taxRate) {
     const wvOn = payload?.wandverkleidung?.wvEnabled !== false;
     const kind = wvOn ? payload?.wandverkleidung?.wvKind || "" : "";
     const dusch = payload?.duschwanne || {};
-    const floorKind = dusch?.floorKind || "";
-    const hasFlooring = !!dusch?.addFlooring;
+    // Fußboden can come from the Fußboden tab or from WV-Paneelen ("Wandverkleidung als Fußboden").
+    const wvFloor = !!dusch?.addWallCladding && !dusch?.addFlooring;
+    const floorKind = (wvFloor ? dusch?.wallCladdingKind : dusch?.floorKind) || "";
+    const hasFlooring = !!dusch?.addFlooring || !!dusch?.addWallCladding;
 
     const picked = new Set();
 
