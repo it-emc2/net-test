@@ -7075,8 +7075,19 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
+            <!-- Pflichtfrage: entscheidet, welche Duschsysteme technisch passen (data-mount auf den Kacheln) -->
+            <div class="field full" id="showerMountWrap">
+              <label class="req">Sitzt die Armatur auf passender Höhe direkt unter dem Duschgestänge (feste Verbindung möglich)?</label>
+              <div class="radio-group" role="radiogroup" aria-label="Position der Armatur">
+                <label class="radio-pill"><input type="radio" name="showerMount" value="versetzt" /><span
+                    class="circle"></span><span>Versetzt (seitlich/tiefer) – flexibler Schlauch nötig</span></label>
+                <label class="radio-pill"><input type="radio" name="showerMount" value="direkt" /><span
+                    class="circle"></span><span>Direkt darunter – feste Verbindung</span></label>
+              </div>
+              <p class="section-subtitle" id="showerMountHint" hidden>Pflicht: separate Aufputz-Armatur (Kategorie „Austausch eines Thermostates“) + Verbindungsschlauch.</p>
+            </div>
             <div class="opt-tile-grid">
-              <div class="field">
+              <div class="field" data-mount="versetzt">
                 <label class="image-check"><input type="checkbox" id="opt_V22WS1R" name="optShower[]"
                     value="Wannenset individual 2.2 m.Wandhalter Schlauch u.HB 1-str. rund verchr. VIGOUR V22WS1R" /><span
                     class="img-wrap"><img src="./assets/V22WS1R.jpg" alt="V22WS1R" /></span><span
@@ -7087,7 +7098,8 @@ button.dm-btn-danger:focus-visible {
                     type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="field" style="min-width: 220px">
+              <!-- Tempesta 250 Flex: ohne Thermostat, Anschluss per Schlauch an separate Armatur → versetzt -->
+              <div class="field" style="min-width: 220px" data-mount="versetzt">
                 <label class="image-check"><input type="checkbox" id="opt_TEMPDSU250" name="optShower[]"
                     value="Duschsystem Tempesta Flex verchromt m.Umstellung KB 210mm Brausegarn. Große TEMPDSU250" /><span
                     class="img-wrap"><img src="./assets/cbad82d117faadf930fcafe8273ddc83.jpg"
@@ -7098,7 +7110,17 @@ button.dm-btn-danger:focus-visible {
                     name="qty_TEMPDSU250" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 220px" data-mount="versetzt">
+                <label class="image-check"><input type="checkbox" id="opt_DESIBS160" name="optShower[]"
+                    value="Design-Brauseschlauch V3 1/2&quot;x1/2&quot;x160cm verdrehsicher verchromt VIGOUR DESIBS160" /><span
+                    class="img-wrap"><img src="./assets/DESIBS160.jpg" alt="DESIBS160" /></span><span
+                    class="caption">Design-Brauseschlauch V3 160 cm verdrehsicher verchromt DESIBS160</span></label>
+                <div id="qty_DESIBS160_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_DESIBS160" class="req">Menge DESIBS160</label><input id="qty_DESIBS160"
+                    name="qty_DESIBS160" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+              <div class="field" style="min-width: 220px" data-mount="versetzt">
                 <label class="image-check"><input type="checkbox" id="opt_V22BG903R" name="optShower[]"
                     value="Brausegarnitur individ.2.2 m.Stange 90cm Schlauch u.HB 3-str. rund verchr. VIGOUR V22BG903R" /><span
                     class="img-wrap"><img src="./assets/V22BG903R.jpg" alt="V22BG903R" /></span><span
@@ -7109,7 +7131,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_V22BG903R" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 220px" data-mount="direkt">
                 <label class="image-check"><input type="checkbox" id="opt_V12DS250E" name="optShower[]"
                     value="Duschsystem V1 Thermostat KB 250mm edge HB V1 5-fach u. Schlauch verchr. VIGOUR V12DS250E" /><span
                     class="img-wrap"><img src="./assets/v12ds250e.jpg" alt="V12DS250E" /></span><span
@@ -7120,7 +7142,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_V12DS250E" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 220px" data-mount="direkt">
                 <label class="image-check"><input type="checkbox" id="opt_STRAYT" name="optShower[]"
                     value="Duschsäule m.Thermostat Strayt STRAYT" /><span
                     class="img-wrap"><img src="./assets/STRAYT.jpg" alt="STRAYT" /></span><span
