@@ -149,6 +149,7 @@ export function initRestoreManager({
       // Merken, dass dieses Angebot noch nach der alten Regel gespeichert wurde,
       // damit die Umstellen-Checkbox sichtbar (und ruecknehmbar) bleibt.
       window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+      window.__bwtGrabSingleAufschlag = payload?.pricingRules?.bwtGrabSingleAufschlag === true;
 
       // BWT Freigrenzen: pin to this offer's own saved snapshot so reopening
       // it doesn't silently reprice it to whatever the admin has configured
@@ -160,6 +161,9 @@ export function initRestoreManager({
       window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
       window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
+      // Neukundenbonus: pin to the offer's snapshot; none → legacy 3.000 € rule.
+      window.__applyBonusNeuSnapshot?.(payload);
+
       // Aktion Haltegriff: only an offer that actually got the bonus is pinned
       // to its saved grab-bar list (no snapshot → the 30 cm-only rule it was
       // priced with). Without the bonus there's no price to protect, so it
@@ -168,9 +172,11 @@ export function initRestoreManager({
         const grabSnap = payload?.pricingRules?.grabBonusIds;
         window.__grabBonusIds = Array.isArray(grabSnap) ? grabSnap : ["CLPESG30"];
         window.__grabBonusIdsPinned = true;
+        window.__grabBonusRefId = payload?.pricingRules?.grabBonusRefId || null;
       } else {
         window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
         window.__grabBonusIdsPinned = false;
+        window.__grabBonusRefId = "CLPESG30";
       }
 
       console.log("[SKETCH][payload-stored]", {
@@ -268,6 +274,11 @@ export function initRestoreManager({
     // subject and body). These live outside any form-* element, so they are
     // restored explicitly here. The body carries the dynamic Ansprechpartner
     // name embedded in its saved text.
+    // Zusammenfassung: how/when this offer was sent (docs/zf-plan.md).
+    window.setZfVersand?.(payload?.zusammenfassung?.versand);
+    window.setZfCheckliste?.(payload?.zusammenfassung?.checkliste);
+    window.setZfCheckAck?.(payload?.zusammenfassung?.checkAck);
+
     try {
       const mail = payload?.mail || {};
       const setMailField = (id, value) => {

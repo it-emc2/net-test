@@ -355,6 +355,9 @@ const ANGEBOT_CSS = `
 .ang .sender { font-size:8.5pt; color:#333; border-bottom:1px solid #999; padding-bottom:2px; margin:6px 0 14px; }
 .ang .addr-row { display:flex; justify-content:space-between; gap:24px; }
 .ang .cust div { margin:1px 0; }
+/* Signed Angebot goes out by post: onlinebrief24's address box starts at
+   x 20.2 mm, the page margin puts text at 18 mm — indent to DIN 5008's 25 mm. */
+@media print { .ang .cust { padding-left:7mm; } }
 .ang .meta { min-width:300px; }
 .ang .mrow { display:flex; justify-content:space-between; gap:16px; margin:1px 0; }
 .ang .mrow .mlabel { color:#333; }
@@ -444,17 +447,14 @@ function materialBlock(d) {
 // Reihenfolge wie im DOCX (Angebot-10 / Angebot-BU-KK-2):
 //   1. Festpreis (immer)
 //   2. Ihr Eigenanteil (Kassenkunde mit gewährtem Zuschuss)
-//   3. Ebenerdige Montage + Regie (nur wenn eine Duschwanne montiert wird;
-//      Stundensatz aus RegieRateFmt, 59,50€ SZ / 69,50€ KK)
+//   3. Ebenerdige Montage + Regie (EbenerdigHinweis: Toggle an + Duschwanne;
+//      Stundensatz aus RegieRateFmt, 69,50€ für KK und SZ)
 //   4. Pflegekassen-Bewilligung (alle Kassenkunden)
 //   5. Vermieter-Zustimmung (VermieterZustimmungHinweis aus docx-template.js)
 // Doku: docs/vermieter-genehmigung.md
 function festpreisBlock(d) {
   const payer = String(d.PayerKind || "").toUpperCase();
   const isKK = payer === "KK" || payer === "KASSENKUNDE";
-  const hasDuschwanne = (d.PrimaryServiceLines || []).some((r) =>
-    /duschwanne/i.test(String(r?.ServiceLine || "")),
-  );
   const rate = String(d.RegieRateFmt || "").trim();
   const out = [
     `Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich.`,
@@ -464,7 +464,8 @@ function festpreisBlock(d) {
       `Ihr Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.`,
     );
   }
-  if (hasDuschwanne) {
+  // EbenerdigHinweis kommt aus docx-template.js (Toggle + Duschwanne im Angebot) — identisch zum PDF.
+  if ((d.EbenerdigHinweis || []).length) {
     out.push(
       `Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz Servicemonteur: ${esc(rate)} netto)` : ""}`,
     );

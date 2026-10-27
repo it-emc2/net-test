@@ -253,7 +253,17 @@ function finishPlan(sit, walls, pieces, heightCm, reuse) {
 }
 
 export function computeFingerprint(payload) {
-  const { pricing, forceRecompute, ...rest } = payload || {};
+  // zusammenfassung (Versandstatus, Checkliste) is workflow state, not a price
+  // input — the same reasoning as duschwanne.trayEnabled below.
+  const { pricing, forceRecompute, zusammenfassung, ...rest } = payload || {};
+  // duschwanne.trayEnabled is a UI switch, not a price input — what it changes
+  // (the tray keys being present or not) is already in the payload. Leaving it
+  // in would give every offer saved before the switch existed a new
+  // fingerprint, and a locked offer would be repriced on its next open.
+  if (rest.duschwanne && "trayEnabled" in rest.duschwanne) {
+    const { trayEnabled, ...dw } = rest.duschwanne;
+    rest.duschwanne = dw;
+  }
   return stableStringify(rest);
 }
 
@@ -318,7 +328,7 @@ export default (ProductModel, deps = {}) => {
   // Kosten-Details (internal ordering view) view of the Aktion-Haltegriff: the free
   // grab bar is still ordered and paid for by us, so the quantity must stay
   // truthful. Only annotate the line; never rewrite its qty.
-  function markGrabFreeInUI(list, freeId) {
+  function markGrabFreeInUI(list, freeId, partial = false) {
     if (!freeId) return;
     const row = list?.find((l) => (l.productId || l.id) === freeId);
     if (!row) return;
@@ -328,7 +338,9 @@ export default (ProductModel, deps = {}) => {
       .trim();
     if (/gratis/i.test(base)) return; // already annotated
 
-    row.label = `${base} · davon 1 gratis (Bonus)`;
+    row.label = partial
+      ? `${base} · 30-cm-Wert gratis (Bonus)`
+      : `${base} · davon 1 gratis (Bonus)`;
   }
 
   // --- helper: include selected tray as a material line ---
@@ -523,8 +535,10 @@ function grossToNet(gross, taxRate) {
     const wvOn = payload?.wandverkleidung?.wvEnabled !== false;
     const kind = wvOn ? payload?.wandverkleidung?.wvKind || "" : "";
     const dusch = payload?.duschwanne || {};
-    const floorKind = dusch?.floorKind || "";
-    const hasFlooring = !!dusch?.addFlooring;
+    // Fußboden can come from the Fußboden tab or from WV-Paneelen ("Wandverkleidung als Fußboden").
+    const wvFloor = !!dusch?.addWallCladding && !dusch?.addFlooring;
+    const floorKind = (wvFloor ? dusch?.wallCladdingKind : dusch?.floorKind) || "";
+    const hasFlooring = !!dusch?.addFlooring || !!dusch?.addWallCladding;
 
     const picked = new Set();
 
@@ -903,20 +917,34 @@ function grossToNet(gross, taxRate) {
           `- ${packs} Pkg Flächenkleber (1 Pkg je ${adhesiveCoverage} m²)`,
         );
 
-      // Bodenabdichtung pro m²
+      // Bodenabdichtung: whole Hassmann units, like the GC Abdichtungsplaner —
+      // 1 Set TRBDSET7 (7 m²) + Dichtbahn-Rollen TRDB10 (10 m × 0,5 m = 5 m²)
+      // for the area beyond the set. Billed as ordered, no per-m² price.
       const floorSealingOn = !!(dusch.floorSealing || dusch["floorSealing[]"]);
       if (floorSealingOn) {
         const effM2 = round2(floorArea * floorWaste);
         if (effM2 > 0) {
+          const setM2 = cfg.get('BU_FLOOR_SEAL_SET_M2', 7);
+          const rollM2 = cfg.get('BU_FLOOR_SEAL_ROLL_M2', 5);
+          const rolls = ceilSafe(Math.max(0, effM2 - setM2) / rollM2);
           idsNeeded.add("TRBDSET7");
           lines.push({
             id: "TRBDSET7",
-            qty: effM2,
-            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
-            perM2Base: 7, // derive €/m² = price(TRBDSET7)/7
+            qty: 1,
+            label: `- 1 Set Trinnity Bodenabdichtung (${setM2} m²)`,
             source: null,
             category: _cat,
           });
+          if (rolls > 0) {
+            idsNeeded.add("TRDB10");
+            lines.push({
+              id: "TRDB10",
+              qty: rolls,
+              label: `- ${rolls} Rolle${rolls > 1 ? "n" : ""} Trinnity Dichtbahn 10 m (Erweiterung, ${effM2} m² inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
+              source: null,
+              category: _cat,
+            });
+          }
         }
       }
 
@@ -945,6 +973,15 @@ function grossToNet(gross, taxRate) {
         null,
         { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
       );
+
+      // Flächenkleber — same rule as the regular Fußboden; no area entered → panel coverage.
+      const wcArea =
+        Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
+        wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55;
+      const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
+      const wcPacks = ceilSafe(wcArea / wcCoverage);
+      if (wcPacks > 0)
+        add("R_4260602", wcPacks, `- ${wcPacks} Pkg Flächenkleber (1 Pkg je ${wcCoverage} m²)`);
     }
 
     // ------- Wandverkleidung
@@ -1939,6 +1976,17 @@ color: metaColor || null,
       grabBonusIds.find((id) =>
         resolved.some((l) => (l.productId || l.id) === id && Number(l.qty) > 0),
       ) || null;
+    // Offers with pricingRules.grabBonusRefId only get that article's value
+    // free (the 30 cm bar); a longer bar pays the difference. Absent → the
+    // whole free unit is free, as before.
+    const grabBonusRefId = payload?.pricingRules?.grabBonusRefId || null;
+    let refUnit = null;
+    if (freeId && grabBonusRefId) {
+      const refLine = resolved.find((l) => (l.productId || l.id) === grabBonusRefId);
+      refUnit = refLine
+        ? Number(refLine.unitPrice) || 0
+        : (await getProductsByIds([grabBonusRefId])).get(grabBonusRefId)?.price || 0;
+    }
 
     // Merge in drift from plain DB-priced lines — same shape as the Vigor
     // drift above, just a different price source, so the existing
@@ -1972,6 +2020,7 @@ color: metaColor || null,
         cl80: grabQtyById.CLPESG80 || 0,
         total: grabTotal,
         freeId,
+        refUnit,
       },
     };
   }
@@ -2014,7 +2063,7 @@ color: metaColor || null,
     const isSingleWorker = isBwt || offer === "hl";
     const handwerkerCount = isSingleWorker ? 1 : 2;
     const laborRateKK = cfg.get('LABOR_RATE_KK', 69.5);
-    const laborRateSZ = cfg.get('LABOR_RATE_SZ', 59.5);
+    const laborRateSZ = cfg.get('LABOR_RATE_SZ', 69.5);
     const bwtLaborRate = cfg.get('LABOR_RATE_BWT', 79.5);
     const kmRate = cfg.get('KM_RATE', 0.35);
     const travelSecondWorkerRateRaw =
@@ -2721,7 +2770,11 @@ try {
         // ordering view, and the free grab bar still has to be BOUGHT. Keep the
         // real qty/price and just flag which one is free — the money side is
         // already covered by the "Bonus / Gratis" row in the Summen.
-        markGrabFreeInUI(uiOptionals, freeId);
+        markGrabFreeInUI(
+          uiOptionals,
+          freeId,
+          grabCounts.refUnit != null && freeId !== payload?.pricingRules?.grabBonusRefId,
+        );
       }
 
       // DOCX: the free grab bar always stays listed in Material with its real
@@ -2778,10 +2831,25 @@ try {
           markupExemptIds.push(id);
           continue;
         }
-        // The free Aktion-Haltegriff is fully free: no Aufschlag on that unit.
-        const freeQty =
-          flags.bonus_Haltegriff && id === materials?.grabCounts?.freeId ? 1 : 0;
-        markupBase += (qty - freeQty) * unitPrice;
+        // BWT Einstiegshilfen already carry the Aufschlag in their lineTotal
+        // (from when BWT had no global Aufschlag). Offers with
+        // pricingRules.bwtGrabSingleAufschlag don't add it a second time;
+        // older ones keep their double-counted price.
+        if (
+          payload?.pricingRules?.bwtGrabSingleAufschlag === true &&
+          offer === "bwt" &&
+          /^CLPESG(30|40|60|80)$/.test(id) &&
+          row?.source !== "optional"
+        ) {
+          continue;
+        }
+        // The free Aktion-Haltegriff carries no Aufschlag on its free part
+        // (the whole unit, or only the 30 cm value under grabBonusRefId).
+        const isFree =
+          flags.bonus_Haltegriff && id === materials?.grabCounts?.freeId;
+        const refUnit = materials?.grabCounts?.refUnit;
+        const freeValue = !isFree ? 0 : refUnit != null ? Math.min(refUnit, unitPrice) : unitPrice;
+        markupBase += qty * unitPrice - freeValue;
       }
 
       // Final markup using the existing percentage
@@ -2813,13 +2881,24 @@ try {
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1 + TAX_RATE));
 
-      // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
+      // Neukundenbonus: amount + threshold come from the offer's own snapshot
+      // (pricingRules, written by buildPayload from the admin config at save
+      // time). No snapshot → offer predates the rule change and keeps the old
+      // 252,10 € netto (300 € brutto) / 3.000 € rule, threshold unenforced
+      // here exactly as before.
+      const bonusRules = payload?.pricingRules || {};
+      const bonusNeuLegacy = bonusRules.bonusNeuGross == null;
+      const bonusNeuThreshold = bonusNeuLegacy ? 3000 : Number(bonusRules.bonusNeuThreshold) || 0;
+      const bonusNeuGrossDisplay = bonusNeuLegacy ? 300 : Number(bonusRules.bonusNeuGross) || 0;
+      const bonusNeuValue = bonusNeuLegacy
+        ? 252.1
+        : round2(bonusNeuGrossDisplay / (1 + TAX_RATE));
+      if (!bonusNeuLegacy && !(totalAfterRabatt > bonusNeuThreshold)) flags.bonus_neu = false;
       let bonusGross = 0;
       let bonus_neu = 0;
       if (flags.bonus_neu) {
-        const bonusVal = cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1);
-        bonusGross += bonusVal;
-        bonus_neu += bonusVal;
+        bonusGross += bonusNeuValue;
+        bonus_neu += bonusNeuValue;
       }
       // Angebot display of the free grab bar: fixed Material + Arbeit values
       // (= 175 € brutto) added to Pos. 001/002 and taken back off in its own
@@ -2836,7 +2915,11 @@ try {
           const qty = Number(freeLine?.qty) || 0;
           // per-unit price as billed (BWT grabs carry their Aufschlag in lineTotal)
           const unit = qty ? (Number(freeLine?.lineTotal) || 0) / qty : 0;
-          grabBonusReal = round2(unit);
+          // grabBonusRefId: only the 30 cm share of it (incl. its BWT Aufschlag)
+          const refUnit = materials?.grabCounts?.refUnit;
+          const listUnit = Number(freeLine?.unitPrice) || 0;
+          const share = refUnit != null && listUnit > 0 ? Math.min(1, refUnit / listUnit) : 1;
+          grabBonusReal = round2(unit * share);
           bonusGross += grabBonusReal;
           grabBonusMaterial = cfg.get('GRAB_BONUS_MATERIAL_NET', 100);
           grabBonusArbeit = cfg.get('GRAB_BONUS_LABOR_NET', 47.06);
@@ -2942,6 +3025,10 @@ try {
 
         // rabatt + bonus:
         bonusGross,
+        bonusNeuNet: bonus_neu,
+        bonusNeuGross: bonusNeuGrossDisplay,
+        bonusNeuThreshold,
+        bonusNeuLegacy,
         grabBonusMaterial,
         grabBonusArbeit,
         grabBonusReal,

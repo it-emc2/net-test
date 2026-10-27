@@ -1,4 +1,4 @@
-import { planParts, applyPlan, fromSaved, buildLines } from "../../src/public/configurator/vorhang-plan.js";
+import { planParts, applyPlan, fromSaved, buildLines, curtainLabel } from "../../src/public/configurator/vorhang-plan.js";
 
 const item = (articleNumber, net, sizeCm = null, extra = {}) => ({ articleNumber, name: articleNumber, net, sizeCm, ...extra });
 const catalog = {
@@ -63,4 +63,10 @@ test("offer saved before the shape picker restores the exact same lines", () => 
   // and survives a save → restore round trip of the new format unchanged
   const again = buildLines(fromSaved(JSON.parse(JSON.stringify(fromSaved(legacy)))), catalog);
   expect(again).toEqual(lines);
+});
+
+test("curtainLabel: B × H when the height is known, width only otherwise", () => {
+  expect(curtainLabel({ name: "Duschvorhang", sizeCm: 140, heightCm: 200 })).toBe("Duschvorhang 140 × 200 cm");
+  expect(curtainLabel({ name: "Duschvorhang", sizeCm: 140, heightCm: null })).toBe("Duschvorhang 140 cm");
+  expect(curtainLabel({ name: "Duschvorhang", sizeCm: null })).toBe("Duschvorhang");
 });

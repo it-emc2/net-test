@@ -1247,6 +1247,12 @@ async function mapData(body = {}, computed = {}) {
 
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
+  // Duschwanne im Angebot: Wanne gewählt und Schalter nicht aus (Schalter fehlt bei Alt-Angeboten),
+  // oder eine "Duschwanne"-Zeile unter den Arbeiten.
+  const dwSel = body.duschwanne || {};
+  const hasDuschwanne =
+    (!!dwSel.chosenTrayProductId && dwSel.trayEnabled !== false) ||
+    primary.some((t) => /duschwanne/i.test(String(t)));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
   const HasIncluded = included.length > 0;
 
@@ -1659,9 +1665,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false,
   );
 
-  const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false,
-  );
+  // Pricing reports the Neukundenbonus it actually applied (0 below the
+  // threshold); older saved pricing lacks it → fall back to the flag.
+  const hasBonus300 = computed?.bonusNeuNet != null
+    ? Number(computed.bonusNeuNet) > 0
+    : Boolean(pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false);
+  const bonusNeuNet = Number(computed?.bonusNeuNet ?? 252.1);
+  const bonusNeuPreis = `-${bonusNeuNet.toFixed(2).replace(".", ",")} €`;
+  const bonusNeuDetail = `-- Rabatt von ${Number(computed?.bonusNeuGross ?? 300).toLocaleString("de-DE")} € ab einem Gesamtwert von ${Number(computed?.bonusNeuThreshold ?? 3000).toLocaleString("de-DE")}`;
 
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
@@ -1673,9 +1684,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Aktion: Haltegriff",
-      BonusDetail:
-        "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
+      // New rule (only the 30 cm value free) → new wording; older offers keep
+      // the text they were sent with.
+      BonusLabel: body?.pricingRules?.grabBonusRefId ? "Aktion" : "Aktion: Haltegriff",
+      BonusDetail: body?.pricingRules?.grabBonusRefId
+        ? "Haltegriff-Bonus - für Ihre Sicherheit 175 € Rabatt auf Ihren gewählten Haltegriff"
+        : "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
       preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
       gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
@@ -1687,9 +1701,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Neukundenbonus:",
-      BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
-      preis: "-252,10 €",
-      gesamt: "-252,10 €",
+      BonusDetail: bonusNeuDetail,
+      preis: bonusNeuPreis,
+      gesamt: bonusNeuPreis,
     });
   }
 
@@ -1846,8 +1860,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
   let regieRateNum;
-  if (isKK) regieRateNum = 69.5;
-  else if (isSZ) regieRateNum = 59.5;
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto)
+  if (isKK || isSZ) regieRateNum = 69.5;
   else regieRateNum = Number(services?.laborRate) || 0;
 
   // Format exactly like "69,50€" (no space) to match your paragraph
@@ -1933,6 +1947,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: body.auftragId || b.customerNumber || b.bitrixContactId || "",
+    // "Referenz" in Angebot.docx (BU) + AH-Angebot.docx = Bitrix deal.
+    DealId: body.auftragId || body.dealId || b.dealId || "",
     Greeting:
       b.salutation === "Frau"
         ? "Sehr geehrte Frau"
@@ -2039,7 +2055,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
     // Nur Badumbau — bei BWT/HL/BL nie (Wichtige Hinweise).
-    EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
+    // Gleiche Bedingung für DOCX/PDF und Online-Signing (signing-docs.js liest dieses Feld):
+    // Toggle an UND Duschwanne im Angebot (Wanne gewählt + Schalter nicht aus, oder Arbeiten-Zeile).
+    EbenerdigHinweis:
+      ["bwt", "hl", "bl"].includes(offerKey) ||
+      !hasDuschwanne
+        ? []
+        : EbenerdigHinweis,
 
     // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
     // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.
@@ -2135,6 +2157,8 @@ const AH_FREQ = {
 const AH_ANFAHRT_PER_EINSATZ = 7.96;
 const AH_STUNDENSATZ_HND     = 40.56;
 const AH_STUNDENSATZ_AB      = 53.04;
+// Sätze oben sind netto; Selbstzahler sehen zzgl. 7 % MwSt. (Buchhaltung, 10/2026)
+const AH_MWST_SATZ           = 0.07;
 
 function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
@@ -2252,6 +2276,12 @@ function buildAhData(body) {
   if (verhinderungspflege > 0) abzugParts.push("Verhinderungspflege § 39 SGB XI");
   if (umwidmung > 0) abzugParts.push("Umwidmung § 45a Abs. 4 SGB XI");
   const abzugLabel = "abzgl. " + abzugParts.join(", ");
+
+  // Selbstzahler: Netto / MwSt. / Brutto ausweisen (Kassenkunde unverändert)
+  const isSelbstzahler =
+    String(body?.Kundendaten?.payer || "").toUpperCase() === "SELBSTZAHLER";
+  const ahMwst = r2(gesamt * AH_MWST_SATZ);
+  const ahBrutto = r2(gesamt + ahMwst);
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2386,6 +2416,12 @@ function buildAhData(body) {
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
+    // Template: {#AhIsSZ} Netto / zzgl. MwSt. / Gesamtbetrag brutto {/AhIsSZ}
+    AhIsSZ: isSelbstzahler && gesamt > 0,
+    AhGesamtLabel: isSelbstzahler && gesamt > 0 ? "Nettobetrag" : "Gesamtbetrag",
+    AhMwstLabel: `zzgl. ${Math.round(AH_MWST_SATZ * 100)} % MwSt.`,
+    AhMwst: fmtCurrency(ahMwst),
+    AhBrutto: fmtCurrency(ahBrutto),
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
     AhHasEigenanteil: hasEigenanteil,
     AhAbzugLabel: abzugLabel,

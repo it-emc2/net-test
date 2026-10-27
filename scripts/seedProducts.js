@@ -58,6 +58,7 @@ const products = [
   { productId: 'AVP-W', name: 'Aluverbundplatte weiß 1500x200mm (8 Paneele=2,4m/2)', price: 126.00, widthCm: 20, heightCm: null, lengthCm: 150 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'TRBDSET7', name: 'TRINNITY Bodenabdichtung BASIS-Set 7 qm Dichtb., Sockelb., Außen- + Innenecke', price: 278.38, widthCm: null, heightCm: null, lengthCm: null },
+  { productId: 'TRDB10', name: 'TRINNITY Dichtbahn 10x0,5m Erweiterung f. Boden u. Wand, eins. Vlies, selbstkl.', price: 104.78, widthCm: 50, heightCm: null, lengthCm: 1000 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml VIGOUR', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V3V', name: 'Verbindungsprofil 3.0 255 cm silber eloxiert VIGOUR', price: 29.51, widthCm: null, heightCm: null, lengthCm: 255 },
 

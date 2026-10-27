@@ -200,6 +200,31 @@ describe('Pricing Module', () => {
         expect(result.bonusGross).toBeGreaterThanOrEqual(252.1);
       });
 
+      describe('Neukundenbonus snapshot (pricingRules.bonusNeuGross/Threshold)', () => {
+        const run = (pricingRules) =>
+          pricing.computePrices(createBasePayload({ rabatt: { bonus300: true }, pricingRules }));
+
+        test('legacy offer (no snapshot) keeps 252,10 € netto, no threshold check', async () => {
+          const r = await run(undefined);
+          expect(r.bonusNeuNet).toBe(252.1);
+          expect(r.bonusNeuThreshold).toBe(3000);
+          expect(r.bonusFlags.bonus_neu).toBe(true);
+        });
+
+        test('new offer above threshold gets 250 € brutto (210,08 € netto)', async () => {
+          const r = await run({ bonusNeuGross: 250, bonusNeuThreshold: -1 });
+          expect(r.bonusNeuNet).toBe(210.08);
+          expect(r.bonusGross).toBe(210.08);
+        });
+
+        test('new offer not above threshold gets no bonus', async () => {
+          const r = await run({ bonusNeuGross: 250, bonusNeuThreshold: 1e9 });
+          expect(r.bonusNeuNet).toBe(0);
+          expect(r.bonusGross).toBe(0);
+          expect(r.bonusFlags.bonus_neu).toBe(false);
+        });
+      });
+
       test('recognizes bonusGrab flag', async () => {
         const payload = createBasePayload({
           rabatt: { bonusGrab: true }
@@ -270,6 +295,115 @@ describe('Pricing Module', () => {
           const one = await run({ opt_CLPESG30: true, qty_CLPESG30: 1 }, {});
           const two = await run({ opt_CLPESG30: true, qty_CLPESG30: 2 });
           expect(net(two)).toBeCloseTo(net(one), 2);
+        });
+      });
+
+      describe('Aktion Haltegriff with grabBonusRefId (only the 30 cm value free)', () => {
+        const grabs = [
+          { productId: 'CLPESG30', price: 37.46, name: 'Haltegriff 30' },
+          { productId: 'CLPESG40', price: 43.18, name: 'Haltegriff 40' },
+          { productId: 'CLPESG60', price: 52.14, name: 'Haltegriff 60' },
+          { productId: 'CLPESG80', price: 67.93, name: 'Haltegriff 80' },
+        ];
+        const ALL = ['CLPESG30', 'CLPESG40', 'CLPESG60', 'CLPESG80'];
+        const run = (optional, { bonus = true, refId = 'CLPESG30' } = {}) => {
+          mockProductModel.find.mockReturnValue({
+            lean: jest.fn().mockResolvedValue(grabs),
+          });
+          return pricing.computePrices(createBasePayload({
+            Kundendaten: { aufschlag: '50%' },
+            optional,
+            rabatt: bonus ? { bonusGrab: true } : {},
+            pricingRules: { grabBonusIds: ALL, ...(refId ? { grabBonusRefId: refId } : {}) },
+          }));
+        };
+        const net = (r) => r.netAfterRabatt_and_Bonus;
+        const bar = (cm, qty = 1) => ({ [`opt_CLPESG${cm}`]: true, [`qty_CLPESG${cm}`]: qty });
+
+        test.each([[30, 0], [40, 8.58], [60, 22.02], [80, 45.71]])(
+          '%i cm alone → customer pays %f net (difference × 1,5)',
+          async (cm, extra) => {
+            const none = await run({});
+            const r = await run(bar(cm));
+            expect(r.grabCounts.freeId).toBe(`CLPESG${cm}`);
+            expect(net(r) - net(none)).toBeCloseTo(extra, 1);
+            expect(r.grabBonusMaterial).toBe(100);
+            expect(r.grabBonusArbeit).toBe(47.06);
+          },
+        );
+
+        test('60 + 80 → shortest is free, total = (sum − 37,46) × 1,5', async () => {
+          const none = await run({});
+          const r = await run({ ...bar(60), ...bar(80) });
+          expect(r.grabCounts.freeId).toBe('CLPESG60');
+          expect(net(r) - net(none)).toBeCloseTo((52.14 + 67.93 - 37.46) * 1.5, 1);
+        });
+
+        test('without grabBonusRefId (old offers) the whole bar stays free', async () => {
+          const none = await run({});
+          const r = await run(bar(60), { refId: null });
+          expect(net(r)).toBeCloseTo(net(none), 2);
+        });
+
+        // BWT grabs carry the Aufschlag in lineTotal AND in the Aufschlag row
+        // (existing behaviour, P × 2 at 50 %); the credit follows that billing.
+        test('BWT: credit = the 30 cm share of what the bar is billed', async () => {
+          const bwtRun = (bwt, bonus) => {
+            mockProductModel.find.mockReturnValue({ lean: jest.fn().mockResolvedValue(grabs) });
+            return pricing.computePrices(createBasePayload({
+              activeOffer: 'bwt',
+              Kundendaten: { aufschlag: '50%' },
+              bwt,
+              rabatt: bonus ? { bonusGrab: true } : {},
+              pricingRules: { grabBonusIds: ALL, grabBonusRefId: 'CLPESG30' },
+            }));
+          };
+          const with60 = await bwtRun({ bwtAidsHaltegriff60Qty: 1 }, true);
+          const without = await bwtRun({ bwtAidsHaltegriff60Qty: 1 }, false);
+          expect(with60.grabCounts.freeId).toBe('CLPESG60');
+          expect(with60.grabBonusReal).toBeCloseTo(37.46 * 1.5, 1);
+          expect(net(without) - net(with60)).toBeCloseTo(37.46 * 2, 1);
+        });
+
+        describe('BWT with bwtGrabSingleAufschlag (Aufschlag only once)', () => {
+          const bwtRun = (bwt, { bonus = false, single = true } = {}) => {
+            mockProductModel.find.mockReturnValue({ lean: jest.fn().mockResolvedValue(grabs) });
+            return pricing.computePrices(createBasePayload({
+              activeOffer: 'bwt',
+              Kundendaten: { aufschlag: '50%' },
+              bwt,
+              rabatt: bonus ? { bonusGrab: true } : {},
+              pricingRules: {
+                grabBonusIds: ALL,
+                grabBonusRefId: 'CLPESG30',
+                ...(single ? { bwtGrabSingleAufschlag: true } : {}),
+              },
+            }));
+          };
+
+          test('60 cm costs 52,14 × 1,5 (not × 2)', async () => {
+            const none = await bwtRun({});
+            const r = await bwtRun({ bwtAidsHaltegriff60Qty: 1 });
+            expect(net(r) - net(none)).toBeCloseTo(52.14 * 1.5, 1);
+          });
+
+          test('without the flag (old offers) the double Aufschlag stays', async () => {
+            const none = await bwtRun({}, { single: false });
+            const r = await bwtRun({ bwtAidsHaltegriff60Qty: 1 }, { single: false });
+            expect(net(r) - net(none)).toBeCloseTo(52.14 * 2, 1);
+          });
+
+          test('bonus: customer pays (52,14 − 37,46) × 1,5', async () => {
+            const none = await bwtRun({});
+            const r = await bwtRun({ bwtAidsHaltegriff60Qty: 1 }, { bonus: true });
+            expect(net(r) - net(none)).toBeCloseTo((52.14 - 37.46) * 1.5, 1);
+          });
+        });
+
+        test('bonus off → full price incl. Aufschlag', async () => {
+          const none = await run({}, { bonus: false });
+          const r = await run(bar(60), { bonus: false });
+          expect(net(r) - net(none)).toBeCloseTo(52.14 * 1.5, 1);
         });
       });
     });
@@ -397,15 +531,15 @@ describe('Pricing Module', () => {
       expect(result.services.laborRate).toBe(69.5);
     });
 
-    test('uses Selbstzahler labor rate of 59.5', async () => {
+    test('uses Selbstzahler labor rate of 69.5 (same as Kassenkunde)', async () => {
       const payload = createBasePayload({
         Kundendaten: { payer: 'Selbstzahler' },
         Arbeitszeit: { ArbeitHoursNumeric: 2 }
       });
 
       const result = await pricing.computePrices(payload);
-      
-      expect(result.services.laborRate).toBe(59.5);
+
+      expect(result.services.laborRate).toBe(69.5);
     });
   });
 

@@ -473,6 +473,15 @@ h1 {
   gap: 12px;
 }
 
+/* the sidebar has a fixed height; a taller header (e.g. the sent-offer bar)
+   must not push the last menu entries out of reach */
+#sideMenu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+}
+
 .sidebar .logo-row {
   display: flex;
   align-items: center;
@@ -1886,7 +1895,8 @@ a.btn {
 
 /* ---------- Make the Fußboden/Wandverkleidung toggles bigger (match each other) ---------- */
 .check-pill:has(#addFlooring),
-.check-pill:has(#addWallCladding) {
+.check-pill:has(#addWallCladding),
+.check-pill:has(#dwTrayToggle) {
   padding: 14px 18px;
   gap: 14px;
   font-size: 1.02rem;
@@ -1894,14 +1904,16 @@ a.btn {
 }
 
 .check-pill:has(#addFlooring) .box,
-.check-pill:has(#addWallCladding) .box {
+.check-pill:has(#addWallCladding) .box,
+.check-pill:has(#dwTrayToggle) .box {
   width: 24px;
   height: 24px;
   border-radius: 6px;
 }
 
 .check-pill:has(#addFlooring) input:checked + .box::after,
-.check-pill:has(#addWallCladding) input:checked + .box::after {
+.check-pill:has(#addWallCladding) input:checked + .box::after,
+.check-pill:has(#dwTrayToggle) input:checked + .box::after {
   inset: 5px;
 }
 
@@ -1921,6 +1933,32 @@ a.btn {
 /* ---------- Field spacing ---------- */
 .field {
   margin: 16px 0;
+}
+
+/* Duschwanne an/aus: one attribute on the form hides every tray-only part.
+   An attribute rather than [hidden] on each element, because other code
+   toggles [hidden] on some of them (e.g. the Slate colour section). */
+/* Description line under the switch's question (the pill itself is the
+   shared .check-pill, sized like the Fußboden/Wandverkleidung toggles). */
+.dw-tray-switch__text {
+  display: grid;
+  gap: 2px;
+}
+.dw-tray-switch__text small {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+/* The two-line text would otherwise squeeze the box below its 24px. */
+.check-pill:has(#dwTrayToggle) .box {
+  flex: none;
+}
+#form-duschwanne[data-tray-off] .dw-tray-only {
+  display: none !important;
+}
+/* Kleinmaterial is then the only tile left; auto-fill keeps the empty tracks
+   so it stays tile-sized instead of stretching across the whole row. */
+#form-duschwanne[data-tray-off] .dw-tray-extras-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
 .dw-tray-extras-grid {
@@ -3162,6 +3200,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* Export Buttons */
+.btn-export[hidden] { display: none; }
 .btn-export {
   display: inline-flex;
   align-items: center;
@@ -3372,6 +3411,25 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .bitrix-status {
   width: 100%;
   margin-top: 8px;
+}
+
+/* An empty status line shouldn't reserve a flex row (gap + margin). */
+.bitrix-status:empty {
+  display: none;
+}
+
+/* .bitrix-card centres its items, but the input sits under a label — so align
+   the button with the input's row, not with the label+input group's middle. */
+.btn-bitrix {
+  align-self: flex-end;
+}
+
+/* Same box for both controls, so their edges match regardless of font size
+   or how the button's emoji renders. */
+.input-auftrag,
+.btn-bitrix {
+  height: 46px;
+  box-sizing: border-box;
 }
 
 /* Preview Section */

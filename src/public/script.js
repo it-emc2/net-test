@@ -237,7 +237,11 @@ const OFFERS = {
       "Optional",
       "Rabatt",
       "Kosten",
+      // The old single Zusammenfassung page is three steps for bu: the check,
+      // the send page (still id "Zusammenfassung") and the checklist.
+      "Angebotscheck",
       "Zusammenfassung",
+      "Checkliste",
       "admin",
       "services",
       "crm-emc2",
@@ -2114,7 +2118,7 @@ function renderTravelCostDebug() {
 
   const laborRate = isBwt
     ? 79.5
-    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
+    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 69.5 : 0;
 
   const laborHours = Number(window.arbeit_hours_numeric ?? 0) || 0;
   const travelHours = Number(window.reise_hours_numeric ?? 0) || 0;
@@ -2519,6 +2523,9 @@ function resetAllForms() {
       form.reset();
     }
   });
+  // A new offer starts without a Duschwanne; form.reset() unticks the switch
+  // but does not touch the form's data-tray-off attribute.
+  setDwTrayEnabled(false);
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
   const localStorageKeysToClear = [
@@ -2988,6 +2995,9 @@ function updateSidebarForOffer() {
   // other offer keeps the flat list. Purely visual — page ids and flow order
   // are untouched.
   const isBu = activeOffer === "bu";
+  // bu splits the Zusammenfassung into three steps; the send page keeps the
+  // old id, so only its label changes — and only for bu.
+  if (isBu) specialLabels.Zusammenfassung = "Angebotsversand";
   const isBwt = activeOffer === "bwt";
   const isHl = activeOffer === "hl";
   const SIDEBAR_GROUPS = isBu
@@ -3004,6 +3014,12 @@ function updateSidebarForOffer() {
             "DuschabtrennungNeu",
             "Duschvorhang",
           ],
+        },
+        {
+          // No numeral: these three are the closing steps, not a numbered
+          // part of the offer.
+          title: "Zusammenfassung",
+          pages: ["Angebotscheck", "Zusammenfassung", "Checkliste"],
         },
       ]
     : isBwt
@@ -3204,6 +3220,7 @@ function startOfferFlow(offerKey) {
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
   window.__kleinAufschlagLegacyOffer = false;
+  window.__bwtGrabSingleAufschlag = true;
 
   // Fresh offer → BWT Freigrenzen follow today's live admin config, not
   // whatever a previously-restored legacy offer pinned them to.
@@ -3212,6 +3229,8 @@ function startOfferFlow(offerKey) {
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
   window.__grabBonusIdsPinned = false;
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
+  window.__grabBonusRefId = "CLPESG30";
+  window.__applyBonusNeuSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -4395,6 +4414,13 @@ function buildPayload() {
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
+  // Neukundenbonus: snapshot amount + threshold so later admin edits never
+  // reprice this offer. Legacy offers stay without it (old 3.000 € rule).
+  if (!window.__bonusNeuLegacyOffer) {
+    payload.pricingRules.bonusNeuGross = Number(window.__bonusNeuGross ?? 250);
+    payload.pricingRules.bonusNeuThreshold = Number(window.__bonusNeuThreshold ?? 5000);
+  }
+
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
@@ -4778,6 +4804,9 @@ function buildPayload() {
   if (payload.rabatt.bonusGrab && JSON.stringify(grabIds) !== '["CLPESG30"]') {
     payload.pricingRules.grabBonusIds = [...grabIds];
   }
+  if (payload.rabatt.bonusGrab && window.__grabBonusRefId) {
+    payload.pricingRules.grabBonusRefId = window.__grabBonusRefId;
+  }
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
@@ -4841,7 +4870,7 @@ function buildPayload() {
           (document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0,
         secondWorkerRate: travelSecondWorkerRate,
         workCost:
@@ -4849,14 +4878,14 @@ function buildPayload() {
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelDriverCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) *
           ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
             ? 69.5
             : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
-              ? 59.5
+              ? 69.5
               : 0),
         travelSecondWorkerCost:
           (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) * travelSecondWorkerRate,
@@ -5089,6 +5118,14 @@ if (anschlag) {
   }
 
   payload.activeOffer = currentOfferKey || null;
+  // BWT grab bars: Aufschlag only once (older BWT offers keep it doubled).
+  // Only sent for BWT so other offers keep their pricing fingerprint.
+  if (payload.activeOffer === "bwt" && window.__bwtGrabSingleAufschlag !== false) {
+    payload.pricingRules.bwtGrabSingleAufschlag = true;
+  }
+
+  // Duschwanne an/aus — strips only the tray keys, never the Fußboden ones.
+  applyDwTraySwitch(payload.duschwanne || (payload.duschwanne = {}), isDwTrayEnabled());
 
   
   // ✅ Signature (customer-drawn signature)
@@ -5122,6 +5159,20 @@ if (anschlag) {
   // is not picked up by formToObject above). Persist so drafts can restore the
   // recipient, subject and body — the body also carries the dynamic
   // Ansprechpartner name embedded in its text.
+  // Zusammenfassung: Angebotscheck / Angebotsversand / Checkliste.
+  // See docs/zf-plan.md. Only the Versand branch is filled so far.
+  payload.zusammenfassung = {
+    ...(payload.zusammenfassung || {}),
+    versand: window.__zfVersand || { art: null, versendetAm: null },
+    checkliste: window.__zfCheckliste || {
+      skizzeErstellt: false,
+      fotosErstellt: false,
+    },
+    // Angebotscheck rows the user marked "Nicht nötig" (WC-Zubehör,
+    // Verbreiterungsprofil). Workflow state — not part of the price fingerprint.
+    checkAck: window.__zfCheckAck || {},
+  };
+
   payload.mail = {
     auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
     to: (document.getElementById("mailTo")?.value || "").trim(),
@@ -6497,47 +6548,11 @@ function validateWandverkleidung() {
   }
   return true;
 }
-// D_65418: a forgotten Plattenformat (997/1497) silently dropped every panel,
-// profile and consumable from Angebot + Kalkulation. Since #wvEnabled, Art and
-// Dekor are mandatory once WV is ticked; 0 panels stays a warning.
-// Legacy payloads (no wvEnabled key) only get the 0-panel warning.
-// Returns null (ok) or { title, text, blocking }.
-function wvCheck(payload, offerType) {
-  if (offerType !== "bu") return null;
-  const wv = payload?.wandverkleidung;
-  if (!wv || wv.wvEnabled === false) return null;
-  const kind = wv.wvKind && wv.wvKind !== "Keine" ? wv.wvKind : "";
-  if (wv.wvEnabled === true && !kind) {
-    return { title: "Art der Wandverkleidung fehlt", text: "Bitte wählen Sie, welche Art der Wandverkleidung benötigt wird.", blocking: true };
-  }
-  if (wv.wvEnabled === true && !wv.wvColor) {
-    return { title: "Dekor fehlt", text: "Bitte wählen Sie das Dekor / die Farbe der Wandverkleidung.", blocking: true };
-  }
-  if (!kind) return null;
-  // Standard (Keramico WP*) has no 997/1497 panels — it is counted from the wall
-  // widths by the same rule pricing-core uses. Unknown (calculator not loaded yet)
-  // → no warning rather than a false one.
-  if (/^WP/i.test(String(wv.wvColor || ""))) {
-    if (window.keramicoPanelCount?.(wv) !== 0) return null;
-    return {
-      title: "Wandverkleidung ohne Platten",
-      text: `Wandverkleidung „${kind}“ ist gewählt, aber im Bedarfsrechner sind keine Wandbreiten eingetragen – im Angebot stehen 0 Platten.`,
-      blocking: false,
-    };
-  }
-  const extras = Object.values(wv.extraColors || {}).flat();
-  const total =
-    (Number(wv.wvQty997) || 0) +
-    (Number(wv.wvQty1497) || 0) +
-    extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
-  if (total > 0) return null;
-  return {
-    title: "Wandverkleidung ohne Platten",
-    text: `Wandverkleidung „${kind}“ ist gewählt, aber kein Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.`,
-    blocking: false,
-  };
-}
-window.wvCheck = wvCheck;
+// D_65418 (a forgotten Plattenformat silently dropped every panel, profile
+// and consumable) used to be a blocking popup here (wvCheck/confirmWvPanels).
+// It now lives in angebotscheck.js: a red "Wandverkleidung vollständig" row,
+// and "keine Wandverkleidungsplatte" is asked in the pre-send confirmation —
+// nobody is blocked from sending.
 // A legacy "Keine" radio is hidden now; clear it once WV is switched on.
 document.addEventListener("change", (e) => {
   if (e.target?.id !== "wvEnabled" || !e.target.checked) return;
@@ -6545,36 +6560,13 @@ document.addEventListener("change", (e) => {
   if (keine) keine.checked = false;
 });
 // Resolves true = proceed, false = back to the WV tab.
-window.confirmWvPanels = function (payload, offerType) {
-  const issue = wvCheck(payload, offerType);
-  if (!issue) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    document.getElementById("wvMissingOverlay")?.remove();
-    const overlay = document.createElement("div");
-    overlay.id = "wvMissingOverlay";
-    overlay.className = "ang-stage-overlay";
-    overlay.innerHTML = `
-      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
-        <h3 id="wvMissingTitle" class="ang-stage-title">${escapeHtml(issue.title)}</h3>
-        <p class="ang-stage-text">${escapeHtml(issue.text)}</p>
-        <div class="ang-stage-actions">
-          <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
-          ${issue.blocking ? "" : '<button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>'}
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    const close = (value) => {
-      overlay.remove();
-      if (!value) location.hash = "Wandverkleidung";
-      resolve(value);
-    };
-    overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
-    overlay.querySelector("#wvMissingGo")?.addEventListener("click", () => close(true));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) close(false);
-    });
-    setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
-  });
+// Everything that must be cleared before an offer leaves the house (mail,
+// post, signing link, signing on site): one confirmation per main item that
+// is not in the offer (angebotscheck.js). Never a hard block — confirming
+// always lets the offer go. Resolves true = send, false = back.
+window.confirmBeforeSend = async function (payload, offerType) {
+  if (typeof window.confirmHauptpunkte !== "function") return true;
+  return window.confirmHauptpunkte(payload, offerType);
 };
 function validateOptional() {
   return true;
@@ -6595,6 +6587,17 @@ function focusFirstBereichConditionalError() {
     return window.__bereichFocusFirstError__();
   }
   return false;
+}
+// Human-readable name of a form control for error messages.
+function fieldLabel(el) {
+  const text =
+    (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.textContent) ||
+    el.closest('[role="radiogroup"]')?.getAttribute("aria-label") ||
+    el.getAttribute("aria-label") ||
+    el.parentElement?.closest("div")?.querySelector(":scope > label:not(.radio-pill)")?.textContent ||
+    el.placeholder ||
+    el.name;
+  return String(text || "").replace(/[\s*]+/g, " ").trim();
 }
 function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
@@ -6623,19 +6626,26 @@ function requireBereichValid() {
   // Kundendaten tab is hidden, so we must NOT switch tabs first — doing that
   // unconditionally yanked the user to Kundendaten on every export even when
   // everything was valid (the PDF then generated anyway from another handler).
-  if (form.checkValidity()) return true;
+  // Fields hidden for this offer type (data-offer → display:none) must never
+  // block: a stale `required` from a previously opened offer type (e.g. BU's
+  // Vermieter-Genehmigung after loading an AH offer) made the export fail
+  // with nothing visibly red.
+  const invalid = [...form.querySelectorAll(":invalid")].filter(
+    (el) => el.tagName !== "FIELDSET" && !el.closest('[data-offer][style*="display: none"]')
+  );
+  if (!invalid.length) return true;
 
   // Invalid: now reveal the Kundendaten tab so the highlight/bubble is visible,
   // then show exactly what's missing.
   if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
     window.setStep("Kundendaten");
   }
-  form.reportValidity();
-  flashInvalid(form.querySelector(":invalid"));
+  invalid[0].reportValidity();
+  flashInvalid(invalid[0]);
   focusFirstBereichConditionalError();
   window.toast?.error(
     "Angaben unvollständig",
-    "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+    `Bitte in „Kundendaten“ ausfüllen: ${[...new Set(invalid.map(fieldLabel))].join(", ")}`
   );
   return false;
 }
@@ -6979,6 +6989,37 @@ window.__bwtKmFreeThreshold = 200;
 // split as the BWT Freigrenzen above.
 window.__grabBonusIdsLive = ["CLPESG30"];
 window.__grabBonusIds = ["CLPESG30"];
+// Only this article's value is free (longer bars pay the difference).
+// Restored offers priced without it (null) keep the whole unit free.
+window.__grabBonusRefId = "CLPESG30";
+// Neukundenbonus (NEUKUNDENBONUS_BRUTTO / _SCHWELLE): same Live/pinned split.
+// Legacy offers (no pricingRules.bonusNeuGross) keep 252,10 € netto / 3.000 €.
+window.__bonusNeuGrossLive = 250;
+window.__bonusNeuThresholdLive = 5000;
+window.__bonusNeuGross = 250;
+window.__bonusNeuThreshold = 5000;
+window.__bonusNeuLegacyOffer = false;
+window.__bonusNeuPinned = false;
+// Called on restore (saved payload) and on a fresh offer (null).
+window.__applyBonusNeuSnapshot = function (p) {
+  const pr = p?.pricingRules || {};
+  if (!p) {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = false;
+    window.__bonusNeuGross = Number(window.__bonusNeuGrossLive ?? 250);
+    window.__bonusNeuThreshold = Number(window.__bonusNeuThresholdLive ?? 5000);
+  } else if (pr.bonusNeuGross == null) {
+    window.__bonusNeuLegacyOffer = true;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = 300;
+    window.__bonusNeuThreshold = 3000;
+  } else {
+    window.__bonusNeuLegacyOffer = false;
+    window.__bonusNeuPinned = true;
+    window.__bonusNeuGross = Number(pr.bonusNeuGross);
+    window.__bonusNeuThreshold = Number(pr.bonusNeuThreshold) || 0;
+  }
+};
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
@@ -7025,6 +7066,14 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
         // Re-price so the "Haltegriff gratis" checkbox follows the new list.
         if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
       }
+    }
+    if (typeof d.NEUKUNDENBONUS_BRUTTO === "number") {
+      window.__bonusNeuGrossLive = d.NEUKUNDENBONUS_BRUTTO;
+      if (!window.__bonusNeuPinned) window.__bonusNeuGross = d.NEUKUNDENBONUS_BRUTTO;
+    }
+    if (typeof d.NEUKUNDENBONUS_SCHWELLE === "number") {
+      window.__bonusNeuThresholdLive = d.NEUKUNDENBONUS_SCHWELLE;
+      if (!window.__bonusNeuPinned) window.__bonusNeuThreshold = d.NEUKUNDENBONUS_SCHWELLE;
     }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
@@ -10416,6 +10465,82 @@ function renderCustomerSearchResults(list) {
   customerSearchResults.classList.add("visible");
 }
 
+/* ========== DUSCHWANNE AN/AUS ========== */
+// Off = payload.duschwanne looks exactly like a Duschwanne page where nothing
+// was picked: no tray, no custom tray, none of the three tray accessories.
+// That is deliberate — it keeps the pricing fingerprint of saved offers
+// stable, so a locked offer is never repriced just because it was reopened.
+// Inert fields (dimensions, colour, Stelzlager quantity) are left as the form
+// gives them; they produce no price without a tray / without the Stelzlager.
+// Kleinmaterial and everything Fußboden writes here are never touched.
+// Saved offers predate the switch. Without an explicit flag the switch is on
+// whenever the saved data carries a tray or any tray accessory — and the
+// accessories are ticked by default, so practically every old BU offer comes
+// back "on" with an unchanged payload, i.e. an unchanged price.
+function deriveDwTrayEnabled(dw) {
+  if (typeof dw?.trayEnabled === "boolean") return dw.trayEnabled;
+  return !!(
+    dw?.chosenTrayProductId ||
+    (Array.isArray(dw?.quickAdd) && dw.quickAdd.length) ||
+    dw?.dwCustomName ||
+    dw?.dwCustomPrice ||
+    dw?.abdichtSet ||
+    dw?.drainSet ||
+    dw?.stelzlager
+  );
+}
+
+function isDwTrayEnabled() {
+  return !!document.getElementById("dwTrayToggle")?.checked;
+}
+
+function setDwTrayEnabled(on) {
+  const toggle = document.getElementById("dwTrayToggle");
+  if (toggle) toggle.checked = !!on;
+  document
+    .getElementById("form-duschwanne")
+    ?.toggleAttribute("data-tray-off", !on);
+}
+
+// Applied to payload.duschwanne in buildPayload(). The lists live inside the
+// function on purpose: buildPayload() can run during boot before a top-level
+// const further down this file is initialised (temporal dead zone).
+function applyDwTraySwitch(dw, enabled) {
+  // traySuggestion is the radio of the clicked search result — it only
+  // exists while the suggestion list is rendered, which needs a tray.
+  const DW_TRAY_DROP = ["quickAdd", "abdichtSet", "drainSet", "stelzlager", "traySuggestion"];
+  const DW_TRAY_EMPTY = {
+    chosenTrayProductId: null,
+    traySize: "", // the legacy PDF prints it on its own
+    dwCustomName: "",
+    dwCustomPrice: "",
+    dwCustomQty: "1",
+    dwCustomId: "",
+  };
+  if (!enabled) {
+    for (const key of DW_TRAY_DROP) delete dw[key];
+    for (const [key, value] of Object.entries(DW_TRAY_EMPTY)) {
+      if (key in dw) dw[key] = value;
+    }
+  }
+  dw.trayEnabled = !!enabled;
+  return dw;
+}
+
+window.setDwTrayEnabled = setDwTrayEnabled;
+window.isDwTrayEnabled = isDwTrayEnabled;
+
+(function initDwTraySwitch() {
+  const toggle = document.getElementById("dwTrayToggle");
+  if (!toggle) return;
+  toggle.addEventListener("change", () => {
+    setDwTrayEnabled(toggle.checked);
+    // Re-price: the tray and its accessories just entered or left the offer.
+    toggle.form?.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  setDwTrayEnabled(toggle.checked);
+})();
+
 /* ========== DUSCHWANNE DEFAULTS ========== */
 (function initDuschwanneDefaults() {
   const f = document.getElementById("form-duschwanne");
@@ -10693,7 +10818,8 @@ function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn
   window.__DW_COMPUTED__ = computed;
 
   let unitAdh = 0,
-    unitSeal = 0;
+    unitSeal = 0,
+    unitRoll = 0;
   let unitPanel = 0;
 
   async function ensureUnits() {
@@ -10704,6 +10830,10 @@ function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn
     if (!unitSeal) {
       const p = await getProduct("TRBDSET7");
       unitSeal = Number(p?.price || 0);
+    }
+    if (!unitRoll) {
+      const p = await getProduct("TRDB10");
+      unitRoll = Number(p?.price || 0);
     }
     if (!unitPanel) {
       // NEW: fetch V5FB02 once
@@ -10797,18 +10927,21 @@ function updateFlooringPanelsPriceFromPricing() {
     };
 
     // Sealing
-    // Sealing (proportional per m² with +15% waste, priced from TRBDSET7 / 7)
+    // Sealing: 1 Set TRBDSET7 (7 m²) + TRDB10 rolls (5 m² each) beyond that —
+    // mirrors pricing-core.js; the server price is the source of truth.
     const sealingSelected = !!f.querySelector(
       'input[name="floorSealing[]"]:checked',
     );
 
     if (sealingSelected && m2 > 0) {
       const effM2 = m2 * 1.15; // +15% Verschnitt
-      const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
-      const totalS = effM2 * ratePerM2;
+      const rolls = Math.ceil(Math.max(0, effM2 - 7) / 5 - 1e-12);
+      const totalS = unitSeal + rolls * unitRoll;
 
       if (liveSeal) {
-        liveSeal.textContent = `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`;
+        liveSeal.textContent = rolls
+          ? `= 1 Set + ${rolls} Rolle${rolls > 1 ? "n" : ""} Dichtbahn (${effM2.toFixed(2)} m² inkl. 15% Verschnitt)`
+          : `= 1 Set (${effM2.toFixed(2)} m² inkl. 15% Verschnitt)`;
       }
       if (sealingPriceEl) {
         sealingPriceEl.textContent = euro(totalS);
@@ -10817,8 +10950,10 @@ function updateFlooringPanelsPriceFromPricing() {
       computed.sealing = {
         productId: "TRBDSET7",
         effM2: +effM2.toFixed(2),
-        ratePerM2: +ratePerM2.toFixed(2),
+        sets: 1,
+        rolls,
         unitSet: unitSeal, // 7 m² Setpreis
+        unitRoll, // TRDB10 Rollenpreis
         total: +totalS.toFixed(2),
       };
     } else {
@@ -10827,8 +10962,10 @@ function updateFlooringPanelsPriceFromPricing() {
       computed.sealing = {
         productId: "TRBDSET7",
         effM2: 0,
-        ratePerM2: 0,
+        sets: 0,
+        rolls: 0,
         unitSet: unitSeal || 0,
+        unitRoll: unitRoll || 0,
         total: 0,
       };
     }
@@ -10908,7 +11045,7 @@ function updateFlooringPanelsPriceFromPricing() {
       if (liveSeal) sealingPriceEl.textContent = "0";
       if (panelsPriceEl) panelsPriceEl.textContent = "0";
 
-      unitAdh = unitSeal = 0;
+      unitAdh = unitSeal = unitRoll = 0;
       computed.areaM2 = 0;
       computed.adhesive = { productId: "R_4260602", packs: 0, unit: 0, total: 0 };
       computed.sealing = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
@@ -16937,6 +17074,16 @@ function restoreDuschwanne(dw) {
 function restoreOptionalPage(opt) {
   if (!opt) return;
 
+  // Opening an offer does not reset the form first, so a quantity the new
+  // offer does not mention would keep the previous offer's value — and
+  // restoreOptional() ticks every box whose qty > 0. Zero them all first,
+  // exactly as restoreOptional() already unticks every box.
+  document
+    .querySelectorAll('#form-optional input[type="number"][id^="qty_"]')
+    .forEach((el) => {
+      el.value = "0";
+    });
+
   // qty_* fields
   for (const [k, v] of Object.entries(opt)) {
     if (k.startsWith("qty_")) {
@@ -16959,22 +17106,27 @@ function restoreOptionalPage(opt) {
   // initOptionalSonderprodukte so each row is created via createRow() and
   // gets the proper input listeners. Falls back to a minimal inline rebuild
   // if init hasn't run yet (e.g., DOM order edge case).
+  // Waschbecken Sonderprodukt: its row lives in quickAdd but belongs in the
+  // basin checkbox's own name/price fields. Always written — an offer without
+  // one (or without any quickAdd) must clear the previous offer's values, or a
+  // later save would carry them over.
+  const basinSonder = Array.isArray(opt.quickAdd)
+    ? opt.quickAdd.find((x) => x?.source === "BASIN_SONDER")
+    : null;
+  {
+    const nameEl = document.getElementById("basinSonderName");
+    const artikelEl = document.getElementById("basinSonderArtikel");
+    const priceEl = document.getElementById("basinSonderPrice");
+    if (nameEl) nameEl.value = basinSonder?.label ?? "";
+    if (artikelEl) artikelEl.value = basinSonder?.productId ?? "";
+    if (priceEl)
+      priceEl.value =
+        basinSonder?.price != null ? String(basinSonder.price).replace(".", ",") : "";
+  }
+
   if (Array.isArray(opt.quickAdd)) {
-    // Pull the Waschbecken Sonderprodukt row(s) out before handing the rest
-    // to the global Sonderprodukte panel restore, and put them back into
-    // the basin checkbox's own name/price fields instead.
-    const basinSonder = opt.quickAdd.find((x) => x?.source === "BASIN_SONDER");
+    // Hand everything but the basin Sonderprodukt to the global panel restore.
     const restQuickAdd = opt.quickAdd.filter((x) => x?.source !== "BASIN_SONDER");
-    if (basinSonder) {
-      const nameEl = document.getElementById("basinSonderName");
-      const artikelEl = document.getElementById("basinSonderArtikel");
-      const priceEl = document.getElementById("basinSonderPrice");
-      if (nameEl) nameEl.value = basinSonder.label ?? "";
-      if (artikelEl) artikelEl.value = basinSonder.productId ?? "";
-      if (priceEl)
-        priceEl.value =
-          basinSonder.price != null ? String(basinSonder.price).replace(".", ",") : "";
-    }
 
     if (typeof window.restoreOptionalSonderprodukteFromPayload === "function") {
       window.restoreOptionalSonderprodukteFromPayload(restQuickAdd);
@@ -17034,7 +17186,11 @@ function restoreOptionalPage(opt) {
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
+      // opt_BASIN_SONDER belongs here too: offers save no cat_BASIN, so the
+      // category is derived from these kids — without it a Sonderprodukt-only
+      // basin left cat_BASIN off and its change handler (resetPanel) wiped the
+      // restored basin and its WTBF/RSL/EV. Keep all three basin lists in sync.
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
@@ -17559,6 +17715,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     // Preserve the offer's original Aufschlag rule (legacy drafts → false).
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
     window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+    window.__bwtGrabSingleAufschlag = p?.pricingRules?.bwtGrabSingleAufschlag === true;
 
     // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
     const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;
@@ -17566,6 +17723,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
     window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+    window.__applyBonusNeuSnapshot?.(p);
 
     // normalize offerType
     const rawOfferType =
@@ -18108,6 +18267,11 @@ function restoreDuschwanne(dw) {
     markLineChoice("fussboden", true);
   }
 
+  // Duschwanne an/aus. Everything below is restored exactly as saved, switch
+  // on or off — the rebuilt payload must equal the saved one, or a locked
+  // offer gets a new pricing fingerprint and is repriced on open.
+  setDwTrayEnabled(deriveDwTrayEnabled(dw));
+
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
   setByNameOrId("tray_l_cm", dw.tray_l_cm);
@@ -18176,6 +18340,29 @@ function restoreDuschwanne(dw) {
 
   if ("addFlooring" in dw) {
     setCheckbox("addFlooring", !!dw.addFlooring);
+  }
+
+  // Wandverkleidung als Fußboden (initWallCladdingSection). It shipped without
+  // a restore, so a reopened offer lost the floor panels and "Neue Version"
+  // dropped them from the offer. Always written — an offer without it must
+  // clear the previous offer's values. Order matters: the suggestion cards
+  // re-render on area/colour changes and mark whatever size is set by then.
+  {
+    const kind = dw.wallCladdingKind;
+    if (kind) setRadio("wallCladdingKind", kind);
+    else
+      document
+        .querySelectorAll('input[name="wallCladdingKind"]')
+        .forEach((r) => { r.checked = false; });
+    setRadio("wallCladdingColor", dw.wallCladdingColor || "Marmor weiß");
+    setHiddenById("wallCladdingPanelSize", dw.wallCladdingPanelSize);
+    setHiddenById("wallCladdingQty", dw.wallCladdingQty);
+    const qtyInput = document.getElementById("wallCladdingQtyInput");
+    if (qtyInput) qtyInput.value = dw.wallCladdingQty ?? "";
+    const qtyRow = document.getElementById("wallCladdingQtyRow");
+    if (qtyRow) qtyRow.hidden = !(Number(dw.wallCladdingQty) > 0);
+    setNumber("wallCladdingArea", dw.wallCladdingArea ?? "");
+    setCheckbox("addWallCladding", !!dw.addWallCladding);
   }
 
   // flooring color from payload
@@ -19293,7 +19480,7 @@ window.setPricingData = function setPricingData(data) {
     );
     syncKleinAufschlagToggle();
 
-    // Show/hide 300€ bonus based on threshold (after rab.)
+    // Show/hide Neukundenbonus based on the offer's threshold (after rab.)
     (function gateBonus300() {
       const afterRab = Number(data?.totalAfterRabatt || 0);
       const cb300 = document.getElementById("rb-bonus-300");
@@ -19303,7 +19490,16 @@ window.setPricingData = function setPricingData(data) {
         cb300?.parentElement ||
         null;
 
-      const shouldShow = afterRab > 3000;
+      const legacy = window.__bonusNeuLegacyOffer === true;
+      const threshold = Number(window.__bonusNeuThreshold ?? 5000);
+      const shouldShow = afterRab > threshold;
+
+      const txt = document.getElementById("rb-bonus-300-text");
+      if (txt) {
+        txt.textContent = legacy
+          ? "Möchten Sie den Neukundenbonus in Höhe von 252,10 € hinzufügen? (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)"
+          : `Möchten Sie den Neukundenbonus in Höhe von ${Number(window.__bonusNeuGross ?? 250).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € brutto hinzufügen? (ab einem Gesamtwert über ${threshold.toLocaleString("de-DE")} €)`;
+      }
 
       if (row) {
         row.style.display = shouldShow ? "" : "none";
@@ -19311,10 +19507,11 @@ window.setPricingData = function setPricingData(data) {
         row.setAttribute("aria-hidden", String(!shouldShow));
       }
 
-      // If ineligible, clear silently (no 'change' dispatch → no race)
-      // if (!shouldShow && cb300 && cb300.checked) {
-      // cb300.checked = false;
-      //}
+      // New rule: ineligible → clear silently (pricing already dropped it;
+      // no 'change' dispatch → no race). Legacy offers keep the old behavior.
+      if (!legacy && !shouldShow && cb300 && cb300.checked) {
+        cb300.checked = false;
+      }
     })();
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
@@ -21347,7 +21544,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
@@ -21393,7 +21590,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
     // any basin keeps the required block open, not just CL60
-    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"]
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U", "opt_BASIN_SONDER"]
       .map((id) => document.getElementById(id))
       .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
@@ -24756,7 +24953,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
-    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
+    if (!(await window.confirmBeforeSend(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -24830,9 +25027,10 @@ async function sendPdfToAuftrag() {
 // Reuses the same POST /api/signing flow as the dev-tools link generator
 // above, but skips the email and opens the resulting /sign/:token page
 // directly so the rep can hand the iPad to the customer on the spot.
-(function initSignOnSite() {
-  const btn = document.getElementById("signOnSiteBtn");
-  const statusBox = document.getElementById("signOnSiteStatus");
+// Same button in both Versandart tabs (E-Mail and Post).
+[["signOnSiteBtn", "signOnSiteStatus"], ["signOnSiteBtnPost", "signOnSiteStatusPost"]].forEach(function initSignOnSite([btnId, statusId]) {
+  const btn = document.getElementById(btnId);
+  const statusBox = document.getElementById(statusId);
   const auftragInput = document.getElementById("auftragId");
   if (!btn || !statusBox) return;
 
@@ -24846,6 +25044,17 @@ async function sendPdfToAuftrag() {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) return;
     if (typeof buildPayload !== "function") {
       setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    // Confirm before saving: the save below stores the offer as final (locked),
+    // so cancelling here must happen before anything is written.
+    if (!(await window.confirmBeforeSend(buildPayload(), activeOffer))) {
+      setStatus("Abgebrochen.", "info");
       return;
     }
 
@@ -24865,11 +25074,6 @@ async function sendPdfToAuftrag() {
 
     const payload = buildPayload();
     const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
-    const activeOffer =
-      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
-      window.activeOffer ||
-      "";
-    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -24887,6 +25091,7 @@ async function sendPdfToAuftrag() {
             dealId,
             sendEmail: false,
             force,
+            via: btnId === "signOnSiteBtnPost" ? "post" : "",
           }),
         });
         const body = await res.json().catch(() => ({}));
@@ -24915,7 +25120,7 @@ async function sendPdfToAuftrag() {
       btn.disabled = false;
     }
   });
-})();
+});
 
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
@@ -29008,12 +29213,17 @@ function buildPlanningEntries(payload){
         shortLabel: day?.shortLabel || "",
         dayLocked: !!day?.locked,
       }))
-      .sort((a, b) => {
-        const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : Number.MAX_SAFE_INTEGER;
-        const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : Number.MAX_SAFE_INTEGER;
-        return aSlot - bSlot || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
-      }),
+      .sort(comparePlanningStart),
   };
+}
+
+// Order by start time; entries without one keep the route planner's order
+// (Array.sort is stable). Sorting locked slots first / unlocked by name
+// shuffled unlocked Termine out of their real sequence.
+function comparePlanningStart(a, b){
+  const aTime = Number(a?.manualStartMinutes);
+  const bTime = Number(b?.manualStartMinutes);
+  return (Number.isFinite(aTime) ? aTime : Infinity) - (Number.isFinite(bTime) ? bTime : Infinity) || 0;
 }
 
 function formatPlanningStartTime(entry){
@@ -29325,14 +29535,7 @@ function renderWeekCalendar(payload) {
     const isToday = dayDate ? isSamePlanningDay(dayDate, now) : false;
     const customers = Array.isArray(day?.customers) ? day.customers : [];
 
-    // Sort: locked slots first by slot index, then by start time, then by name
-    const entries = [...customers].sort((a, b) => {
-      const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : 999;
-      const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : 999;
-      const aTime = Number.isFinite(Number(a?.manualStartMinutes)) ? Number(a.manualStartMinutes) : 9999;
-      const bTime = Number.isFinite(Number(b?.manualStartMinutes)) ? Number(b.manualStartMinutes) : 9999;
-      return aSlot - bSlot || aTime - bTime || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
-    });
+    const entries = [...customers].sort(comparePlanningStart);
 
     const dateNum = dayDate ? dayDate.getDate() : "–";
     const monthName = dayDate ? dayDate.toLocaleDateString("de-DE", { month: "short" }) : "";
@@ -30713,7 +30916,10 @@ document.addEventListener("DOMContentLoaded", () => {
       panel.hidden = panel.dataset.sendPanel !== key;
     });
 
-    if (key === "post") window.__updatePostAddressWarning?.();
+    if (key === "post") {
+      window.__updatePostAddressWarning?.();
+      window.__refreshSignedPostBtn?.();
+    }
   }
 
   window.__showSendTab = showSendTab;
@@ -31353,6 +31559,11 @@ document.addEventListener("DOMContentLoaded", () => {
         fillPostalDefaults();
         validate();
         if (!(await requireDealId())) return;
+        // Same pre-send checks as the mail send (main items, Wandverkleidung).
+        if (!(await window.confirmBeforeSend(buildPayload(), getActiveOfferForPostal()))) {
+          setStatus("Versand abgebrochen.", "info");
+          return;
+        }
 
         const offerNumber = getResolvedOfferNumberForPostal();
 
@@ -31477,6 +31688,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         postalSent = true;
 
+        // Same as the e-mail send: persist the sent offer, otherwise it only
+        // exists as an Entwurf and can't be found/opened as an Angebot.
+        try {
+          await window.saveFinalOfferSnapshot?.();
+        } catch (error) {
+          console.warn("[post] saveFinalOfferSnapshot failed:", error);
+        }
+
         const noteEl = document.getElementById("internalNote");
         if (noteEl) noteEl.value = "";
 
@@ -31518,6 +31737,97 @@ document.addEventListener("DOMContentLoaded", () => {
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
       } finally {
         sendBtn.disabled = postalSent;
+      }
+    });
+
+    // After a Vor-Ort/online signature: post the signed Angebot (+ the other
+    // signed documents as attachments) — the only way a customer without
+    // email gets their signed copy. Same /api/post/send as the offer letter.
+    const signedBtn = document.getElementById("sendSignedPost");
+    // Only offered once a Vor-Ort signature started from this Post tab is complete.
+    window.__refreshSignedPostBtn = async () => {
+      if (!signedBtn) return;
+      signedBtn.hidden = true;
+      const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+      if (!offerNumber) return;
+      try {
+        const list = await fetch(`/api/signing/status/${encodeURIComponent(offerNumber)}`).then((r) => r.json());
+        signedBtn.hidden = !list.some((sr) => sr.status === "completed" && sr.via === "post");
+      } catch {}
+    };
+    signedBtn?.addEventListener("click", async () => {
+      if (signedBtn.disabled) return;
+      signedBtn.disabled = true;
+      try {
+        fillPostalDefaults();
+        validate();
+        if (!(await requireDealId())) return;
+
+        const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+        if (!offerNumber) throw new Error("Keine Angebotsnummer – bitte zuerst das Angebot öffnen.");
+
+        setStatus("Lade unterschriebene Unterlagen …", "info");
+        const signedRes = await fetch(`/api/signing/status/${encodeURIComponent(offerNumber)}/signed`);
+        const signed = await signedRes.json().catch(() => ({}));
+        if (!signedRes.ok) throw new Error(signed?.error || `Fehler (${signedRes.status})`);
+
+        const main = signed.documents.find((d) => d.key === "angebot") || signed.documents[0];
+        const rest = signed.documents.filter((d) => d !== main);
+
+        if ((await getPostalMode()) !== "test") {
+          const confirmed = await confirmLiveSend({
+            offerNumber,
+            recipientLines: [
+              `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              String(fields.street?.value || "").trim(),
+              `${String(fields.zipCode?.value || "").trim()} ${String(fields.city?.value || "").trim()}`.trim(),
+            ].filter(Boolean),
+            documents: signed.documents.map((d) => d.filename),
+          });
+          if (!confirmed) {
+            setStatus("Versand abgebrochen.", "info");
+            return;
+          }
+        }
+
+        setStatus("Sende unterschriebene Unterlagen an onlinebrief24 …", "info");
+        const auftragId = String(fields.auftragId?.value || "").trim();
+        const response = await fetch("/api/post/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // A second letter for the same deal by design (the offer went first).
+            forceResend: true,
+            letterKind: "signed",
+            auftragId,
+            recipient: {
+              name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              street: String(fields.street?.value || "").trim(),
+              zipCode: String(fields.zipCode?.value || "").trim(),
+              city: String(fields.city?.value || "").trim(),
+              country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
+            },
+            document: { filename: main.filename, base64: main.base64 },
+            attachments: rest.map((d) => ({ type: "upload", filename: d.filename, base64: d.base64 })),
+            dealIdOverride,
+            meta: { offerNumber, dealId: auftragId },
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result?.ok === false) {
+          throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
+        }
+        setStatus(
+          result.mode === "test"
+            ? `Testmodus: unterschriebene Unterlagen liegen im onlinebrief24-Warenkorb (Auftrag ${result.printjobId || "-"}).`
+            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`,
+          "success",
+        );
+      } catch (error) {
+        console.error("[post] signed send error", error);
+        setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
+      } finally {
+        signedBtn.disabled = false;
       }
     });
 

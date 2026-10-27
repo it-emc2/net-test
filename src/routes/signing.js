@@ -13,6 +13,7 @@
 // The customer email link uses the supervisor-mandated intro text (see plan §7a).
 
 import express from "express";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -460,6 +461,10 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       return res.status(400).json({ error: "payload ist erforderlich" });
     }
 
+    // Same normalization as email.js: the on-site path posts here directly, so
+    // the printed Ansprechpartner must be re-derived from the User record too.
+    payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user);
+
     const result = await createSigningRequest({
       payload,
       offerNumber: req.body?.offerNumber,
@@ -474,6 +479,12 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
     }
     const { sr, link, token, customerType, reused } = result;
     const prefill = sr.prefill || {};
+
+    // Also on a reused link: opening it from the Post tab marks it as a postal case.
+    if (req.body?.via === "post" && sr.via !== "post") {
+      sr.via = "post";
+      await sr.save();
+    }
 
     // Optional: email the link to the customer right away.
     let emailResult = { skipped: true };
@@ -527,6 +538,7 @@ router.get("/status/:offerNumber", async (req, res) => {
       list.map((sr) => ({
         token: sr.token,
         status: sr.status,
+        via: sr.via || "",
         customerType: sr.customerType,
         openedAt: sr.openedAt,
         completedAt: sr.completedAt,
@@ -540,6 +552,32 @@ router.get("/status/:offerNumber", async (req, res) => {
     );
   } catch (err) {
     console.error("GET /api/signing/status failed:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/signing/status/:offerNumber/signed — signed PDFs of the latest
+// completed request, for sending them by post (customers without email).
+// Under /status so authGate keeps it internal.
+router.get("/status/:offerNumber/signed", async (req, res) => {
+  try {
+    const sr = await SigningRequest.findOne({
+      offerNumber: String(req.params.offerNumber || "").trim(),
+      status: "completed",
+      via: "post",
+    }).sort({ completedAt: -1, createdAt: -1 });
+    if (!sr) return res.status(404).json({ error: "Keine vollständig unterschriebenen Unterlagen gefunden." });
+    const documents = [];
+    for (const d of sr.documents) {
+      documents.push({
+        key: d.key,
+        filename: `${d.key}_${sr.offerNumber || "signiert"}.pdf`,
+        base64: (await buildSignedPdf(sr, d)).toString("base64"),
+      });
+    }
+    return res.json({ offerNumber: sr.offerNumber, completedAt: sr.completedAt, documents });
+  } catch (err) {
+    console.error("GET /api/signing/status/:offerNumber/signed failed:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });

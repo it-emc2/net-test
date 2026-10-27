@@ -431,6 +431,10 @@ export function initEmailManager(options = {}) {
   // Success dialog shown after the email was sent. Offers the stage move.
   // The postal send reuses it through window.__showSentDialog (title via `via`).
   function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false, via = "mail" }) {
+    // Angebotsversand (Zusammenfassung): both the mail and the postal send end
+    // up here, so this is the single place that knows the offer went out.
+    // A Bitrix-only drop never reached the customer — not a Versand.
+    if (!bitrixOnly) window.markAngebotVersendet?.(via);
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
@@ -664,16 +668,14 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
-
-Überzeugen Sie sich selbst - hier berichten unsere Kunden: https://www.youtube.com/watch?v=Ie0sxagHlFo
+${isSelbstzahler ? "" : "Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Überzeugen Sie sich selbst - hier berichten unsere Kunden: https://www.youtube.com/watch?v=Ie0sxagHlFo
 
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     }
 
-    // Selbstzahler vs Kassenkunde is not a branch here any more: the payer only
-    // seeds the #zfDocSelectionCard checkboxes (applyPayerDocDefaults in
-    // script.js), and this list follows the checkboxes — so a Selbstzahler who
+    // The payer only drops the Pflegekasse/Antrag prose below. The doc list is
+    // not payer-branched: the payer seeds the #zfDocSelectionCard checkboxes
+    // (applyPayerDocDefaults in script.js), and this list follows the checkboxes — so a Selbstzahler who
     // ticks Abtretung/Vollmacht gets them named in the text too.
     const attachmentList = buildAttachmentLines().join("\n");
 
@@ -681,11 +683,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
 vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:
 
-• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.
-• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
+${isSelbstzahler ? "" : "• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n"}• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
-• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
-• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
+${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
 ${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
@@ -699,7 +699,7 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   }
 
   function escapeHtml(value) {
@@ -1495,7 +1495,19 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     markInvalid($mainAuftragId, false);
   }
 
+  // A restored or hand-edited subject/body counts as touched, so the defaults
+  // above never rebuild it — but the offer number in it must still follow a
+  // new version, or the mail/Bitrix comment names the previous offer.
+  function syncOfferNumberInMail(nr = ($offerNumber?.value || "").trim()) {
+    if (!nr) return;
+    for (const el of [$subject, $body]) {
+      const next = el.value.replace(/ANG\d{4}-\d{4}-\d{6}/g, nr);
+      if (next !== el.value) el.value = next;
+    }
+  }
+
   function refreshPrefills() {
+    syncOfferNumberInMail();
     updateSubjectDefault();
     updateMailPrefills();
     renderList();
@@ -1535,6 +1547,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   // onError turns the all-or-nothing behaviour into best-effort: the e-mail
   // send omits it and aborts on the first failure (never mail a partial set),
   // the postal send passes it so a broken document can't block the postage.
+  const SERVICE_ONLY_OFFERS = ["ah", "hms", "wd"];
+  const offerTypeOf = (payload) =>
+    String(payload?.activeOffer || window.getCurrentOfferType?.() || "").toLowerCase();
   async function collectBitrixDocs(
     payload,
     offerNumber,
@@ -1552,7 +1567,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       { endpoint: "/material-overview/badolux-cart?format=json", name: `Badolux_Warenkorb_${safeNo}.json`, label: "Badolux-Warenkorb (JSON)", optional: true },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
-    ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
+    ]
+      .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
+      // AH/HMS/WD sell services only — no products, so no Hassmann cart.
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && j.endpoint.includes("hassmann")));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
@@ -1613,7 +1631,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
-      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+      if (window.confirmBeforeSend && !(await window.confirmBeforeSend(payload, payload.activeOffer))) {
+        // Replace whatever the last attempt left there (e.g. a missing Lead ID).
+        setStatus("Versand abgebrochen.", "info");
         return false;
       }
 
@@ -1623,7 +1643,12 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         console.warn("Auto-Entwurf vor dem Senden fehlgeschlagen:", e);
       }
 
+      // The draft save may have given this offer a fresh number (Entwurf under
+      // a sent number) — PDF, subject and body must all carry that one.
       const offerNumber = getOfferNumber();
+      if (offerNumber) payload.offerNumber = offerNumber;
+      syncOfferNumberInMail(offerNumber);
+      updatePreview();
       const dealId = String($leadId?.value || $mainAuftragId?.value || "").trim();
       const contactId = String(
         document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",

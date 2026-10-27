@@ -513,8 +513,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }
 
   let regieRateNum;
-  if (isKK) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
-  else if (isSZ) regieRateNum = cfg.get('LABOR_RATE_SZ', 59.5);
+  // Regie-Stundensatz ist für KK und SZ gleich (69,50 € netto); LABOR_RATE_SZ
+  // gilt nur für die Kalkulation, nicht für den Regie-Hinweis.
+  if (isKK || isSZ) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
   else regieRateNum = Number(services?.laborRate) || 0;
 
   const RegieRateFmt = regieRateNum
@@ -531,9 +532,14 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const hasBonusGrab = Boolean(
     pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false,
   );
-  const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false,
-  );
+  // Pricing reports the Neukundenbonus it actually applied (0 below the
+  // threshold); older saved pricing lacks it → fall back to the flag.
+  const hasBonus300 = computed?.bonusNeuNet != null
+    ? Number(computed.bonusNeuNet) > 0
+    : Boolean(pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false);
+  const bonusNeuNet = Number(computed?.bonusNeuNet ?? 252.1);
+  const bonusNeuPreis = `-${bonusNeuNet.toFixed(2).replace(".", ",")} €`;
+  const bonusNeuDetail = `-- Rabatt von ${Number(computed?.bonusNeuGross ?? 300).toLocaleString("de-DE")} € ab einem Gesamtwert von ${Number(computed?.bonusNeuThreshold ?? 3000).toLocaleString("de-DE")}`;
 
   const BonusRows = [];
   let pos = "003";
@@ -542,9 +548,12 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Aktion: Haltegriff",
-      BonusDetail:
-        "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
+      // New rule (only the 30 cm value free) → new wording; older offers keep
+      // the text they were sent with.
+      BonusLabel: body?.pricingRules?.grabBonusRefId ? "Aktion" : "Aktion: Haltegriff",
+      BonusDetail: body?.pricingRules?.grabBonusRefId
+        ? "Haltegriff-Bonus - für Ihre Sicherheit 175 € Rabatt auf Ihren gewählten Haltegriff"
+        : "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
       preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
       gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
@@ -556,9 +565,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Neukundenbonus:",
-      BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
-      preis: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
-      gesamt: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
+      BonusDetail: bonusNeuDetail,
+      preis: bonusNeuPreis,
+      gesamt: bonusNeuPreis,
     });
   }
 
@@ -711,7 +720,11 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
     SelfPayLines,
     RegieRateFmt,
-    EbenerdigHinweis,
+    // Toggle an UND Duschwanne unter den Arbeiten (wie docx-template.js)
+    EbenerdigHinweis: (body.duschwanne?.chosenTrayProductId && body.duschwanne?.trayEnabled !== false) ||
+    PrimaryServiceLines.some((r) => /duschwanne/i.test(r.ServiceLine))
+      ? EbenerdigHinweis
+      : [],
 
     // BWT
     BwtRows,

@@ -79,6 +79,8 @@ const PUBLIC_CONFIG_KEYS = [
   'BERAEUMUNG',
   'WV_OWN_LAGER',
   'GRAB_BONUS_IDS',
+  'NEUKUNDENBONUS_BRUTTO',
+  'NEUKUNDENBONUS_SCHWELLE',
 ];
 router.get('/api/config/public', async (req, res) => {
   try {

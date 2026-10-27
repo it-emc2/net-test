@@ -51,13 +51,20 @@ Code: `vermieterFromDeal()` in `src/routes/bitrix.js` (Feld-IDs und Werte-IDs al
 |---|---|---|
 | Festpreisangebot | immer | – |
 | Ihr Eigenanteil beträgt … | Zuschuss gewährt | `{#hasSubsidyLine}` |
-| Ebenerdige Montage + Regie | Ebenerdig-Toggle, nur BU (bei BWT/HL/BL im Code ausgeschaltet) | `{#EbenerdigHinweis}` |
+| Ebenerdige Montage + Regie | Ebenerdig-Toggle an **und** Duschwanne im Angebot (Wanne gewählt, Schalter nicht aus – oder "Duschwanne" in den Arbeiten), nur BU (bei BWT/HL/BL im Code ausgeschaltet) | `{#EbenerdigHinweis}` |
 | Bewilligung durch die Pflegekasse | alle Kassenkunden | `{#IsKassenkunde}` (im BU-KK-Template ohne Tag, da immer KK) |
 | Zustimmung des Vermieters | siehe oben | `{#VermieterZustimmungHinweis}` |
 
 Wo der Text steht:
 - DOCX: `src/templates/Angebot-10.docx` (BU SZ), `Angebot-BU-KK-2.docx` (BU KK), `Angebot-BWT.docx`, `Angebot-HL.docx`
 - Online-Signing (nur BU): `festpreisBlock()` in `src/templates/signing-docs.js` — bei Textänderungen **beide** Stellen anpassen.
+
+**Sync-Regel DOCX/PDF ↔ Online-Signing** (immer in beide Richtungen):
+- **Bedingungen** haben eine Quelle: das Datenfeld in `docx-template.js` (`EbenerdigHinweis`, `hasSubsidyLine`, `VermieterZustimmungHinweis`, `IsKassenkunde` …). `signing-docs.js` liest dieselben Felder (`getOfferRenderData`) — nie eigene Bedingung dort nachbauen. Neue Bedingung → im Datenfeld ergänzen, nicht in `festpreisBlock()`.
+- **Texte** stehen zweimal (DOCX-Template + `festpreisBlock()`); jede Änderung an einer Stelle sofort in der anderen nachziehen.
+- Neuer/entfernter Punkt → Tabelle oben, Kommentar in `festpreisBlock()` und beide Templates gemeinsam ändern.
+- Prüfen: Angebot mit/ohne Duschwanne × Toggle an/aus → PDF und Signing-Seite müssen übereinstimmen.
+- `src/templates/Angebot.tex` (LaTeX, `latex-template.js`) ist ein statisches Altlayout; der Hinweis steht dort fest im Text.
 
 ### DOCX bearbeiten (LibreOffice) — Stolperfallen
 
