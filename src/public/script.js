@@ -11318,6 +11318,13 @@ function shortTrayName(name) {
   return s.replace(/,$/, "") || String(name || "");
 }
 
+// Badolux trays are all the Riviera series (cleverbad.de); the DB says
+// "Mineral Duschwanne SMC 90x120". Display only — offer texts keep the DB name.
+function badoluxTrayName(p) {
+  const dims = [p?.widthCm, p?.lengthCm, p?.heightCm].filter(Boolean).map((v) => String(v).replace(".", ","));
+  return dims.length >= 2 ? `Riviera ${dims.join(" × ")} cm` : shortTrayName(p?.name || p?.productId);
+}
+
 function trayStockState(p) {
   const qty = Number(p?.stockQuantity) || 0;
   if (qty > 0) return { cls: "sc-stock--in", glyph: String(qty), text: "Auf Lager" };
@@ -12752,7 +12759,7 @@ function initSmartTraySearch() {
     lineHint.innerHTML = `
       <div class="tlh-text">
         <strong>Diese Größe gibt es auch als Standard (Badolux) — ${euroDe(save)} € günstiger.</strong>
-        <span>${escapeHtml(shortTrayName(alt.name || alt.productId))} · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
+        <span>${escapeHtml(badoluxTrayName(alt))} · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
       </div>
       <button type="button" class="secondary" data-tray-line-switch>Auf Standard wechseln</button>`;
     lineHint.hidden = false;
@@ -12847,14 +12854,13 @@ function initSmartTraySearch() {
   // All rows share name="traySuggestion" so selection is single across rows.
   const buildCard = (p, domId, sourceLabel, isBest, checked, pinned) => {
     const fullName = p.name || p.productId || "Duschwanne";
-    const title = shortTrayName(fullName);
-    // Size only when the short name doesn't already say it; Badolux adds the
-    // height and the cleverbad.de article number (what gets ordered).
+    const title = sourceLabel === "Badolux" ? badoluxTrayName(p) : shortTrayName(fullName);
+    // Size only when the short name doesn't already say it; plus the article
+    // number (for Badolux the cleverbad.de one — what gets ordered).
     const extras = [];
     const size = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ");
     const sizeRev = [p.lengthCm, p.widthCm].filter(Boolean).join(" × ");
     if (size && !title.includes(size) && !title.includes(sizeRev)) extras.push(`${size} cm`);
-    if (sourceLabel === "Badolux" && p.heightCm) extras.push(`H ${String(p.heightCm).replace(".", ",")} cm`);
     if (p.articleNumber) extras.push(`Art.-Nr. ${escapeHtml(p.articleNumber)}`);
     const price =
       p.price != null
@@ -13563,7 +13569,7 @@ function renderDwSummary() {
     sub = `Slate · Farbe ${color.closest("label")?.querySelector(".caption")?.textContent || color.value}`;
   } else if (badolux) {
     img = "./assets/badolux/riviera.webp";
-    sub = "Badolux Riviera · extraflach 2,6 cm";
+    sub = "Badolux · extraflach";
   }
   let title = card?.querySelector(".sc-title")?.textContent || document.getElementById("traySize")?.value || pid;
   // Slate names always say "weiß"; show the colour actually picked.
@@ -13580,7 +13586,7 @@ function renderDwSummary() {
     return `<span class="dw-summary__item"><img src="${escapeHtml(label?.querySelector("img")?.getAttribute("src") || "")}" alt="" />${escapeHtml(qty + (label?.querySelector(".caption")?.textContent || ""))}</span>`;
   });
 
-  body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
+  body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic${badolux && !isSlateTrayProductId(pid) ? " is-photo" : ""}"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
     items.length ? `<div class="dw-summary__items">${items.join("")}</div>` : ""
   }`;
 }
