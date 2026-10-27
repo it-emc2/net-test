@@ -2648,15 +2648,17 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .wvc-sel__price { margin-top: 6px; font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
 .wvc-sel__price small { font-size: 0.9rem; font-weight: 500; color: var(--muted, #6b7280); }
 .wvc-sel__badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.wvc-sel__badges .dac-line-stock,
-.wvc-sel__badges .wv-own-lager-badge {
-  display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 3px 10px 3px 4px;
-  border-radius: 999px; font-size: 0.78rem; font-weight: 600; line-height: 1.4; box-shadow: none;
+/* Both badges identical in size; the #wvcProductCard prefix beats the older
+   "#wvcProductCard .dac-line-stock { margin-top }" and the own-badge padding. */
+#wvcProductCard .wvc-sel__badges .dac-line-stock,
+#wvcProductCard .wvc-sel__badges .wv-own-lager-badge {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 28px; margin: 0; padding: 0 12px 0 4px;
+  border: 0; border-radius: 999px; font-size: 0.8rem; font-weight: 600; line-height: 1; box-shadow: none;
 }
-.wvc-sel__badges .dac-stock-qty,
-.wvc-sel__badges .wv-own-lager-qty {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px;
-  border-radius: 999px; font-size: 0.72rem; color: #fff;
+#wvcProductCard .wvc-sel__badges .dac-stock-qty,
+#wvcProductCard .wvc-sel__badges .wv-own-lager-qty {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: none;
+  min-width: 20px; width: auto; height: 20px; margin: 0; padding: 0 5px; border-radius: 999px; font-size: 0.72rem; line-height: 1; color: #fff;
 }
 .wvc-sel__badges .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
 .wvc-sel__badges .dac-stock-in .dac-stock-qty { background: #34c759; }

@@ -11984,11 +11984,15 @@ if (document.readyState === "loading") {
       : "";
     // One block: picture | name, colour, Art.-Nr. · Format, price, stock badges.
     // The long stock sentence moves into the badge's tooltip (wvcStockSpan).
-    const colourLabel = form.querySelector('input[name="wallCladdingColor"]:checked')?.value || "";
+    const colourInput = form.querySelector('input[name="wallCladdingColor"]:checked');
+    const colourLabel = colourInput?.value || "";
+    // Same picture as the colour tile: our own photos are colour-corrected, the
+    // supplier's (d.image) is e.g. yellowish for Marmor weiß.
+    const pic = colourInput?.closest("label")?.querySelector("img")?.getAttribute("src") || d.image;
     const qty = Number(qtyEl?.value) || 0;
     const euroDe = (n) => n.toFixed(2).replace(".", ",");
     wvcCardEl.innerHTML = `<div class="wvc-sel">
-      ${d.image ? `<img class="wvc-sel__img" src="${d.image}" alt="${d.name}" />` : ""}
+      ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="${d.name}" />` : ""}
       <div class="wvc-sel__info">
         <strong class="wvc-sel__name">${d.name || artId}</strong>
         <span class="wvc-sel__meta">${colourLabel ? `${colourLabel} · ` : ""}Art.-Nr. ${artId}</span>
