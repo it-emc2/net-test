@@ -311,6 +311,55 @@ router.post("/badolux-cart", async (req, res) => {
   }
 });
 
+// winwall cart (order@winwall.com / future cart automation): ?format=csv
+// (ART;<Artikelnummer>;<Menge>, orderable articles only) or ?format=json (plus
+// Zuschnitt/Fracht as services, the Kürzel and the deal). 204 without winwall items.
+router.post("/winwall-cart", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const lines = (computed?.materials?.lines || []).filter((l) => /^WS/i.test(String(l.productId || "")));
+    if (!lines.length) return res.status(204).end();
+    const items = new Map();
+    const services = [];
+    for (const l of lines) {
+      const id = String(l.productId).trim();
+      const qty = Math.round(Number(l.qty) || 0);
+      if (qty <= 0) continue;
+      if (/^WS-/i.test(id)) {
+        services.push({ id, qty, name: l.name || id, netEach: Number(l.unitPrice) || 0 });
+        continue;
+      }
+      const prev = items.get(id);
+      if (prev) prev.qty += qty;
+      else items.set(id, { sku: id, qty, name: l.name || id, section: l.category || null, ourNetEach: Number(l.unitPrice) || 0 });
+    }
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    if (req.query.format === "json") {
+      const json = {
+        format: "winwall-warenkorb/1",
+        offerNumber: angebotNummer,
+        dealId: String(body.auftragId || "").trim() || null,
+        createdAt: new Date().toISOString(),
+        supplier: { name: "winwall GmbH", order: "order@winwall.com", shop: "https://www.winwall.com" },
+        codes: computed?.supplierCodes || null,
+        items: [...items.values()],
+        services,
+      };
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="winwall_Warenkorb_${safeOffer}.json"`);
+      return res.send(JSON.stringify(json, null, 2));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="winwall_Warenkorb_${safeOffer}.csv"`);
+    res.send("\ufeff" + [...items.values()].map((i) => `ART;${i.sku};${i.qty}`).join("\r\n"));
+  } catch (e) {
+    console.error("winwall cart generation failed:", e);
+    res.status(500).json({ error: "winwall cart generation failed", detail: e.message || String(e) });
+  }
+});
+
 router.post("/hassmann-cart", async (req, res) => {
   try {
     const body = req.body || {};

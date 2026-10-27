@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -106,5 +106,34 @@ describe("winwall pricing", () => {
   });
   test("cutting and freight carry no markup", () => {
     for (const id of ["WS-ZUSCHNITT", "WS-FRACHT", "WS-FRACHT-GROSS"]) expect(NO_MARKUP_IDS.has(id)).toBe(true);
+  });
+});
+
+describe("supplier codes (Kürzel)", () => {
+  const L = (...cats) => cats.map((category) => ({ category }));
+  test("Wandverkleidung: winwall / VIGOUR / Badolux, only with WV lines", () => {
+    expect(supplierCodes({ wandverkleidung: { wvSupplier: "ww" } }, L("Wandverkleidung")).wv).toBe("WV-WW");
+    expect(supplierCodes({ wandverkleidung: {} }, L("Wandverkleidung")).wv).toBe("WV-HM");
+    expect(supplierCodes({ wandverkleidung: { wvSupplier: "hm" } }, L("Wandverkleidung")).wv).toBe("WV-HM");
+    expect(supplierCodes({ wandverkleidung: { wvColor: "WP001|Standard-Dekor" } }, L("Wandverkleidung")).wv).toBe("WV-BX");
+    expect(supplierCodes({ wandverkleidung: { wvSupplier: "ww" } }, L("Fußboden")).wv).toBe(null);
+  });
+  test("Duschwanne: Slate / Badolux / Haßmann / Freier Posten", () => {
+    const dw = (tray) => supplierCodes({ duschwanne: { chosenTrayProductId: tray } }, L("Duschwanne")).dw;
+    expect([dw("SLA12090"), dw("DW015"), dw("V2PT83LC"), dw("")]).toEqual(["DW-SL", "DW-BX", "DW-HM", "DW-FP"]);
+    expect(supplierCodes({ duschwanne: { chosenTrayProductId: "SLA12090" } }, []).dw).toBe(null);
+  });
+  test("quality texts exist for winwall, VIGOUR and Slate", () => {
+    expect(SUPPLIER_QUALITY["WV-WW"]).toMatch(/EN 13501-1.*Greenguard Gold.*5 Jahre/);
+    expect(SUPPLIER_QUALITY["WV-HM"]).toMatch(/DIN 4102-1/);
+    expect(SUPPLIER_QUALITY["DW-SL"]).toMatch(/DIN 51097.*EN 14527/);
+  });
+  test("the price result carries the codes", async () => {
+    const r = await computePrices({
+      activeOffer: "bu", Kundendaten: { payer: "Selbstzahler" }, duschwanne: {},
+      wandverkleidung: { wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "1" },
+      optional: {}, rabatt: {}, Arbeitszeit: {},
+    });
+    expect(r.supplierCodes).toEqual({ wv: "WV-WW", dw: null });
   });
 });

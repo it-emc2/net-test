@@ -857,6 +857,14 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       }
     }
 
+    // Deal field "Material-Kürzel" (e.g. "WV-WW · DW-SL"). The field has to be
+    // created in Bitrix first; until BITRIX_FIELD_MATERIAL_CODES names it, skip.
+    const materialCodesField = String(process.env.BITRIX_FIELD_MATERIAL_CODES || "").trim();
+    const materialCodes = String(req.body?.materialCodes || "").trim().slice(0, 100);
+    if (!isAh && materialCodesField && materialCodes) {
+      ahExtraFields = { ...(ahExtraFields || {}), [materialCodesField]: materialCodes };
+    }
+
     const data = await updateDealStage({
       dealId,
       stageId: isAh ? AH_ANG_VERSCHICKT_STAGE_ID : ANG_VERSCHICKT_STAGE_ID,

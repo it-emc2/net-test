@@ -491,6 +491,10 @@ export function initEmailManager(options = {}) {
       if (offerExtra.offerType === "ah" && offerExtra.payload) {
         payload.payload = JSON.stringify(offerExtra.payload);
       }
+      // Material Kürzel for the deal (WV-WW · DW-SL …), from the live pricing.
+      const codes = window.__pricing?.supplierCodes;
+      const materialCodes = [codes?.wv, codes?.dw].filter(Boolean).join(" · ");
+      if (materialCodes) payload.materialCodes = materialCodes;
     }
 
     try {
@@ -1565,6 +1569,9 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       // offer has Badolux items, and a failure never blocks sending the offer.
       { endpoint: "/material-overview/badolux-cart?format=csv", name: `Badolux_Warenkorb_${safeNo}.csv`, label: "Badolux-Warenkorb (CSV)", optional: true },
       { endpoint: "/material-overview/badolux-cart?format=json", name: `Badolux_Warenkorb_${safeNo}.json`, label: "Badolux-Warenkorb (JSON)", optional: true },
+      // winwall cart (WV-WW), same rules: only with winwall items, never blocks sending.
+      { endpoint: "/material-overview/winwall-cart?format=csv", name: `winwall_Warenkorb_${safeNo}.csv`, label: "winwall-Warenkorb (CSV)", optional: true },
+      { endpoint: "/material-overview/winwall-cart?format=json", name: `winwall_Warenkorb_${safeNo}.json`, label: "winwall-Warenkorb (JSON)", optional: true },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
     ]

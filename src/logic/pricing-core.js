@@ -314,6 +314,42 @@ export function winwallPanelPlan(situation, widths = {}, { heightCm = null } = {
   return { ...plan, qty };
 }
 
+// ---------------------------------------------------------------------------
+// Supplier codes (Kürzel) for offer, Bitrix deal and order lists, and the
+// "Qualität und Normen" text per product (wording as agreed 2026-10, SW/TR).
+export const SUPPLIER_QUALITY = {
+  "WV-WW": "Brandverhalten D-s2,d0 nach EN 13501-1 · Lack antibakteriell (in Anlehnung an DIN EN ISO 20743, Prüfgrundlage ISO 22196) · Druckfarben Greenguard Gold · Aluminium nach EN 485-4 · Maßtoleranz 0/+0,2 mm · 5 Jahre Produktgarantie",
+  "WV-HM": "Brandklasse B2 nach DIN 4102-1 · Lichtechtheit Wollblau Stufe 5 (DIN EN 15187)",
+  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097 · CE nach EN 14527",
+  // ponytail: DW-BX (Badolux) follows once SW has the data sheet; DW-HM / WV-BX have none yet.
+};
+
+/**
+ * { wv, dw } codes for the materials actually in the offer (null = none).
+ * WV: WV-WW winwall · WV-BX Badolux/Keramico · WV-HM Haßmann/VIGOUR.
+ * DW: DW-SL Slate · DW-BX Badolux · DW-HM Haßmann · DW-FP Freier Posten.
+ */
+export function supplierCodes(payload, lines = []) {
+  const has = (cat) => lines.some((l) => l?.category === cat);
+  const wv = payload?.wandverkleidung || {};
+  const decor = String(wv.wvColor || "").split("|", 1)[0].trim();
+  const keramico = /^WP/i.test(decor);
+  const badoluxLine = wv.wvBudgetMode === "1" || wv.wvBudgetMode === 1 || wv.wvBudgetMode === true;
+  const wvCode = !has("Wandverkleidung")
+    ? null
+    : keramico || badoluxLine ? "WV-BX"
+    : wv.wvSupplier === "ww" ? "WV-WW"
+    : "WV-HM";
+  const tray = String(payload?.duschwanne?.chosenTrayProductId || "").trim();
+  const dwCode = !has("Duschwanne")
+    ? null
+    : !tray ? "DW-FP"
+    : /^SLA/i.test(tray) ? "DW-SL"
+    : /^DW/i.test(tray) ? "DW-BX" // same rule pricing uses for the Badolux discount
+    : "DW-HM";
+  return { wv: wvCode, dw: dwCode };
+}
+
 /** Panels per single format → order lines: two of a kind become a set (cheaper). */
 export function winwallOrderLines(decor, qtyByFormat = {}) {
   const lines = [];
@@ -3236,6 +3272,8 @@ try {
         subsidyAmount_max,
         selfPayAmount,
         selectedTray,
+        // Kürzel per supplier (Angebot, Deal, Bestellliste) — see supplierCodes().
+        supplierCodes: supplierCodes(payload, materials?.lines || []),
 
         // NEW display-only blocks
         grabCounts,

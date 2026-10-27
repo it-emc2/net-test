@@ -11,6 +11,7 @@ import { randomBytes } from "crypto";
 import dayjs from "dayjs";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { SUPPLIER_QUALITY, supplierCodes } from "../logic/pricing-core.js";
 import ImageModule from "docxtemplater-image-module-free";
 
 import ProductModel from "../models/Product.js";
@@ -50,6 +51,7 @@ const STATIC_DOCX_WORD_BLOCKLIST = [
 const BRAND_NAMES_STRIP = [
   'Vigour',
   'TRINNITY',
+  'winwall', // supplier shows as its Kürzel (WV-WW) in the category heading
 ];
 
 function stripBrandNames(text) {
@@ -1347,6 +1349,7 @@ async function mapData(body = {}, computed = {}) {
     return uncategorizedLabel;
   };
 
+  const supplierCodesForDoc = computed?.supplierCodes || supplierCodes(body, matForDoc);
   let MaterialsLines;
   if (isBuOffer || isHlOffer) {
     const grouped = new Map();
@@ -1367,9 +1370,16 @@ async function mapData(body = {}, computed = {}) {
       // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL or
       // HANDLAUFE 1); item lines are IsSub:false. Consumed by the
       // {#IsSub}/{^IsSub} condition in the Angebot docx's MaterialsLines loop.
-      MaterialsLines.push({ MaterialLine: cat.toUpperCase(), IsSub: true });
+      // Supplier Kürzel next to the heading, "Qualität und Normen" under the
+      // category (BU: Wandverkleidung → WV-xx, Duschwanne → DW-xx).
+      const code = isBuOffer
+        ? { Wandverkleidung: supplierCodesForDoc.wv, Duschwanne: supplierCodesForDoc.dw }[cat] || null
+        : null;
+      MaterialsLines.push({ MaterialLine: code ? `${cat.toUpperCase()} · ${code}` : cat.toUpperCase(), IsSub: true });
       for (const row of rows)
         MaterialsLines.push({ MaterialLine: row.MaterialLine, IsSub: false });
+      if (code && SUPPLIER_QUALITY[code])
+        MaterialsLines.push({ MaterialLine: `Qualität und Normen: ${SUPPLIER_QUALITY[code]}`, IsSub: false });
     }
   } else {
     MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({
