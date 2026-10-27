@@ -1910,7 +1910,8 @@ a.btn {
   cursor: pointer;
   user-select: none;
 }
-.sec-switch input {
+.sec-switch input,
+.sec-mini-switch input {
   position: absolute;
   opacity: 0;
   width: 1px;
@@ -1938,13 +1939,47 @@ a.btn {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
   transition: transform 0.2s ease;
 }
-.sec-switch input:checked + .sec-switch__track { background: #34c759; }
-.sec-switch input:checked + .sec-switch__track::after { transform: translateX(20px); }
-.sec-switch input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgba(52, 199, 89, 0.35)); }
+input:checked + .sec-switch__track { background: #34c759; }
+input:checked + .sec-switch__track::after { transform: translateX(20px); }
+input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgba(52, 199, 89, 0.35)); }
+/* Same switch without the card, for a row in a settings group. */
+.sec-mini-switch { position: relative; display: inline-flex; flex: none; cursor: pointer; }
 .sec-switch__text { display: grid; gap: 2px; min-width: 0; }
 .sec-switch__text strong { font-size: 1.02rem; font-weight: 600; color: var(--text, #1f2937); }
 .sec-switch__text small { font-size: 0.85rem; color: var(--muted, #6b7280); }
 .sec-switch-field { margin: 0 0 16px; }
+/* Settings group under the switch (iOS "inset grouped" list). */
+.sec-settings { margin: 0 0 18px; }
+.sec-settings__label {
+  margin: 0 4px 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+.sec-settings__group {
+  border: 1px solid var(--input-border, #d0d5dd);
+  border-radius: 14px;
+  background: var(--panel, #fff);
+  overflow: hidden;
+}
+.sec-settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 18px;
+}
+.sec-settings__row + .sec-settings__row { border-top: 1px solid var(--input-border, #e5e7eb); }
+.sec-settings__text { display: grid; gap: 2px; min-width: 0; }
+.sec-settings__text strong { font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); }
+.sec-settings__text small { font-size: 0.85rem; color: var(--muted, #6b7280); }
+[data-mode="dark"] .sec-switch__track { background: #3a3a3c; }
+[data-mode="dark"] input:checked + .sec-switch__track { background: #30d158; }
+[data-mode="dark"] .sec-switch__track::after { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+
 /* Duschabtrennung (neu) / Duschvorhang: switched off, only heading, switch and
    the page navigation stay. */
 .page[data-section-off] > :not(.sec-keep):not(.actions):not(template) { display: none !important; }
@@ -1970,7 +2005,9 @@ a.btn {
 /* Duschwanne an/aus: one attribute on the form hides every tray-only part.
    An attribute rather than [hidden] on each element, because other code
    toggles [hidden] on some of them (e.g. the Slate colour section). */
-#form-duschwanne[data-tray-off] .dw-tray-only {
+#form-duschwanne[data-tray-off] .dw-tray-only,
+/* Off = only the switch (and the page navigation) is left. */
+#form-duschwanne[data-tray-off] > :not(.sec-switch-field):not(.actions) {
   display: none !important;
 }
 /* Kleinmaterial is then the only tile left; auto-fill keeps the empty tracks

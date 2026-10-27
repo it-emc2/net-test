@@ -4373,57 +4373,43 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Duschwanne -->
       <section class="card page" id="page-Duschwanne" hidden>
-        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-          <h2 style="margin:0">Duschwanne</h2>
-
-          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
-
-          <!-- Toggle: ebenerdige Montage (default ON) -->
-          <label for="ebenerdigeToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-            <input id="ebenerdigeToggle" type="checkbox" name="ebenerdigeMontage" checked
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
-          </label>
-
-          <!-- Produktlinie: Standard (Badolux) statt "Low Budget", Premium (Vigour/
-               Hassmann) als Default. Die Checkbox bleibt die einzige Quelle der
-               Wahrheit und behaelt id/name/value: Payload, Preislogik
-               (dusch.budgetMode) und BadoluxManager haengen unveraendert daran, die
-               Buttons schalten sie nur um. form="form-duschwanne" ist noetig, weil sie
-               ausserhalb des <form> steht — ohne das Attribut landet budgetMode nicht
-               im Payload und die Badolux-Artikel werden nie berechnet. -->
-          <div class="tier-switch">
-            <span class="tier-switch__label">Produktlinie</span>
-            <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
-              <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
-                <strong>Standard</strong><span>Badolux &middot; guenstig</span>
-              </button>
-              <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
-                <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
-              </button>
-            </div>
-            <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
-              form="form-duschwanne" hidden />
-          </div>
-
-          </div>
-        </div>
-
-        <p class="tier-status" id="tierStatus" data-tier="premium">
-          <span class="tier-status__dot" aria-hidden="true"></span>
-          <span class="tier-status__text"></span>
-        </p>
+        <h2 style="margin:0 0 14px">Duschwanne</h2>
 
         <form id="form-duschwanne" autocomplete="on" data-tray-off>
 
-          <!-- Duschwanne an/aus. Aus = Wanne + Abdichtband, Ablaufgarnitur und
-               Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
-               Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
-               buildPayload() schreibt duschwanne.trayEnabled selbst. -->
+          <!-- Duschwanne an/aus (2026-10-27): aus = nur der Schalter ist sichtbar und
+               nichts aus diesem Bereich wird berechnet, auch kein Kleinmaterial — die
+               Auswahl bleibt erhalten. Kein name-Attribut: buildPayload() schreibt
+               duschwanne.trayEnabled selbst. -->
           <div class="field full sec-switch-field">
             <label class="sec-switch"><input type="checkbox" role="switch" id="dwTrayToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
-                class="sec-switch__text"><strong>Duschwanne</strong><small>Wanne, Abdichtband, Ablaufgarnitur und Stelzlager im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
+                class="sec-switch__text"><strong>Duschwanne</strong><small>Wanne, Zubehör und Kleinmaterial im Angebot. Aus: nichts berechnet, die Auswahl bleibt erhalten.</small></span></label>
+          </div>
+
+          <!-- Einstellungen (nur bei an): Produktlinie + Hinweis. Die Produktlinie-
+               Checkbox bleibt die einzige Quelle der Wahrheit und behaelt id/name/value
+               (Payload, dusch.budgetMode, BadoluxManager); die Buttons schalten sie nur um. -->
+          <div class="full sec-settings dw-tray-only">
+            <div class="sec-settings__label">Einstellungen</div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                    <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                    <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                  </button>
+                </div>
+                <input id="budgetToggle" type="checkbox" name="budgetMode" value="1" form="form-duschwanne" hidden />
+              </div>
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Hinweis Zusatzkosten</strong><small>Ebenerdige Montage — Hinweis im Angebot einblenden</small></div>
+                <label class="sec-mini-switch"><input id="ebenerdigeToggle" type="checkbox" role="switch" checked
+                    aria-label="Hinweis zu möglichen Zusatzkosten einblenden" /><span class="sec-switch__track" aria-hidden="true"></span></label>
+              </div>
+            </div>
           </div>
 
           <!-- Put this above the radio group -->

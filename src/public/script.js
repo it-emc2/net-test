@@ -10501,7 +10501,10 @@ function deriveDwTrayEnabled(dw) {
     dw?.dwCustomPrice ||
     dw?.abdichtSet ||
     dw?.drainSet ||
-    dw?.stelzlager
+    dw?.stelzlager ||
+    // Since 2026-10-27 Kleinmaterial is part of the switch too: an old offer
+    // with only Kleinmaterial comes back on, i.e. still billed.
+    dw?.smallMaterial
   );
 }
 
@@ -10533,6 +10536,11 @@ function applyDwTraySwitch(dw, enabled) {
     dwCustomId: "",
   };
   if (!enabled) {
+    // Off prices nothing from this section, Kleinmaterial included (2026-10-27).
+    // A sent offer keeps the rule it was sent with (Kleinmaterial billed), so its
+    // price never changes on reopen.
+    const sent = typeof document !== "undefined" && document.body?.classList.contains("is-sent-offer");
+    if (!sent) delete dw.smallMaterial;
     for (const key of DW_TRAY_DROP) delete dw[key];
     for (const [key, value] of Object.entries(DW_TRAY_EMPTY)) {
       if (key in dw) dw[key] = value;
@@ -11642,6 +11650,11 @@ function syncTierSwitchUi() {
     status.dataset.tier = tier;
     const text = status.querySelector(".tier-status__text");
     if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note(key)}`;
+  });
+  // Compact form inside a settings row (Duschwanne): just which products show.
+  document.querySelectorAll("[data-tier-line]").forEach((el) => {
+    const key = lineKeyForElement(el);
+    if (key) el.textContent = `Nur Produkte von ${TIER_INFO[getLine(key)].brand}`;
   });
 
   syncProduktlinieGroups();

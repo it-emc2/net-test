@@ -76,8 +76,10 @@ describe("deriving the switch for saved offers", () => {
     expect(deriveDwTrayEnabled({ quickAdd: [{ label: "Sonderwanne", price: 799 }] })).toBe(true);
   });
 
-  test("Kleinmaterial alone does not switch the tray on", () => {
-    expect(deriveDwTrayEnabled({ smallMaterial: "Kleinmaterial" })).toBe(false);
+  // Since 2026-10-27 Kleinmaterial belongs to the switch: an old offer with only
+  // Kleinmaterial was billed, so it must come back on.
+  test("Kleinmaterial alone switches the tray on", () => {
+    expect(deriveDwTrayEnabled({ smallMaterial: "Kleinmaterial" })).toBe(true);
     expect(deriveDwTrayEnabled({})).toBe(false);
     expect(deriveDwTrayEnabled(undefined)).toBe(false);
   });
@@ -90,14 +92,13 @@ describe("stripping the payload", () => {
     expect(after).toEqual({ ...before, trayEnabled: true });
   });
 
-  test("off: nothing that makes a price is left — Kleinmaterial, Fußboden, Wanne, tasks stay", () => {
+  test("off: nothing that makes a price is left, Kleinmaterial included — Fußboden, Wanne, tasks stay", () => {
     const after = applyDwTraySwitch({ ...legacyOffer(), quickAdd: [{ label: "x", price: 1 }] }, false);
-    for (const key of DW_TRAY_DROP) expect(after).not.toHaveProperty(key);
+    for (const key of [...DW_TRAY_DROP, "smallMaterial"]) expect(after).not.toHaveProperty(key);
     expect(after.chosenTrayProductId).toBeNull();
     expect(after.traySize).toBe("");
     expect(after).toMatchObject({
       trayEnabled: false,
-      smallMaterial: "Kleinmaterial",
       ebenerdigeMontage: true,
       budgetMode: "1",
       addFlooring: "on",
@@ -109,7 +110,7 @@ describe("stripping the payload", () => {
     });
   });
 
-  test("off produces exactly an untouched Duschwanne page (legacy no-tray offer)", () => {
+  test("an untouched Duschwanne page (legacy no-tray offer, Kleinmaterial billed) reopens unchanged", () => {
     // What a saved offer with nothing picked on the Duschwanne page looks like
     // — taken from real offers that were saved before the switch existed.
     const untouched = {
@@ -127,8 +128,8 @@ describe("stripping the payload", () => {
       smallMaterial: "Kleinmaterial",
       floorArea: "4",
     };
-    expect(deriveDwTrayEnabled(untouched)).toBe(false);
-    const { trayEnabled, ...rebuilt } = applyDwTraySwitch({ ...untouched }, false);
+    expect(deriveDwTrayEnabled(untouched)).toBe(true);
+    const { trayEnabled, ...rebuilt } = applyDwTraySwitch({ ...untouched }, true);
     expect(rebuilt).toEqual(untouched);
   });
 
@@ -141,7 +142,7 @@ describe("stripping the payload", () => {
     const full = { ...legacyOffer(), quickAdd: [{ label: "x" }], dwCustomName: "Sonder", dwCustomPrice: "9", dwCustomQty: "2", dwCustomId: "S1" };
     const after = applyDwTraySwitch({ ...full }, false);
     const changed = Object.keys(full).filter((k) => JSON.stringify(full[k]) !== JSON.stringify(after[k]));
-    expect(changed.sort()).toEqual([...DW_TRAY_DROP, ...Object.keys(DW_TRAY_EMPTY)].sort());
+    expect(changed.sort()).toEqual([...DW_TRAY_DROP, ...Object.keys(DW_TRAY_EMPTY), "smallMaterial"].sort());
   });
 
   test("a legacy offer round-trips to the identical payload (same price)", () => {
@@ -160,8 +161,9 @@ test("every markup piece the switch relies on exists", async () => {
   expect(doc.getElementById("dwTrayToggle")).not.toBeNull();
   expect(doc.getElementById("dwTrayToggle").hasAttribute("name")).toBe(false);
   expect(form.hasAttribute("data-tray-off")).toBe(true); // off by default
-  // Kleinmaterial must stay visible with the switch off.
-  expect(doc.getElementById("smallMaterial").closest(".dw-tray-only")).toBeNull();
+  // Off shows only the switch: the settings (Produktlinie, Hinweis) hide too.
+  expect(doc.getElementById("budgetToggle").closest(".dw-tray-only")).not.toBeNull();
+  expect(doc.getElementById("ebenerdigeToggle").closest(".dw-tray-only")).not.toBeNull();
   // The three tray accessories hide with it.
   for (const pid of ["TRWDB", "AGD9060", "PLA5282"]) {
     expect(form.querySelector(`input[data-product-id="${pid}"]`).closest(".dw-tray-only")).not.toBeNull();
