@@ -53,7 +53,7 @@ export function initBadoluxManager(options = {}) {
     const heading = document.getElementById("dwDrainHeading");
     if (heading) {
       if (!heading.dataset.textOriginal) heading.dataset.textOriginal = heading.textContent;
-      heading.textContent = on ? "Ablaufgarnitur Siphon Bridge 90, Ablauf 90 mm (Badolux)" : heading.dataset.textOriginal;
+      heading.textContent = on ? "Badolux · Ablauf 90 mm" : heading.dataset.textOriginal;
     }
 
     Object.entries(map).forEach(([pid, budgetSrc]) => {

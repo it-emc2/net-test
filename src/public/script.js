@@ -13539,7 +13539,53 @@ function toggleSlateTrayColorVisibility() {
     const fallback = document.querySelector('input[name="trayColor"][value="Weiss"]');
     if (fallback) fallback.checked = true;
   }
+  renderDwSummary();
 }
+
+// "Ihre Auswahl" at the bottom of the Duschwanne page: the chosen tray (Slate in
+// its colour, Badolux as Riviera) and the ticked accessories. Display only.
+function renderDwSummary() {
+  const box = document.getElementById("dwSummary");
+  const body = document.getElementById("dwSummaryBody");
+  const form = document.getElementById("form-duschwanne");
+  if (!box || !body || !form) return;
+  const pid = document.getElementById("chosenTrayProductId")?.value || "";
+  const card = document.querySelector("#tray-suggestions .suggestion-card.is-selected");
+  box.hidden = !pid;
+  if (!pid) return (body.innerHTML = "");
+
+  const color = form.querySelector('input[name="trayColor"]:checked');
+  const badolux = card ? card.classList.contains("is-budget") : !!document.getElementById("budgetToggle")?.checked;
+  let img = "./assets/duschwanne.jpeg";
+  let sub = "Hassmann";
+  if (isSlateTrayProductId(pid) && color) {
+    img = color.closest("label")?.querySelector("img")?.getAttribute("src") || img;
+    sub = `Slate · Farbe ${color.closest("label")?.querySelector(".caption")?.textContent || color.value}`;
+  } else if (badolux) {
+    img = "./assets/badolux/riviera.webp";
+    sub = "Badolux Riviera · extraflach 2,6 cm";
+  }
+  const title = card?.querySelector(".sc-title")?.textContent || document.getElementById("traySize")?.value || pid;
+  const price = card?.querySelector(".sc-price")?.textContent || "";
+  // Badolux rows show the supplier's Art.-Nr. (PRI70DW06), not our DW015.
+  const art = card?.querySelector(".sc-sub")?.textContent.match(/Art\.-Nr\.\s*(\S+)/)?.[1] || pid;
+
+  const items = [...form.querySelectorAll(".dw-acc input[type=checkbox]:checked")].map((cb) => {
+    const label = cb.closest("label");
+    const qty = cb.name === "stelzlager" ? `${document.getElementById("stelzlagerQtyInput")?.value || 8} × ` : "";
+    return `<span class="dw-summary__item"><img src="${escapeHtml(label?.querySelector("img")?.getAttribute("src") || "")}" alt="" />${escapeHtml(qty + (label?.querySelector(".caption")?.textContent || ""))}</span>`;
+  });
+
+  body.innerHTML = `<div class="dw-summary__hero"><img src="${escapeHtml(img)}" alt="" /><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
+    items.length ? `<div class="dw-summary__items">${items.join("")}</div>` : ""
+  }`;
+}
+// Accessories, colour, quantity and line changes; a tick later so BadoluxManager
+// has swapped the accessory pictures first.
+document.getElementById("form-duschwanne")?.addEventListener("change", () => setTimeout(renderDwSummary));
+document.getElementById("form-duschwanne")?.addEventListener("click", (e) => {
+  if (e.target.closest?.(".stelzlager-qty-btn, .tier-seg__btn")) setTimeout(renderDwSummary);
+});
 
 function attachDuschwanneToPayload(payload) {
   // tray (existing)

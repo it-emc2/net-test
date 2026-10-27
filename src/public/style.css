@@ -2010,38 +2010,6 @@ input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgb
 #form-duschwanne[data-tray-off] > :not(.sec-switch-field):not(.actions) {
   display: none !important;
 }
-/* Kleinmaterial is then the only tile left; auto-fill keeps the empty tracks
-   so it stays tile-sized instead of stretching across the whole row. */
-#form-duschwanne[data-tray-off] .dw-tray-extras-grid {
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-}
-
-.dw-tray-extras-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  grid-template-rows: auto auto auto;
-  gap: 16px;
-}
-
-.dw-tray-extras-grid > .field {
-  margin: 0;
-  display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-}
-
-/* display:grid above would otherwise beat [hidden] (same gotcha as
-   .sonderaufschlag-auto-row) — the Standard-only Badolux drain row must
-   actually disappear when Premium is active, not just get aria-hidden. */
-.dw-tray-extras-grid > .field[hidden] {
-  display: none;
-}
-
-.dw-tray-extras-grid > .field .image-check {
-  width: 100%;
-  height: 100%;
-}
-
 /* Uniform product-tile cards: header / tile / note / qty-or-price, aligned
    across the row via subgrid so cards with different optional content
    (warning text, qty input) still line up instead of drifting to
@@ -2507,6 +2475,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
+  margin: 0; /* a global label margin left an untinted strip under the selected row */
   cursor: pointer;
   position: relative;
   background: transparent;
@@ -2546,11 +2515,17 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 /* Lagerbestand: Punkt + Text. Grün = auf Lager (mit Menge), Orange = Menge 0
    aber lieferbar (Verbundhaus/Zentrallager/Nachtverbund), Rot = muss bestellt werden. */
-#tray-suggestions .sc-stock { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-#tray-suggestions .sc-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-#tray-suggestions .sc-stock--in .sc-dot { background: #34c759; }
-#tray-suggestions .sc-stock--soon .sc-dot { background: #ff9f0a; }
-#tray-suggestions .sc-stock--out .sc-dot { background: #ff3b30; }
+#tray-suggestions .sc-stock {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 0.74rem; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px;
+}
+#tray-suggestions .sc-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: currentColor; }
+#tray-suggestions .sc-stock--in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+#tray-suggestions .sc-stock--soon { background: rgba(255, 159, 10, 0.16); color: #b26a00; }
+#tray-suggestions .sc-stock--out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+[data-mode="dark"] #tray-suggestions .sc-stock--in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+[data-mode="dark"] #tray-suggestions .sc-stock--soon { background: rgba(255, 159, 10, 0.22); color: #ffc261; }
+[data-mode="dark"] #tray-suggestions .sc-stock--out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
 #tray-suggestions .sc-price { font-size: 1rem; font-weight: 600; white-space: nowrap; color: var(--text, #1f2937); }
 
 #tray-suggestions .sc-check {
@@ -2587,6 +2562,117 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 #form-duschwanne .dw-dim-row input[type="number"]:focus { outline: none; box-shadow: none; }
 .dw-dim-row:focus-within { background: rgba(10, 132, 255, 0.05); }
+
+/* Slate-Farbe: runde Farbfelder in einer Zeile, Auswahl = blauer Ring. */
+#form-duschwanne .dw-color-grid { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 14px 18px; }
+#form-duschwanne .dw-color-grid .image-check {
+  display: grid; justify-items: center; gap: 6px; width: auto; padding: 0;
+  border: 0; background: none; box-shadow: none;
+}
+#form-duschwanne .dw-color-grid .img-wrap {
+  width: 46px; height: 46px; aspect-ratio: auto; border-radius: 50%;
+  border: 1px solid var(--input-border, #d0d5dd); transition: box-shadow 0.15s ease;
+}
+/* The pictures show a whole tray; zoom into its surface so the field shows the colour. */
+#form-duschwanne .dw-color-grid img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; transform: scale(2.4); }
+#form-duschwanne .dw-color-grid .caption { font-size: 0.78rem; font-weight: 500; color: var(--muted, #6b7280); }
+#form-duschwanne .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+#form-duschwanne .dw-color-grid .image-check:has(input:checked) .caption { color: var(--text, #1f2937); }
+#form-duschwanne .dw-color-grid .image-check:has(input:focus-visible) { outline: none; }
+#form-duschwanne .dw-color-grid .image-check:has(input:focus-visible) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff, 0 0 0 7px rgba(10, 132, 255, 0.25); }
+
+/* Zubehör: eine Zeile je Artikel — Bild, Text, (Stepper), Schalter. Das label ist
+   display:contents, so dass seine Teile direkt im Zeilenraster liegen und ein
+   Tipp irgendwo darauf weiter die Checkbox schaltet. */
+.dw-acc-list { margin-top: 4px; }
+.dw-acc {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center;
+  gap: 4px 14px; padding: 10px 18px; cursor: pointer;
+}
+.dw-acc + .dw-acc { border-top: 1px solid var(--input-border, #e5e7eb); }
+#form-duschwanne .dw-acc .image-check { display: contents; }
+.dw-acc .img-wrap {
+  grid-column: 1; grid-row: 1; width: 44px; height: 44px; aspect-ratio: auto;
+  border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; padding: 3px; box-sizing: border-box;
+}
+.dw-acc__text { grid-column: 2; grid-row: 1; display: grid; gap: 2px; min-width: 0; }
+#form-duschwanne .dw-acc .caption { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+.dw-acc__text small { font-size: 0.82rem; color: var(--muted, #6b7280); }
+.dw-acc .sec-switch__track { grid-column: 4; grid-row: 1; }
+.dw-acc:has(input:not(:checked)) .img-wrap { opacity: 0.45; }
+.stelzlager-qty-row {
+  grid-column: 3; grid-row: 1; display: inline-flex; align-items: center;
+  border-radius: 9px; background: rgba(118, 118, 128, 0.12); overflow: hidden;
+}
+.stelzlager-qty-row[hidden] { display: none; }
+.stelzlager-qty-btn {
+  width: 36px; height: 32px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 1.15rem; line-height: 1; color: var(--text, #1f2937);
+}
+.stelzlager-qty-btn:active { background: rgba(118, 118, 128, 0.2); }
+#stelzlagerQtyInput {
+  width: 38px; padding: 4px 0; border: 0; background: transparent; box-shadow: none;
+  text-align: center; font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); -moz-appearance: textfield;
+}
+#stelzlagerQtyInput::-webkit-inner-spin-button, #stelzlagerQtyInput::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Freier Posten: eine aufklappbare Zeile, darin Formularzeilen (Name links, Wert rechts). */
+#dw-custom-details {
+  margin: 0 0 18px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px;
+  background: var(--panel, #fff); overflow: hidden;
+}
+#dw-custom-details > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding: 12px 18px; font-size: 1rem; font-weight: 500; color: var(--text, #1f2937);
+}
+#dw-custom-details > summary::-webkit-details-marker { display: none; }
+.dw-custom-caret { margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #6b7280); transition: transform 0.15s ease; }
+#dw-custom-details[open] .dw-custom-caret { transform: rotate(90deg); }
+#dw-custom-details.is-urgent { border-color: #f59e0b; background: #fffbeb; }
+#dw-custom-details fieldset.da-row { border: 0; margin: 0; padding: 0; }
+#dw-custom-details .da-grid-4 { display: block; }
+#dw-custom-details .da-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0;
+  padding: 10px 18px; border-top: 1px solid var(--input-border, #e5e7eb);
+  font-size: 1rem; font-weight: 400; color: var(--text, #1f2937);
+}
+#dw-custom-details .da-label input {
+  flex: 1; max-width: 60%; text-align: right; border: 0; background: transparent; box-shadow: none;
+  padding: 4px 0; font-size: 1rem; color: var(--text, #1f2937);
+}
+#dw-custom-details .da-label input:focus { outline: none; }
+#dw-custom-details .da-label:focus-within { background: rgba(10, 132, 255, 0.05); }
+#dw-custom-details .da-help {
+  display: block; margin: 0; padding: 10px 18px 14px; border-top: 1px solid var(--input-border, #e5e7eb);
+  font-size: 0.82rem; color: var(--muted, #6b7280);
+}
+
+/* Ihre Auswahl: Wannenbild + gewählte Teile. */
+.dw-summary__hero { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 18px; }
+.dw-summary__hero img { width: 120px; height: 90px; object-fit: contain; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
+.dw-summary__hero strong { display: block; font-size: 1.05rem; font-weight: 600; color: var(--text, #1f2937); }
+.dw-summary__hero small { display: block; margin-top: 2px; font-size: 0.85rem; color: var(--muted, #6b7280); }
+.dw-summary__items { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 18px 14px; border-top: 1px solid var(--input-border, #e5e7eb); }
+.dw-summary__item {
+  display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px;
+  border-radius: 999px; background: rgba(118, 118, 128, 0.1); font-size: 0.85rem; color: var(--text, #1f2937);
+}
+.dw-summary__item img { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #fff; }
+
+/* Kundenbäder: vorher/nachher nebeneinander, horizontal wischbar. */
+.dw-refs__list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 46%); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
+.dw-ref { margin: 0; scroll-snap-align: start; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; }
+.dw-ref__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.dw-ref__pair img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
+.dw-ref figcaption { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 0; text-align: center; font-size: 0.8rem; font-weight: 600; color: var(--muted, #6b7280); }
+.dw-ref figcaption span:last-child { color: #1f8a3c; }
+
+[data-mode="dark"] .dw-acc .img-wrap,
+[data-mode="dark"] .dw-summary__item img,
+[data-mode="dark"] .dw-summary__hero img { border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] .stelzlager-qty-row { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .dw-summary__item { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .dw-ref figcaption span:last-child { color: #5fe08a; }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
 #traySmartSearch,
@@ -4550,110 +4636,6 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   display: block;
   margin-bottom: 3px;
   font-size: 14px;
-}
-
-.dw-hero {
-  max-width: 320px;
-  margin: 4px auto 4px;
-}
-
-.dw-hero img {
-  display: block;
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-}
-
-.dw-color-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
-@media (max-width: 640px) {
-  .dw-color-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.dw-color-grid .image-check {
-  width: 100%;
-  padding: 14px;
-}
-
-.dw-color-grid .image-check .img-wrap {
-  aspect-ratio: 1 / 1;
-}
-
-/* Freier Posten: collapsed until needed, opened automatically when no line matches. */
-.dw-custom-details {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--card, #fff);
-  margin-top: 18px;
-  overflow: hidden;
-}
-
-.dw-custom-details > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 15px 18px;
-  font-weight: 650;
-  font-size: 14px;
-}
-
-.dw-custom-details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.dw-custom-caret {
-  margin-left: auto;
-  color: var(--muted-foreground);
-  transition: transform 0.15s ease;
-}
-
-.dw-custom-details[open] > summary {
-  border-bottom: 1px solid var(--border);
-}
-
-.dw-custom-details[open] .dw-custom-caret {
-  transform: rotate(90deg);
-}
-
-.dw-custom-details.is-urgent {
-  border-color: #f59e0b;
-  background: #fffbeb;
-}
-
-/* The markup nests a <fieldset> inside .dw-custom-details, which brings its
-   own UA-default border/padding — undo that so only the outer panel border
-   shows, then re-apply the panel's own content padding. */
-.dw-custom-details fieldset.da-row {
-  border: 0;
-  margin: 0;
-  padding: 18px;
-}
-
-.dw-custom-details .da-grid-4 {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1.2fr;
-  gap: 14px;
-}
-
-@media (max-width: 720px) {
-  .dw-custom-details .da-grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.dw-custom-details .da-help {
-  display: block;
-  margin-top: 12px;
-  color: var(--muted-foreground);
 }
 
 @media (max-width: 820px) {
@@ -10971,7 +10953,7 @@ details.az-group[open] > summary.az-group-title::before {
 
 [data-mode="dark"] #tray-suggestions .suggestion-card.is-pinned,
 [data-mode="dark"] #tray-suggestions .tray-fallback,
-[data-mode="dark"] .dw-custom-details.is-urgent {
+[data-mode="dark"] #dw-custom-details.is-urgent {
   background: rgba(234, 179, 8, 0.12);
   border-color: rgba(234, 179, 8, 0.45);
 }
@@ -11062,50 +11044,6 @@ details.az-group[open] > summary.az-group-title::before {
 [data-mode="dark"] nav.step-nav {
   background: var(--card);
   border-color: var(--border);
-}
-
-/* ── Stelzlager Set qty stepper ─────────────────────────────── */
-.stelzlager-qty-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.stelzlager-qty-row[hidden] { display: none; }
-.stelzlager-qty-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.stelzlager-qty-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--card);
-  color: var(--text);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-}
-.stelzlager-qty-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-#stelzlagerQtyInput {
-  width: 52px;
-  text-align: center;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.9rem;
 }
 
 /* ---------- Interne Liste (Kundendaten, nicht kundensichtbar) ---------- */

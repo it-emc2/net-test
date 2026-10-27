@@ -4431,8 +4431,42 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="traySize" name="traySize">
           </div>
 
-          <div class="dw-hero full dw-tray-only">
-            <img src="./assets/duschwanne.jpeg" alt="Duschwanne" />
+          <!-- Farbe (nur Slate): runde Farbfelder; Radios/Namen unverändert. -->
+          <div class="full sec-settings dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
+            <div class="sec-settings__label">Farbe der Duschwanne Slate</div>
+            <div class="sec-settings__group dw-color-grid">
+              <label class="image-check"><input type="radio" name="trayColor" value="Weiss" checked /><span class="img-wrap"><img src="./assets/slate-color-weiss.jpg" alt="" /></span><span class="caption">Weiß</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Elfenbein" /><span class="img-wrap"><img src="./assets/slate-color-elfenbein.jpg" alt="" /></span><span class="caption">Elfenbein</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Steingrau" /><span class="img-wrap"><img src="./assets/slate-color-steingrau.jpg" alt="" /></span><span class="caption">Steingrau</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Beton" /><span class="img-wrap"><img src="./assets/slate-color-beton.jpg" alt="" /></span><span class="caption">Beton</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Anthrazit" /><span class="img-wrap"><img src="./assets/slate-color-anthrazit.jpg" alt="" /></span><span class="caption">Anthrazit</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Schwarz" /><span class="img-wrap"><img src="./assets/slate-color-schwarz.jpg" alt="" /></span><span class="caption">Schwarz</span></label>
+            </div>
+          </div>
+
+          <!-- Zubehör als Liste: jede Zeile bleibt ein label.image-check (BadoluxManager
+               tauscht Bild/Caption, highlightTileForInput) — nur anders gezeichnet. -->
+          <div class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Zubehör</div>
+            <div class="sec-settings__group">
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/4ab307d6db904aac6d543a80540e67ec.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Wannenabdichtband-Set TRWDB</span><small>3,4 m · Nass-/Trockenanbindung, DIN 18534</small></span></label>
+              </div>
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="AGD9060"><input type="checkbox" name="drainSet" value="Ablaufgarnitur TRAGD9060" data-product-id="AGD9060" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Ablaufgarnitur TRAGD9060</span><small id="dwDrainHeading">Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf</small></span></label>
+              </div>
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Stelzlager-Set PLA5282</span><small>Plattenlager Pro, justierbar 64–110 mm</small></span></label>
+                <div id="stelzlagerQtyRow" class="stelzlager-qty-row">
+                  <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyMinus" aria-label="Weniger">−</button>
+                  <input type="number" id="stelzlagerQtyInput" name="stelzlagerQty" value="8" min="1" max="99" aria-label="Anzahl Stelzlager" />
+                  <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyPlus" aria-label="Mehr">+</button>
+                </div>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check" data-product-id="KM02"><input type="checkbox" id="smallMaterial" name="smallMaterial" value="Kleinmaterial" checked data-product-id="KM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Kleinmaterial</span><small>KM02</small></span></label>
+              </div>
+            </div>
           </div>
 
           <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
@@ -4476,115 +4510,21 @@ button.dm-btn-danger:focus-visible {
           </fieldset>
           </details>
 
-          <!-- Badewanne + Wannenaufsatz now live on the Optional tab (menu_WANNE). -->
+          <!-- Ihre Auswahl: gewählte Wanne (Slate in der gewählten Farbe, Badolux
+               Riviera) + Zubehör; gefüllt von renderDwSummary(). Darunter echte
+               Kundenbäder vorher/nachher. -->
+          <div class="full sec-settings dw-tray-only" id="dwSummary" hidden>
+            <div class="sec-settings__label">Ihre Auswahl</div>
+            <div class="sec-settings__group dw-summary" id="dwSummaryBody"></div>
+          </div>
 
-          <div class="field full dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
-            <label class="req">Farbe der Duschwanne Slate</label>
-            <div class="dw-color-grid">
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Weiss" checked />
-                <span class="img-wrap"><img src="./assets/slate-color-weiss.jpg" alt="Weiss" /></span>
-                <span class="caption">Weiß</span>
-              </label>
-
-               <label class="image-check">
-                <input type="radio" name="trayColor" value="Elfenbein" />
-                <span class="img-wrap"><img src="./assets/slate-color-elfenbein.jpg" alt="Elfenbein" /></span>
-                <span class="caption">Elfenbein</span>
-              </label>
-
-                <label class="image-check">
-                <input type="radio" name="trayColor" value="Steingrau" />
-                <span class="img-wrap"><img src="./assets/slate-color-steingrau.jpg" alt="Steingrau" /></span>
-                <span class="caption">Steingrau</span>
-              </label>
-              
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Beton" />
-                <span class="img-wrap"><img src="./assets/slate-color-beton.jpg" alt="Beton" /></span>
-                <span class="caption">Beton</span>
-              </label>
-
-             
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Anthrazit" />
-                <span class="img-wrap"><img src="./assets/slate-color-anthrazit.jpg" alt="Anthrazit" /></span>
-                <span class="caption">Anthrazit</span>
-              </label>
-
-
-             
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Schwarz" />
-                <span class="img-wrap"><img src="./assets/slate-color-schwarz.jpg" alt="Schwarz" /></span>
-                <span class="caption">Schwarz</span>
-              </label>
-
-             
+          <div class="full sec-settings dw-tray-only dw-refs">
+            <div class="sec-settings__label">Aus unseren Kundenbädern</div>
+            <div class="dw-refs__list">
+              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/07-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/07-nachher.jpg" alt="Nachher: bodenebene Dusche" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/27-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/27-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/28-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/28-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
             </div>
-          </div>
-
-          <div class="field full dw-tray-extras-grid">
-
-          <div class="field dw-tray-only">
-            <label class="req">Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
-              entspr. DIN 18534</label>
-            <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
-                checked /><span class="img-wrap"><img src="./assets/4ab307d6db904aac6d543a80540e67ec.jpg"
-                  alt="Wannenabdichtband-Set" /></span><span class="caption">Wannenabdichtband-Set TRWDB</span></label>
-          </div>
-
-          <div class="field dw-tray-only">
-  <label class="req" id="dwDrainHeading">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
-    90mm Ablauf</label>
-
-  <label class="image-check" data-product-id="AGD9060">
-    <input
-      type="checkbox"
-      name="drainSet"
-      value="Ablaufgarnitur TRAGD9060"
-      data-product-id="AGD9060"
-      checked
-    />
-    <span class="img-wrap">
-      <img
-        src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg"
-        alt="Ablaufgarnitur"
-      />
-    </span>
-    <span class="caption">Ablaufgarnitur TRAGD9060</span>
-  </label>
-          </div>
-
-          <div class="field">
-            <label class="req">Kleinmaterial</label>
-            <label class="image-check" data-product-id="KM02">
-  <input type="checkbox" id="smallMaterial" name="smallMaterial" value="Kleinmaterial" checked data-product-id="KM02" />
-  <span class="img-wrap">
-    <img src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="Kleinmaterial" />
-  </span>
-  <span class="caption">Kleinmaterial</span>
-</label>
-          </div>
-
-          <div class="field dw-tray-only">
-            <label>Stelzlager höhenverstellbar Set</label>
-            <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span
-                class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg"
-                  alt="Stelzlager höhenverstellbar Set" /></span><span class="caption">Plattenlager Pro justierbar
-                64–110 mm Set</span></label>
-            <div id="stelzlagerQtyRow" class="stelzlager-qty-row">
-              <span class="stelzlager-qty-label">Anzahl Stück:</span>
-              <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyMinus">−</button>
-              <input type="number" id="stelzlagerQtyInput" name="stelzlagerQty" value="8" min="1" max="99" />
-              <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyPlus">+</button>
-            </div>
-          </div>
-
-
           </div>
 
           <div class="actions full">
