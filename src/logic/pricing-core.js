@@ -264,6 +264,11 @@ export function computeFingerprint(payload) {
     const { trayEnabled, ...dw } = rest.duschwanne;
     rest.duschwanne = dw;
   }
+  // Same for the Duschabtrennung (neu) / Duschvorhang switches.
+  if (rest.duschabtrennung && ("configEnabled" in rest.duschabtrennung || "curtainEnabled" in rest.duschabtrennung)) {
+    const { configEnabled, curtainEnabled, ...da } = rest.duschabtrennung;
+    rest.duschabtrennung = da;
+  }
   return stableStringify(rest);
 }
 

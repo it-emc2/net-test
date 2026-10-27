@@ -326,7 +326,9 @@ function clearWizardState() {
 function getPagesForOfferType(offerType) {
   const cfg = OFFERS && OFFERS[offerType];
   if (!cfg || !Array.isArray(cfg.pages)) return [];
-  return cfg.pages.map((p) => (typeof p === "string" ? p : p.id));
+  return cfg.pages
+    .map((p) => (typeof p === "string" ? p : p.id))
+    .filter((id) => id !== "Duschabtrennung" || isDaHassmannVisible());
 }
 
 const HOME_HASH = "#home";
@@ -2603,6 +2605,11 @@ function resetAllForms() {
   } catch (e) {
     console.warn("[resetAllForms] Duschvorhang configurator reset failed:", e);
   }
+  // New offer: both sections start switched off, the old Hassmann page follows
+  // the Admin switch again.
+  setSectionOn("daNeu", false);
+  setSectionOn("curtain", false);
+  window.__daHassmannForOffer = false;
   try {
     window.__hlConfigurator?.reset?.();
   } catch (e) {
@@ -2901,7 +2908,7 @@ function resetAllRepeaterDOMs() {
 // Effective list of steps used for prev/next navigation
 function getFlowSteps() {
   if (currentOfferKey && OFFERS[currentOfferKey]) {
-    return OFFERS[currentOfferKey].pages;
+    return getPagesForOfferType(currentOfferKey);
   }
   return steps;
 }
@@ -3672,7 +3679,8 @@ function collectDuschabtrennungConfigurator(doc) {
     ? doc.duschabtrennung.quickAdd
     : [];
 
-  for (const ln of lines) {
+  // Switched off: the configuration is still saved below, but not priced.
+  for (const ln of isSectionOn("daNeu") ? lines : []) {
     const price = Number(ln?.net) || 0;
     if (price <= 0) continue;
     qa.push({
@@ -3722,7 +3730,8 @@ function collectDuschvorhangConfigurator(doc) {
     ? doc.duschabtrennung.quickAdd
     : [];
 
-  for (const ln of lines) {
+  // Switched off: the configuration is still saved below, but not priced.
+  for (const ln of isSectionOn("curtain") ? lines : []) {
     const price = Number(ln?.net) || 0;
     if (price <= 0) continue;
     qa.push({
@@ -4487,6 +4496,9 @@ function buildPayload() {
   collectDuschabtrennungQuickAdd(payload);
   collectDuschabtrennungConfigurator(payload);
   collectDuschvorhangConfigurator(payload);
+  payload.duschabtrennung = payload.duschabtrennung || {};
+  payload.duschabtrennung.configEnabled = isSectionOn("daNeu");
+  payload.duschabtrennung.curtainEnabled = isSectionOn("curtain");
 
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
@@ -7046,6 +7058,9 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
       var vpSlider = document.getElementById("ahVerhinderungspflegeMonat");
       if (vpSlider) vpSlider.max = String(Math.round((d.VERHINDERUNGSPFLEGE_JAHR / 12) * 100) / 100);
     }
+    // Old Hassmann Duschabtrennung page: hidden unless switched on in the Admin panel.
+    window.__showDaHassmann = d.BU_SHOW_DA_HASSMANN === true;
+    if (typeof updateSidebarForOffer === "function") updateSidebarForOffer();
     if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
     if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
     if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") {
@@ -10529,6 +10544,72 @@ function applyDwTraySwitch(dw, enabled) {
 
 window.setDwTrayEnabled = setDwTrayEnabled;
 window.isDwTrayEnabled = isDwTrayEnabled;
+
+// Duschabtrennung (neu) and Duschvorhang an/aus — same contract as the Duschwanne
+// switch: off keeps the configuration (saved and restored) but its lines stay
+// out of duschabtrennung.quickAdd, so nothing is priced. The flags live in
+// duschabtrennung.{configEnabled,curtainEnabled} and are left out of the pricing
+// fingerprint. A function, not a top-level const: buildPayload() can run during
+// boot before a const further down is initialised.
+function sectionSwitch(key) {
+  return {
+    daNeu: { toggle: "daNeuToggle", page: "page-DuschabtrennungNeu", flag: "configEnabled" },
+    curtain: { toggle: "vorhangToggle", page: "page-Duschvorhang", flag: "curtainEnabled" },
+  }[key];
+}
+// No switch in the DOM (tests, other pages) → on, i.e. the old behaviour.
+function isSectionOn(key) {
+  const el = document.getElementById(sectionSwitch(key).toggle);
+  return el ? el.checked : true;
+}
+function setSectionOn(key, on) {
+  const cfg = sectionSwitch(key);
+  const el = document.getElementById(cfg.toggle);
+  if (el) el.checked = !!on;
+  document.getElementById(cfg.page)?.toggleAttribute("data-section-off", !on);
+  // The curtain configurator has its own enabled flag (no lines while false);
+  // switching the section on sets it, off leaves it so the selection is kept.
+  if (key === "curtain" && on) window.__vorhangConfigurator?.setEnabled?.(true);
+}
+// Saved offers predate the switches: on exactly when the saved offer carries
+// configured lines — so every old offer reopens with an unchanged payload.
+function deriveSectionOn(key, payload) {
+  const flag = payload?.duschabtrennung?.[sectionSwitch(key).flag];
+  if (typeof flag === "boolean") return flag;
+  const saved = key === "daNeu" ? payload?.duschabtrennung?.configurator : payload?.duschvorhang?.configurator;
+  return Array.isArray(saved?.lines) && saved.lines.length > 0;
+}
+// Called by RestoreManager once the configurators are restored.
+window.restoreSectionSwitches = function (payload) {
+  setSectionOn("daNeu", deriveSectionOn("daNeu", payload));
+  setSectionOn("curtain", deriveSectionOn("curtain", payload));
+  // The old Hassmann Duschabtrennung page is hidden unless the Admin switch is on
+  // — but an offer that has picks from it must show them (they are billed).
+  const qa = payload?.duschabtrennung?.quickAdd;
+  window.__daHassmannForOffer = Array.isArray(qa) && qa.some((q) => String(q?.kind || "").toLowerCase() !== "config");
+  if (typeof updateSidebarForOffer === "function") updateSidebarForOffer();
+};
+window.isSectionOn = isSectionOn;
+window.setSectionOn = setSectionOn;
+
+(function initSectionSwitches() {
+  for (const key of ["daNeu", "curtain"]) {
+    const el = document.getElementById(sectionSwitch(key).toggle);
+    if (!el) continue;
+    el.addEventListener("change", () => {
+      setSectionOn(key, el.checked);
+      // Re-price: the configured lines just entered or left the offer.
+      window.requestPricingRefresh?.({ delay: 120, reason: `section-switch-${key}` });
+    });
+    setSectionOn(key, el.checked);
+  }
+})();
+
+// Old Hassmann Duschabtrennung page: Admin switch (BU_SHOW_DA_HASSMANN), or an
+// opened offer that uses it.
+function isDaHassmannVisible() {
+  return window.__showDaHassmann === true || window.__daHassmannForOffer === true;
+}
 
 (function initDwTraySwitch() {
   const toggle = document.getElementById("dwTrayToggle");

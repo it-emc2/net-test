@@ -230,6 +230,14 @@ export function initRestoreManager({
         console.warn("[vorhang] restore failed:", e?.message || e);
       }
 
+      // Section switches (Duschabtrennung neu / Duschvorhang) and whether the old
+      // Hassmann Duschabtrennung page shows for this offer.
+      try {
+        window.restoreSectionSwitches?.(payload);
+      } catch (e) {
+        console.warn("[sectionSwitches] restore failed:", e?.message || e);
+      }
+
       // Rehydrate the Handläufe Konfigurator from its saved state
       try {
         const hlCfgState = payload?.hl?.hlConfigurator?.state || null;

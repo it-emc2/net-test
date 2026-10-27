@@ -213,6 +213,13 @@ export const CONFIG_SCHEMA = [
     description: 'Artikelnummern (eine pro Zeile), die nie im Produktbilder-PDF auftauchen',
   },
 
+  // ── ANZEIGE ──────────────────────────────────────────────────────────────
+  {
+    key: 'BU_SHOW_DA_HASSMANN', value: false,
+    label: 'Duschabtrennung (Hassmann, alt) anzeigen', type: 'boolean', section: 'bu', order: 90,
+    description: 'Aus: Seite und Menüpunkt „Duschabtrennung“ sind im Badumbau ausgeblendet. Angebote, die diese Seite nutzen, zeigen sie beim Öffnen trotzdem.',
+  },
+
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
   {
     key: 'AUTO_RECOMPUTE_PRICING', value: true,

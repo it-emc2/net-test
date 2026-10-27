@@ -1893,29 +1893,61 @@ a.btn {
   border-radius: 2px;
 }
 
-/* ---------- Make the Fußboden/Wandverkleidung toggles bigger (match each other) ---------- */
-.check-pill:has(#addFlooring),
-.check-pill:has(#addWallCladding),
-.check-pill:has(#dwTrayToggle) {
-  padding: 14px 18px;
+/* ---------- Section on/off switch (BU material sections) ----------
+   iOS-style switch with the section name and one line of explanation. Own class
+   on purpose: .check-pill is used elsewhere and keeps its look. The input keeps
+   its id/name, so payload and restore are unchanged. */
+.sec-switch {
+  display: flex;
+  align-items: center;
   gap: 14px;
-  font-size: 1.02rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 18px;
+  border: 1px solid var(--input-border, #d0d5dd);
   border-radius: 14px;
+  background: var(--panel, #fff);
+  cursor: pointer;
+  user-select: none;
 }
-
-.check-pill:has(#addFlooring) .box,
-.check-pill:has(#addWallCladding) .box,
-.check-pill:has(#dwTrayToggle) .box {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+.sec-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
-
-.check-pill:has(#addFlooring) input:checked + .box::after,
-.check-pill:has(#addWallCladding) input:checked + .box::after,
-.check-pill:has(#dwTrayToggle) input:checked + .box::after {
-  inset: 5px;
+.sec-switch__track {
+  position: relative;
+  flex: none;
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: #e5e5ea;
+  transition: background-color 0.2s ease;
 }
+.sec-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+.sec-switch input:checked + .sec-switch__track { background: #34c759; }
+.sec-switch input:checked + .sec-switch__track::after { transform: translateX(20px); }
+.sec-switch input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgba(52, 199, 89, 0.35)); }
+.sec-switch__text { display: grid; gap: 2px; min-width: 0; }
+.sec-switch__text strong { font-size: 1.02rem; font-weight: 600; color: var(--text, #1f2937); }
+.sec-switch__text small { font-size: 0.85rem; color: var(--muted, #6b7280); }
+.sec-switch-field { margin: 0 0 16px; }
+/* Duschabtrennung (neu) / Duschvorhang: switched off, only heading, switch and
+   the page navigation stay. */
+.page[data-section-off] > :not(.sec-keep):not(.actions):not(template) { display: none !important; }
 
 /* ---------- A11y ---------- */
 .sr-only {
@@ -1938,20 +1970,6 @@ a.btn {
 /* Duschwanne an/aus: one attribute on the form hides every tray-only part.
    An attribute rather than [hidden] on each element, because other code
    toggles [hidden] on some of them (e.g. the Slate colour section). */
-/* Description line under the switch's question (the pill itself is the
-   shared .check-pill, sized like the Fußboden/Wandverkleidung toggles). */
-.dw-tray-switch__text {
-  display: grid;
-  gap: 2px;
-}
-.dw-tray-switch__text small {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-/* The two-line text would otherwise squeeze the box below its 24px. */
-.check-pill:has(#dwTrayToggle) .box {
-  flex: none;
-}
 #form-duschwanne[data-tray-off] .dw-tray-only {
   display: none !important;
 }

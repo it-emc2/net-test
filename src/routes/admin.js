@@ -81,6 +81,7 @@ const PUBLIC_CONFIG_KEYS = [
   'GRAB_BONUS_IDS',
   'NEUKUNDENBONUS_BRUTTO',
   'NEUKUNDENBONUS_SCHWELLE',
+  'BU_SHOW_DA_HASSMANN',
 ];
 router.get('/api/config/public', async (req, res) => {
   try {

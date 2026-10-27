@@ -218,10 +218,9 @@ if (mountEl) {
     const rows = SHAPES[shape].legs
       .map((k, i) => `<label class="vhc-row" data-leg="${k}"><span class="vhc-dot" style="background:${TONES[i]}">${i + 1}</span><span class="vhc-name">${names[k]}</span><input type="number" inputmode="decimal" min="1" max="2000" step="1" data-leg="${k}" value="${esc(state.legs?.[k] ?? "")}" placeholder="${k === "b" && shape === "u" ? 120 : 90}"><span class="vhc-unit">cm</span></label>`)
       .join("");
+    // On/off is the page's section switch (#vorhangToggle, script.js), which
+    // calls setEnabled(true) — no second checkbox here.
     mountEl.innerHTML = `
-      <div class="field">
-        <label class="check-pill"><input type="checkbox" id="vh-enable" ${state.enabled ? "checked" : ""} /><span class="box"></span><span>Duschvorhang zum Angebot hinzufügen</span></label>
-      </div>
       <div class="vh-body${state.enabled ? "" : " is-disabled"}" aria-disabled="${state.enabled ? "false" : "true"}">
         <div class="vhc">
           <div class="vhc-head">
@@ -269,12 +268,6 @@ if (mountEl) {
   };
 
   const wire = () => {
-    mountEl.querySelector("#vh-enable")?.addEventListener("change", (e) => {
-      state.enabled = e.target.checked;
-      render();
-      refreshOffer();
-    });
-
     mountEl.querySelectorAll(".vhc-chip").forEach((btn) =>
       btn.addEventListener("click", () => {
         if (state.shape === btn.dataset.shape) return;
@@ -361,6 +354,14 @@ if (mountEl) {
     getConfigLabel: () => configLabel(state.shape, state.legs),
     getState() {
       return JSON.parse(JSON.stringify(state));
+    },
+    // The section switch turns the curtain on. Off is handled by the switch
+    // (lines kept out of the offer), so the selection survives a save.
+    setEnabled(on) {
+      if (state.enabled === !!on) return;
+      state.enabled = !!on;
+      render();
+      refreshOffer();
     },
     // Clears back to the fresh boot state (nothing added, mandatory preselected).
     // Called by resetAllForms() when starting a NEW offer so the previous offer's

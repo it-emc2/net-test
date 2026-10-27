@@ -4421,10 +4421,9 @@ button.dm-btn-danger:focus-visible {
                Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
                Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
                buildPayload() schreibt duschwanne.trayEnabled selbst. -->
-          <div class="field full">
-            <label class="check-pill"><input type="checkbox" id="dwTrayToggle" /><span
-                class="box"></span><span class="dw-tray-switch__text">Möchten Sie eine Duschwanne hinzufügen?
-                <small>Ohne Duschwanne werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small></span></label>
+          <div class="field full sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="dwTrayToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschwanne</strong><small>Wanne, Abdichtband, Ablaufgarnitur und Stelzlager im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
           </div>
 
           <!-- Put this above the radio group -->
@@ -4648,9 +4647,9 @@ button.dm-btn-danger:focus-visible {
 
         <div id="fbTabFloor" class="fb-tabpanel full">
 
-          <div class="field">
-            <label class="check-pill"><input type="checkbox" id="addFlooring" name="addFlooring" /><span
-                class="box"></span><span>Möchten Sie Fußboden hinzufügen?</span></label>
+          <div class="field sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="addFlooring" name="addFlooring" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag und Zubehör im Angebot.</small></span></label>
           </div>
 
           <div id="flooringPanel" class="field" aria-hidden="true" hidden>
@@ -4841,9 +4840,9 @@ button.dm-btn-danger:focus-visible {
 
         <div id="fbTabWall" class="fb-tabpanel full" hidden aria-hidden="true">
 
-          <div class="field">
-            <label class="check-pill"><input type="checkbox" id="addWallCladding" name="addWallCladding" /><span
-                class="box"></span><span>Möchten Sie Wandverkleidung als Fußboden hinzufügen?</span></label>
+          <div class="field sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="addWallCladding" name="addWallCladding" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Wandverkleidung als Fußboden</strong><small>Wandpaneele als Bodenbelag im Angebot.</small></span></label>
           </div>
 
           <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
@@ -5019,9 +5018,9 @@ button.dm-btn-danger:focus-visible {
         </p>
 
         <form id="form-wandverkleidung">
-          <div class="field full wv-toggle">
-            <label class="check-pill"><input type="checkbox" id="wvEnabled" name="wvEnabled" /><span
-                class="box"></span><span>Möchten Sie Wandverkleidung hinzufügen?</span></label>
+          <div class="field full wv-toggle sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="wvEnabled" name="wvEnabled" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot.</small></span></label>
           </div>
 
           <div style="align-self: center">
@@ -5952,14 +5951,20 @@ button.dm-btn-danger:focus-visible {
     background: var(--accent-weak,#eff4ff);
   }
 </style>
-<section class="card page" id="page-DuschabtrennungNeu" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
+<section class="card page" id="page-DuschabtrennungNeu" hidden data-section-off>
+  <div class="sec-keep" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschabtrennung (neu)</h2>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
     Duschabtrennung konfigurieren. Die abgeschlossene Konfiguration wird mit
     Netto-Preisen automatisch dem Angebot hinzugefügt.
   </p>
+  <!-- An/aus wie Duschwanne: aus = Konfiguration bleibt gespeichert, wird aber nicht
+       berechnet (duschabtrennung.configEnabled, kein name-Attribut). -->
+  <div class="sec-switch-field sec-keep">
+    <label class="sec-switch"><input type="checkbox" role="switch" id="daNeuToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschabtrennung (neu)</strong><small>Konfigurierte Duschabtrennungen im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
+  </div>
 
   <template id="dac-config-template">
     <div class="dac-config-card" data-dac-card>
@@ -6105,9 +6110,14 @@ button.dm-btn-danger:focus-visible {
     #page-Duschvorhang .vhc-stats { grid-template-columns: 1fr 1fr; }
   }
 </style>
-<section class="card page" id="page-Duschvorhang" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
+<section class="card page" id="page-Duschvorhang" hidden data-section-off>
+  <div class="sec-keep" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschvorhang</h2>
+  </div>
+  <!-- An/aus wie Duschwanne (duschabtrennung.curtainEnabled, kein name-Attribut). -->
+  <div class="sec-switch-field sec-keep">
+    <label class="sec-switch"><input type="checkbox" role="switch" id="vorhangToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschvorhang</strong><small>Vorhang, Stangen und Befestigung im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
     Nische, Ecke oder U-Form wählen und die Seitenlängen eingeben — Duschvorhang, Stangen und Befestigung werden

@@ -599,6 +599,8 @@ export function readSelection(pricing, doc = document) {
     // Duschabtrennung (neu) configurator.
     daLines: () => {
       try {
+        // Switched off = not in the offer.
+        if (window.isSectionOn?.("daNeu") === false) return [];
         return window.__daConfigurator?.getLines?.() || [];
       } catch {
         return [];
@@ -817,8 +819,9 @@ export function sendEnv(payload, win = window) {
       return [];
     }
   };
-  const daLines = safe(() => win.__daConfigurator?.getLines?.());
-  const curtain = safe(() => win.__vorhangConfigurator?.getLines?.());
+  // A switched-off section is not in the offer, whatever is configured.
+  const daLines = win.isSectionOn?.("daNeu") === false ? [] : safe(() => win.__daConfigurator?.getLines?.());
+  const curtain = win.isSectionOn?.("curtain") === false ? [] : safe(() => win.__vorhangConfigurator?.getLines?.());
   const curtainIds = new Set(curtain.map((l) => String(l?.articleNumber || "")));
   const daIds = new Set(daLines.map((l) => String(l?.articleNumber || "")));
   // Old Duschabtrennung page picks also land in duschabtrennung.quickAdd —
