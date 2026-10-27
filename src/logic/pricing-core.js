@@ -758,20 +758,34 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
           `- ${packs} Pkg Flächenkleber (1 Pkg je ${adhesiveCoverage} m²)`,
         );
 
-      // Bodenabdichtung pro m²
+      // Bodenabdichtung: whole Hassmann units, like the GC Abdichtungsplaner —
+      // 1 Set TRBDSET7 (7 m²) + Dichtbahn-Rollen TRDB10 (10 m × 0,5 m = 5 m²)
+      // for the area beyond the set. Billed as ordered, no per-m² price.
       const floorSealingOn = !!(dusch.floorSealing || dusch["floorSealing[]"]);
       if (floorSealingOn) {
         const effM2 = round2(floorArea * floorWaste);
         if (effM2 > 0) {
+          const setM2 = cfg.get('BU_FLOOR_SEAL_SET_M2', 7);
+          const rollM2 = cfg.get('BU_FLOOR_SEAL_ROLL_M2', 5);
+          const rolls = ceilSafe(Math.max(0, effM2 - setM2) / rollM2);
           idsNeeded.add("TRBDSET7");
           lines.push({
             id: "TRBDSET7",
-            qty: effM2,
-            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
-            perM2Base: 7, // derive €/m² = price(TRBDSET7)/7
+            qty: 1,
+            label: `- 1 Set Trinnity Bodenabdichtung (${setM2} m²)`,
             source: null,
             category: _cat,
           });
+          if (rolls > 0) {
+            idsNeeded.add("TRDB10");
+            lines.push({
+              id: "TRDB10",
+              qty: rolls,
+              label: `- ${rolls} Rolle${rolls > 1 ? "n" : ""} Trinnity Dichtbahn 10 m (Erweiterung, ${effM2} m² inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
+              source: null,
+              category: _cat,
+            });
+          }
         }
       }
 
