@@ -11902,6 +11902,7 @@ if (document.readyState === "loading") {
     if (qtyInput) { qtyInput.value = qty; qtyInput.min = 1; }
     if (qtyRow) { qtyRow.hidden = false; }
     renderCards(size);
+    renderWvcProductCard(selectedColor()); // the hidden size input fires no change event
     if (typeof updateKostenDetails === "function") updateKostenDetails();
     window.updatePricing?.();
   }
@@ -11933,6 +11934,7 @@ if (document.readyState === "loading") {
     const qty = Number(qtyInput.value) || 0;
     if (qtyEl) qtyEl.value = qty;
     if (qty > 0) window.updatePricing?.();
+    renderWvcProductCard(selectedColor());
   });
 
   // Re-render cards + update pricing when color changes
@@ -11980,19 +11982,20 @@ if (document.readyState === "loading") {
     const ownBadge = (ownQty > 0)
       ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
       : "";
-    wvcCardEl.innerHTML = `<div class="wv-product-card">
-      ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
-      <div class="wv-product-card-info">
-        <div class="wv-product-card-name">${d.name || artId}</div>
-        <div class="wv-product-card-art">${artId}</div>
+    // One block: picture | name, colour, Art.-Nr. · Format, price, stock badges.
+    // The long stock sentence moves into the badge's tooltip (wvcStockSpan).
+    const colourLabel = form.querySelector('input[name="wallCladdingColor"]:checked')?.value || "";
+    const qty = Number(qtyEl?.value) || 0;
+    const euroDe = (n) => n.toFixed(2).replace(".", ",");
+    wvcCardEl.innerHTML = `<div class="wvc-sel">
+      ${d.image ? `<img class="wvc-sel__img" src="${d.image}" alt="${d.name}" />` : ""}
+      <div class="wvc-sel__info">
+        <strong class="wvc-sel__name">${d.name || artId}</strong>
+        <span class="wvc-sel__meta">${colourLabel ? `${colourLabel} · ` : ""}Art.-Nr. ${artId}</span>
+        ${d.netPrice ? `<span class="wvc-sel__price">${qty > 0 ? `${qty} × ` : ""}${euroDe(d.netPrice)} €${qty > 1 ? ` <small>= ${euroDe(d.netPrice * qty)} €</small>` : ""}</span>` : ""}
+        <span class="wvc-sel__badges">${wvcStockSpan(d)}${ownBadge}</span>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
-        <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
-      </div>
-    </div>
-    ${wvcStockSpan(d)}
-    ${ownBadge}`;
+    </div>`;
     wvcCardEl.hidden = false;
   }
 
