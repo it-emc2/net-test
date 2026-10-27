@@ -10991,9 +10991,40 @@ function updateFlooringPanelsPriceFromPricing() {
   if (panelsQtyEl) panelsQtyEl.textContent = String(line.qty ?? 0);
   if (panelsUnitEl) panelsUnitEl.textContent = euro(line.unitPrice ?? 0);
   if (panelsPriceEl) panelsPriceEl.textContent = euro(line.lineTotal ?? 0);
+  renderFloorSummary();
 }
   window.updateFlooringPanelsPriceFromPricing =
     updateFlooringPanelsPriceFromPricing;
+
+  // "Ihre Auswahl" + the Paneele row thumbnail follow the ticked Belag. Display only.
+  function renderFloorSummary() {
+    const box = document.getElementById("floorSummary");
+    const body = document.getElementById("floorSummaryBody");
+    const color = f.querySelector('input[name="flooringProduct[]"]:checked');
+    const img = color?.closest("label")?.querySelector("img")?.getAttribute("src") || "";
+    const thumb = document.getElementById("floorPanelsThumb");
+    if (thumb && img) thumb.src = img;
+    if (!box || !body) return;
+    const m2 = parseArea();
+    box.hidden = !toggle?.checked || !color || !m2;
+    if (box.hidden) return (body.innerHTML = "");
+    // Badolux tiles show only the colour; the summary names the whole product.
+    const name = color.closest("#flooringBudgetOptions")
+      ? color.dataset.color
+      : color.closest("label")?.querySelector(".caption")?.textContent || color.dataset.color || "";
+    const kind = f.querySelector('input[name="floorKind"]:checked')?.closest("label")?.textContent.trim() || "";
+    const panels = panelsQtyEl?.textContent || "0";
+    const items = [`${panels} × Fußboden-Paneele`];
+    f.querySelectorAll('.dw-acc input[type=checkbox]:checked').forEach((cb) => {
+      const cap = cb.closest("label")?.querySelector(".caption")?.textContent || "";
+      items.push(cb.name === "floorAdhesive[]" && computed.adhesive.packs ? `${computed.adhesive.packs} × ${cap}` : cap);
+    });
+    body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic is-photo"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(name)} · ${escapeHtml(area.value.trim())} m²</strong><small>${escapeHtml(color.value.split("|")[0])}${kind ? ` · ${escapeHtml(kind)}` : ""}</small></div></div><div class="dw-summary__items">${items
+      .map((t) => `<span class="dw-summary__item">${escapeHtml(t)}</span>`)
+      .join("")}</div>`;
+  }
+  f.addEventListener("change", () => setTimeout(renderFloorSummary));
+  area?.addEventListener("input", () => setTimeout(renderFloorSummary));
 
   function updateUI() {
     const m2 = parseArea();

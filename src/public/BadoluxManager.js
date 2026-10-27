@@ -204,7 +204,9 @@ export function initBadoluxManager(options = {}) {
 
       const caption = document.createElement("span");
       caption.className = "caption";
-      caption.textContent = name;
+      // All Badolux floors are Hydroträgerplatten (the group label says so); the
+      // tile shows just the colour. Display only — value/data-color keep the name.
+      caption.textContent = name.replace(/^Hydroträgerplatte\s+/i, "") || name;
 
       label.appendChild(input);
       label.appendChild(imgWrap);

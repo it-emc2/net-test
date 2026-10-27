@@ -748,34 +748,6 @@
       max-width: none;
     }
 
-    #flooringColors {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    @media (min-width: 1024px) {
-      #flooringPanel .image-check {
-        max-width: none;
-        flex: 0 0 calc((100% - (2 * 14px)) / 3);
-      }
-
-      #flooringPanel .img-wrap {
-        display: block;
-        width: 100%;
-        aspect-ratio: 3 / 4;
-        overflow: hidden;
-        border-radius: 8px;
-      }
-
-      #flooringPanel .img-wrap img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-    }
-
     /* Duschabtrennung form should not use the generic 2-column form grid */
     #form-duschabtrennung {
       display: block;
@@ -4546,107 +4518,82 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Fußboden -->
       <section class="card page" id="page-Fussboden" hidden>
-        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <h2 style="margin:0">Fußboden</h2>
-
-          <div class="tier-switch">
-            <span class="tier-switch__label">Produktlinie</span>
-            <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
-              <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
-                <strong>Standard</strong><span>Badolux &middot; guenstig</span>
-              </button>
-              <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
-                <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
-              </button>
-            </div>
-            <!-- Eigene Linie fuer den Fussboden. Rein additiv: fehlt das Feld (jedes
-                 Altangebot), gilt Premium — wie bisher. -->
-            <input id="floorLineToggle" type="checkbox" name="floorBudgetMode" value="1"
-              form="form-fussboden" hidden />
-          </div>
-        </div>
-
-        <p class="tier-status" data-tier="premium">
-          <span class="tier-status__dot" aria-hidden="true"></span>
-          <span class="tier-status__text"></span>
-        </p>
-
+        <h2 style="margin:0 0 12px">Fußboden</h2>
         <div class="fb-tab-switch" role="tablist" aria-label="Fußboden oder Wandverkleidung">
           <button type="button" class="fb-tab-switch-btn active" id="fbTabBtnFloor" data-target="fbTabFloor"
             role="tab" aria-selected="true">Fußboden</button>
           <button type="button" class="fb-tab-switch-btn" id="fbTabBtnWall" data-target="fbTabWall" role="tab"
-            aria-selected="false">Wandverkleidung</button>
+            aria-selected="false">Wandverkleidung als Fußboden</button>
         </div>
-
         <form id="form-fussboden" autocomplete="on">
-
         <div id="fbTabFloor" class="fb-tabpanel full">
-
           <div class="field sec-switch-field">
             <label class="sec-switch"><input type="checkbox" role="switch" id="addFlooring" name="addFlooring" /><span class="sec-switch__track" aria-hidden="true"></span><span
-                class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag und Zubehör im Angebot.</small></span></label>
+                class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
-
+          <!-- Nur bei an sichtbar (initFlooringSection → apply()). -->
           <div id="flooringPanel" class="field" aria-hidden="true" hidden>
-            <div class="flooring-panel-head">
-              <h3 style="margin: 0">Fußboden</h3>
-              <button type="button" id="floorCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
-                aria-controls="floorCalcPanel">
-                Flächenrechner öffnen
-              </button>
-            </div>
-
-            <div class="flooring-top-grid">
-              <div class="field flooring-area-field" style="margin:0;">
-                <label for="floorArea" class="req">gewünschte Fläche m²</label>
-                <input id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" />
-                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
-
-                <div class="field" style="margin-top: 14px;">
-                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
-                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
-                    <label class="radio-pill"><input type="radio" name="floorKind" value="Fehlstellen" /><span
-                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-                    <label class="radio-pill"><input type="radio" name="floorKind" value="Gesamtes-Bad" /><span
-                        class="circle"></span><span>Gesamter Badboden</span></label>
+            <!-- Einstellungen: Produktlinie (eigene Linie fuer den Fussboden; fehlt das
+                 Feld — jedes Altangebot — gilt Premium) + Umfang. -->
+            <div class="sec-settings">
+              <div class="sec-settings__label">Einstellungen</div>
+              <div class="sec-settings__group">
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                  <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+                    <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                      <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                    </button>
+                    <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                      <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                    </button>
+                  </div>
+                  <input id="floorLineToggle" type="checkbox" name="floorBudgetMode" value="1" hidden />
+                </div>
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Umfang</strong></div>
+                  <div class="ios-seg" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label><input type="radio" name="floorKind" value="Fehlstellen" /><span>Nur Fehlstellen</span></label>
+                    <label><input type="radio" name="floorKind" value="Gesamtes-Bad" /><span>Gesamter Badboden</span></label>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                <div class="floor-calc-card__title-row">
-                  <div>
-                    <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+            <div class="sec-settings">
+              <div class="sec-settings__label">Fläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Fläche</span><span class="dw-dim-input"><input
+                      id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" /><span>m²</span></span></label>
+                <button type="button" id="floorCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
+                  aria-controls="floorCalcPanel">Flächenrechner öffnen</button>
+                <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="floorCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="floorCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
                   </div>
-                </div>
-
-                <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-                <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
-
-                <div class="floor-calc-result-row">
-                  <div>
-                    <div class="floor-calc-result-label">Gesamtfläche</div>
-                    <div id="floorCalcResult" class="floor-calc-result-value">0,00 m²</div>
-                  </div>
-                  <button type="button" id="floorCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
-                </div>
-              </aside>
+                </aside>
+              </div>
             </div>
 
             <!-- Premium-Linie (Vigour). Sichtbarkeit haengt an der Produktlinie —
                  siehe syncProduktlinieGroups() in script.js. -->
-            <div class="field" id="flooringPremiumGroup">
-              <label class="req">Premium-Fußboden individ.5.0 V5FB02 für Fehlstellen-Ausgleich</label>
-
-              <div id="flooringColors">
+            <div class="sec-settings" id="flooringPremiumGroup">
+              <div class="sec-settings__label">Belag — Fußboden individ. 5.0 V5FB02</div>
+              <div id="flooringColors" class="sec-settings__group dw-color-grid is-square">
                 <!-- 1) Aluverbundplatte weiß -->
                 <label class="image-check" data-product-id="AVP-W">
                   <input type="checkbox" name="flooringProduct[]" value="AVP-W|Weiß" data-product-id="AVP-W"
                     data-color="Weiß" />
                   <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg"
                       alt="Aluverbundplatte weiß" /></span>
-                  <span class="caption">Aluverbundplatte weiß</span>
+                  <span class="caption">Alu-Platte weiß</span>
                 </label>
 
                 <!-- 2) Lava-Beige -->
@@ -4655,7 +4602,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Lava-Beige" />
                   <span class="img-wrap"><img src="./assets/V5_Lava_Beige.jpg"
                       alt="Fußboden V5FB02 — Lava-Beige" /></span>
-                  <span class="caption">Fußboden Lava_Beige</span>
+                  <span class="caption">Lava-Beige</span>
                 </label>
 
                 <!-- 3) Schiefer-Beige -->
@@ -4664,7 +4611,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Schiefer-Beige" />
                   <span class="img-wrap"><img src="./assets/V5_Schiefer_beige.jpg"
                       alt="Fußboden V5FB02 — Schiefer-Beige" /></span>
-                  <span class="caption">Fußboden Schiefer_Beige</span>
+                  <span class="caption">Schiefer-Beige</span>
                 </label>
 
                 <!-- 3) Loft-Grau -->
@@ -4673,7 +4620,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Loft-Grau" />
                   <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg"
                       alt="Fußboden V5FB02 — Loft-Grau" /></span>
-                  <span class="caption">Fußboden loft_Grau</span>
+                  <span class="caption">Loft-Grau</span>
                 </label>
 
                 <!-- 4) Speckstein-Schwarz -->
@@ -4682,7 +4629,7 @@ button.dm-btn-danger:focus-visible {
                     data-product-id="V5FB02" data-color="Speckstein-Schwarz" />
                   <span class="img-wrap"><img src="./assets/V5_Speckstein_schwarz.jpg"
                       alt="Fußboden V5FB02 — Speckstein-Schwarz" /></span>
-                  <span class="caption">Fußboden Speckstein_Schwarz</span>
+                  <span class="caption">Speckstein-Schwarz</span>
                 </label>
 
                 <!-- 5) Eiche-Natur -->
@@ -4691,154 +4638,104 @@ button.dm-btn-danger:focus-visible {
                     data-color="Eiche-Natur" />
                   <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg"
                       alt="Fußboden V5FB02 — Eiche-Natur" /></span>
-                  <span class="caption">Fußboden Eiche_Natur</span>
+                  <span class="caption">Eiche-Natur</span>
                 </label>
               </div>
             </div>
-            
-            <!-- Standard-Linie (Badolux) — nur in der Linie Standard sichtbar -->
-            <div id="flooringBudgetGroup" class="field" aria-hidden="true" hidden>
-              <label>Standard-Fußboden (Badolux)</label>
-              <div id="flooringBudgetOptions" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
+
+            <!-- Standard-Linie (Badolux) — Kacheln kommen aus BadoluxManager. -->
+            <div id="flooringBudgetGroup" class="sec-settings" aria-hidden="true" hidden>
+              <div class="sec-settings__label">Belag — Hydroträgerplatte (Badolux)</div>
+              <div id="flooringBudgetOptions" class="sec-settings__group dw-color-grid is-square"></div>
               <div id="flooringBudgetEmpty" class="hint" style="margin-top:8px;" hidden>
                 Keine Standard-Fußbodenoptionen verfügbar.
               </div>
             </div>
 
-<!-- …rest of your panel stays the same -->
-
-
-
-
-
-
-            <!-- Preis for the “Fußboden individ.5.0 V5FB02” line 
-<div class="row" style="gap:8px; align-items:center;">
-  <label style="min-width:180px;">Preis (individ. 5.0 V5FB02):</label>
-  <span id="floorIndividPrice">0</span> €
-</div>-->
-
-            <!-- A compact info row for the “Fußboden Paneele” details -->
-            <div class="row" style="gap:8px; align-items:center;">
-              <label style="min-width:180px;">Fußboden Paneele:</label>
-              <span>Menge:</span> <span id="floorPanelsQty">0</span>
-              <span class="floor-price-hidden"><span>× Einheit:</span> <span id="floorPanelsUnit">0</span> €</span>
-              <span class="floor-price-hidden"><span>=</span> <span id="flooringPanelsPrice">0</span> €</span>
+            <!-- Zubehör: Paneele (automatisch), Kleber + Abdichtung als Schalterzeilen.
+                 Die Preis-Spans bleiben (initFlooringSection befüllt sie), sind aber versteckt. -->
+            <div class="sec-settings dw-acc-list">
+              <div class="sec-settings__label">Zubehör (automatisch berechnet)</div>
+              <div class="sec-settings__group">
+                <div class="dw-acc">
+                  <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg" alt="" id="floorPanelsThumb" /></span>
+                  <span class="dw-acc__text"><span class="caption">Fußboden-Paneele</span><small><span id="floorPanelsQty">0</span> Stück
+                    <span class="floor-price-hidden">× <span id="floorPanelsUnit">0</span> € = <span id="flooringPanelsPrice">0</span> €</span></small></span>
+                  <span class="dw-acc__auto">automatisch</span>
+                </div>
+                <div class="dw-acc">
+                  <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602"><input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="" /></span><span class="dw-acc__text"><span class="caption">Flächenkleber 600 ml</span><small id="floorAdhesiveHint">R_4260602 · 1 Pkg je 0,60 m² <span id="adhesiveLivePreview"></span></small></span></label>
+                  <span class="floor-price-hidden"><span id="floorAdhesivePrice">0</span></span>
+                </div>
+                <div class="dw-acc">
+                  <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7"><input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/TRBDSET7.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Bodenabdichtung</span><small id="floorSealingHint">TRBDSET7 · 1 Set pauschal <span id="sealingLivePreview"></span></small></span></label>
+                  <span class="floor-price-hidden"><span id="floorSealingPrice">0</span></span>
+                </div>
+              </div>
             </div>
 
-            <div class="field full product-tile-grid">
-
-              <div class="field">
-                <div class="subheader">+ Klebstoff für Fußboden:</div>
-                <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
-                  Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
-                  Berechnung)
-                  <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
-                </p>
-                <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
-                  <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
-                  <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
-                  <span class="caption">Flächenkleber</span>
-                </label>
-                <div></div>
-                <div class="floor-price-hidden">
-                  <strong>Preis:</strong>
-                  <span id="floorAdhesivePrice">0</span>
-                  <span class="muted">EUR</span>
-                </div>
-              </div>
-
-              <div class="field">
-                <label class="req">Bodenabdichtung für Fußboden</label>
-                <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
-                  1 Set pauschal (automatische Berechnung)
-                  <span id="sealingLivePreview" style="margin-left: 6px"></span>
-                </p>
-                <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
-                  <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
-                  <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
-                      alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
-                  <span class="caption">Bodenabdichtung für Fußboden</span>
-                </label>
-                <div></div>
-                <div class="floor-price-hidden">
-                  <strong>Preis:</strong>
-                  <span id="floorSealingPrice">0</span>
-                  <span class="muted">EUR</span>
-                </div>
-              </div>
-
+            <div class="sec-settings" id="floorSummary" hidden>
+              <div class="sec-settings__label">Ihre Auswahl</div>
+              <div class="sec-settings__group dw-summary" id="floorSummaryBody"></div>
             </div>
           </div>
-
         </div>
-
         <div id="fbTabWall" class="fb-tabpanel full" hidden aria-hidden="true">
-
           <div class="field sec-switch-field">
             <label class="sec-switch"><input type="checkbox" role="switch" id="addWallCladding" name="addWallCladding" /><span class="sec-switch__track" aria-hidden="true"></span><span
-                class="sec-switch__text"><strong>Wandverkleidung als Fußboden</strong><small>Wandpaneele als Bodenbelag im Angebot.</small></span></label>
+                class="sec-switch__text"><strong>Wandverkleidung als Fußboden</strong><small>Wandpaneele als Bodenbelag im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
-
           <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
-            <div class="flooring-panel-head">
-              <h3 style="margin: 0">Wandverkleidung</h3>
-              <button type="button" id="wvcCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
-                aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
-            </div>
-
-            <div class="flooring-top-grid">
-              <div class="field flooring-area-field" style="margin:0;">
-                <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
-                <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
-                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
-
-                <div class="field" style="margin-top: 14px;">
-                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
-                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
-                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
-                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
-                        class="circle"></span><span>Gesamter Badboden</span></label>
+            <div class="sec-settings">
+              <div class="sec-settings__label">Einstellungen</div>
+              <div class="sec-settings__group">
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Umfang</strong></div>
+                  <div class="ios-seg" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span>Nur Fehlstellen</span></label>
+                    <label><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span>Gesamter Badboden</span></label>
                   </div>
                 </div>
               </div>
-
-              <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                <div class="floor-calc-card__title-row">
-                  <div>
-                    <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
-                  </div>
-                </div>
-                <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-                <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
-                <div class="floor-calc-result-row">
-                  <div>
-                    <div class="floor-calc-result-label">Gesamtfläche</div>
-                    <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
-                  </div>
-                  <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
-                </div>
-              </aside>
             </div>
 
-            <div id="wallCladdingSuggestion" hidden style="margin-top:16px;">
-              <div id="wallCladdingCards" class="wvc-cards"></div>
-              <div id="wallCladdingQtyRow" class="field" hidden style="margin-top:12px;">
-                <label for="wallCladdingQtyInput">Anzahl Paneele (anpassbar)</label>
-                <input type="number" id="wallCladdingQtyInput" min="1" step="1" style="max-width:140px;" />
+            <div class="sec-settings">
+              <div class="sec-settings__label">Fläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Fläche</span><span class="dw-dim-input"><input
+                      id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" /><span>m²</span></span></label>
+                <button type="button" id="wvcCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
+                  aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
+                <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                  </div>
+                </aside>
               </div>
             </div>
 
+            <!-- Plattenformat: die Karten kommen aus initWallCladdingSection (renderCards). -->
+            <div id="wallCladdingSuggestion" class="sec-settings" hidden>
+              <div class="sec-settings__label">Plattenformat</div>
+              <div id="wallCladdingCards" class="sec-settings__group wvc-cards"></div>
+              <div id="wallCladdingQtyRow" class="sec-settings__group" hidden style="margin-top:10px;">
+                <label class="sec-settings__row dw-dim-row" for="wallCladdingQtyInput"><span class="dw-dim-name">Anzahl Paneele</span><span class="dw-dim-input"><input
+                      type="number" id="wallCladdingQtyInput" min="1" step="1" inputmode="numeric" /><span>Stück</span></span></label>
+              </div>
+            </div>
             <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
             <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
 
-            <!-- Label + color tiles, same pattern as the Fußboden color grid above -->
-            <div class="field">
-              <label class="req">Wandverkleidung 3.0 — Farbe</label>
-
-              <div id="wallCladdingColors">
+            <div class="sec-settings">
+              <div class="sec-settings__label">Farbe — Wandverkleidung 3.0</div>
+              <div id="wallCladdingColors" class="sec-settings__group dw-color-grid is-square">
                 <label class="image-check">
                   <input type="radio" name="wallCladdingColor" value="Weiß" />
                   <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
@@ -4914,9 +4811,7 @@ button.dm-btn-danger:focus-visible {
               <div id="wvcProductCard" hidden></div>
             </div>
           </div>
-
         </div>
-
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
               Zurück
