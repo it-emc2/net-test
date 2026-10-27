@@ -13565,7 +13565,11 @@ function renderDwSummary() {
     img = "./assets/badolux/riviera.webp";
     sub = "Badolux Riviera · extraflach 2,6 cm";
   }
-  const title = card?.querySelector(".sc-title")?.textContent || document.getElementById("traySize")?.value || pid;
+  let title = card?.querySelector(".sc-title")?.textContent || document.getElementById("traySize")?.value || pid;
+  // Slate names always say "weiß"; show the colour actually picked.
+  if (isSlateTrayProductId(pid) && color && color.value !== "Weiss") {
+    title = title.replace(/\bwei(?:ß|ss)/i, color.closest("label")?.querySelector(".caption")?.textContent || color.value);
+  }
   const price = card?.querySelector(".sc-price")?.textContent || "";
   // Badolux rows show the supplier's Art.-Nr. (PRI70DW06), not our DW015.
   const art = card?.querySelector(".sc-sub")?.textContent.match(/Art\.-Nr\.\s*(\S+)/)?.[1] || pid;
@@ -13576,10 +13580,32 @@ function renderDwSummary() {
     return `<span class="dw-summary__item"><img src="${escapeHtml(label?.querySelector("img")?.getAttribute("src") || "")}" alt="" />${escapeHtml(qty + (label?.querySelector(".caption")?.textContent || ""))}</span>`;
   });
 
-  body.innerHTML = `<div class="dw-summary__hero"><img src="${escapeHtml(img)}" alt="" /><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
+  body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
     items.length ? `<div class="dw-summary__items">${items.join("")}</div>` : ""
   }`;
 }
+// Kundenbäder: a tap on a pair opens it large; tap outside, × or Esc closes.
+(function initDwRefs() {
+  const dlg = document.getElementById("dwRefDialog");
+  if (!dlg?.showModal) return;
+  const [before, after] = dlg.querySelectorAll("img");
+  const open = (fig) => {
+    const [b, a] = fig.querySelectorAll(".dw-ref__pair img");
+    before.src = b.src; before.alt = b.alt;
+    after.src = a.src; after.alt = a.alt;
+    dlg.showModal();
+  };
+  document.querySelectorAll(".dw-ref").forEach((fig) => {
+    fig.addEventListener("click", () => open(fig));
+    fig.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(fig); }
+    });
+  });
+  dlg.addEventListener("click", (e) => {
+    if (e.target === dlg || e.target.closest(".dw-ref-dialog__close")) dlg.close();
+  });
+})();
+
 // Accessories, colour, quantity and line changes; a tick later so BadoluxManager
 // has swapped the accessory pictures first.
 document.getElementById("form-duschwanne")?.addEventListener("change", () => setTimeout(renderDwSummary));

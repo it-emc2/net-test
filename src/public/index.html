@@ -4521,10 +4521,18 @@ button.dm-btn-danger:focus-visible {
           <div class="full sec-settings dw-tray-only dw-refs">
             <div class="sec-settings__label">Aus unseren Kundenbädern</div>
             <div class="dw-refs__list">
-              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/07-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/07-nachher.jpg" alt="Nachher: bodenebene Dusche" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
-              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/27-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/27-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
-              <figure class="dw-ref"><div class="dw-ref__pair"><img src="./assets/kunden/28-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/28-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/07-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/07-nachher.jpg" alt="Nachher: bodenebene Dusche" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/27-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/27-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/28-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/28-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
             </div>
+            <!-- Großansicht: ein Tipp auf ein Paar öffnet es hier (initDwRefs). -->
+            <dialog class="dw-ref-dialog" id="dwRefDialog" aria-label="Vorher / Nachher">
+              <button type="button" class="dw-ref-dialog__close" aria-label="Schließen">×</button>
+              <div class="dw-ref-dialog__pair">
+                <figure><img alt="" /><figcaption>Vorher</figcaption></figure>
+                <figure><img alt="" /><figcaption>Nachher</figcaption></figure>
+              </div>
+            </dialog>
           </div>
 
           <div class="actions full">

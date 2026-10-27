@@ -2648,8 +2648,10 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* Ihre Auswahl: Wannenbild + gewählte Teile. */
-.dw-summary__hero { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 18px; }
-.dw-summary__hero img { width: 120px; height: 90px; object-fit: contain; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
+.dw-summary__hero { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: center; padding: 14px 18px; }
+/* The tray pictures are 400×400 with a lot of white around the tray: zoom in a bit. */
+.dw-summary__pic { width: 240px; height: 240px; overflow: hidden; border-radius: 12px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
+.dw-summary__pic img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); }
 .dw-summary__hero strong { display: block; font-size: 1.05rem; font-weight: 600; color: var(--text, #1f2937); }
 .dw-summary__hero small { display: block; margin-top: 2px; font-size: 0.85rem; color: var(--muted, #6b7280); }
 .dw-summary__items { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 18px 14px; border-top: 1px solid var(--input-border, #e5e7eb); }
@@ -2661,7 +2663,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 
 /* Kundenbäder: vorher/nachher nebeneinander, horizontal wischbar. */
 .dw-refs__list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 46%); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
-.dw-ref { margin: 0; scroll-snap-align: start; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; }
+.dw-ref { margin: 0; cursor: zoom-in; scroll-snap-align: start; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; }
 .dw-ref__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .dw-ref__pair img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
 .dw-ref figcaption { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 0; text-align: center; font-size: 0.8rem; font-weight: 600; color: var(--muted, #6b7280); }
@@ -2669,10 +2671,33 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 
 [data-mode="dark"] .dw-acc .img-wrap,
 [data-mode="dark"] .dw-summary__item img,
-[data-mode="dark"] .dw-summary__hero img { border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] .dw-summary__pic { border-color: rgba(255, 255, 255, 0.12); }
 [data-mode="dark"] .stelzlager-qty-row { background: rgba(118, 118, 128, 0.24); }
 [data-mode="dark"] .dw-summary__item { background: rgba(118, 118, 128, 0.24); }
 [data-mode="dark"] .dw-ref figcaption span:last-child { color: #5fe08a; }
+@media (max-width: 560px) {
+  .dw-summary__hero { grid-template-columns: 1fr; }
+  .dw-summary__pic { width: 100%; }
+}
+
+/* Vorher/Nachher groß: nebeneinander, so hoch wie der Bildschirm erlaubt. */
+.dw-ref-dialog {
+  width: min(96vw, 1100px); max-width: none; max-height: 94vh; padding: 14px; border: 0; border-radius: 18px;
+  background: var(--panel, #fff); color: var(--text, #1f2937);
+}
+.dw-ref-dialog::backdrop { background: rgba(0, 0, 0, 0.72); }
+.dw-ref-dialog__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center; }
+.dw-ref-dialog figure { margin: 0; display: grid; gap: 8px; justify-items: center; }
+/* Each picture keeps its own shape (some are landscape), no letterbox bars. */
+.dw-ref-dialog img { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(94vh - 80px); border-radius: 12px; }
+.dw-ref-dialog figcaption { font-size: 0.95rem; font-weight: 600; color: var(--muted, #6b7280); }
+.dw-ref-dialog figure + figure figcaption { color: #1f8a3c; }
+.dw-ref-dialog__close {
+  position: absolute; top: 20px; right: 20px; z-index: 1; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer;
+}
+[data-mode="dark"] .dw-ref-dialog { background: #1c1c1e; } /* --panel is translucent in dark */
+[data-mode="dark"] .dw-ref-dialog figure + figure figcaption { color: #5fe08a; }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
 #traySmartSearch,
