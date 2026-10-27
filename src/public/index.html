@@ -4841,15 +4841,22 @@ button.dm-btn-danger:focus-visible {
             <div class="sec-settings__group">
               <div class="sec-settings__row">
                 <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
-                <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
-                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
-                    <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                <!-- Drei Linien: winwall (Standard für neue Angebote), VIGOUR/Haßmann, Badolux.
+                     winwall = Premium-Linie mit wvSupplier=ww; fehlt wvSupplier (alle älteren
+                     Angebote), gilt VIGOUR (RestoreManager setzt dann "hm"). -->
+                <div class="tier-seg tier-seg--3" role="group" aria-label="Produktlinie waehlen">
+                  <button type="button" class="tier-seg__btn" data-tier="ww" aria-pressed="true">
+                    <strong>winwall</strong><span>WV-WW</span>
                   </button>
-                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
-                    <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="false">
+                    <strong>VIGOUR</strong><span>Haßmann &middot; WV-HM</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                    <strong>Badolux</strong><span>Keramico &middot; WV-BX</span>
                   </button>
                 </div>
                 <input id="wvLineToggle" type="checkbox" name="wvBudgetMode" value="1" hidden />
+                <input id="wvSupplier" type="hidden" name="wvSupplier" value="ww" />
               </div>
             </div>
           </div>
@@ -5019,6 +5026,47 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
+            <!-- winwall (wvSupplier = ww): Plattenwahl je Format + Dekor. Zwei gleiche
+                 Platten bestellt pricing-core automatisch als Set (winwallOrderLines). -->
+            <div id="wvWwPanelsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Plattenwahl winwall</div>
+              <div class="sec-settings__group">
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>100 × 205 cm</strong><small>WS&lt;Dekor&gt;13 · bis 205 cm Höhe</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_13" name="wvWwQty_13" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 100 × 205 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>100 × 250 cm</strong><small>WS&lt;Dekor&gt;15</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_15" name="wvWwQty_15" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 100 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>125 × 250 cm</strong><small>WS&lt;Dekor&gt;16</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_16" name="wvWwQty_16" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 125 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>150 × 250 cm</strong><small>WS&lt;Dekor&gt;17 · Großplatte · Fracht 85 €</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_17" name="wvWwQty_17" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 150 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row"><small class="wv-ww-hint" id="wvWwPanelsHint">Zwei gleiche Platten werden als Set bestellt (günstiger).</small></div>
+              </div>
+            </div>
+
+            <div id="wvWwDecorSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Dekor — winwall</div>
+              <div id="wvWwDecors" class="sec-settings__group dw-color-grid is-square">
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="000" /><span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" loading="lazy" /></span><span class="caption">weiß</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="203" checked /><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="caption">Marmor weiß</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="204" /><span class="img-wrap"><img src="./assets/winwall/WS204.jpg" alt="" loading="lazy" /></span><span class="caption">Marmor grau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="229" /><span class="img-wrap"><img src="./assets/winwall/WS229.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur steingrau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="226" /><span class="img-wrap"><img src="./assets/winwall/WS226.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur dunkelgrau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="248" /><span class="img-wrap"><img src="./assets/winwall/WS248.jpg" alt="" loading="lazy" /></span><span class="caption">Steinwand grau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="233" /><span class="img-wrap"><img src="./assets/winwall/WS233.jpg" alt="" loading="lazy" /></span><span class="caption">Beton</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="225" /><span class="img-wrap"><img src="./assets/winwall/WS225.jpg" alt="" loading="lazy" /></span><span class="caption">Kalkstein beige</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="290" /><span class="img-wrap"><img src="./assets/winwall/WS290.jpg" alt="" loading="lazy" /></span><span class="caption">Eiche hell</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="227" /><span class="img-wrap"><img src="./assets/winwall/WS227.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur anthrazit</span></label>
+              </div>
+            </div>
+
             <div id="wvColorSection" class="sec-settings">
               <div class="sec-settings__label">Dekor — Premium</div>
               <div id="wvColors" class="sec-settings__group dw-color-grid is-square">
@@ -5151,7 +5199,7 @@ button.dm-btn-danger:focus-visible {
               </div>
           </div>
 
-          <div class="full sec-settings dw-acc-list">
+          <div id="wvHmAccSection" class="full sec-settings dw-acc-list">
             <div class="sec-settings__label">Zubehör</div>
             <div class="sec-settings__group">
               <div id="wvSealingSection" class="dw-acc">
@@ -5170,6 +5218,46 @@ button.dm-btn-danger:focus-visible {
                     checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
                     src="./assets/silikon_ransauer.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Silikon</span><small>Kartuschen</small></span></label>
                 <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvSilikonQty" name="wvSilikonQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label="Menge Silikon" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- winwall-Zubehör (wvSupplier = ww): ersetzt Abdichtung, Kleber, Silikon und
+               V3A/V3V von Haßmann. Profile/Kleber: Schalter + Menge (wvWw_* / wvWwQty_*),
+               Abdichtungsset nach Fläche, Zuschnitt je Platte, Fracht automatisch. -->
+          <div id="wvWwAccSection" class="full sec-settings dw-acc-list" hidden aria-hidden="true">
+            <div class="sec-settings__label">Zubehör winwall</div>
+            <div class="sec-settings__group">
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80110" name="wvWw_WS80110" data-product-id="WS80110" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil</span><small>WS80110 · 2550 mm, Alu eloxiert · nicht automatisch berechnet, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80110" name="wvWwQty_WS80110" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Abschlussprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80111" name="wvWw_WS80111" data-product-id="WS80111" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Inneneckprofil</span><small>WS80111 · 2550 mm, Alu eloxiert</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80111" name="wvWwQty_WS80111" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Inneneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80112" name="wvWw_WS80112" data-product-id="WS80112" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Außeneckprofil</span><small>WS80112 · 2550 mm, Alu eloxiert</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80112" name="wvWwQty_WS80112" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Außeneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80113" name="wvWw_WS80113" data-product-id="WS80113" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/V3V.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil</span><small>WS80113 · 2550 mm, Alu eloxiert · Vorschlag: Platten − 1</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80113" name="wvWwQty_WS80113" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Verbindungsprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80102" name="wvWw_WS80102" data-product-id="WS80102" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Silikonkleber Novasil S800</span><small>WS80102 · Kartusche 290 ml · Vorschlag: 1 je Platte, 1,5 bei 125/150 cm</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80102" name="wvWwQty_WS80102" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Silikonkleber Novasil S800" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWwSealing" name="wvWwSealing" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtungsset DIN 18534-1</span><small id="wvWwSealingHint">WS80301 (5 m²) / WS80302 (6,25 m²) · nach Wandfläche</small></span></label>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWwCut" name="wvWwCut" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Zuschnitt</span><small>10 € je Platte, gerade Schnitte</small></span></label>
+              </div>
+              <div class="dw-acc">
+                <span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" /></span>
+                <span class="dw-acc__text"><span class="caption">Lieferkosten</span><small>45,50 € je Bestellung · 85 € mit 150-cm-Platte</small></span>
+                <span class="dw-acc__auto">automatisch</span>
               </div>
             </div>
           </div>
@@ -5210,7 +5298,7 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
-          <div class="full sec-settings dw-acc-list">
+          <div id="wvHmProfileSection" class="full sec-settings dw-acc-list">
             <div class="sec-settings__label">Abschluss- und Verbindungsprofile</div>
             <div class="sec-settings__group">
               <div id="wvEndProfileSection" class="dw-acc">

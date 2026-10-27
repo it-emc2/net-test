@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -98,6 +98,11 @@ describe("winwall pricing", () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "3", wvWwSealing: "on" }));
     // 3 × 2,5 m² = 7,5 m²: 2 × 5 m² (338 €) beats 6,25 + 5 (365 €) and 2 × 6,25 (392 €).
     expect([q.WS80301, q.WS80302]).toEqual([2, undefined]);
+  });
+  test("VIGOUR (hm) leaves the fingerprint of an old offer alone; winwall changes it", () => {
+    const old = { activeOffer: "bu", wandverkleidung: { ...vigourWall } };
+    expect(computeFingerprint({ ...old, wandverkleidung: { ...vigourWall, wvSupplier: "hm" } })).toBe(computeFingerprint(old));
+    expect(computeFingerprint({ ...old, wandverkleidung: { ...vigourWall, wvSupplier: "ww" } })).not.toBe(computeFingerprint(old));
   });
   test("cutting and freight carry no markup", () => {
     for (const id of ["WS-ZUSCHNITT", "WS-FRACHT", "WS-FRACHT-GROSS"]) expect(NO_MARKUP_IDS.has(id)).toBe(true);

@@ -414,6 +414,12 @@ export function computeFingerprint(payload) {
     const { configEnabled, curtainEnabled, ...da } = rest.duschabtrennung;
     rest.duschabtrennung = da;
   }
+  // wvSupplier "hm" (VIGOUR) is what a missing field already means: a reopened
+  // old offer gains it without anything priced changing. "ww" does change the price.
+  if (rest.wandverkleidung?.wvSupplier === "hm") {
+    const { wvSupplier, ...wv } = rest.wandverkleidung;
+    rest.wandverkleidung = wv;
+  }
   return stableStringify(rest);
 }
 

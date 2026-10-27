@@ -2528,6 +2528,11 @@ function resetAllForms() {
   // A new offer starts without a Duschwanne; form.reset() unticks the switch
   // but does not touch the form's data-tray-off attribute.
   setDwTrayEnabled(false);
+  // New offers start on winwall. A hidden input's value is its default, so
+  // form.reset() keeps whatever the last restored offer set (e.g. "hm").
+  const wvSupplierEl = document.getElementById("wvSupplier");
+  if (wvSupplierEl) wvSupplierEl.value = "ww";
+  if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
   const localStorageKeysToClear = [
@@ -8013,7 +8018,37 @@ function setupWandverkleidungPage() {
       return v || null;
     }
 
+    // winwall: decor photo, panels per format (what will be ordered, sets included).
+    function winwallCardHtml() {
+      const tile = page.querySelector('input[name="wvWwDecor"]:checked')?.closest("label");
+      const code = page.querySelector('input[name="wvWwDecor"]:checked')?.value || "";
+      const name = tile?.querySelector(".caption")?.textContent || code;
+      const core = window.__pricingCore;
+      if (typeof core?.winwallOrderLines !== "function" || !code) return "";
+      const lines = core.winwallOrderLines(code, wwPanelCounts());
+      if (!Array.isArray(lines) || !lines.length) return "";
+      const eur = (n) => n.toFixed(2).replace(".", ",");
+      const total = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
+      const rows = lines
+        .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
+        .join(" · ");
+      return `<div class="wvc-sel">
+        <img class="wvc-sel__img" src="${tile?.querySelector("img")?.getAttribute("src") || ""}" alt="" />
+        <div class="wvc-sel__info">
+          <strong class="wvc-sel__name">winwall Duschrückwand ${name}</strong>
+          <span class="wvc-sel__meta">WS ${code} · WV-WW · ${rows}</span>
+          <span class="wvc-sel__price">${eur(total)} € <small>Einkauf netto, ohne Zubehör</small></span>
+        </div>
+      </div>`;
+    }
+
     async function renderCard() {
+      if (isWvWinwall()) {
+        const html = winwallCardHtml();
+        cardEl.innerHTML = html;
+        cardEl.hidden = !html;
+        return;
+      }
       const globalColor = (page.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß").trim().toLowerCase();
       const cb997 = document.getElementById("wv997");
       const cb1497 = document.getElementById("wv1497");
@@ -8108,6 +8143,10 @@ function setupWandverkleidungPage() {
     document.getElementById("wv1497")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    document.addEventListener("wv:supplier", renderCard);
+    page.addEventListener("change", (e) => {
+      if (/^wvWw(Decor|Qty_1[3567])$/.test(e.target?.name || "")) renderCard();
+    });
     // Quantities feed "n × price" — the steppers fire input/change.
     document.getElementById("wvQty997")?.addEventListener("change", renderCard);
     document.getElementById("wvQty1497")?.addEventListener("change", renderCard);
@@ -11687,6 +11726,7 @@ function syncProduktlinieGroups({ render = true } = {}) {
       ensureRadioDefault(active);
     }
   }
+  syncWvSupplierGroups();
 }
 
 // Which line a switch belongs to is decided by the page it sits on.
@@ -11699,7 +11739,8 @@ function syncTierSwitchUi() {
   document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
     const key = lineKeyForElement(btn);
     if (!key) return;
-    btn.setAttribute("aria-pressed", String(btn.dataset.tier === getLine(key)));
+    const tier = key === "wand" && isWvWinwall() ? "ww" : getLine(key);
+    btn.setAttribute("aria-pressed", String(btn.dataset.tier === tier));
   });
 
   document.querySelectorAll(".tier-status").forEach((status) => {
@@ -11714,7 +11755,7 @@ function syncTierSwitchUi() {
   // Compact form inside a settings row (Duschwanne): just which products show.
   document.querySelectorAll("[data-tier-line]").forEach((el) => {
     const key = lineKeyForElement(el);
-    if (key) el.textContent = `Nur Produkte von ${TIER_INFO[getLine(key)].brand}`;
+    if (key) el.textContent = `Nur Produkte von ${key === "wand" && isWvWinwall() ? "winwall" : TIER_INFO[getLine(key)].brand}`;
   });
 
   syncProduktlinieGroups();
@@ -11745,7 +11786,14 @@ function initTierSwitch() {
   document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
     const key = lineKeyForElement(btn);
     if (!key) return;
-    btn.addEventListener("click", () => setLine(key, btn.dataset.tier));
+    btn.addEventListener("click", async () => {
+      const t = btn.dataset.tier;
+      // Wandverkleidung: winwall and VIGOUR are both the Premium line, told apart
+      // by wvSupplier; Badolux is the Standard line as before.
+      if (key === "wand" && t !== "standard") setWvSupplier(t === "ww" ? "ww" : "hm");
+      await setLine(key, t === "ww" ? "premium" : t);
+      syncTierSwitchUi();
+    });
   });
 
   // Each section's own checkbox drives its own groups; a restore flips them
@@ -12138,7 +12186,7 @@ makeFloorCalc({
   function render() {
     // The Standard line has no 997/1497 panels to propose — it has its own
     // Keramico calculator (initKeramicoCalc).
-    const premium = typeof getLine !== "function" || getLine("wand") === "premium";
+    const premium = (typeof getLine !== "function" || getLine("wand") === "premium") && !isWvWinwall();
     const result = premium ? window.computeWvPanelSuggestion?.(areaEl.value) : null;
     if (!result) {
       box.hidden = true;
@@ -12239,6 +12287,111 @@ document.addEventListener("click", (e) => {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
+/* ========== Wandverkleidung: winwall line (wvSupplier = ww) ==========
+   winwall is the Premium line with its own panels/accessories; VIGOUR is the
+   Premium line with wvSupplier = hm (or missing — every older offer). */
+function isWvWinwall() {
+  return document.getElementById("wvSupplier")?.value === "ww" &&
+    !document.getElementById("wvLineToggle")?.checked;
+}
+window.isWvWinwall = isWvWinwall;
+
+function syncWvSupplierGroups() {
+  const ww = isWvWinwall();
+  const byId = (id) => document.getElementById(id);
+  for (const id of ["wvWwPanelsSection", "wvWwDecorSection", "wvWwAccSection"]) setGroupActive(byId(id), ww);
+  // Haßmann accessories exist on VIGOUR and Badolux, not on winwall.
+  for (const id of ["wvHmAccSection", "wvHmProfileSection"]) setGroupActive(byId(id), !ww);
+  // VIGOUR-only groups: the line logic has already set them for Premium/Standard.
+  if (ww) for (const id of ["wvColorSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
+  updateWwSuggestions({ write: false });
+}
+
+function setWvSupplier(v) {
+  const el = document.getElementById("wvSupplier");
+  if (!el || el.value === v) return;
+  el.value = v;
+  syncProduktlinieGroups({ render: false }); // VIGOUR groups back, then the supplier
+  syncTierSwitchUi();
+  document.dispatchEvent(new Event("wv:supplier"));
+  window.renderWvAreaSuggestion?.();
+  if (!window.__restoring && !window.__RESTORING__) window.requestPricingRefresh?.({ delay: 180, reason: "wv-supplier" });
+}
+
+// Panels per format from the page; Kleber 1 Kartusche je Platte, 1,5 bei 125/150 cm
+// (winwall's recommendation); Verbindungsprofile = Platten − 1.
+function wwPanelCounts() {
+  const n = (c) => Math.max(0, parseInt(document.getElementById(`wvWwQty_${c}`)?.value, 10) || 0);
+  return { 13: n(13), 15: n(15), 16: n(16), 17: n(17) };
+}
+function updateWwSuggestions({ write = true } = {}) {
+  const q = wwPanelCounts();
+  const panels = q[13] + q[15] + q[16] + q[17];
+  const glue = Math.ceil(q[13] + q[15] + 1.5 * (q[16] + q[17]));
+  const set = (sku, v) => {
+    const qty = document.getElementById(`wvWwQty_${sku}`);
+    const cb = document.getElementById(`wvWw_${sku}`);
+    if (!qty || !cb || qty.disabled) return;
+    qty.value = String(v);
+    cb.checked = v > 0;
+  };
+  if (write && !window.__restoring && !window.__RESTORING__) {
+    set("WS80102", glue);
+    set("WS80113", Math.max(0, panels - 1));
+  }
+  const hint = document.getElementById("wvWwSealingHint");
+  if (hint) {
+    const area = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) ||
+      (q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+    let sets = [];
+    try { sets = window.__pricingCore?.winwallSealingSets?.(area); } catch {}
+    if (!Array.isArray(sets)) sets = [];
+    const txt = sets.map((l) => `${l.qty} × ${l.productId === "WS80302" ? "6,25" : "5"} m²`).join(" + ");
+    hint.textContent = `WS80301 (5 m²) / WS80302 (6,25 m²) · nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${txt}` : ""}`;
+  }
+  const ph = document.getElementById("wvWwPanelsHint");
+  if (ph) {
+    const sets = Math.floor(q[13] / 2) + Math.floor(q[15] / 2) + Math.floor(q[16] / 2);
+    ph.textContent = panels
+      ? `${panels} ${panels === 1 ? "Platte" : "Platten"}${sets ? `, davon ${sets} × als Set (2 gleiche Platten, günstiger)` : ""}.`
+      : "Zwei gleiche Platten werden als Set bestellt (günstiger).";
+  }
+}
+// From the wall-width calculator ("In Plattenwahl übernehmen").
+window.applyWwPanelQty = (qty) => {
+  for (const c of ["13", "15", "16", "17"]) {
+    const el = document.getElementById(`wvWwQty_${c}`);
+    if (el) el.value = String(qty?.[c] || 0);
+  }
+  updateWwSuggestions();
+  document.getElementById("wvWwQty_13")?.dispatchEvent(new Event("change", { bubbles: true }));
+  window.requestPricingRefresh?.({ delay: 120, reason: "winwall-plan" });
+};
+(function initWinwallSection() {
+  const acc = document.getElementById("wvWwAccSection");
+  const panels = document.getElementById("wvWwPanelsSection");
+  if (!acc || !panels) return;
+  panels.addEventListener("input", () => updateWwSuggestions());
+  panels.addEventListener("change", () => updateWwSuggestions());
+  // Switch ↔ quantity, like the Badolux accessories.
+  acc.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t?.type !== "checkbox" || !t.name.startsWith("wvWw_")) return;
+    const q = document.getElementById(`wvWwQty_${t.name.slice(5)}`);
+    if (q) q.value = t.checked ? (Number(q.value) > 0 ? q.value : "1") : "0";
+  });
+  acc.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t?.type !== "number" || !t.name.startsWith("wvWwQty_")) return;
+    const cb = document.getElementById(`wvWw_${t.name.slice(8)}`);
+    if (cb) cb.checked = Number(t.value) > 0;
+  });
+  document.getElementById("wvArea")?.addEventListener("input", () => updateWwSuggestions({ write: false }));
+  // pricing-core in the browser (for the sealing preview); loaded lazily.
+  import("/logic/pricing-core.js").then((m) => { window.__pricingCore = m; updateWwSuggestions({ write: false }); }).catch(() => {});
+  syncWvSupplierGroups();
+})();
+
 /* ========== Wandverkleidung: disclosures follow the saved data ==========
    "Andere Farbe" opens when a size has its own colour or extra colour rows;
    "Skizze und Notiz" opens when a sketch or note exists. Only called after a
@@ -12285,6 +12438,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   // Premium plans Vigour 997/1497 panels on the same walls (cheapest mix, taken
   // into the Plattenwahl by button); Standard bills Keramico from these widths.
   const vigour = () => typeof getLine === "function" && getLine("wand") === "premium";
+  // winwall is the Premium line with wvSupplier = ww: own formats (100/125/150 cm).
+  const winwall = () => vigour() && isWvWinwall();
+  let wwMix = null;
   const isKeramicoDecor = () => /^WP/i.test(document.querySelector('input[name="wvColor"]:checked')?.value || "");
   const vigourPrices = new Map(); // article → net purchase price (/api/vigor-prices)
   let keramicoCount = 0;
@@ -12354,6 +12510,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const pid = color.split("|")[0];
     if (/^WP00[1-6]$/i.test(pid)) return `./assets/budget/${pid.toUpperCase()}.webp`;
     if (/^WP007$/i.test(pid)) return document.querySelector(".kmp-card.is-selected img")?.src || "";
+    if (winwall()) return document.querySelector('input[name="wvWwDecor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
     // Premium (Vigour): the picked colour tile's own image.
     if (vigour()) return document.querySelector('input[name="wvColor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
     return "";
@@ -12391,9 +12548,19 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
 
     const widths = { links: num(inputs.links), back: num(inputs.back), rechts: num(inputs.rechts) };
     const premium = vigour();
+    const ww = winwall();
     root.dataset.line = premium ? "premium" : "standard";
-    const arts = premium ? vigourArticles() : null;
-    const plan = premium
+    const note = root.querySelector('.kc-note[data-only="premium"]');
+    if (note) {
+      note.dataset.vigourText ||= note.textContent;
+      note.textContent = ww
+        ? "winwall-Platten gibt es 100, 125 und 150 cm breit, 205 oder 250 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination."
+        : note.dataset.vigourText;
+    }
+    const arts = premium && !ww ? vigourArticles() : null;
+    const plan = ww
+      ? core.winwallPanelPlan(sit, widths, { heightCm: num(heightEl) })
+      : premium
       ? core.vigourPanelPlan(sit, widths, {
           heightCm: num(heightEl),
           prices: { 997: vigourPrices.get(arts[997]), 1497: vigourPrices.get(arts[1497]) },
@@ -12527,17 +12694,18 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       parts.push(`Breite: ${cuts.map((p) => `${plan.perPanel > 1 ? `Feld ${p.feld}` : `Platte ${p.platte}`} auf ${fmtCm(p.breite)} cm`).join(", ")} (Verschnitt ${fmtCm(plan.verschnitt)} cm Breite).`);
     cutListEl.hidden = plan.schnitte === 0;
     cutListEl.innerHTML = plan.schnitte
-      ? `<b>${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (${premium ? `${mixText(plan)} mm` : "95 × 255 cm"}).</span>${parts.map((t) => `<span>${t}</span>`).join("")}`
+      ? `<b>${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (${ww ? `${mixText(plan)} cm` : premium ? `${mixText(plan)} mm` : "95 × 255 cm"}).</span>${parts.map((t) => `<span>${t}</span>`).join("")}`
       : "";
 
     const h = num(heightEl);
-    const maxH = core.KERAMICO_HEIGHT_CM;
+    const maxH = ww ? 250 : core.KERAMICO_HEIGHT_CM;
     warnEl.hidden = !(h > maxH);
     warnEl.textContent = h > maxH
       ? `Höhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
       : "";
     paintPrice();
-    if (premium) paintVigour(plan, arts);
+    if (ww) paintWinwall(plan);
+    else if (premium) paintVigour(plan, arts);
 
     // Keramico panels count for Flächenkleber, V3V and Arbeitszeit like Alu panels.
     const kc = !premium && isKeramicoDecor() ? (manual > 0 ? manual : plan.gesamt) : 0;
@@ -12549,8 +12717,28 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     }
   }
 
+  const wwFmt = (code) => core.WINWALL_FORMATS.find((f) => f.code === code);
   const mixText = (plan) =>
-    [plan.qty1497 ? `${plan.qty1497} × 1497` : "", plan.qty997 ? `${plan.qty997} × 997` : ""].filter(Boolean).join(" + ");
+    plan.qty
+      ? Object.entries(plan.qty).filter(([, n]) => n > 0)
+          .map(([c, n]) => `${n} × ${wwFmt(c).widthCm}×${wwFmt(c).heightCm}`).join(" + ")
+      : [plan.qty1497 ? `${plan.qty1497} × 1497` : "", plan.qty997 ? `${plan.qty997} × 997` : ""].filter(Boolean).join(" + ");
+
+  // winwall: list prices are fixed (Händlerpreisliste), no fetch needed.
+  function paintWinwall(plan) {
+    const mixEl = document.getElementById("kcVigourMix");
+    const btn = document.getElementById("kcVigourApply");
+    if (!mixEl || !btn) return;
+    wwMix = plan.gesamt ? plan.qty : null;
+    btn.disabled = !wwMix;
+    if (!wwMix) {
+      mixEl.textContent = "Wandbreiten eintragen";
+      return;
+    }
+    const cost = Object.entries(plan.qty).reduce((a, [c, n]) => a + n * wwFmt(c).price, 0);
+    const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Einkauf netto ${eur(cost)} (ohne Set-Rabatt)`;
+  }
 
   // Articles of the chosen Premium colour (per-size override first); their net
   // purchase prices are fetched once and decide the cheapest mix.
@@ -12599,7 +12787,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const el = document.getElementById("kcPrice");
     if (!el) return;
     // Premium: the Alu panel lines of the Plattenwahl (what the offer bills).
-    const re = vigour() ? /^V3WVK?\d/i : /^WP\d/i;
+    const re = winwall() ? /^WS\d{3}(1[3567]|2[356])$/i : vigour() ? /^V3WVK?\d/i : /^WP\d/i;
     const lines = (window.__pricing?.materials?.lines || []).filter((l) => re.test(l.productId || ""));
     const total = lines.reduce((a, l) => a + (Number(l.lineTotal) || 0), 0);
     el.textContent = lines.length
@@ -12661,11 +12849,14 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   });
   // Repaint the walls when the decor or the Sonder-Dekor motif changes.
   document.addEventListener("change", (e) => {
-    if (["wvColor", "wvColor_997", "wvColor_1497"].includes(e.target?.name)) render();
+    if (["wvColor", "wvColor_997", "wvColor_1497", "wvWwDecor"].includes(e.target?.name)) render();
   });
   document.getElementById("wvLineToggle")?.addEventListener("change", render);
+  document.addEventListener("wv:supplier", render);
   document.getElementById("kcVigourApply")?.addEventListener("click", () => {
-    if (vigourMix) window.applyWvPanelQty?.(vigourMix);
+    if (winwall()) {
+      if (wwMix) window.applyWwPanelQty?.(wwMix);
+    } else if (vigourMix) window.applyWvPanelQty?.(vigourMix);
   });
   document.getElementById("kmpTrack")?.addEventListener("click", () => setTimeout(render, 0));
   // Hover (mouse) or tap (iPad) on a panel highlights it and its label.
@@ -16636,6 +16827,18 @@ function restoreWV(wv) {
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
+  // winwall (additive since 2026-10): a missing wvSupplier is VIGOUR.
+  setInputByNameOrId("wvSupplier", wv.wvSupplier === "ww" ? "ww" : "hm");
+  if (wv.wvSupplier === "ww") {
+    if (wv.wvWwDecor) setRadio("wvWwDecor", wv.wvWwDecor);
+    for (const c of ["13", "15", "16", "17"]) setInputByNameOrId(`wvWwQty_${c}`, wv[`wvWwQty_${c}`] || "0");
+    document.querySelectorAll('#wvWwAccSection input[type="checkbox"]').forEach((cb) => {
+      cb.checked = !!wv[cb.name];
+      if (cb.name.startsWith("wvWw_")) setInputByNameOrId(`wvWwQty_${cb.name.slice(5)}`, wv[`wvWwQty_${cb.name.slice(5)}`] || "0");
+    });
+  }
+  syncProduktlinieGroups({ render: false });
+  syncTierSwitchUi();
   setTimeout(() => window.syncWvDisclosures?.(wv), 0); // extra colour rows are rebuilt below
 
   const pageWV = document.getElementById("page-Wandverkleidung");
