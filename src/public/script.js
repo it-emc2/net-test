@@ -10750,7 +10750,8 @@ function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn
   window.__DW_COMPUTED__ = computed;
 
   let unitAdh = 0,
-    unitSeal = 0;
+    unitSeal = 0,
+    unitRoll = 0;
   let unitPanel = 0;
 
   async function ensureUnits() {
@@ -10761,6 +10762,10 @@ function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn
     if (!unitSeal) {
       const p = await getProduct("TRBDSET7");
       unitSeal = Number(p?.price || 0);
+    }
+    if (!unitRoll) {
+      const p = await getProduct("TRDB10");
+      unitRoll = Number(p?.price || 0);
     }
     if (!unitPanel) {
       // NEW: fetch V5FB02 once
@@ -10854,18 +10859,21 @@ function updateFlooringPanelsPriceFromPricing() {
     };
 
     // Sealing
-    // Sealing (proportional per m² with +15% waste, priced from TRBDSET7 / 7)
+    // Sealing: 1 Set TRBDSET7 (7 m²) + TRDB10 rolls (5 m² each) beyond that —
+    // mirrors pricing-core.js; the server price is the source of truth.
     const sealingSelected = !!f.querySelector(
       'input[name="floorSealing[]"]:checked',
     );
 
     if (sealingSelected && m2 > 0) {
       const effM2 = m2 * 1.15; // +15% Verschnitt
-      const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
-      const totalS = effM2 * ratePerM2;
+      const rolls = Math.ceil(Math.max(0, effM2 - 7) / 5 - 1e-12);
+      const totalS = unitSeal + rolls * unitRoll;
 
       if (liveSeal) {
-        liveSeal.textContent = `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`;
+        liveSeal.textContent = rolls
+          ? `= 1 Set + ${rolls} Rolle${rolls > 1 ? "n" : ""} Dichtbahn (${effM2.toFixed(2)} m² inkl. 15% Verschnitt)`
+          : `= 1 Set (${effM2.toFixed(2)} m² inkl. 15% Verschnitt)`;
       }
       if (sealingPriceEl) {
         sealingPriceEl.textContent = euro(totalS);
@@ -10874,8 +10882,10 @@ function updateFlooringPanelsPriceFromPricing() {
       computed.sealing = {
         productId: "TRBDSET7",
         effM2: +effM2.toFixed(2),
-        ratePerM2: +ratePerM2.toFixed(2),
+        sets: 1,
+        rolls,
         unitSet: unitSeal, // 7 m² Setpreis
+        unitRoll, // TRDB10 Rollenpreis
         total: +totalS.toFixed(2),
       };
     } else {
@@ -10884,8 +10894,10 @@ function updateFlooringPanelsPriceFromPricing() {
       computed.sealing = {
         productId: "TRBDSET7",
         effM2: 0,
-        ratePerM2: 0,
+        sets: 0,
+        rolls: 0,
         unitSet: unitSeal || 0,
+        unitRoll: unitRoll || 0,
         total: 0,
       };
     }
@@ -10965,7 +10977,7 @@ function updateFlooringPanelsPriceFromPricing() {
       if (liveSeal) sealingPriceEl.textContent = "0";
       if (panelsPriceEl) panelsPriceEl.textContent = "0";
 
-      unitAdh = unitSeal = 0;
+      unitAdh = unitSeal = unitRoll = 0;
       computed.areaM2 = 0;
       computed.adhesive = { productId: "R_4260602", packs: 0, unit: 0, total: 0 };
       computed.sealing = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
