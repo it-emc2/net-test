@@ -327,12 +327,15 @@ export function initRestoreManager({
       restoreOne("da", payload?.duschabtrennung || {});
       restoreOne("bwt", payload?.bwt || {});
       restoreOne("hl", payload?.hl || {});
+      // Wandverkleidung sketch was only restored by the retired legacy path.
+      restoreOne("wv", payload?.wandverkleidung || {});
 
       setTimeout(() => {
         console.log("[SKETCH][late-retry]");
         restoreOne("da", payload?.duschabtrennung || {});
         restoreOne("bwt", payload?.bwt || {});
         restoreOne("hl", payload?.hl || {});
+        restoreOne("wv", payload?.wandverkleidung || {});
       }, 350);
     } catch (e) {
       console.warn("[SKETCH][restore-call-site] failed:", e);

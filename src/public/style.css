@@ -2676,24 +2676,24 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* Wandverkleidung als Fußboden: die zwei Plattenformate als Listenzeilen. */
-#wallCladdingCards { display: block; margin: 0; }
-#wallCladdingCards .wvc-card {
+#wallCladdingCards , #wvAreaCards { display: block; margin: 0; }
+#wallCladdingCards .wvc-card , #wvAreaCards .wvc-card {
   display: grid; grid-template-columns: minmax(0, 1fr) auto 22px; grid-template-areas: "head price check" "qty price check" "cov price check";
   align-items: center; gap: 2px 14px; width: 100%; margin: 0; padding: 12px 18px; text-align: left;
   border: 0; border-radius: 0; box-shadow: none; background: transparent; font: inherit; color: var(--text, #1f2937); cursor: pointer;
 }
-#wallCladdingCards .wvc-card + .wvc-card { border-top: 1px solid var(--input-border, #e5e7eb); }
-#wallCladdingCards .wvc-card-head { grid-area: head; justify-content: flex-start; font-size: 1rem; font-weight: 500; }
-#wallCladdingCards .wvc-qty { grid-area: qty; font-size: 0.85rem; color: var(--muted, #6b7280); }
-#wallCladdingCards .wvc-coverage { grid-area: cov; font-size: 0.82rem; color: var(--muted, #6b7280); }
-#wallCladdingCards .wvc-price-row { grid-area: price; display: grid; justify-items: end; font-weight: 600; }
-#wallCladdingCards .wvc-select-label { grid-area: check; font-size: 0; }
-#wallCladdingCards .wvc-selected .wvc-select-label::after { content: "✓"; font-size: 18px; font-weight: 700; color: #0a84ff; }
-#wallCladdingCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.06); }
-#wallCladdingCards .wvc-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(10, 132, 255, 0.12); color: #0a6fd6; }
-[data-mode="dark"] #wallCladdingCards .wvc-card { background: transparent; }
-[data-mode="dark"] #wallCladdingCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.16); }
-[data-mode="dark"] #wallCladdingCards .wvc-badge { background: rgba(10, 132, 255, 0.22); color: #7cc0ff; }
+#wallCladdingCards .wvc-card + .wvc-card , #wvAreaCards .wvc-card + .wvc-card { border-top: 1px solid var(--input-border, #e5e7eb); }
+#wallCladdingCards .wvc-card-head , #wvAreaCards .wvc-card-head { grid-area: head; justify-content: flex-start; font-size: 1rem; font-weight: 500; }
+#wallCladdingCards .wvc-qty , #wvAreaCards .wvc-qty { grid-area: qty; font-size: 0.85rem; color: var(--muted, #6b7280); }
+#wallCladdingCards .wvc-coverage , #wvAreaCards .wvc-coverage { grid-area: cov; font-size: 0.82rem; color: var(--muted, #6b7280); }
+#wallCladdingCards .wvc-price-row , #wvAreaCards .wvc-price-row { grid-area: price; display: grid; justify-items: end; font-weight: 600; }
+#wallCladdingCards .wvc-select-label , #wvAreaCards .wvc-select-label { grid-area: check; font-size: 0; }
+#wallCladdingCards .wvc-selected .wvc-select-label::after , #wvAreaCards .wvc-selected .wvc-select-label::after { content: "✓"; font-size: 18px; font-weight: 700; color: #0a84ff; }
+#wallCladdingCards .wvc-card.wvc-selected , #wvAreaCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.06); }
+#wallCladdingCards .wvc-badge , #wvAreaCards .wvc-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(10, 132, 255, 0.12); color: #0a6fd6; }
+[data-mode="dark"] #wallCladdingCards .wvc-card , [data-mode="dark"] #wvAreaCards .wvc-card { background: transparent; }
+[data-mode="dark"] #wallCladdingCards .wvc-card.wvc-selected , [data-mode="dark"] #wvAreaCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.16); }
+[data-mode="dark"] #wallCladdingCards .wvc-badge , [data-mode="dark"] #wvAreaCards .wvc-badge { background: rgba(10, 132, 255, 0.22); color: #7cc0ff; }
 
 /* Freier Posten: eine aufklappbare Zeile, darin Formularzeilen (Name links, Wert rechts). */
 #dw-custom-details {
@@ -11764,3 +11764,150 @@ details.az-group[open] > summary.az-group-title::before {
 .kc[data-line="standard"] [data-only="premium"] { display: none !important; }
 .kc-vigour { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 12px; }
 .kc-vigour-mix { flex: 1 1 260px; font-weight: 600; }
+
+/* ===== Wandverkleidung (iOS grouped lists, 2026-10-27) ===== */
+/* Ausführung: radio list with a blue check on the chosen row. */
+.ios-checklist { display: block; }
+.ios-check-row {
+  display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 18px; min-height: 48px; box-sizing: border-box;
+  font-size: 1rem; font-weight: 400; color: var(--text, #1f2937); cursor: pointer;
+}
+.ios-check-row + .ios-check-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+.ios-check-row[hidden] { display: none; }
+.ios-check-row > input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ios-check-row > input[type="radio"] + span { flex: 1; }
+.ios-check-row > input[type="radio"] + span::after { content: "✓"; float: right; font-weight: 700; color: #0a84ff; visibility: hidden; }
+.ios-check-row > input[type="radio"]:checked + span::after { visibility: visible; }
+.ios-check-row:has(> input[type="radio"]:focus-visible) { background: rgba(10, 132, 255, 0.06); }
+.ios-check-row--switch > input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ios-check-row--switch { flex-wrap: wrap; }
+.ios-check-row--switch > span:nth-of-type(2) { flex: 1; }
+.ios-check-row--switch small { color: var(--muted, #6b7280); }
+.ios-check-row--switch .sec-switch__track { order: 3; }
+.ios-check-row .wv-height { order: 2; display: inline-flex; align-items: center; gap: 6px; color: var(--muted, #6b7280); }
+.ios-check-row .wv-height input {
+  width: 72px; height: 34px; padding: 0 8px; text-align: right; font-size: 1rem; border: 0; border-radius: 8px;
+  background: rgba(118, 118, 128, 0.12); color: var(--text, #1f2937); box-shadow: none;
+}
+
+/* Generic stepper: − [n] +, used by Plattenwahl, Zubehör, Profile. */
+.ios-stepper { display: inline-flex; align-items: center; flex: none; border-radius: 9px; background: rgba(118, 118, 128, 0.12); overflow: hidden; }
+.ios-stepper[hidden] { display: none; }
+.ios-stepper button { width: 36px; height: 34px; padding: 0; border: 0; background: none; font-size: 1.15rem; line-height: 1; color: var(--text, #1f2937); cursor: pointer; }
+.ios-stepper button:active { background: rgba(118, 118, 128, 0.22); }
+/* id prefix beats the old "#wvPanelField997 input[type=number] { width: 100% }" */
+.ios-stepper input,
+#form-wandverkleidung .ios-stepper input {
+  width: 44px; height: 34px; padding: 0; border: 0; background: transparent; box-shadow: none; text-align: center;
+  font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); -moz-appearance: textfield;
+}
+.ios-stepper input::-webkit-inner-spin-button, .ios-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.dw-acc > .ios-stepper { grid-column: 3; grid-row: 1; }
+[data-mode="dark"] .ios-stepper, [data-mode="dark"] .ios-check-row .wv-height input { background: rgba(118, 118, 128, 0.24); }
+
+/* Shared row/swatch rules also for the Wandverkleidung form. */
+#form-wandverkleidung .dw-acc .image-check { display: contents; }
+#form-wandverkleidung .dw-acc .caption { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+#form-wandverkleidung .dw-color-grid { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 14px 18px; }
+#form-wandverkleidung .dw-color-grid .image-check { display: grid; justify-items: center; align-content: start; gap: 6px; width: 84px; padding: 0; border: 0; background: none; box-shadow: none; }
+#form-wandverkleidung .dw-color-grid .img-wrap { width: 58px; height: 58px; aspect-ratio: auto; border-radius: 12px; border: 1px solid var(--input-border, #d0d5dd); transition: box-shadow 0.15s ease; }
+#form-wandverkleidung .dw-color-grid img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+#form-wandverkleidung .dw-color-grid .caption { max-width: 84px; text-align: center; line-height: 1.25; font-size: 0.78rem; font-weight: 500; color: var(--muted, #6b7280); overflow-wrap: break-word; hyphens: auto; }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:checked) .caption { color: var(--text, #1f2937); }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:focus-visible) { outline: none; }
+#form-wandverkleidung .dw-color-grid .wv-tile-own-badge {
+  position: static; transform: none; margin: 0; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; white-space: nowrap; background: rgba(180, 83, 9, 0.14); color: #92400e; box-shadow: none;
+}
+[data-mode="dark"] #form-wandverkleidung .dw-color-grid .wv-tile-own-badge { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+#form-wandverkleidung .dw-dim-row input { width: 110px; text-align: right; font-size: 1rem; border: 0; background: transparent; padding: 4px 0; box-shadow: none; }
+#form-wandverkleidung .dw-dim-row input:focus { outline: none; box-shadow: none; }
+#wvSonderDecorDetails { margin: 10px 0 0; padding: 12px 18px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); }
+
+/* Plattenwahl: one row per size, "Andere Farbe" folds out under it. */
+/* Standard line hides both sizes (syncProduktlinieGroups) — then hide the empty frame too. */
+.sec-settings:has(> .wv-sizes):not(:has(.wv-size:not([hidden]))) { display: none; }
+.wv-size { margin: 0; }
+.wv-size + .wv-size { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wv-size .dw-acc { border: 0; }
+.wv-size-more { padding: 0 18px 10px 76px; }
+.wv-size-more > summary { list-style: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #0a84ff; }
+.wv-size-more > summary::-webkit-details-marker { display: none; }
+.wv-size-more > summary::after { content: " ›"; }
+.wv-size-more[open] > summary::after { content: " ⌄"; }
+.wv-size-more .field { margin: 8px 0 0; }
+#form-wandverkleidung .wv-size-more select { max-width: 320px; }
+#form-wandverkleidung .wv-size-more .wv-extras-wrap > .btn {
+  width: auto; min-height: 0; margin-top: 4px !important; padding: 6px 0; border: 0; background: none; box-shadow: none;
+  font-weight: 600; color: #0a84ff;
+}
+[data-mode="dark"] #form-wandverkleidung .wv-size-more .wv-extras-wrap > .btn { color: #4da3ff; }
+#form-wandverkleidung .wv-size-more .wv-extra-row { display: grid; grid-template-columns: 80px minmax(0, 320px) auto; align-items: center; gap: 8px; margin-top: 6px; }
+#form-wandverkleidung .wv-size-more .wv-extra-row .btn {
+  width: auto; min-height: 0; padding: 6px 4px; border: 0; background: none; box-shadow: none; font-weight: 600; color: #ff3b30;
+}
+[data-mode="dark"] #form-wandverkleidung .wv-size-more .wv-extra-row .btn { color: #ff6961; }
+#form-wandverkleidung .wv-size-more .wv-extras-wrap > label { font-size: 0.85rem; color: var(--muted, #6b7280); }
+.wv-size-more .wv-extras-wrap { margin-top: 10px !important; }
+[data-mode="dark"] .wv-size-more > summary { color: #4da3ff; }
+
+/* V3V rule text as a quiet line under the row. */
+.dw-acc > .wv-v3v-hint {
+  grid-column: 2 / -1; grid-row: 2; display: flex; gap: 8px; align-items: flex-start; margin: 2px 0 0; padding: 8px 10px;
+  border: 0; border-radius: 10px; font-size: 0.82rem; line-height: 1.4;
+}
+.wv-v3v-hint.tone-info { background: rgba(10, 132, 255, 0.07); color: var(--text, #1f2937); }
+.wv-v3v-hint.tone-ok { background: rgba(52, 199, 89, 0.1); color: #1f6f37; }
+.wv-v3v-hint.tone-amber { background: rgba(255, 159, 10, 0.12); color: #92400e; }
+.wv-v3v-hint .ic { display: none; } /* the rule text carries its own ⚠️ / ✅ */
+.wv-v3v-hint .formula { margin-top: 2px; font-size: 0.78rem; color: var(--muted, #6b7280); }
+[data-mode="dark"] .wv-v3v-hint.tone-info { background: rgba(10, 132, 255, 0.16); color: #e5e7eb; }
+[data-mode="dark"] .wv-v3v-hint.tone-ok { background: rgba(48, 209, 88, 0.16); color: #5fe08a; }
+[data-mode="dark"] .wv-v3v-hint.tone-amber { background: rgba(255, 159, 10, 0.18); color: #ffc261; }
+
+/* Skizze & Notiz: a closed disclosure row at the end. */
+.wv-sketch > summary { list-style: none; cursor: pointer; display: flex; align-items: center; padding: 14px 18px; font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+.wv-sketch > summary::-webkit-details-marker { display: none; }
+.wv-sketch > summary::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #6b7280); transition: transform 0.15s ease; }
+.wv-sketch[open] > summary::after { transform: rotate(90deg); }
+.wv-sketch[open] > summary { border-radius: 14px 14px 0 0; }
+.wv-sketch__body { padding: 14px 0 0; }
+
+/* Ihre Auswahl (Wandverkleidung): hide the label while there is nothing to show. */
+.wv-summary:has(> #wvProductCard[hidden]) { display: none; }
+#wvProductCard .wvc-sel + .wvc-sel { border-top: 1px solid var(--input-border, #e5e7eb); }
+#wvProductCard .wvc-sel__badges .dac-line-stock,
+#wvProductCard .wvc-sel__badges .wv-own-lager-badge {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 28px; margin: 0; padding: 0 12px 0 4px;
+  border: 0; border-radius: 999px; font-size: 0.8rem; font-weight: 600; line-height: 1; box-shadow: none;
+}
+#wvProductCard .wvc-sel__badges .dac-stock-qty,
+#wvProductCard .wvc-sel__badges .wv-own-lager-qty {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: none;
+  min-width: 20px; width: auto; height: 20px; margin: 0; padding: 0 5px; border-radius: 999px; font-size: 0.72rem; line-height: 1; color: #fff;
+}
+
+/* Bedarf nach Wandbreiten (Keramico/Vigour): same card as the groups, segmented chips. */
+#form-wandverkleidung .kc { margin: 0; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); }
+#form-wandverkleidung .kc-head h3 { display: none; }
+#form-wandverkleidung .kc-sits { display: inline-flex; flex-wrap: nowrap; gap: 0; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+#form-wandverkleidung .kc-chip { min-height: 32px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; color: var(--text, #1f2937); font-weight: 500; }
+#form-wandverkleidung .kc-chip[aria-pressed="true"] { background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+#form-wandverkleidung .kc-rows { gap: 0; border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; overflow: hidden; }
+#form-wandverkleidung .kc-row { grid-template-columns: 26px minmax(0, 1fr) 90px auto; padding: 8px 14px; }
+#form-wandverkleidung .kc-row + .kc-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+#form-wandverkleidung .kc-row input { height: 36px; border: 0; background: transparent; box-shadow: none; text-align: right; }
+#form-wandverkleidung .kc-row input:focus { outline: none; }
+#form-wandverkleidung .kc-row:focus-within { background: rgba(10, 132, 255, 0.05); }
+#form-wandverkleidung #kcVigourApply { border: 0; border-radius: 10px; background: #0a84ff; color: #fff; font-weight: 600; min-height: 40px; padding: 0 16px; }
+#form-wandverkleidung #kcVigourApply:disabled { background: rgba(118, 118, 128, 0.2); color: var(--muted, #6b7280); }
+[data-mode="dark"] #form-wandverkleidung .kc { background: var(--panel); border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] #form-wandverkleidung .kc-sits { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] #form-wandverkleidung .kc-chip { color: #f3f4f6; }
+[data-mode="dark"] #form-wandverkleidung .kc-chip[aria-pressed="true"] { background: #636366; color: #fff; }
+[data-mode="dark"] #form-wandverkleidung .kc-rows,
+[data-mode="dark"] #form-wandverkleidung .kc-row + .kc-row { border-color: rgba(255, 255, 255, 0.12); }
+
+/* Area suggestion (997/1497) as list rows — same as Wand als Boden. */
+#wvAreaCards { display: block; margin: 0; }

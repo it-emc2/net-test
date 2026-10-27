@@ -4828,152 +4828,62 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Wandverkleidung -->
       <section class="card page" id="page-Wandverkleidung" hidden>
-        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <h2 style="margin:0">Wandverkleidungsplatten</h2>
-
-          <div class="tier-switch">
-            <span class="tier-switch__label">Produktlinie</span>
-            <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
-              <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
-                <strong>Standard</strong><span>Badolux &middot; guenstig</span>
-              </button>
-              <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
-                <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
-              </button>
-            </div>
-            <!-- Eigene Linie fuer die Wandverkleidung, additiv wie oben. -->
-            <input id="wvLineToggle" type="checkbox" name="wvBudgetMode" value="1"
-              form="form-wandverkleidung" hidden />
-          </div>
-        </div>
-
-        <p class="tier-status" data-tier="premium">
-          <span class="tier-status__dot" aria-hidden="true"></span>
-          <span class="tier-status__text"></span>
-        </p>
-
+        <h2 style="margin:0 0 12px">Wandverkleidung</h2>
         <form id="form-wandverkleidung">
           <div class="field full wv-toggle sec-switch-field">
             <label class="sec-switch"><input type="checkbox" role="switch" id="wvEnabled" name="wvEnabled" /><span class="sec-switch__track" aria-hidden="true"></span><span
-                class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot.</small></span></label>
+                class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
 
-          <div style="align-self: center">
-            <img src="./assets/c27108714a00d1e9ed265a5b07876a85.jpg" alt="Wandverkleidung Beispiel"
-              style="max-width: 100%; border-radius: 12px" />
+          <!-- Einstellungen: Produktlinie (eigene Linie, additiv) + Ausführung. -->
+          <div class="full sec-settings">
+            <div class="sec-settings__label">Einstellungen</div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                    <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                    <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                  </button>
+                </div>
+                <input id="wvLineToggle" type="checkbox" name="wvBudgetMode" value="1" hidden />
+              </div>
+            </div>
           </div>
 
-          <div class="field" style="align-self: center">
-            <div class="section-title">Ausführung</div>
-            <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
-            <div class="radio-group vertical" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" required /><span
-                  class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" required /><span
-                  class="circle"></span><span>Deckenhoch im Dusch/Wannenbereich</span></label>
-
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" required /><span
-                  class="circle"></span><span>Fliesenspiegel</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span
-                  class="circle"></span><span>Innenraum der Kabine</span></label>
-
-              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span
-                  class="circle"></span><span>alle Bad-Wände</span></label>
-
+          <div class="full sec-settings">
+            <div class="sec-settings__label">Ausführung</div>
+            <div class="sec-settings__group ios-checklist" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Fehlstellen" required /><span>Nur schließende Fehlstellen</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Deckenhoch" required /><span>Deckenhoch im Dusch-/Wannenbereich</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Fliesenspiegel" required /><span>Fliesenspiegel</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span>Innenraum der Kabine</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span>Alle Bad-Wände</span></label>
               <!-- Legacy only: replaced by #wvEnabled, kept so old offers restore. -->
-              <label class="radio-pill" hidden><input type="radio" name="wvKind" value="Keine" required /><span
-                  class="circle"></span><span>Keine Wandverkleidung</span></label>
-
-              <label class="radio-pill">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
-                  form="form-Arbeiten" />
-                <span class="circle"></span>
-                <span>
-                  Wandverkleidung in Duschbereich bis in einer Höhe von
-                  <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
-                    inputmode="numeric" placeholder="___" style="width:5em" form="form-Arbeiten"
-                    onclick="event.preventDefault();event.stopPropagation();" /> cm
-                </span>
-              </label>
+              <label class="ios-check-row" hidden><input type="radio" name="wvKind" value="Keine" required /><span>Keine Wandverkleidung</span></label>
+              <!-- Arbeiten-Aufgabe (form-Arbeiten): Höhe im Duschbereich. -->
+              <label class="ios-check-row ios-check-row--switch"><input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
+                  form="form-Arbeiten" /><span class="sec-switch__track" aria-hidden="true"></span><span>Im Duschbereich bis Höhe <small>(Arbeiten)</small></span><span class="wv-height"><input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
+                    inputmode="numeric" placeholder="___" form="form-Arbeiten" aria-label="Höhe in cm"
+                    onclick="event.preventDefault();event.stopPropagation();" /> cm</span></label>
             </div>
           </div>
 
-          <div class="field full">
-            <div class="section-title">Skizze &amp; Notiz</div>
-            <div class="project-sketch" data-sketch-key="wv">
-              <div class="project-sketch__head">
-                <div>
-                  <div class="project-sketch__title">Projekt-Skizze</div>
-                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
-                </div>
-
-                <div class="project-sketch__controls">
-                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
-                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
-                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
-                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
-                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
-                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
-                  </div>
-
-                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
-                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
-                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
-                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
-                  </div>
-
-                  <div class="project-sketch__colors" role="group" aria-label="Farben">
-                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
-                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
-                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
-                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
-                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
-                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
-                  </div>
-
-                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
-                </div>
-              </div>
-
-              <div class="project-sketch__canvas-wrap">
-                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
-              </div>
-
-              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
-              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
-              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
-            </div>
-
-            <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
-            <textarea id="wvNote" name="wvNote" rows="4"
-              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
-          </div>
-
-          <div id="wvPanelsSection" class="full field">
-            <div class="section-title">Plattenwahl</div>
-
-            <div id="wvAreaBlock">
-              <!-- Wandfläche + Flächenrechner, gleiche Bausteine wie auf der Fußboden-Seite
-                   (makeFloorCalc). Nur Premium: schlägt 997/1497 vor. wvArea ist additiv —
-                   fehlt in jedem Altangebot. -->
-              <div class="flooring-panel-head">
-                <h3 style="margin: 0">Wandfläche</h3>
-                <button type="button" id="wvaCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+          <div id="wvPanelsSection" class="full">
+            <!-- Wandfläche + Flächenrechner (makeFloorCalc). Nur Premium: schlägt 997/1497 vor.
+                 wvArea ist additiv — fehlt in jedem Altangebot. -->
+            <div id="wvAreaBlock" class="sec-settings">
+              <div class="sec-settings__label">Wandfläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Wandfläche</span><span class="dw-dim-input"><input
+                      id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" /><span>m²</span></span></label>
+                <button type="button" id="wvaCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
                   aria-controls="wvaCalcPanel">Flächenrechner öffnen</button>
-              </div>
-              <div class="flooring-top-grid">
-                <div class="field flooring-area-field" style="margin:0;">
-                  <label for="wvArea">Wandfläche m²</label>
-                  <input id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" />
-                  <small class="muted flooring-area-help">Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
-                </div>
                 <aside id="wvaCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                  <div class="floor-calc-card__title-row">
-                    <div>
-                      <div class="floor-calc-card__title">Flächenrechner</div>
-                      <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
-                    </div>
-                  </div>
+                  <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
                   <div id="wvaCalcRows" class="floor-calc-rows" aria-live="polite"></div>
                   <button type="button" id="wvaCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
                   <div class="floor-calc-result-row">
@@ -4985,16 +4895,17 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </aside>
               </div>
-              <div id="wvAreaSuggestion" hidden style="margin: 14px 0 18px;">
-                <div class="muted" style="margin-bottom: 8px;">Vorschlag für diese Fläche — antippen übernimmt die Menge:</div>
-                <div id="wvAreaCards" class="wvc-cards"></div>
+              <div id="wvAreaSuggestion" hidden style="margin-top: 14px;">
+                <div class="sec-settings__label">Vorschlag für diese Fläche — antippen übernimmt die Menge</div>
+                <div id="wvAreaCards" class="sec-settings__group wvc-cards"></div>
               </div>
             </div>
 
-            <!-- Standard (Keramico 95 × 255 cm): Bedarfsrechner nach Wandbreiten, gleiche
-                 Regel wie cleverbad.de (keramicoPanelPlan in pricing-core). Felder wvK* sind
-                 additiv — fehlen in jedem Altangebot. -->
-            <div id="wvKeramicoCalc" class="kc">
+            <!-- Bedarf nach Wandbreiten (Keramico / Vigour, initKeramicoCalc) — unverändert,
+                 nur im iOS-Stil gezeichnet. -->
+            <div class="sec-settings">
+              <div class="sec-settings__label">Bedarf nach Wandbreiten</div>
+              <div id="wvKeramicoCalc" class="kc">
               <div class="kc-head">
                 <h3>Bedarf berechnen</h3>
                 <p class="kc-note" data-only="standard">Ein Keramico-Paneel ist 95 cm breit und 255 cm hoch. Wandsituation wählen und die Breiten eintragen — die Paneele laufen von links über jede Wand.</p>
@@ -5036,25 +4947,25 @@ button.dm-btn-danger:focus-visible {
                 <span id="kcQtyNote" class="kc-qty-note" hidden></span>
               </div>
             </div>
+            </div>
 
-            <label id="wvPanelsLabel" class="req">Wandverkleidung</label>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" id="wvPanelField997" style="min-width: 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="wv997" name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" />
-                  <span class="img-wrap"><img src="./assets/wv-alu-marmor-weiss.webp"
-                      alt="Wandverkleidung 3.0 Alu 997x2550" loading="lazy" /></span>
-                  <span class="caption">Wandverkleidung 3.0 Alu 997×2550 mm</span>
-                </label>
-                <div id="wvQty997Wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="wvQty997" class="req">Menge 997×2550mm</label>
-                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" aria-required="true" />
-                </div>
-                <div class="field" style="margin-top: 8px">
-                  <label for="wvColor_997">Farbe nur für 997×2550 (optional)</label>
-                  <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
+            <div class="sec-settings">
+              <label id="wvPanelsLabel" class="sec-settings__label">Plattenwahl</label>
+              <div class="sec-settings__group wv-sizes">
+                <div class="field wv-size" id="wvPanelField997">
+                  <div class="dw-acc">
+                    <label class="image-check"><input type="checkbox" id="wv997" name="wvPanels[]"
+                        value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                        src="./assets/wv-alu-marmor-weiss.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Alu 997 × 2550 mm</span><small>Wandverkleidung 3.0 · Vigour</small></span></label>
+                    <span id="wvQty997Wrap" class="ios-stepper" hidden aria-hidden="true"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvQty997" name="wvQty997" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge 997×2550mm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                  </div>
+                  <!-- Eigene Farbe + zusätzliche Farben nur für diese Größe (ensureExtrasUI hängt
+                       die Liste hinter das .field mit dem select). Öffnet sich bei gespeicherten Werten. -->
+                  <details class="wv-size-more">
+                    <summary>Andere Farbe für 997 mm</summary>
+                    <div class="field">
+                      <label for="wvColor_997">Farbe nur für 997×2550</label>
+                      <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
                     <option value="">Wie unten gewählt</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
@@ -5070,26 +4981,23 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein grau">Stein grau</option>
                     <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
+                    </div>
+                  </details>
                 </div>
-                
-              </div>
-
-              <div class="field" id="wvPanelField1497" style="min-width: 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="wv1497" name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" />
-                  <span class="img-wrap"><img src="./assets/wv-alu-marmor-weiss.webp"
-                      alt="Wandverkleidung 3.0 Alu 1497x2550" loading="lazy" /></span>
-                  <span class="caption">Wandverkleidung 3.0 Alu 1497×2550 mm</span>
-                </label>
-                <div id="wvQty1497Wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
-                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" aria-required="true" />
-                </div>
-                <div class="field" style="margin-top: 8px">
-                  <label for="wvColor_1497">Farbe nur für 1497×2550 (optional)</label>
-                  <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
+                <div class="field wv-size" id="wvPanelField1497">
+                  <div class="dw-acc">
+                    <label class="image-check"><input type="checkbox" id="wv1497" name="wvPanels[]"
+                        value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                        src="./assets/wv-alu-marmor-weiss.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Alu 1497 × 2550 mm</span><small>Wandverkleidung 3.0 · Vigour</small></span></label>
+                    <span id="wvQty1497Wrap" class="ios-stepper" hidden aria-hidden="true"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvQty1497" name="wvQty1497" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge 1497×2550mm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                  </div>
+                  <!-- Eigene Farbe + zusätzliche Farben nur für diese Größe (ensureExtrasUI hängt
+                       die Liste hinter das .field mit dem select). Öffnet sich bei gespeicherten Werten. -->
+                  <details class="wv-size-more">
+                    <summary>Andere Farbe für 1497 mm</summary>
+                    <div class="field">
+                      <label for="wvColor_1497">Farbe nur für 1497×2550</label>
+                      <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
                     <option value="">Wie unten gewählt</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
@@ -5105,14 +5013,15 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein grau">Stein grau</option>
                     <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
+                    </div>
+                  </details>
                 </div>
-
               </div>
+            </div>
 
-              <!-- Farbwahl -->
-              <div id="wvColorSection" class="full field">
-                <label class="req">Dekor / Farbe der Wandverkleidung (Premium)</label>
-                <div id="wvColors" style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div id="wvColorSection" class="sec-settings">
+              <div class="sec-settings__label">Dekor — Premium</div>
+              <div id="wvColors" class="sec-settings__group dw-color-grid is-square">
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Weiß" required />
                     <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" loading="lazy" /></span>
@@ -5204,9 +5113,7 @@ button.dm-btn-danger:focus-visible {
                   </label>
 
                 </div>
-                <div id="wvProductCard" hidden></div>
-
-                <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
+              <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
                   <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
                   <input
                     id="wvSonderConfigNr"
@@ -5222,14 +5129,11 @@ button.dm-btn-danger:focus-visible {
                     </a>
                   </p>
                 </div>
-              </div>
+            </div>
 
-              <!-- Standard-Linie (Badolux) — Geschwister von #wvColorSection, nicht
-                   darin: sonst wuerde das Ausblenden der Premium-Gruppe die
-                   Badolux-Paneele mit ausblenden. -->
-              <div id="wvBudgetColorSection" class="full field" hidden aria-hidden="true">
-                <label>Standard-Wandpaneele (Badolux)</label>
-                <div id="wvBudgetColors" style="display: flex; gap: 14px; flex-wrap: wrap"></div>
+            <div id="wvBudgetColorSection" class="sec-settings" hidden aria-hidden="true">
+                <div class="sec-settings__label">Dekor — Standard (Badolux)</div>
+                <div id="wvBudgetColors" class="sec-settings__group dw-color-grid is-square"></div>
                 <div id="wvBudgetEmpty" class="hint" style="margin-top:8px" hidden>
                   Keine Standard-Wandpaneele verfügbar.
                 </div>
@@ -5245,210 +5149,153 @@ button.dm-btn-danger:focus-visible {
                   <input type="hidden" id="wvMotif" name="wvMotif" value="" />
                 </div>
               </div>
-            </div>
           </div>
 
-          <div class="full">
-            <div class="section-title">Zubehör</div>
-          </div>
-          <div class="full product-tile-grid">
-
-            <div id="wvSealingSection" class="field">
-              <label class="req">Wandabdichtung BASIS-Set</label>
-              <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="img-wrap"><img
-                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" loading="lazy" /></span><span
-                  class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
-              <div></div>
-              <div></div>
-            </div>
-
-            <div id="flechenSection" class="field">
-              <label class="req">Flächenkleber</label>
-              <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                  value="Flächenkleber R_4260602" checked aria-required="true" /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                    alt="Flachen" loading="lazy" /></span><span class="caption">Flächenkleber</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvFlachenQty">Menge Flächenkleber</label>
-                <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
-                <div id="wvAdhesiveSuggestion" style="
-                    margin-top: 6px;
-                    font-size: 0.9rem;
-                    color: var(--muted, #8a8a8a);
-                  "></div>
+          <div class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Zubehör</div>
+            <div class="sec-settings__group">
+              <div id="wvSealingSection" class="dw-acc">
+                <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
+                    value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Wandabdichtung BASIS-Set</span><small>TRINNITY · TRWDSET5</small></span></label>
+              </div>
+              <div id="flechenSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
+                    value="Flächenkleber R_4260602" checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/Flächen-Kleber.PNG" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Flächenkleber</span><small>R_4260602 <span id="wvAdhesiveSuggestion"></span></small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvFlachenQty" name="wvFlachenQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label="Menge Flächenkleber" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div id="wvProfileAdhesiveSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
+                    checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/silikon_ransauer.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Silikon</span><small>Kartuschen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvSilikonQty" name="wvSilikonQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label="Menge Silikon" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
             </div>
-
-            <div id="wvProfileAdhesiveSection" class="field">
-              <label class="req">Silikon</label>
-              <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                  checked aria-required="true" /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" loading="lazy" /></span><span
-                  class="caption">Silikon</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvSilikonQty">Menge Silikon</label>
-                <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
           </div>
 
           <!-- Standard (Keramico): Badolux-Zubehör aus dem cleverbad.de-Shop, Mengen von Hand
                (wvBx_*/wvBxQty_*, additiv — fehlen in jedem Altangebot). -->
-          <div id="wvBadoluxAccSection" class="full" hidden aria-hidden="true">
-            <div class="section-title">Badolux-Zubehör (Keramico)</div>
-            <div class="product-tile-grid">
-            <div class="field wv-bx">
-              <label>Polymer Kleber Weiß</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PR101VBM3" name="wvBx_PR101VBM3" data-product-id="PR101VBM3" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PR101VBM3.webp" alt="Polymer Kleber Weiß 290 ml" loading="lazy" /></span><span class="caption">Polymer Kleber Weiß 290 ml · PR101VBM3</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PR101VBM3">Menge (Kartuschen)</label>
-                <input id="wvBxQty_PR101VBM3" name="wvBxQty_PR101VBM3" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Dichtband Blau</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PR47VBM02" name="wvBx_PR47VBM02" data-product-id="PR47VBM02" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PR47VBM02.webp" alt="Dichtband Blau" loading="lazy" /></span><span class="caption">Dichtband Blau · PR47VBM02</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PR47VBM02">Menge (lfm)</label>
-                <input id="wvBxQty_PR47VBM02" name="wvBxQty_PR47VBM02" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Abdichtung Innenecke</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM03" name="wvBx_PR59VBM03" data-product-id="PR59VBM03" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PR59VBM03.webp" alt="Abdichtung DIN 18534 Innenecke" loading="lazy" /></span><span class="caption">Abdichtung DIN 18534 Innenecke · PR59VBM03</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PR59VBM03">Menge (Stück)</label>
-                <input id="wvBxQty_PR59VBM03" name="wvBxQty_PR59VBM03" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Abdichtung Außenecke</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM05" name="wvBx_PR59VBM05" data-product-id="PR59VBM05" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PR59VBM05.webp" alt="Abdichtung DIN 18534 Außenecke" loading="lazy" /></span><span class="caption">Abdichtung DIN 18534 Außenecke · PR59VBM05</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PR59VBM05">Menge (Stück)</label>
-                <input id="wvBxQty_PR59VBM05" name="wvBxQty_PR59VBM05" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Wandmanschette</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM07" name="wvBx_PR59VBM07" data-product-id="PR59VBM07" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PR59VBM07.webp" alt="Wandmanschette Rohrdurchführung" loading="lazy" /></span><span class="caption">Wandmanschette Rohrdurchführung · PR59VBM07</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PR59VBM07">Menge (Stück)</label>
-                <input id="wvBxQty_PR59VBM07" name="wvBxQty_PR59VBM07" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Fliesenabschlussleiste</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM01" name="wvBx_PRI130VBM01" data-product-id="PRI130VBM01" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PRI130VBM01.webp" alt="Fliesenabschlussleiste Edelstahl 2550 mm" loading="lazy" /></span><span class="caption">Fliesenabschlussleiste Edelstahl 2550 mm · PRI130VBM01</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PRI130VBM01">Menge (Stück)</label>
-                <input id="wvBxQty_PRI130VBM01" name="wvBxQty_PRI130VBM01" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-            <div class="field wv-bx">
-              <label>Abschluss-Würfel</label>
-              <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM02" name="wvBx_PRI130VBM02" data-product-id="PRI130VBM02" /><span class="img-wrap"><img
-                    src="./assets/badolux/zubehoer/PRI130VBM02.webp" alt="Abschluss-Würfel Edelstahl poliert" loading="lazy" /></span><span class="caption">Abschluss-Würfel Edelstahl poliert · PRI130VBM02</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvBxQty_PRI130VBM02">Menge (Stück)</label>
-                <input id="wvBxQty_PRI130VBM02" name="wvBxQty_PRI130VBM02" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
+          <div id="wvBadoluxAccSection" class="full sec-settings dw-acc-list" hidden aria-hidden="true">
+            <div class="sec-settings__label">Badolux-Zubehör (Keramico)</div>
+            <div class="sec-settings__group">
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR101VBM3" name="wvBx_PR101VBM3" data-product-id="PR101VBM3" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR101VBM3.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Polymer Kleber Weiß</span><small>Polymer Kleber Weiß 290 ml · PR101VBM3 · Kartuschen</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR101VBM3" name="wvBxQty_PR101VBM3" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR47VBM02" name="wvBx_PR47VBM02" data-product-id="PR47VBM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR47VBM02.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Dichtband Blau</span><small>Dichtband Blau · PR47VBM02 · lfm</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR47VBM02" name="wvBxQty_PR47VBM02" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM03" name="wvBx_PR59VBM03" data-product-id="PR59VBM03" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM03.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtung Innenecke</span><small>Abdichtung DIN 18534 Innenecke · PR59VBM03 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM03" name="wvBxQty_PR59VBM03" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM05" name="wvBx_PR59VBM05" data-product-id="PR59VBM05" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM05.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtung Außenecke</span><small>Abdichtung DIN 18534 Außenecke · PR59VBM05 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM05" name="wvBxQty_PR59VBM05" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM07" name="wvBx_PR59VBM07" data-product-id="PR59VBM07" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM07.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Wandmanschette</span><small>Wandmanschette Rohrdurchführung · PR59VBM07 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM07" name="wvBxQty_PR59VBM07" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM01" name="wvBx_PRI130VBM01" data-product-id="PRI130VBM01" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PRI130VBM01.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Fliesenabschlussleiste</span><small>Fliesenabschlussleiste Edelstahl 2550 mm · PRI130VBM01 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PRI130VBM01" name="wvBxQty_PRI130VBM01" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM02" name="wvBx_PRI130VBM02" data-product-id="PRI130VBM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PRI130VBM02.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschluss-Würfel</span><small>Abschluss-Würfel Edelstahl poliert · PRI130VBM02 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PRI130VBM02" name="wvBxQty_PRI130VBM02" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
             </div>
           </div>
 
-          <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
-               so the image/footer sections line up even though V3V has more fields. -->
-          <div class="full">
-            <div class="section-title">Abschluss- &amp; Verbindungsprofile</div>
-          </div>
-          <div class="full wv-profile-row">
-
-            <div id="wvEndProfileSection" class="wv-profile-card">
-              <div class="card-head">
-                <div class="card-title req">Abschlussprofil 3.0 255 cm silber eloxiert</div>
-                <div class="card-sub">Schließt offene, sichtbare Kanten der Wandverkleidung ab (z. B. an Decke, Boden oder freien Enden).</div>
+          <div class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Abschluss- und Verbindungsprofile</div>
+            <div class="sec-settings__group">
+              <div id="wvEndProfileSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
+                    checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil V3A</span><small>255 cm silber eloxiert · nicht automatisch berechnet, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvEndProfileQty" name="wvEndProfileQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge Abschlussprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
-              <div class="card-body">
-                <label class="image-check">
-                  <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                    checked aria-required="true" />
-                  <span class="img-wrap">
-                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" loading="lazy" />
-                  </span>
-                  <span class="caption">Abschlussprofil V3A</span>
-                </label>
-                <div class="qty-area">
-                  <div class="field">
-                    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" aria-required="true" />
-                  </div>
+              <div id="wvV3VDiv" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/V3V.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil V3V</span><small>255 cm silber eloxiert · an Außenecken nicht nötig</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvV3VQty" name="wvV3VQty" type="number" inputmode="numeric" min="0" step="1" value="0" aria-required="true" aria-label="Menge Verbindungsprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                <div class="card-foot tone-info wv-v3v-hint" id="wvV3VFoot">
+                  <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
+                  <div id="wvV3VRuleText"></div>
                 </div>
               </div>
-              <div class="card-foot tone-info">
-                <span class="ic" aria-hidden="true">ℹ️</span>
-                <span>Diese Menge wird <strong>nicht automatisch berechnet</strong>. Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen.</span>
+              <div class="sec-settings__row">
+                <label for="wvCornersCount" class="sec-settings__text"><strong>Außenecken</strong><small>Jede Außenecke spart ein V3V</small></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input type="number" name="wvCornersCount" id="wvCornersCount" inputmode="numeric" min="0" step="1" value="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
-            </div>
-
-            <div id="wvV3VDiv" class="wv-profile-card">
-              <div class="card-head">
-                <div class="card-title req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</div>
-                <div class="card-sub">Verbindet zwei Wandplatten an einer geraden Stoßkante. An Außenecken wird stattdessen ein Eckstück verwendet – dort braucht es kein V3V.</div>
-              </div>
-              <div class="card-body">
-                <label class="image-check">
-                  <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
-                  <span class="img-wrap">
-                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" loading="lazy" />
-                  </span>
-                  <span class="caption">Verbindungsprofil V3V</span>
-                </label>
-                <div class="qty-area">
-                  <div class="field">
-                    <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" aria-required="true" />
-                  </div>
-                  <div class="field">
-                    <!-- Wandverkleidung: Ecke(n) vorhanden -->
-                    <label for="wvCornersCount">Außenecke(n) vorhanden</label>
-                    <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0" />
-                  </div>
-                </div>
-              </div>
-              <div class="card-foot tone-info" id="wvV3VFoot">
-                <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
-                <div id="wvV3VRuleText"></div>
-              </div>
-
               <div id="wvCornersWrap" hidden aria-hidden="true" style="display:none">
                 <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
                 <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
               </div>
             </div>
+          </div>
 
+          <!-- Skizze & Notiz: standardmäßig zu; öffnet sich bei gespeicherter Skizze/Notiz
+               (syncWvDisclosures) und zeichnet die Skizze beim Öffnen in voller Größe. -->
+          <details class="full sec-settings wv-sketch" id="wvSketchDetails">
+            <summary class="sec-settings__group ios-disclosure-summary">Skizze und Notiz</summary>
+            <div class="wv-sketch__body">
+              <div class="project-sketch" data-sketch-key="wv">
+              <div class="project-sketch__head">
+                <div>
+                  <div class="project-sketch__title">Projekt-Skizze</div>
+                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+                </div>
+
+                <div class="project-sketch__controls">
+                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+
+                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                  </div>
+
+                  <div class="project-sketch__colors" role="group" aria-label="Farben">
+                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                  </div>
+
+                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+                </div>
+              </div>
+
+              <div class="project-sketch__canvas-wrap">
+                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              </div>
+
+              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
+              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
+            </div>
+              <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
+            <textarea id="wvNote" name="wvNote" rows="4"
+              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
+            </div>
+          </details>
+
+          <div class="full sec-settings wv-summary">
+            <div class="sec-settings__label">Ihre Auswahl</div>
+            <div id="wvProductCard" class="sec-settings__group" hidden></div>
           </div>
 
           <div class="actions full">

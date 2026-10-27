@@ -6274,7 +6274,9 @@ async function renderBudgetWvColors() {
 
     const caption = document.createElement("span");
     caption.className = "caption";
-    caption.textContent = it.name;
+    // The group label says "Standard (Badolux)"; the tile shows just the decor.
+    // Display only — the value keeps the full name.
+    caption.textContent = it.name.replace(/^(Standard-Dekor|Wandpaneel)\s+/i, "") || it.name;
 
     label.appendChild(input);
     label.appendChild(imgWrap);
@@ -7975,21 +7977,25 @@ function setupWandverkleidungPage() {
       return `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${qty}</span>Im eigenen Lager</span>`;
     }
 
-    function buildCardHtml(d, artId) {
-      const inStock = d.stockQuantity > 0;
-      return `<div class="wv-product-card">
-        ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
-        <div class="wv-product-card-info">
-          <div class="wv-product-card-name">${d.name || artId}</div>
-          <div class="wv-product-card-art">${artId}</div>
+    // Ihre Auswahl: one block per size — picture of the chosen Dekor (our
+    // colour-corrected tile photo), name, colour · Art.-Nr., qty × price, badges.
+    function buildCardHtml(d, artId, p = {}) {
+      const tile = [...page.querySelectorAll('#wvColors input[name="wvColor"]')].find(
+        (r) => r.value.trim().toLowerCase() === p.ck,
+      )?.closest("label");
+      const pic = tile?.querySelector("img")?.getAttribute("src") || d.image || "";
+      const colour = tile?.querySelector(".caption")?.textContent || "";
+      const qty = Number(p.qty) || 0;
+      const eur = (n) => n.toFixed(2).replace(".", ",");
+      return `<div class="wvc-sel">
+        ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="${d.name}" />` : ""}
+        <div class="wvc-sel__info">
+          <strong class="wvc-sel__name">${d.name || artId}</strong>
+          <span class="wvc-sel__meta">${colour ? `${colour} · ` : ""}Art.-Nr. ${artId}</span>
+          ${d.netPrice ? `<span class="wvc-sel__price">${qty > 0 ? `${qty} × ` : ""}${eur(d.netPrice)} €${qty > 1 ? ` <small>= ${eur(d.netPrice * qty)} €</small>` : ""}</span>` : ""}
+          <span class="wvc-sel__badges">${stockSpan(d)}${ownLagerBadge(artId)}</span>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-          ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
-          <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
-        </div>
-      </div>
-      ${stockSpan(d)}
-      ${ownLagerBadge(artId)}`;
+      </div>`;
     }
 
     async function fetchFull(artId) {
@@ -8013,23 +8019,24 @@ function setupWandverkleidungPage() {
       const cb1497 = document.getElementById("wv1497");
       const panels = [];
 
+      const qtyOf = (id) => document.getElementById(id)?.value || 0;
       if (cb997?.checked) {
         const ck = selectColorKey("wvColor_997") || globalColor;
-        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
+        if (ck !== "sonderdekor") panels.push({ ck, qty: qtyOf("wvQty997"), artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
       }
       if (cb1497?.checked) {
         const ck = selectColorKey("wvColor_1497") || globalColor;
-        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+        if (ck !== "sonderdekor") panels.push({ ck, qty: qtyOf("wvQty1497"), artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
       }
       // no checkboxes present — fallback to global color, 997 article
       if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
-        panels.push({ artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
+        panels.push({ ck: globalColor, artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
       }
 
       if (!panels.length) { cardEl.hidden = true; return; }
 
-      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ artId: p.artId, d }))));
-      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId));
+      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ p, artId: p.artId, d }))));
+      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId, r.p));
       if (!parts.length) { cardEl.hidden = true; return; }
       cardEl.innerHTML = parts.join("");
       cardEl.hidden = false;
@@ -8101,6 +8108,9 @@ function setupWandverkleidungPage() {
     document.getElementById("wv1497")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    // Quantities feed "n × price" — the steppers fire input/change.
+    document.getElementById("wvQty997")?.addEventListener("change", renderCard);
+    document.getElementById("wvQty1497")?.addEventListener("change", renderCard);
     document.addEventListener("wvOwnLagerLoaded", () => { renderCard(); applyOwnLagerToTiles(); });
     renderCard();
     applyOwnLagerToTiles();
@@ -12211,6 +12221,48 @@ makeFloorCalc({
     if (cb) cb.checked = Number(t.value) > 0;
   });
 })();
+
+/* ========== iOS stepper (− n +) — any .ios-stepper around a number input ==========
+   Writes the value and fires input + change, so every existing qty listener
+   (pricing, checkbox↔qty sync, V3V hint) reacts exactly as to typing. */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest?.(".ios-stepper button[data-step]");
+  if (!btn) return;
+  const input = btn.parentElement.querySelector('input[type="number"]');
+  if (!input || input.disabled) return;
+  const min = input.min === "" ? 0 : Number(input.min);
+  const max = input.max === "" ? Infinity : Number(input.max);
+  const next = Math.min(max, Math.max(min, (parseInt(input.value, 10) || 0) + Number(btn.dataset.step)));
+  if (String(next) === input.value) return;
+  input.value = String(next);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+});
+
+/* ========== Wandverkleidung: disclosures follow the saved data ==========
+   "Andere Farbe" opens when a size has its own colour or extra colour rows;
+   "Skizze und Notiz" opens when a sketch or note exists. Only called after a
+   restore, so it sets the state exactly (an offer opened before must not leave
+   its sections open for the next one). */
+function syncWvDisclosures(wv) {
+  for (const size of [997, 1497]) {
+    const det = document.getElementById(`wvColor_${size}`)?.closest("details");
+    const extras = document.querySelectorAll(`#wvExtraList${size} .wv-extra-row`).length;
+    if (det) det.open = !!(document.getElementById(`wvColor_${size}`).value || extras);
+  }
+  // From the saved data: the pad only fills its hidden fields once the canvas is
+  // visible, which a closed section never is.
+  const sketch = document.getElementById("wvSketchDetails");
+  let ops = 0;
+  const raw = wv?.sketch?.json || (typeof wv?.sketch === "string" ? wv.sketch : "") || wv?.wvSketchJson || "";
+  try { ops = JSON.parse(raw || "{}").ops?.length || 0; } catch { ops = raw ? 1 : 0; }
+  if (sketch) sketch.open = !!(ops || String(wv?.wvNote || "").trim());
+}
+window.syncWvDisclosures = syncWvDisclosures;
+// The canvas measures itself; while closed it is 0 px wide, so redraw on open.
+document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
+  if (e.target.open) window.dispatchEvent(new Event("resize"));
+});
 
 /* ========== Keramico-Bedarfsrechner (Wandverkleidung, Standard) ==========
    Same rule as „Bedarf berechnen" on cleverbad.de (Badolux's shop): the wall
@@ -16584,6 +16636,7 @@ function restoreWV(wv) {
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
+  setTimeout(() => window.syncWvDisclosures?.(wv), 0); // extra colour rows are rebuilt below
 
   const pageWV = document.getElementById("page-Wandverkleidung");
   if (pageWV?.__syncWvSonderDecorUi) pageWV.__syncWvSonderDecorUi();
@@ -18080,6 +18133,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     restoreSketchFor("hms", p?.hms);
     restoreSketchFor("wd", p?.wd);
     restoreSketchFor("wv", p?.wandverkleidung);
+    setTimeout(() => window.syncWvDisclosures?.(p?.wandverkleidung), 400);
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
