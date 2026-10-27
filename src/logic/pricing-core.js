@@ -89,6 +89,9 @@ export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
   "140322", // Lieferkosten Badewannentür — logistics fee, not Hassmann material
+  "WS-ZUSCHNITT", // winwall Zuschnitt — service, billed at cost
+  "WS-FRACHT", // winwall Lieferkosten — logistics fee
+  "WS-FRACHT-GROSS", // winwall Lieferkosten Großplatte — logistics fee
 ]);
 
 // JSON.stringify with object keys sorted at every level, so two payloads with
@@ -200,6 +203,147 @@ export function vigourPanelPlan(situation, widths = {}, { heightCm = null, price
   return { ...plan, qty997: n(997), qty1497: n(1497) };
 }
 
+// ---------------------------------------------------------------------------
+// winwall Wandverkleidung (3 mm Aluverbund), second supplier next to VIGOUR,
+// default for new offers since 2026-10. Article = WS + decor code + format code.
+// Net dealer prices: winwall Händlerpreisliste 2026 (Stand 03/2026).
+export const WINWALL_DECORS = [
+  { code: "000", name: "weiß" },
+  { code: "203", name: "Marmor weiß" },
+  { code: "204", name: "Marmor grau" },
+  { code: "229", name: "Struktur steingrau" },
+  { code: "226", name: "Struktur dunkelgrau" },
+  { code: "248", name: "Steinwand grau" },
+  { code: "233", name: "Beton" },
+  { code: "225", name: "Kalkstein beige" },
+  { code: "290", name: "Eiche hell" },
+  { code: "227", name: "Struktur anthrazit" },
+];
+// `set` = two panels of the same decor; `single` = the format code of one panel.
+export const WINWALL_FORMATS = [
+  { code: "13", widthCm: 100, heightCm: 205, price: 111.47 },
+  { code: "15", widthCm: 100, heightCm: 250, price: 132.35 },
+  { code: "16", widthCm: 125, heightCm: 250, price: 173.53 },
+  { code: "17", widthCm: 150, heightCm: 250, price: 217.5 },
+  { code: "23", widthCm: 100, heightCm: 205, price: 220.59, set: true, single: "13" },
+  { code: "25", widthCm: 100, heightCm: 250, price: 261.76, set: true, single: "15" },
+  { code: "26", widthCm: 125, heightCm: 250, price: 338.24, set: true, single: "16" },
+];
+export const WINWALL_SINGLE_FORMATS = ["13", "15", "16", "17"];
+// Formats counted as „Großplatte“ for freight (85 € instead of 45,50 €).
+// ponytail: assumption until winwall confirms — the 150 cm wide panels.
+export const WINWALL_LARGE_FORMATS = ["17"];
+export const WINWALL_EXTRAS = [
+  { id: "WS80110", name: "winwall Abschlussprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80111", name: "winwall Inneneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80112", name: "winwall Außeneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80113", name: "winwall Verbindungsprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80102", name: "winwall Silikonkleber Novasil S800 weiß, Kartusche 290 ml", price: 10.5 },
+  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 169 },
+  { id: "WS80302", name: "winwall Abdichtungsset 6,25 m² (DIN 18534-1)", price: 196 },
+  { id: "WS-ZUSCHNITT", name: "winwall Zuschnitt (gerade Schnitte, je Platte)", price: 10 },
+  { id: "WS-FRACHT", name: "winwall Lieferkosten je Bestellung", price: 45.5 },
+  { id: "WS-FRACHT-GROSS", name: "winwall Lieferkosten Großplatte", price: 85 },
+];
+export const WINWALL_PROFILES = { abschluss: "WS80110", innenecke: "WS80111", aussenecke: "WS80112", verbindung: "WS80113" };
+
+const wwFormat = (code) => WINWALL_FORMATS.find((f) => f.code === code);
+
+/**
+ * Panel plan for winwall from the wall widths (same walls and strip rule as the
+ * Keramico/Vigour calculator). Up to 205 cm cladding height only 100 × 205 is
+ * used — by far the cheapest per cm; above that the cheapest mix of
+ * 100/125/150 × 250 over the whole job. Returns `qty` per format code.
+ */
+export function winwallPanelPlan(situation, widths = {}, { heightCm = null } = {}) {
+  const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const low = H > 0 && H <= 205.5;
+  const codes = low ? ["13"] : ["17", "16", "15"];
+  const panelH = low ? 205 : 250;
+  const wallMm = [];
+  const walls = planWalls(sit, widths, (key, index, mm) => wallMm.push({ key, index, mm }));
+  const perPanel = H > 0 && H < panelH - 0.5
+    ? Math.max(1, Math.floor((panelH + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  // Per wall: counts of the wider formats; the narrowest fills the rest.
+  const [narrow, ...wide] = [...codes].reverse();
+  const options = wallMm.map(({ mm }) => {
+    const out = [];
+    const rec = (i, counts, rest) => {
+      if (i === wide.length) {
+        const n = Math.max(0, Math.ceil((rest - 5) / (wwFormat(narrow).widthCm * 10)));
+        out.push({ ...counts, [narrow]: n });
+        return;
+      }
+      const w = wwFormat(wide[i]).widthCm * 10;
+      for (let c = 0; c <= Math.ceil(rest / w); c++) rec(i + 1, { ...counts, [wide[i]]: c }, Math.max(0, rest - c * w));
+    };
+    rec(0, {}, mm);
+    return out;
+  });
+  let best = null;
+  const walk = (i, picked) => {
+    if (i === options.length) {
+      const tot = {};
+      for (const o of picked) for (const [c, n] of Object.entries(o)) tot[c] = (tot[c] || 0) + n;
+      const cost = Object.entries(tot).reduce((a, [c, n]) => a + Math.ceil(n / perPanel) * wwFormat(c).price, 0);
+      const n = Object.values(tot).reduce((a, b) => a + b, 0);
+      if (!best || cost < best.cost - 0.005 || (Math.abs(cost - best.cost) <= 0.005 && n < best.n)) best = { cost, n, picked: [...picked] };
+      return;
+    }
+    for (const o of options[i]) walk(i + 1, [...picked, o]);
+  };
+  walk(0, []);
+  const pieces = [];
+  wallMm.forEach(({ key, index, mm }, i) => {
+    let x = 0;
+    for (const c of codes) {
+      for (let k = 0; k < (best.picked[i][c] || 0); k++) {
+        const size = wwFormat(c).widthCm;
+        const w = Math.min(size * 10, mm - x);
+        if (w <= 0) break;
+        pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < size * 10 - 5, size, format: c });
+        x += w;
+      }
+    }
+  });
+  const plan = finishPlan(sit, walls, pieces, heightCm, true, panelH);
+  const qty = {};
+  for (const c of codes) qty[c] = plan.panels.filter((p) => p.size === wwFormat(c).widthCm).length;
+  return { ...plan, qty };
+}
+
+/** Panels per single format → order lines: two of a kind become a set (cheaper). */
+export function winwallOrderLines(decor, qtyByFormat = {}) {
+  const lines = [];
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
+    if (!n) continue;
+    const set = WINWALL_FORMATS.find((f) => f.set && f.single === code);
+    const sets = set ? Math.floor(n / 2) : 0;
+    if (sets) lines.push({ productId: `WS${decor}${set.code}`, qty: sets, format: set, panels: sets * 2 });
+    if (n - sets * 2) lines.push({ productId: `WS${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
+  }
+  return lines;
+}
+
+/** Cheapest combination of the two sealing sets that covers `areaM2`. */
+export function winwallSealingSets(areaM2) {
+  const a = Number(areaM2) || 0;
+  if (a <= 0) return [];
+  let best = null;
+  for (let big = 0; big <= Math.ceil(a / 6.25); big++) {
+    const small = Math.max(0, Math.ceil((a - big * 6.25 - 1e-9) / 5));
+    const cost = big * 196 + small * 169;
+    if (!best || cost < best.cost) best = { cost, big, small };
+  }
+  return [
+    ...(best.small ? [{ productId: "WS80301", qty: best.small }] : []),
+    ...(best.big ? [{ productId: "WS80302", qty: best.big }] : []),
+  ];
+}
+
 function planWalls(sit, widths, each) {
   return KERAMICO_SITUATIONS[sit].walls.map((key, index) => {
     const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
@@ -210,11 +354,11 @@ function planWalls(sit, widths, each) {
 }
 
 // Height reuse, panel numbers and cut counts, per panel width (`size`, cm).
-function finishPlan(sit, walls, pieces, heightCm, reuse) {
+function finishPlan(sit, walls, pieces, heightCm, reuse, panelH = KERAMICO_HEIGHT_CM) {
   const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
-  const low = H > 0 && H < KERAMICO_HEIGHT_CM - 0.5;
+  const low = H > 0 && H < panelH - 0.5;
   const perPanel = low && reuse
-    ? Math.max(1, Math.floor((KERAMICO_HEIGHT_CM + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    ? Math.max(1, Math.floor((panelH + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
     : 1;
   pieces.forEach((p, i) => { p.feld = i + 1; });
   const panels = [];
@@ -231,7 +375,7 @@ function finishPlan(sit, walls, pieces, heightCm, reuse) {
   let hoehenSchnitte = 0;
   if (low) {
     for (const { strips } of panels) {
-      const rest = KERAMICO_HEIGHT_CM - strips * H - (strips - 1) * KERAMICO_CUT_CM;
+      const rest = panelH - strips * H - (strips - 1) * KERAMICO_CUT_CM;
       hoehenSchnitte += rest > 0.5 ? strips : strips - 1;
     }
   }
@@ -242,6 +386,7 @@ function finishPlan(sit, walls, pieces, heightCm, reuse) {
     walls,
     pieces,
     panels,
+    panelHeightCm: panelH,
     heightCm: low ? H : null,
     perPanel,
     gesamt,
@@ -1003,10 +1148,14 @@ function grossToNet(gross, taxRate) {
     const wvColorRaw = String(wv?.wvColor || "").trim();
     const keramicoPid = wvColorRaw.includes("|") ? wvColorRaw.split("|", 1)[0].trim() : "";
     const isKeramico = /^WP/i.test(keramicoPid);
+    // winwall (since 2026-10): its own panels and accessories replace the VIGOUR
+    // ones. Only offers that say so explicitly — a missing wvSupplier (every
+    // older offer) is VIGOUR, priced exactly as before.
+    const isWinwall = !isKeramico && wv?.wvSupplier === "ww";
 
     // Main panel quantity (user picks one color + qty here)
-    const qty997 = isKeramico ? 0 : Number(wv?.wvQty997 || 0) || 0;
-    const qty1497 = isKeramico ? 0 : Number(wv?.wvQty1497 || 0) || 0;
+    const qty997 = isKeramico || isWinwall ? 0 : Number(wv?.wvQty997 || 0) || 0;
+    const qty1497 = isKeramico || isWinwall ? 0 : Number(wv?.wvQty1497 || 0) || 0;
 
     // OLD global color (fallback)
     const wvColor = String(wv?.wvColor || "").trim();
@@ -1042,8 +1191,8 @@ function grossToNet(gross, taxRate) {
       return fromCfg || [];
     };
 
-    const extras997 = isKeramico ? [] : readExtras("997x2550");
-    const extras1497 = isKeramico ? [] : readExtras("1497x2550");
+    const extras997 = isKeramico || isWinwall ? [] : readExtras("997x2550");
+    const extras1497 = isKeramico || isWinwall ? [] : readExtras("1497x2550");
     const sumQty = (rows) =>
       rows.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
     const extrasQty997 = sumQty(extras997);
@@ -1161,8 +1310,39 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       }
     }
 
-    if (wv?.wvSealing) add("TRWDSET5", 1);
-    if (wv?.flechenkleber) {
+    // ------- winwall panels + accessories
+    let winwallPanels = 0;
+    if (isWinwall) {
+      const decorCode = String(wv?.wvWwDecor || "203");
+      const decor = WINWALL_DECORS.find((d) => d.code === decorCode) || { code: decorCode, name: decorCode };
+      const qtyByFormat = {};
+      for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
+      let coverM2 = 0;
+      let large = false;
+      for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
+        const f = l.format;
+        winwallPanels += l.panels;
+        coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
+        if (WINWALL_LARGE_FORMATS.includes(f.set ? f.single : f.code)) large = true;
+        const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
+        add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decor.name} (WS ${decor.code})`);
+      }
+      // Profiles + adhesive: switch + quantity, like the Badolux accessories.
+      for (const sku of [...Object.values(WINWALL_PROFILES), "WS80102"]) {
+        const q = Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0);
+        if (wv?.[`wvWw_${sku}`] && q > 0) add(sku, q);
+      }
+      // Sealing sets by area: the Wandfläche, else what the panels cover.
+      if (wv?.wvWwSealing) {
+        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
+        for (const l of winwallSealingSets(area)) add(l.productId, l.qty);
+      }
+      if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
+      if (winwallPanels > 0) add(large ? "WS-FRACHT-GROSS" : "WS-FRACHT", 1);
+    }
+
+    if (wv?.wvSealing && !isWinwall) add("TRWDSET5", 1);
+    if (wv?.flechenkleber && !isWinwall) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
       const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497 + 2 * keramicoQty;
       const qAdh =
@@ -1173,7 +1353,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add("R_4260602", qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
     }
     let endProfilesQty = 0;
-    if (wv?.wvEndProfile) {
+    if (wv?.wvEndProfile && !isWinwall) {
       endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
       if (endProfilesQty > 0) add("V3A", endProfilesQty);
     }
@@ -1183,7 +1363,9 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     const corners = Number(wv?.wvCornersCount || 0) || 0;
 
     // If the user provided a value (including 0), use it; else fall back to (panels - 1)
-    if (
+    if (isWinwall) {
+      // winwall brings its own Verbindungsprofil (WS80113) above.
+    } else if (
       userRaw !== undefined &&
       userRaw !== null &&
       String(userRaw).trim() !== ""
@@ -1203,7 +1385,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       const q = Math.round(Number(String(wv?.[`wvBxQty_${sku}`] ?? "").replace(",", ".")) || 0);
       if (wv?.[`wvBx_${sku}`] && q > 0) add(sku, q);
     }
-    if (wv?.wvSilikon) {
+    if (wv?.wvSilikon && !isWinwall) {
       const userQtySilikon = Number(wv?.wvSilikonQty);
       const qtyAbschlussprofil = endProfilesQty;
       // this is the qty of V3A
