@@ -11306,6 +11306,18 @@ const TRAY_STOCK_SOON = {
   9: "Nachtverbund bis 18 Uhr",
 };
 
+// Result list only (the offer keeps the full name): "Duschwanne Slate
+// 120x90x3cm Mineralguss weiss Nuovvo" → "Slate 120 × 90 × 3 cm, Mineralguss weiß".
+function shortTrayName(name) {
+  let s = String(name || "").replace(/\bDuschwanne\b/gi, " ").replace(/\bNuovvo\b/gi, " ");
+  s = s.replace(
+    /(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)(?:\s*[x×]\s*(\d+(?:[.,]\d+)?))?\s*(?:cm)?/i,
+    (m, a, b, c) => ` ${[a, b, c].filter(Boolean).join(" × ")} cm,`,
+  );
+  s = s.replace(/\bweiss\b/gi, "weiß").replace(/\s+/g, " ").replace(/\s+,/g, ",").trim();
+  return s.replace(/,$/, "") || String(name || "");
+}
+
 function trayStockState(p) {
   const qty = Number(p?.stockQuantity) || 0;
   if (qty > 0) return { cls: "sc-stock--in", glyph: String(qty), text: "Auf Lager" };
@@ -12740,7 +12752,7 @@ function initSmartTraySearch() {
     lineHint.innerHTML = `
       <div class="tlh-text">
         <strong>Diese Größe gibt es auch als Standard (Badolux) — ${euroDe(save)} € günstiger.</strong>
-        <span>${escapeHtml(alt.name || alt.productId)} · ${alt.widthCm} × ${alt.lengthCm} cm · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
+        <span>${escapeHtml(shortTrayName(alt.name || alt.productId))} · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
       </div>
       <button type="button" class="secondary" data-tray-line-switch>Auf Standard wechseln</button>`;
     lineHint.hidden = false;
@@ -12805,7 +12817,8 @@ function initSmartTraySearch() {
     persistSelection(
       pid,
       label,
-      inputEl.closest(".suggestion-card")?.querySelector(".sc-title")?.textContent?.trim(),
+      // The list shows a shortened name; the saved selection keeps the full one.
+      inputEl.closest(".suggestion-card")?.dataset.fullName?.trim(),
     );
     applySelectedStyles();
     updateLineHint();
@@ -12830,32 +12843,39 @@ function initSmartTraySearch() {
   };
 
   // ----- render -----
-  // Build the HTML for a single suggestion card.
-  // All cards share name="traySuggestion" so selection is single across rows.
+  // Build the HTML for one result row (iOS grouped list, 2026-10-27).
+  // All rows share name="traySuggestion" so selection is single across rows.
   const buildCard = (p, domId, sourceLabel, isBest, checked, pinned) => {
-    let dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
-    if (sourceLabel === "Badolux" && p.heightCm) {
-      dims += ` · H ${String(p.heightCm).replace(".", ",")} cm`;
-    }
-    // Badolux: the cleverbad.de article number (what gets ordered).
-    if (p.articleNumber) dims += ` · Art.-Nr. ${escapeHtml(p.articleNumber)}`;
-    const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
-    const title = p.name || p.productId || "Duschwanne";
+    const fullName = p.name || p.productId || "Duschwanne";
+    const title = shortTrayName(fullName);
+    // Size only when the short name doesn't already say it; Badolux adds the
+    // height and the cleverbad.de article number (what gets ordered).
+    const extras = [];
+    const size = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ");
+    const sizeRev = [p.lengthCm, p.widthCm].filter(Boolean).join(" × ");
+    if (size && !title.includes(size) && !title.includes(sizeRev)) extras.push(`${size} cm`);
+    if (sourceLabel === "Badolux" && p.heightCm) extras.push(`H ${String(p.heightCm).replace(".", ",")} cm`);
+    if (p.articleNumber) extras.push(`Art.-Nr. ${escapeHtml(p.articleNumber)}`);
+    const price =
+      p.price != null
+        ? `${Number(p.price).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+        : "";
     const value = p.productId || "";
     const isBudget = sourceLabel === "Badolux";
 
-    // Only articles the vigor DB actually knows get a badge — no data is not the
-    // same as "not available".
+    // Only articles the vigor DB actually knows get a stock line — no data is not
+    // the same as "not available".
     const hasStock = p.stockQuantity != null || p.stockText != null;
     const stock = hasStock ? trayStockState(p) : null;
-    const stockBadge = stock
-      ? `<span class="sc-stock ${stock.cls}" title="${escapeHtml(p.stockText || "").replace(/"/g, "&quot;")}">
-              <span class="sc-stock-qty">${stock.glyph}</span>${stock.text}
-            </span>`
+    const stockHtml = stock
+      ? `<span class="sc-stock ${stock.cls}" title="${escapeHtml(p.stockText || "").replace(/"/g, "&quot;")}"><span class="sc-dot" aria-hidden="true"></span>${
+          stock.cls === "sc-stock--in" ? `${stock.glyph} auf Lager` : stock.text
+        }</span>`
       : "";
 
     return `
-        <label class="suggestion-card${isBudget ? " is-budget" : ""}${pinned ? " is-pinned" : ""}" for="${domId}">
+        <label class="suggestion-card${isBudget ? " is-budget" : ""}${pinned ? " is-pinned" : ""}" for="${domId}"
+               data-full-name="${escapeHtml(fullName).replace(/"/g, "&quot;")}" title="${escapeHtml(fullName).replace(/"/g, "&quot;")}">
           <input type="radio"
                  id="${domId}"
                  name="traySuggestion"
@@ -12865,18 +12885,16 @@ function initSmartTraySearch() {
                  data-h="${p.heightCm || ""}"
                  ${checked ? "checked" : ""} />
           <div class="sc-body">
-            <div class="sc-header">
-              <span class="sc-title">${title}</span>
-              ${price ? `<span class="sc-price">${price}</span>` : ""}
-            </div>
-            <div class="sc-dims">${dims}</div>
-            <div class="sc-badges">
+            <span class="sc-title">${escapeHtml(title)}</span>
+            <div class="sc-sub">
               ${isBest ? `<span class="sc-badge sc-badge--best">Beste Übereinstimmung</span>` : ""}
-              <span class="sc-badge sc-badge--source">${sourceLabel}</span>
+              ${stockHtml}
+              ${extras.length ? `<span class="sc-dims">${extras.join(" · ")}</span>` : ""}
+              <span class="sc-source">${sourceLabel}</span>
             </div>
-            ${stockBadge}
           </div>
-          <div class="sc-check" aria-hidden="true">✓</div>
+          ${price ? `<span class="sc-price">${price}</span>` : ""}
+          <span class="sc-check" aria-hidden="true">✓</span>
         </label>
       `;
   };
@@ -12931,7 +12949,7 @@ function initSmartTraySearch() {
   const buildPinned = (product, otherRow) => `
       <div class="suggestion-pinned">
         <p class="suggestion-pinned-head">⚑ Gespeicherte Auswahl aus der Linie ${otherRow.name}</p>
-        ${buildCard(product, "tray-suggest-pinned", otherRow.brand, false, true, true)}
+        <div class="suggestion-list">${buildCard(product, "tray-suggest-pinned", otherRow.brand, false, true, true)}</div>
         <p class="suggestion-pinned-note">
           Linie und Preis bleiben unverändert, wie gespeichert. Ein Wechsel tauscht auch
           Ablaufgarnitur und Kleinmaterial und ändert damit den Angebotspreis.

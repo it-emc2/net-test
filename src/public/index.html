@@ -4415,14 +4415,15 @@ button.dm-btn-danger:focus-visible {
           <!-- Put this above the radio group -->
           <div id="traySmartSearch" class="field dw-tray-only">
 
-  <!-- <label>Maße (B × L × H in cm)</label> -->
-            <label>Maße (B × L in cm)</label>
-            <div class="d-flex gap-2" style="display:flex; gap:12px;">
-              <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
-              <input type="number" min="2" step="1" placeholder="Länge" name="tray_l_cm">
-              <input type="hidden" name="tray_h_cm" value="">
-              <!--  <input type="number" min="1"  step="1" placeholder="Höhe"   name="tray_h_cm"> -->
+            <!-- Maße als gruppierte Liste (iOS); Namen/Werte unverändert. -->
+            <div class="sec-settings__label">Maße</div>
+            <div class="sec-settings__group dw-dims">
+              <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Breite</span><span class="dw-dim-input"><input
+                    type="number" inputmode="numeric" min="20" step="1" placeholder="z. B. 90" name="tray_w_cm"><span>cm</span></span></label>
+              <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Länge</span><span class="dw-dim-input"><input
+                    type="number" inputmode="numeric" min="2" step="1" placeholder="z. B. 120" name="tray_l_cm"><span>cm</span></span></label>
             </div>
+            <input type="hidden" name="tray_h_cm" value="">
             <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
 
             <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>

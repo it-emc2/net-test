@@ -2483,36 +2483,37 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   padding: 12px;
 }
 
-/* ---------- Smart tray suggestions ---------- */
+/* ---------- Smart tray suggestions (iOS grouped list, 2026-10-27) ---------- */
 #tray-suggestions .suggestion-heading {
-  font-size: 0.85rem;
+  margin: 18px 4px 6px;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 8px;
+  color: var(--muted, #6b7280);
 }
 
 #tray-suggestions .suggestion-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  display: block;
+  border: 1px solid var(--input-border, #d0d5dd);
+  border-radius: 14px;
+  background: var(--panel, #fff);
+  overflow: hidden;
 }
 
 #tray-suggestions .suggestion-card {
   min-width: 0;
-  border: 1.5px solid var(--border, #e5e7eb);
-  border-radius: 12px;
-  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 12px;
+  padding: 12px 16px;
   cursor: pointer;
-  background: var(--card);
-  color: var(--card-foreground);
-  transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
   position: relative;
+  background: transparent;
+  color: var(--text, #1f2937);
+  transition: background-color 0.12s ease;
 }
+#tray-suggestions .suggestion-card + .suggestion-card { border-top: 1px solid var(--input-border, #e5e7eb); }
 
 #tray-suggestions .suggestion-card input[type="radio"] {
   position: absolute;
@@ -2522,157 +2523,70 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   height: 0;
 }
 
-/* body */
-#tray-suggestions .sc-body {
-  flex: 1;
-  min-width: 0;
+#tray-suggestions .sc-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+#tray-suggestions .sc-title { font-size: 1rem; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+#tray-suggestions .sc-sub {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-#tray-suggestions .sc-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-#tray-suggestions .sc-title {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  font-size: 0.92rem;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-#tray-suggestions .sc-price {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--primary, #2563eb);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-#tray-suggestions .sc-dims {
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-
-#tray-suggestions .sc-badges {
-  display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 2px;
-}
-
-#tray-suggestions .sc-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 999px;
-  letter-spacing: 0.03em;
-  /* Without this, WebKit's font-boosting ("text autosizing") inflates this
-     short badge text inconsistently depending on which siblings share its
-     line (e.g. alone vs. next to the longer "Beste Übereinstimmung" badge) —
-     looks like the badge randomly borrows its neighbour's size on iPad Safari. */
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.82rem;
+  color: var(--muted, #6b7280);
+  /* WebKit text autosizing inflates short badge text unevenly on iPad Safari. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
-
 #tray-suggestions .sc-badge--best {
-  background: rgba(37, 99, 235, 0.10);
-  color: var(--primary, #2563eb);
-  border: 1px solid rgba(37, 99, 235, 0.25);
-}
-
-#tray-suggestions .sc-badge--source {
-  background: transparent;
-  color: var(--foreground, #111827);
-  border: 1px solid var(--border);
-}
-
-/* Lagerbestand — gleiche Optik wie .dac-line-stock auf #page-DuschabtrennungNeu.
-   Gruen = auf Lager (Menge im Kreis), Bernstein = qty 0 aber lieferbar
-   (Verbundhaus/Zentrallager/Nachtverbund), Rot = muss bestellt werden. */
-#tray-suggestions .sc-stock {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 8px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  padding: 2px 8px;
   border-radius: 999px;
-  padding: 4px 12px 4px 4px;
-  line-height: 1.5;
-  white-space: nowrap;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  margin-top: 4px;
+  background: rgba(10, 132, 255, 0.12);
+  color: #0a6fd6;
 }
+/* Lagerbestand: Punkt + Text. Grün = auf Lager (mit Menge), Orange = Menge 0
+   aber lieferbar (Verbundhaus/Zentrallager/Nachtverbund), Rot = muss bestellt werden. */
+#tray-suggestions .sc-stock { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+#tray-suggestions .sc-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+#tray-suggestions .sc-stock--in .sc-dot { background: #34c759; }
+#tray-suggestions .sc-stock--soon .sc-dot { background: #ff9f0a; }
+#tray-suggestions .sc-stock--out .sc-dot { background: #ff3b30; }
+#tray-suggestions .sc-price { font-size: 1rem; font-weight: 600; white-space: nowrap; color: var(--text, #1f2937); }
 
-#tray-suggestions .sc-stock-qty {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  font-variant-numeric: tabular-nums;
-}
-
-#tray-suggestions .sc-stock--in { color: #fff; background: #0a7d33; }
-#tray-suggestions .sc-stock--in .sc-stock-qty { background: #05541f; }
-#tray-suggestions .sc-stock--out { color: #fff; background: #c81e3a; }
-#tray-suggestions .sc-stock--out .sc-stock-qty { background: #7a0e21; }
-#tray-suggestions .sc-stock--soon { color: #fff; background: #b45309; }
-#tray-suggestions .sc-stock--soon .sc-stock-qty { background: #78350f; }
-
-#tray-suggestions .is-budget .sc-badge--source {
-  background: rgba(234, 179, 8, 0.12);
-  color: #92400e;
-  border-color: rgba(234, 179, 8, 0.35);
-}
-
-/* checkmark indicator */
 #tray-suggestions .sc-check {
   width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+  flex: 0 0 22px;
+  text-align: center;
+  font-size: 18px;
   font-weight: 700;
-  color: transparent;
-  background: transparent;
-  flex-shrink: 0;
-  margin-left: 10px;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  color: #0a84ff;
+  visibility: hidden;
 }
-
 #tray-suggestions .suggestion-card:hover,
-#tray-suggestions .suggestion-card:focus-within {
-  background: var(--card-hover);
-  color: var(--card-foreground);
-  border-color: var(--ring, #2563eb);
-}
+#tray-suggestions .suggestion-card:focus-within { background: rgba(0, 0, 0, 0.03); }
+#tray-suggestions .suggestion-card.is-selected { background: rgba(10, 132, 255, 0.06); }
+#tray-suggestions .suggestion-card.is-selected .sc-check { visibility: visible; }
+[data-mode="dark"] #tray-suggestions .suggestion-card:hover,
+[data-mode="dark"] #tray-suggestions .suggestion-card:focus-within { background: rgba(255, 255, 255, 0.05); }
+[data-mode="dark"] #tray-suggestions .suggestion-card.is-selected { background: rgba(10, 132, 255, 0.16); }
+[data-mode="dark"] #tray-suggestions .sc-badge--best { background: rgba(10, 132, 255, 0.22); color: #7cc0ff; }
 
-#tray-suggestions .suggestion-card.is-selected {
-  border-color: var(--ring, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  background: var(--card-selected);
+/* Maße: two rows of a grouped list, value right-aligned with its unit. */
+.dw-dims { margin-bottom: 4px; }
+.dw-dim-row { cursor: text; flex-wrap: nowrap; }
+.dw-dim-row .dw-dim-name { font-size: 1rem; color: var(--text, #1f2937); }
+.dw-dim-row .dw-dim-input { display: inline-flex; align-items: center; gap: 8px; color: var(--muted, #6b7280); }
+#form-duschwanne .dw-dim-row input[type="number"] {
+  width: 110px;
+  text-align: right;
+  font-size: 1rem;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  box-shadow: none;
 }
-
-#tray-suggestions .suggestion-card.is-selected .sc-check {
-  background: var(--primary, #2563eb);
-  border-color: var(--primary, #2563eb);
-  color: #fff;
-}
+#form-duschwanne .dw-dim-row input[type="number"]:focus { outline: none; box-shadow: none; }
+.dw-dim-row:focus-within { background: rgba(10, 132, 255, 0.05); }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
 #traySmartSearch,
@@ -2683,17 +2597,6 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   margin-top: 12px;
 }
 
-@media (max-width: 1024px) {
-  #tray-suggestions .suggestion-list {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  }
-}
-
-@media (max-width: 820px) {
-  #tray-suggestions .suggestion-list {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ---------- Color swatch cards ---------- */
 .color-swatch-group {
@@ -11046,22 +10949,6 @@ details.az-group[open] > summary.az-group-title::before {
   color: var(--text);
 }
 
-[data-mode="dark"] #tray-suggestions .sc-badge--source {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--muted-foreground);
-  border-color: var(--border);
-}
-
-[data-mode="dark"] #tray-suggestions .is-budget .sc-badge--source {
-  background: rgba(234, 179, 8, 0.15);
-  color: #fbbf24;
-  border-color: rgba(234, 179, 8, 0.35);
-}
-
-[data-mode="dark"] #tray-suggestions .sc-check {
-  border-color: var(--border);
-}
-
 /* Produktlinie switch / Freier Posten in dark mode */
 [data-mode="dark"] .tier-seg {
   background: rgba(255, 255, 255, 0.06);
@@ -11927,13 +11814,14 @@ details.az-group[open] > summary.az-group-title::before {
 /* Duschwanne: "same size, cheaper as Standard (Badolux)" hint below the trays.
    Never on a sent offer (its price is pinned) — only drafts / new versions. */
 .tray-line-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap;
-  margin: 12px 0 4px; padding: 12px 14px; border: 1px solid #86c5a4; border-radius: 12px; background: #eef8f2; color: #14532d; }
+  margin: 10px 0 4px; padding: 12px 16px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); color: var(--text, #1f2937); }
+.tray-line-hint::before { content: "i"; flex: 0 0 22px; height: 22px; border-radius: 50%; background: #0a84ff; color: #fff;
+  font: 700 13px/22px Georgia, serif; text-align: center; }
 .tray-line-hint[hidden], body.is-sent-offer .tray-line-hint { display: none !important; }
 .tray-line-hint .tlh-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 320px; font-size: 0.9rem; }
-.tray-line-hint .tlh-text span { color: #3f6b52; font-size: 0.84rem; }
+.tray-line-hint .tlh-text span { color: var(--muted, #6b7280); font-size: 0.84rem; }
 .tray-line-hint button { flex: 0 0 auto; min-height: 40px; }
-[data-mode="dark"] .tray-line-hint { background: rgba(34,197,94,0.1); border-color: rgba(134,197,164,0.5); color: #bbf7d0; }
-[data-mode="dark"] .tray-line-hint .tlh-text span { color: #a7d7b9; }
+
 
 /* Keramico calculator: manual panel count (overrides the computed one) */
 .kc-manual { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.1); }
