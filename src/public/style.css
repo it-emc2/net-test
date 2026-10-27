@@ -2637,6 +2637,27 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 [data-mode="dark"] #form-fussboden .dw-color-grid .wv-tile-own-badge { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
 
+/* Wand als Boden — Ihre Auswahl: großes Bild wie beim Fußboden. */
+.wvc-summary:has(> #wvcProductCard[hidden]) { display: none; }
+#wvcProductCard .wv-product-card,
+[data-mode="dark"] #wvcProductCard .wv-product-card {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr) auto; gap: 18px; align-items: center; margin: 0; padding: 14px 18px;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+}
+#wvcProductCard .wv-product-card > img {
+  width: 240px; height: 240px; object-fit: cover; border-radius: 12px; border: 1px solid var(--input-border, #e5e7eb); background: #fff;
+}
+#wvcProductCard .wv-product-card-name { font-size: 1.05rem; font-weight: 600; white-space: normal; overflow: visible; color: var(--text, #1f2937); }
+#wvcProductCard .wv-product-card-art { margin-top: 2px; font-size: 0.85rem; color: var(--muted, #6b7280); }
+#wvcProductCard .wv-product-card-price { font-size: 1.05rem; font-weight: 600; }
+#wvcProductCard .wv-product-card-stock { max-width: 200px; font-size: 0.78rem; text-align: right; color: var(--muted, #6b7280); }
+#wvcProductCard > .dac-line-stock, #wvcProductCard > .wv-own-lager-badge { margin: 0 0 14px 18px; }
+[data-mode="dark"] #wvcProductCard .wv-product-card > img { border-color: rgba(255, 255, 255, 0.12); }
+@media (max-width: 700px) {
+  #wvcProductCard .wv-product-card { grid-template-columns: 1fr; }
+  #wvcProductCard .wv-product-card > img { width: 100%; }
+}
+
 /* Wandverkleidung als Fußboden: die zwei Plattenformate als Listenzeilen. */
 #wallCladdingCards { display: block; margin: 0; }
 #wallCladdingCards .wvc-card {
@@ -5685,209 +5706,69 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* ── Flächenrechner card ─────────────────────────────────────────────── */
-.floor-calc-card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  padding: 14px;
-  min-width: 0;
-}
-
-.floor-calc-card__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.floor-calc-card__title {
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.floor-calc-card__hint {
-  font-size: 0.88rem;
-  color: var(--muted);
-}
-
-.floor-calc-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ── One row ─────────────────────────────────────────────────────────── */
+/* Flächenrechner (iOS-Stil, 2026-10-27): je Zeile [+/−] Länge × Breite = Fläche [×].
+   Gemeinsam für Fußboden, Wand als Boden und Wandverkleidung (makeFloorCalc). */
+.floor-calc-card { display: grid; gap: 10px; padding: 12px 18px 16px; background: transparent; }
+.floor-calc-card[hidden] { display: none; } /* display:grid would beat [hidden] */
+.floor-calc-card__title-row { display: flex; justify-content: space-between; gap: 12px; }
+.floor-calc-card__title { font-weight: 600; }
+.floor-calc-card__hint { font-size: 0.82rem; color: var(--muted, #6b7280); }
+.floor-calc-rows { display: grid; gap: 8px; }
 .floor-calc-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(122, 63, 232, 0.04);
-  transition: border-color 0.15s, background 0.15s;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; background: rgba(118, 118, 128, 0.08);
 }
-
-.floor-calc-row[data-sign="subtract"] {
-  background: rgba(220, 38, 38, 0.04);
-  border-color: rgba(220, 38, 38, 0.22);
-}
-
-.floor-calc-row__controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+.floor-calc-row__controls { display: contents; }
 .floor-calc-sign {
-  padding: 5px 14px;
-  border-radius: 8px;
-  border: 1.5px solid;
-  font-size: 0.85rem;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  grid-column: 1; grid-row: 1; align-self: end; height: 38px; min-width: 104px; padding: 0 12px;
+  border: 0; border-radius: 9px; font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
 }
-
-.floor-calc-sign[data-sign="add"] {
-  border-color: #16a34a;
-  color: #166534;
-  background: #f0fdf4;
-}
-
-.floor-calc-sign[data-sign="subtract"] {
-  border-color: #dc2626;
-  color: #991b1b;
-  background: #fef2f2;
-}
-
+.floor-calc-sign[data-sign="add"] { background: rgba(52, 199, 89, 0.16); color: #1f8a3c; }
+.floor-calc-sign[data-sign="subtract"] { background: rgba(255, 59, 48, 0.14); color: #c4271d; }
 .floor-calc-remove-row {
-  margin-left: auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-  line-height: 1;
-  flex: 0 0 auto;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-  padding: 0;
+  grid-column: 3; grid-row: 1; align-self: end; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted, #6b7280); font-size: 1.3rem; line-height: 1; cursor: pointer;
 }
-
-.floor-calc-remove-row:hover {
-  border-color: #dc2626;
-  color: #dc2626;
-  background: #fef2f2;
-}
-
+.floor-calc-remove-row:hover { background: rgba(118, 118, 128, 0.16); }
 .floor-calc-row__inputs {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  grid-column: 2; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: end; gap: 8px;
 }
-
-.floor-calc-field {
-  flex: 1 1 80px;
-  min-width: 0;
+.floor-calc-field { display: grid; gap: 3px; margin: 0; min-width: 0; }
+.floor-calc-field > span { font-size: 0.75rem; color: var(--muted, #6b7280); }
+.floor-calc-field input {
+  width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; text-align: right; font-size: 1rem;
+  border: 0; border-radius: 9px; background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: inset 0 0 0 1px var(--input-border, #d0d5dd);
+  -moz-appearance: textfield;
 }
-
-.floor-calc-times {
-  align-self: center;
-  flex: 0 0 auto;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--muted);
-  padding-bottom: 4px;
-}
-
-.floor-calc-row-area {
-  flex: 0 0 110px;
-  min-width: 90px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px dashed var(--border);
-}
-
-.floor-calc-row-area__label {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 2px;
-}
-
-.floor-calc-row-result {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-/* ── Add-row button ──────────────────────────────────────────────────── */
+.floor-calc-field input::-webkit-inner-spin-button,
+.floor-calc-field input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.floor-calc-field input:focus { outline: none; box-shadow: inset 0 0 0 2px #0a84ff; }
+.floor-calc-times { align-self: end; padding-bottom: 9px; color: var(--muted, #6b7280); }
+.floor-calc-row-area { min-width: 84px; padding-bottom: 9px; text-align: right; background: none; border: 0; }
+.floor-calc-row-area__label { display: none; }
+.floor-calc-row-result { font-weight: 600; white-space: nowrap; color: var(--text, #1f2937); }
+.floor-calc-row-result::before { content: "= "; color: var(--muted, #6b7280); font-weight: 400; }
+.floor-calc-row[data-sign="subtract"] .floor-calc-row-result { color: #c4271d; }
 .floor-calc-add-btn {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 9px;
-  border: 1.5px dashed var(--accent);
-  background: transparent;
-  color: var(--accent-strong);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  transition: background 0.15s;
+  justify-self: start; padding: 6px 2px; border: 0; background: none; font: inherit; font-weight: 600; color: #0a84ff; cursor: pointer;
 }
-
-.floor-calc-add-btn:hover {
-  background: var(--accent-weak);
-}
-
-/* ── Result + apply row ──────────────────────────────────────────────── */
 .floor-calc-result-row {
-  margin-top: 12px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 10px; border-top: 1px solid var(--input-border, #e5e7eb);
 }
-
-.floor-calc-result-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.floor-calc-result-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
+.floor-calc-result-label { font-size: 0.8rem; color: var(--muted, #6b7280); }
+.floor-calc-result-value { font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
 .floor-calc-apply {
-  border: 1px solid var(--accent);
-  background: var(--accent-weak);
-  color: var(--accent-strong);
-  border-radius: 10px;
-  padding: 9px 16px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
+  height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: #0a84ff; color: #fff;
+  font: inherit; font-weight: 600; cursor: pointer;
 }
-
-.floor-calc-apply:hover,
-.floor-calc-apply:focus-visible {
-  background: var(--accent);
-  color: #fff;
-}
+.floor-calc-apply:hover, .floor-calc-apply:focus-visible { background: #0071e3; }
+[data-mode="dark"] .floor-calc-row { background: rgba(118, 118, 128, 0.18); }
+[data-mode="dark"] .floor-calc-field input { background: rgba(0, 0, 0, 0.25); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+[data-mode="dark"] .floor-calc-sign[data-sign="add"] { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+[data-mode="dark"] .floor-calc-sign[data-sign="subtract"] { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+[data-mode="dark"] .floor-calc-row[data-sign="subtract"] .floor-calc-row-result { color: #ff8a82; }
+[data-mode="dark"] .floor-calc-add-btn { color: #4da3ff; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
