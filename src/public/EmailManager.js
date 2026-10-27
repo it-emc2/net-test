@@ -668,16 +668,14 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
-
-Überzeugen Sie sich selbst - hier berichten unsere Kunden: https://www.youtube.com/watch?v=Ie0sxagHlFo
+${isSelbstzahler ? "" : "Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Überzeugen Sie sich selbst - hier berichten unsere Kunden: https://www.youtube.com/watch?v=Ie0sxagHlFo
 
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     }
 
-    // Selbstzahler vs Kassenkunde is not a branch here any more: the payer only
-    // seeds the #zfDocSelectionCard checkboxes (applyPayerDocDefaults in
-    // script.js), and this list follows the checkboxes — so a Selbstzahler who
+    // The payer only drops the Pflegekasse/Antrag prose below. The doc list is
+    // not payer-branched: the payer seeds the #zfDocSelectionCard checkboxes
+    // (applyPayerDocDefaults in script.js), and this list follows the checkboxes — so a Selbstzahler who
     // ticks Abtretung/Vollmacht gets them named in the text too.
     const attachmentList = buildAttachmentLines().join("\n");
 
@@ -685,11 +683,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
 vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:
 
-• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.
-• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
+${isSelbstzahler ? "" : "• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n"}• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
-• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
-• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
+${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
 ${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
@@ -703,7 +699,7 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   }
 
   function escapeHtml(value) {
