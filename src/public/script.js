@@ -12739,9 +12739,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       mixEl.textContent = "Wandbreiten eintragen";
       return;
     }
-    const cost = Object.entries(plan.qty).reduce((a, [c, n]) => a + n * wwFmt(c).price, 0);
+    // Same price as the offer and "Ihre Auswahl": two of a kind are ordered as a set.
+    const decor = document.querySelector('input[name="wvWwDecor"]:checked')?.value || "203";
+    const lines = core.winwallOrderLines(decor, plan.qty);
+    const cost = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
+    const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
     const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Einkauf netto ${eur(cost)} (ohne Set-Rabatt)`;
+    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Platten Einkauf netto ${eur(cost)}${sets ? ` (inkl. ${sets} × Set)` : ""}`;
   }
 
   // Articles of the chosen Premium colour (per-size override first); their net
@@ -12791,8 +12795,14 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const el = document.getElementById("kcPrice");
     if (!el) return;
     // Premium: the Alu panel lines of the Plattenwahl (what the offer bills).
-    const re = winwall() ? /^WS\d{3}(1[3567]|2[356])$/i : vigour() ? /^V3WVK?\d/i : /^WP\d/i;
-    const lines = (window.__pricing?.materials?.lines || []).filter((l) => re.test(l.productId || ""));
+    // winwall: panels only (decor + format code), not the WS801xx accessories.
+    const wwPanel = (id) => {
+      const m = /^WS(\d{3})(\d{2})$/.exec(id);
+      return !!m && core?.WINWALL_DECORS.some((d) => d.code === m[1]) && core.WINWALL_FORMATS.some((f) => f.code === m[2]);
+    };
+    const re = vigour() ? /^V3WVK?\d/i : /^WP\d/i;
+    const isPanel = (id) => (winwall() ? wwPanel(id) : re.test(id));
+    const lines = (window.__pricing?.materials?.lines || []).filter((l) => isPanel(String(l.productId || "")));
     const total = lines.reduce((a, l) => a + (Number(l.lineTotal) || 0), 0);
     el.textContent = lines.length
       ? `${total.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
