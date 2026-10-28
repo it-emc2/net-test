@@ -230,9 +230,6 @@ export const WINWALL_FORMATS = [
   { code: "26", widthCm: 125, heightCm: 250, price: 338.24, set: true, single: "16" },
 ];
 export const WINWALL_SINGLE_FORMATS = ["13", "15", "16", "17"];
-// Formats counted as „Großplatte“ for freight (85 € instead of 45,50 €).
-// ponytail: assumption until winwall confirms — the 150 cm wide panels.
-export const WINWALL_LARGE_FORMATS = ["17"];
 export const WINWALL_EXTRAS = [
   { id: "WS80110", name: "winwall Abschlussprofil 2550 mm, Alu eloxiert", price: 16.39 },
   { id: "WS80111", name: "winwall Inneneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
@@ -1360,12 +1357,10 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       const qtyByFormat = {};
       for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
       let coverM2 = 0;
-      let large = false;
       for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
         const f = l.format;
         winwallPanels += l.panels;
         coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
-        if (WINWALL_LARGE_FORMATS.includes(f.set ? f.single : f.code)) large = true;
         const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
         add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decor.name} (WS ${decor.code})`);
       }
@@ -1380,7 +1375,8 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         for (const l of winwallSealingSets(area)) add(l.productId, l.qty);
       }
       if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
-      if (winwallPanels > 0) add(large ? "WS-FRACHT-GROSS" : "WS-FRACHT", 1);
+      // No freight per offer: winwall is ordered in collective orders for several
+      // customers, so the freight (45,50 € / 85 € Großplatte) is not a job cost.
     }
 
     if (wv?.wvSealing && !isWinwall) add("TRWDSET5", 1);

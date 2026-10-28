@@ -5044,7 +5044,7 @@ button.dm-btn-danger:focus-visible {
                   <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_16" name="wvWwQty_16" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 125 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
                 </div>
                 <div class="sec-settings__row wv-ww-fmt">
-                  <div class="sec-settings__text"><strong>150 × 250 cm</strong><small>WS&lt;Dekor&gt;17 · Großplatte · Fracht 85 €</small></div>
+                  <div class="sec-settings__text"><strong>150 × 250 cm</strong><small>WS&lt;Dekor&gt;17 · Großplatte</small></div>
                   <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_17" name="wvWwQty_17" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 150 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
                 </div>
                 <div class="sec-settings__row"><small class="wv-ww-hint" id="wvWwPanelsHint">Zwei gleiche Platten werden als Set bestellt (günstiger).</small></div>
@@ -5224,7 +5224,8 @@ button.dm-btn-danger:focus-visible {
 
           <!-- winwall-Zubehör (wvSupplier = ww): ersetzt Abdichtung, Kleber, Silikon und
                V3A/V3V von Haßmann. Profile/Kleber: Schalter + Menge (wvWw_* / wvWwQty_*),
-               Abdichtungsset nach Fläche, Zuschnitt je Platte, Fracht automatisch. -->
+               Abdichtungsset nach Fläche, Zuschnitt je Platte. Fracht nicht je Angebot
+               (Sammelbestellung für mehrere Kunden). -->
           <div id="wvWwAccSection" class="full sec-settings dw-acc-list" hidden aria-hidden="true">
             <div class="sec-settings__label">Zubehör winwall</div>
             <div class="sec-settings__group">
@@ -5253,11 +5254,6 @@ button.dm-btn-danger:focus-visible {
               </div>
               <div class="dw-acc">
                 <label class="image-check"><input type="checkbox" id="wvWwCut" name="wvWwCut" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Zuschnitt</span><small>10 € je Platte, gerade Schnitte</small></span></label>
-              </div>
-              <div class="dw-acc">
-                <span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" /></span>
-                <span class="dw-acc__text"><span class="caption">Lieferkosten</span><small>45,50 € je Bestellung · 85 € mit 150-cm-Platte</small></span>
-                <span class="dw-acc__auto">automatisch</span>
               </div>
             </div>
           </div>

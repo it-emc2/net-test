@@ -87,12 +87,12 @@ describe("winwall pricing", () => {
       wvWw_WS80102: "on", wvWwQty_WS80102: "4", wvWwSealing: "on", wvArea: "6", wvWwCut: "on",
     }));
     expect(q).toEqual({
-      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, WS80102: 4, WS80302: 1, "WS-ZUSCHNITT": 3, "WS-FRACHT": 1,
+      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, WS80102: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
     });
   });
-  test("a 150 cm panel ships as Großplatte; no cutting unless ticked", async () => {
+  test("no freight per offer (collective orders); no cutting unless ticked", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_17: "1" }));
-    expect(q).toEqual({ WS20317: 1, "WS-FRACHT-GROSS": 1 });
+    expect(q).toEqual({ WS20317: 1 });
   });
   test("sealing without Wandfläche covers what the panels cover", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "3", wvWwSealing: "on" }));
