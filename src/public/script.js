@@ -8033,7 +8033,7 @@ function setupWandverkleidungPage() {
         .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
         .join(" · ");
       return `<div class="wvc-sel">
-        <img class="wvc-sel__img" src="${tile?.querySelector("img")?.getAttribute("src") || ""}" alt="" />
+        <img class="wvc-sel__img" src="./assets/winwall/panel/WS${code}.jpg" alt="" />
         <div class="wvc-sel__info">
           <strong class="wvc-sel__name">winwall Duschrückwand ${name}</strong>
           <span class="wvc-sel__meta">WS ${code} · WV-WW · ${rows}</span>
@@ -12510,7 +12510,11 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const pid = color.split("|")[0];
     if (/^WP00[1-6]$/i.test(pid)) return `./assets/budget/${pid.toUpperCase()}.webp`;
     if (/^WP007$/i.test(pid)) return document.querySelector(".kmp-card.is-selected img")?.src || "";
-    if (winwall()) return document.querySelector('input[name="wvWwDecor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
+    // winwall: the whole flat panel (assets/winwall/panel), not the small colour field.
+    if (winwall()) {
+      const code = document.querySelector('input[name="wvWwDecor"]:checked')?.value;
+      return code ? `./assets/winwall/panel/WS${code}.jpg` : "";
+    }
     // Premium (Vigour): the picked colour tile's own image.
     if (vigour()) return document.querySelector('input[name="wvColor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
     return "";
