@@ -7882,6 +7882,8 @@ function createWvExtraRow({ qty = 1, color = "" } = {}, fromSelectId) {
   const refreshDerived = () => {
     if (typeof recomputeWVFlachenQty === "function") recomputeWVFlachenQty();
     window.updatePricing?.();
+    // V3V recommendation and "Ihre Auswahl" count the extra rows too.
+    document.dispatchEvent(new Event("wv:extras"));
   };
 
   removeBtn.addEventListener("click", () => {
@@ -7895,6 +7897,8 @@ function createWvExtraRow({ qty = 1, color = "" } = {}, fromSelectId) {
 
   qtyInput.addEventListener("input", refreshDerived);
   colorSelect.addEventListener("change", refreshDerived);
+  // Added (button or restore): tell the listeners once the row is in the DOM.
+  queueMicrotask(() => document.dispatchEvent(new Event("wv:extras")));
 
   return row;
 }
@@ -7991,7 +7995,7 @@ function setupWandverkleidungPage() {
       const pic = tile?.querySelector("img")?.getAttribute("src") || d.image || "";
       const colour = tile?.querySelector(".caption")?.textContent || "";
       const qty = Number(p.qty) || 0;
-      const eur = (n) => n.toFixed(2).replace(".", ",");
+      const eur = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `<div class="wvc-sel">
         ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="${d.name}" />` : ""}
         <div class="wvc-sel__info">
@@ -8027,7 +8031,7 @@ function setupWandverkleidungPage() {
       if (typeof core?.winwallOrderLines !== "function" || !code) return "";
       const lines = core.winwallOrderLines(code, wwPanelCounts());
       if (!Array.isArray(lines) || !lines.length) return "";
-      const eur = (n) => n.toFixed(2).replace(".", ",");
+      const eur = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const total = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
       const rows = lines
         .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
@@ -8062,6 +8066,15 @@ function setupWandverkleidungPage() {
       if (cb1497?.checked) {
         const ck = selectColorKey("wvColor_1497") || globalColor;
         if (ck !== "sonderdekor") panels.push({ ck, qty: qtyOf("wvQty1497"), artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+      }
+      // Extra colour rows ("Andere Farbe" → "+ Farbe hinzufügen") are panels too.
+      for (const size of [997, 1497]) {
+        if (!(size === 997 ? cb997 : cb1497)?.checked) continue;
+        document.querySelectorAll(`#wvExtraList${size} .wv-extra-row`).forEach((row) => {
+          const qty = parseInt(row.querySelector(".wv-extra-qty")?.value, 10) || 0;
+          const ck = String(row.querySelector(".wv-extra-color")?.value || "").trim().toLowerCase();
+          if (qty > 0 && ck && ck !== "sonderdekor" && WV_ART_STANDALONE[ck]) panels.push({ ck, qty, artId: WV_ART_STANDALONE[ck][size] });
+        });
       }
       // no checkboxes present — fallback to global color, 997 article
       if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
@@ -8144,6 +8157,7 @@ function setupWandverkleidungPage() {
     document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
     document.addEventListener("wv:supplier", renderCard);
+    document.addEventListener("wv:extras", renderCard);
     page.addEventListener("change", (e) => {
       if (/^wvWw(Decor|Qty_1[3567])$/.test(e.target?.name || "")) renderCard();
     });
@@ -8394,6 +8408,7 @@ function initWVConnectorsUI() {
   cb997?.addEventListener("change", render);
   cb1497?.addEventListener("change", render);
   window.addEventListener("keramico:count", render);
+  document.addEventListener("wv:extras", render);
 
   // First paint
   render();
@@ -12048,7 +12063,7 @@ if (document.readyState === "loading") {
     // supplier's (d.image) is e.g. yellowish for Marmor weiß.
     const pic = colourInput?.closest("label")?.querySelector("img")?.getAttribute("src") || d.image;
     const qty = Number(qtyEl?.value) || 0;
-    const euroDe = (n) => n.toFixed(2).replace(".", ",");
+    const euroDe = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     wvcCardEl.innerHTML = `<div class="wvc-sel">
       ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="${d.name}" />` : ""}
       <div class="wvc-sel__info">
@@ -16943,6 +16958,20 @@ setByNameOrId("wvV3VSelected", !!v3vOn);
     "wvColor_1497",
     getExtrasForPanel("1497x2550"),
   );
+
+// ------------------------------------------------------------
+// 3c) Re-apply the saved consumables. Ticking 997/1497 above re-ran the
+//     Flächenkleber auto-calc before the extra-colour rows existed (2 × main
+//     panels only), so e.g. a saved 22 came back as 4. The saved values win.
+// ------------------------------------------------------------
+for (const k of ["wvFlachenQty", "wvSilikonQty", "wvEndProfileQty", "wvV3VQty"]) {
+  if (wv[k] !== undefined && wv[k] !== null && wv[k] !== "") setInputByNameOrId(k, wv[k]);
+}
+setByNameOrId("wvSealingSelected", !!sealingOn);
+setByNameOrId("wvFlachenSelected", !!flachenOn);
+setByNameOrId("wvEndProfileSelected", !!endProfileOn);
+setByNameOrId("wvSilikonSelected", !!silikonOn);
+setByNameOrId("wvV3VSelected", !!v3vOn);
 
 // ------------------------------------------------------------
 // 4) Done restoring
