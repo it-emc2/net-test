@@ -6505,7 +6505,13 @@ window.confirmBeforeSend = async function (payload, offerType) {
   return window.confirmHauptpunkte(payload, offerType);
 };
 function validateOptional() {
-  return true;
+  if (!document.getElementById("cat_SHOWER")?.checked) return true;
+  if (document.querySelector('#form-optional input[name="showerMount"]:checked')) return true;
+  window.toast?.error(
+    "Angaben unvollständig",
+    "Duschsystem: Bitte angeben, ob die Armatur direkt unter dem Gestänge sitzt oder versetzt ist."
+  );
+  return false;
 }
 function validateRabatt() {
   const f = document.getElementById("form-rabatt");
@@ -15683,6 +15689,13 @@ function restoreOptionalPage(opt) {
     setRadio("wcSeatHeight", opt.wcSeatHeight);
   }
 
+  // Duschsystem-Montage: clear first — the form is not reset between offers
+  document
+    .querySelectorAll('#form-optional input[name="showerMount"]')
+    .forEach((r) => (r.checked = false));
+  if (opt.showerMount != null) setRadio("showerMount", opt.showerMount);
+  window.applyShowerMount?.();
+
   // Sonderprodukte (quickAdd) — delegate to the rebuilder exposed by
   // initOptionalSonderprodukte so each row is created via createRow() and
   // gets the proper input listeners. Falls back to a minimal inline rebuild
@@ -15762,6 +15775,7 @@ function restoreOptionalPage(opt) {
         "opt_V22BG903R",
         "opt_V12DS250E",
         "opt_STRAYT",
+        "opt_DESIBS160",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -19058,6 +19072,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupHassmannEmbedFallback();
 });
+// ---- Duschsystem: Pflichtfrage "Armatur direkt darunter / versetzt" ----
+// Tiles carry data-mount="direkt|versetzt"; only the answered group is shown.
+// "versetzt" (user click only, not restore) auto-adds the hose (160 cm) and an
+// AP-Thermostat if none is picked yet.
+function initShowerMount() {
+  const form = document.getElementById("form-optional");
+  const hint = document.getElementById("showerMountHint");
+  const tiles = [...document.querySelectorAll("#menu_SHOWER [data-mount]")];
+  if (!form || !tiles.length) return;
+  let autoThermo = null;
+
+  const setChecked = (cb, on) => {
+    if (!cb || cb.checked === on) return;
+    cb.checked = on;
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const apply = () => {
+    const mount = form.querySelector('input[name="showerMount"]:checked')?.value || "";
+    tiles.forEach((tile) => {
+      // No answer (new or older offer): hide unpicked tiles, keep picked ones visible.
+      const show = mount
+        ? tile.dataset.mount === mount
+        : !!tile.querySelector('input[type="checkbox"]')?.checked;
+      tile.style.display = show ? "" : "none"; // grid CSS overrides [hidden]
+    });
+    if (hint) hint.hidden = mount !== "versetzt";
+  };
+
+  form.addEventListener("change", (e) => {
+    if (e.target?.name === "showerMount" && e.isTrusted) {
+      const mount = e.target.value;
+      tiles.forEach((tile) => {
+        if (tile.dataset.mount !== mount) setChecked(tile.querySelector('input[type="checkbox"]'), false);
+      });
+      if (mount === "versetzt") {
+        setChecked(document.getElementById("opt_DESIBS160"), true);
+        const thermos = ["opt_CLTB", "opt_DEPTB", "opt_CLB"].map((id) => document.getElementById(id));
+        if (!thermos.some((cb) => cb?.checked)) {
+          setChecked(thermos[0], true);
+          autoThermo = thermos[0];
+        }
+      } else {
+        // Fixed system brings its own thermostat — drop the one we auto-added.
+        setChecked(autoThermo, false);
+        autoThermo = null;
+      }
+      window.updatePricing?.();
+    }
+    apply();
+  });
+  form.addEventListener("reset", () => setTimeout(apply));
+  window.applyShowerMount = apply;
+  apply();
+}
+
 // ---- ONSHB -> YNORGH21825 rosette: auto-select required accessory, 1:1 qty ----
 function initOnshbAutoAccessory() {
   const reqWrap = document.getElementById("tapRequiredWrap");
@@ -19277,6 +19347,8 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
   wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
+  wireTileQty("opt_DESIBS160", "qty_DESIBS160_wrap");
+  initShowerMount();
   wireTileQty("opt_STRAYT", "qty_STRAYT_wrap");
 
   // ---- THERMO ----
@@ -20100,6 +20172,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_V22BG903R",
       "opt_V12DS250E",
       "opt_STRAYT",
+      "opt_DESIBS160",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
