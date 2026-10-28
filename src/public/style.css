@@ -2644,6 +2644,8 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
    Preis / Lager-Badges, oben bündig untereinander. */
 .wvc-summary:has(> #wvcProductCard[hidden]) { display: none; }
 .wvc-sel { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; padding: 16px 18px; }
+/* winwall: a whole (tall) panel — show its lower part, where e.g. the marble veins are. */
+.wvc-sel__img.is-panel { object-position: 50% 80%; }
 .wvc-sel__img { width: 200px; height: 200px; object-fit: cover; border-radius: 12px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
 .wvc-sel__info { display: grid; gap: 6px; align-content: start; padding-top: 4px; min-width: 0; }
 .wvc-sel__name { font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--text, #1f2937); }

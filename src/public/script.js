@@ -8033,7 +8033,7 @@ function setupWandverkleidungPage() {
         .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
         .join(" · ");
       return `<div class="wvc-sel">
-        <img class="wvc-sel__img" src="./assets/winwall/panel/WS${code}.jpg" alt="" />
+        <img class="wvc-sel__img is-panel" src="./assets/winwall/panel/WS${code}.jpg" alt="" />
         <div class="wvc-sel__info">
           <strong class="wvc-sel__name">winwall Duschrückwand ${name}</strong>
           <span class="wvc-sel__meta">WS ${code} · WV-WW · ${rows}</span>
