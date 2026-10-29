@@ -868,7 +868,10 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       offerNumber: req.body?.offerNumber,
       finalTotal: req.body?.finalTotal ?? amount,
       selfPayAmount: req.body?.selfPayAmount,
-      extraFields: ahExtraFields,
+      // "Rechnungsversand" -> "Rechnung per Post" (3080); never touched on "nein".
+      extraFields: req.body?.invoiceCopyPost === true
+        ? { ...ahExtraFields, UF_CRM_1721218585: "3080" }
+        : ahExtraFields,
     });
 
     UserActionLog.create({
