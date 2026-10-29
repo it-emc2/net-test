@@ -163,6 +163,8 @@ export function initRestoreManager({
 
       // Neukundenbonus: pin to the offer's snapshot; none → legacy 3.000 € rule.
       window.__applyBonusNeuSnapshot?.(payload);
+      // Arbeitszeit minutes: same pinning (pricingRules.azMinutes).
+      window.__applyAzMinutesSnapshot?.(payload);
 
       // Aktion Haltegriff: only an offer that actually got the bonus is pinned
       // to its saved grab-bar list (no snapshot → the 30 cm-only rule it was
