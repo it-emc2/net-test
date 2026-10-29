@@ -4580,10 +4580,11 @@ function buildPayload() {
       // Umbauart + hand-edited tasks (arbeitenAuto.js)
       const umbauart = String(fdDW.get("duschwanne[umbauart]") || "");
       if (umbauart) dw.umbauart = umbauart;
-      const manual = String(fdDW.get("duschwanne[workTasksManual]") || "");
-      dw.workTasksManual = manual ? manual.split(",") : [];
+      // Not "workTasks…": pricing-core prints every key matching /worktasks/i.
+      const manual = String(fdDW.get("duschwanne[manualTasks]") || "");
+      dw.manualTasks = manual ? manual.split(",") : [];
       delete dw["duschwanne[umbauart]"];
-      delete dw["duschwanne[workTasksManual]"];
+      delete dw["duschwanne[manualTasks]"];
     }
   } catch (e) {
     console.warn("[buildPayload] workTasks normalization failed:", e);
@@ -14909,7 +14910,7 @@ function restoreWorkTasks(dw) {
   });
   const manualInput = document.getElementById("workTasksManual");
   if (manualInput) {
-    manualInput.value = Array.isArray(dw.workTasksManual) ? dw.workTasksManual.join(",") : "";
+    manualInput.value = Array.isArray(dw.manualTasks) ? dw.manualTasks.join(",") : "";
   }
 
   const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');

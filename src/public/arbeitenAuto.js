@@ -4,7 +4,8 @@
 // - Products decide the installs — reuses the task↔product couplings of the
 //   Angebotscheck (WORK_RULES), so both always agree.
 // - A task the user ticked/unticked by hand is never touched again
-//   (persisted in duschwanne.workTasksManual).
+//   (persisted in duschwanne.manualTasks — not "workTasks…": pricing-core
+//   reads every duschwanne key matching /worktasks/i as printed tasks).
 // - Inactive without an Umbauart (older offers), while restoring, and for
 //   sent offers — a sent offer's tasks/times stay frozen.
 import { WORK_RULES, readSelection } from "./angebotscheck.js";
@@ -23,11 +24,19 @@ const BY_UMBAUART = {
   ohne_rueckbau: [],
 };
 
-// Same product, two possible tasks (with/without Thermostat) — TR picks; the
-// Angebotscheck flags the product until one is ticked.
-const AMBIGUOUS = new Set(["replace_shower_no_thermo", "replace_shower_with_thermo"]);
 // Soft couplings (noReverse) are plausible without the task — not auto.
-const PRODUCT_RULES = WORK_RULES.filter((r) => !r.noReverse && !AMBIGUOUS.has(r.task));
+const PRODUCT_RULES = WORK_RULES.filter((r) => !r.noReverse);
+
+// One product group, two tasks (sharesWith) — which one the selection means.
+// Duschsystem: "direkt" products have the thermostat built in; "versetzt"
+// needs a separate Aufputz-Armatur (its own Thermostat task). No answer yet →
+// neither, the Angebotscheck flags it.
+const VARIANT = {
+  install_toilet: (sel) => !sel.priced("DEDWWC"),
+  install_shower_wc: (sel) => sel.priced("DEDWWC"),
+  replace_shower_with_thermo: (sel) => sel.checkedValue("showerMount") === "direkt",
+  replace_shower_no_thermo: (sel) => sel.checkedValue("showerMount") === "versetzt",
+};
 
 const CONTROLLED = new Set([
   ...Object.values(BY_UMBAUART).flat(),
@@ -49,15 +58,15 @@ export function syncWorkTasks() {
   const boxes = [...document.querySelectorAll(TASK_SEL)];
   const checked = new Set(boxes.filter((b) => b.checked).map((b) => b.value));
   const sel = readSelection(window.__pricing);
+  const manual = manualSet();
 
   const want = new Set(BY_UMBAUART[art] || []);
   for (const rule of PRODUCT_RULES) {
-    // A sibling already covers this product (Toilette vs. Dusch-WC).
-    if ((rule.sharesWith || []).some((t) => checked.has(t))) continue;
-    if (rule.has(sel)) want.add(rule.task);
+    // The user already picked the sibling by hand — that covers the product.
+    if ((rule.sharesWith || []).some((t) => manual.has(t) && checked.has(t))) continue;
+    if (rule.has(sel) && (VARIANT[rule.task]?.(sel) ?? true)) want.add(rule.task);
   }
 
-  const manual = manualSet();
   let changed = false;
   for (const box of boxes) {
     if (!CONTROLLED.has(box.value) || manual.has(box.value)) continue;

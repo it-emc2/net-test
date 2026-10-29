@@ -686,6 +686,80 @@ function workRows(selection) {
   return rows;
 }
 
+/**
+ * Rückbau questions: a new item goes in, but is there an old one to remove?
+ * Only the user knows the site, so it is a Ja/Nein question in the check.
+ * Ja ticks the removal task (saved with workTasks), Nein is stored as the
+ * row's "Nicht nötig" ack — both already persist, nothing new to save.
+ */
+export const RUECKBAU = [
+  {
+    task: "remove_toilet",
+    when: ["install_toilet", "install_shower_wc"],
+    question: "Ist eine alte Toilette vorhanden, die entfernt werden muss?",
+  },
+  {
+    task: "remove_sink",
+    when: ["install_sink"],
+    question: "Ist ein altes Waschbecken vorhanden, das entfernt werden muss?",
+  },
+  {
+    task: "remove_enclosure",
+    when: ["install_enclosure", "install_shower_curtain"],
+    question: "Ist eine alte Duschabtrennung vorhanden, die entfernt werden muss?",
+  },
+  {
+    task: "remove_shower_curtain",
+    when: ["install_enclosure", "install_shower_curtain"],
+    question: "Ist ein alter Duschvorhang vorhanden, der entfernt werden muss?",
+  },
+  {
+    task: "remove_furniture",
+    when: ["install_furniture"],
+    question: "Sind alte Bademöbel vorhanden, die entfernt werden müssen?",
+  },
+];
+
+function rueckbauRows(selection) {
+  if (!selection) return [];
+  const rows = [];
+  for (const q of RUECKBAU) {
+    if (!q.when.some((t) => selection.tasks.has(t))) continue;
+    const id = `rueckbau-${q.task}`;
+    const yes = selection.tasks.has(q.task);
+    const no = !yes && selection.acked(id);
+    rows.push({
+      id,
+      group: "arbeiten",
+      target: "Arbeiten",
+      title: q.question,
+      status: yes || no ? "gruen" : "gelb",
+      details: yes ? ["Ja – Entfernen und Entsorgen ist angehakt."]
+        : no ? ["Nein – nichts zu entfernen."]
+        : ["Bitte mit Ja oder Nein beantworten."],
+      question: { task: q.task, answer: yes ? "ja" : no ? "nein" : "" },
+    });
+  }
+  // Without an Umbauart nothing is ticked automatically (older offers too).
+  if (!selection.checkedValue("duschwanne[umbauart]")) {
+    const id = "umbauart";
+    const acked = selection.acked(id);
+    rows.push({
+      id,
+      group: "arbeiten",
+      target: "Arbeiten",
+      title: "Umbauart gewählt",
+      status: acked ? "gruen" : "gelb",
+      details: acked ? ["Als nicht nötig markiert."]
+        : ["Keine Umbauart gewählt – Arbeiten werden nicht automatisch angehakt."],
+      ackable: true,
+      acked,
+      showAck: true,
+    });
+  }
+  return rows;
+}
+
 /** One row per standing rule, green when it passes. */
 function standingRows(ctx) {
   return RULES.map((rule) => {
@@ -735,7 +809,7 @@ export function runAngebotscheck(pricing, selection = null) {
   const groups = GROUPS.map((g) => ({ ...g, status: "gruen", rows: [] }));
   const byKey = new Map(groups.map((g) => [g.key, g]));
 
-  for (const row of [...standingRows(ctx), ...workRows(selection)]) {
+  for (const row of [...standingRows(ctx), ...workRows(selection), ...rueckbauRows(selection)]) {
     const group = byKey.get(row.group);
     if (!group) continue;
     group.rows.push(row);
@@ -972,6 +1046,20 @@ function renderRow(row) {
   }
   node.appendChild(text);
   if (row.target) node.appendChild(el("span", "zf-check-row__go", "›"));
+  if (row.question) {
+    // Buttons cannot live inside the row's <button> either.
+    const wrap = el("div", "zf-check-row-wrap");
+    const btns = el("div", "zf-check-ack");
+    for (const [answer, label] of [["ja", "Ja"], ["nein", "Nein"]]) {
+      const b = el("button", `ang-stage-btn${row.question.answer === answer ? " ang-stage-btn--primary" : ""}`, label);
+      b.type = "button";
+      b.dataset.rueckbau = row.question.task;
+      b.dataset.answer = answer;
+      btns.appendChild(b);
+    }
+    wrap.append(node, btns);
+    return wrap;
+  }
   if (!row.showAck) return node;
 
   // A checkbox cannot live inside the row's <button>, so wrap both.
@@ -1041,6 +1129,33 @@ function paint() {
   );
 }
 
+/** Ja → tick the removal task on the Arbeiten tab; Nein → untick + ack. */
+function answerRueckbau(task, yes) {
+  const box = document.querySelector(
+    `input[name="duschwanne[workTasks][]"][value="${task}"]`,
+  );
+  // A sent offer is read-only (SentOfferBar.js).
+  if (!box || document.body.classList.contains("is-sent-offer")) return;
+  const ack = { ...(window.__zfCheckAck || {}) };
+  if (yes) delete ack[`rueckbau-${task}`];
+  else ack[`rueckbau-${task}`] = true;
+  window.__zfCheckAck = ack;
+  // Hand-answered, so the automatic ticking leaves it alone (arbeitenAuto.js).
+  const manual = document.getElementById("workTasksManual");
+  if (manual) {
+    const m = new Set(manual.value.split(",").filter(Boolean)).add(task);
+    manual.value = [...m].join(",");
+  }
+  if (box.checked !== yes) {
+    box.checked = yes;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  // Synthetic change is ignored by the live-pricing watcher; the task prints
+  // in the offer, so re-price (repaints the check via pricing:updated).
+  window.requestPricingRefresh?.({ delay: 0, reason: "angebotscheck-rueckbau" });
+  paint();
+}
+
 /** Restore / set the "Nicht nötig" ticks (payload.zusammenfassung.checkAck). */
 export function setCheckAck(ack) {
   window.__zfCheckAck =
@@ -1062,6 +1177,11 @@ if (typeof document !== "undefined") {
     // so nothing the user entered is lost.
     const page = document.getElementById("page-Angebotscheck");
     page?.addEventListener("click", (e) => {
+      const q = e.target.closest("[data-rueckbau]");
+      if (q) {
+        answerRueckbau(q.dataset.rueckbau, q.dataset.answer === "ja");
+        return;
+      }
       if (e.target.closest(".zf-check-ack")) return; // the tick, not the row
       const target = e.target.closest("[data-target]")?.dataset.target;
       if (target) location.hash = `#${target}`;
