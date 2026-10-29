@@ -533,6 +533,7 @@ function grossToNet(gross, taxRate) {
       install_enclosure: "Einbau der Duschabtrennung",
       install_box_enclosure: "Einbau, Verkleiden eines Kastens im Duschbereich",
       install_distance_profile: "Einbau eines Abstandsprofils",
+      trockenbau_duschbereich: "Trockenbau im Duschbereich",
       // Thermostat / Duschsystem
       close_valve: "Stilllegen der Armatur",
       relocate_faucet: "Versetzen, Verlegen einer Armatur",
@@ -554,6 +555,7 @@ function grossToNet(gross, taxRate) {
       remove_toilet: "Entfernen und Entsorgen einer Toilette",
       install_toilet: "Einbau einer Toilette",
       install_shower_wc: "Einbau eines Dusch-WCs",
+      trockenbau_wc: "Trockenbau für das WC",
     };
 
     const dwTasks = normalizeDWTasks(payload);
