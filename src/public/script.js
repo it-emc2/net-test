@@ -1906,6 +1906,22 @@ const ARBEITSZEIT_RULES = {
   install_shower_wc: { label: "Dusch-WC einbauen", minutes: 60 },
 };
 
+// Minutes come from the admin panel (AZ_MIN_* → __azMinutesLive). A saved
+// offer is pinned to its snapshot (pricingRules.azMinutes); one saved before
+// the snapshot existed pins to {} and so keeps the legacy values above.
+window.__azMinutesLive = {};
+window.__azMinutesPinned = null;
+function azMinutes(key, legacy) {
+  const v = (window.__azMinutesPinned || window.__azMinutesLive)[key];
+  return typeof v === "number" ? v : legacy;
+}
+// null = fresh offer (live config); payload = restored offer.
+window.__applyAzMinutesSnapshot = function (p) {
+  window.__azMinutesPinned = p ? { ...(p.pricingRules?.azMinutes || {}) } : null;
+  computeArbeitszeitSuggestion();
+  renderArbeitszeitSuggestion();
+};
+
 function getArbeitszeitQty(inputId, qtyId) {
   const checked = !!document.getElementById(inputId)?.checked;
   if (!checked) return 0;
@@ -1931,8 +1947,15 @@ function computeArbeitszeitSuggestion() {
     .querySelectorAll('input[name="duschwanne[workTasks][]"]:checked')
     .forEach((el) => {
       const rule = ARBEITSZEIT_RULES[el.value];
-      if (!rule) return;
-      pushArbeitszeitRow(rows, el.value, rule.label, rule.minutes, 1);
+      const minutes = azMinutes(el.value, rule?.minutes);
+      // No rule anywhere → not a timed task (e.g. Wandverkleidung, timed per panel).
+      if (minutes == null) return;
+      const label =
+        rule?.label ||
+        el.closest(".task-card")?.querySelector(".task-card__title")?.textContent.trim() ||
+        el.value;
+      if (minutes > 0) pushArbeitszeitRow(rows, el.value, label, minutes, 1);
+      else rows.push({ key: el.value, label, minutes: 0, qty: 1, missing: true });
     });
 
   // Extras = additional panels of the same size, so they add to the work-time
@@ -1954,7 +1977,7 @@ function computeArbeitszeitSuggestion() {
       1,
       Math.round(main997 + sumWvExtraQtys("wvExtraList997")),
     );
-    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
+    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", azMinutes("wv997", 30), qty997);
   }
   if (wvOn && document.getElementById("wv1497")?.checked) {
     const main1497 = parseArbeitszeitNumber(
@@ -1964,10 +1987,10 @@ function computeArbeitszeitSuggestion() {
       1,
       Math.round(main1497 + sumWvExtraQtys("wvExtraList1497")),
     );
-    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
+    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", azMinutes("wv1497", 40), qty1497);
   }
   if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
-    pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
+    pushArbeitszeitRow(rows, "Silikon", "Silikon", azMinutes("silikon", 10), 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
     const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
@@ -1976,11 +1999,11 @@ function computeArbeitszeitSuggestion() {
         rows,
         "flooring",
         "Fußboden individuell",
-        8,
+        azMinutes("flooring_m2", 8),
         Math.round(floorArea * 10) / 10,
       );
     } else {
-      pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", 25, 1);
+      pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", azMinutes("flooring_flat", 25), 1);
     }
   }
 
@@ -1992,7 +2015,7 @@ function computeArbeitszeitSuggestion() {
   ];
   grabConfigs.forEach(([optId, qtyId, label]) => {
     const qty = getArbeitszeitQty(optId, qtyId);
-    if (qty > 0) pushArbeitszeitRow(rows, optId, label, 30, qty);
+    if (qty > 0) pushArbeitszeitRow(rows, optId, label, azMinutes("grab", 30), qty);
   });
 
   const totalMinutes = rows.reduce((sum, row) => sum + row.minutes * row.qty, 0);
@@ -2040,7 +2063,7 @@ function renderArbeitszeitSuggestion() {
     tr.innerHTML = `
       <td>${row.label}</td>
       <td>${qtyText}</td>
-      <td>${formatDurationHHMM(row.minutes * row.qty)}</td>
+      <td>${row.missing ? "Zeit fehlt" : formatDurationHHMM(row.minutes * row.qty)}</td>
     `;
     body.appendChild(tr);
   });
@@ -3226,6 +3249,7 @@ function startOfferFlow(offerKey) {
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
   window.__grabBonusRefId = "CLPESG30";
   window.__applyBonusNeuSnapshot?.(null);
+  window.__applyAzMinutesSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -4406,6 +4430,7 @@ function buildPayload() {
   // offers (see restore path) keep these at the historical 200/2 default
   // instead of the live-fetched value, so reopening one doesn't silently
   // adopt today's config before the user has chosen to.
+  payload.pricingRules.azMinutes = { ...(window.__azMinutesPinned || window.__azMinutesLive) };
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
@@ -7025,6 +7050,13 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
       window.__bonusNeuThresholdLive = d.NEUKUNDENBONUS_SCHWELLE;
       if (!window.__bonusNeuPinned) window.__bonusNeuThreshold = d.NEUKUNDENBONUS_SCHWELLE;
     }
+    var az = {};
+    Object.keys(d).forEach(function (k) {
+      if (k.indexOf("AZ_MIN_") === 0 && typeof d[k] === "number") az[k.slice(7)] = d[k];
+    });
+    window.__azMinutesLive = az;
+    computeArbeitszeitSuggestion();
+    renderArbeitszeitSuggestion();
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
@@ -16332,6 +16364,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
     window.__applyBonusNeuSnapshot?.(p);
+    window.__applyAzMinutesSnapshot?.(p);
 
     // normalize offerType
     const rawOfferType =

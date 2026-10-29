@@ -203,6 +203,54 @@ export const CONFIG_SCHEMA = [
     description: 'Artikelnummern (eine pro Zeile), die nie im Produktbilder-PDF auftauchen',
   },
 
+  // ── ARBEITSZEITEN JE TÄTIGKEIT ───────────────────────────────────────────
+  // Minutes behind the "Automatischer Arbeitszeit-Vorschlag" (BU). Key suffix =
+  // work-task value / suggestion key in script.js. New offers snapshot the
+  // whole map (payload.pricingRules.azMinutes); saved offers keep theirs.
+  ...[
+    ['remove_tub', 'Badewanne entfernen', 45],
+    ['install_bathtub', 'Badewanne einbauen', 90],
+    ['install_bathtub_screen', 'Wannenaufsatz montieren', 60],
+    ['remove_showertub', 'Duschwanne entfernen', 30],
+    ['install_tray', 'Duschwanne einbauen', 75],
+    ['install_sitzbath', 'Sitzbadewanne einbauen', 120],
+    ['remove_shower_curtain', 'Duschvorhang entfernen', 15],
+    ['remove_enclosure', 'Duschabtrennung entfernen', 25],
+    ['install_shower_curtain', 'Duschvorhang montieren', 15],
+    ['install_enclosure', 'Duschabtrennung montieren', 60],
+    ['install_distance_profile', 'Abstandsprofil montieren', 20],
+    ['trockenbau_duschbereich', 'Trockenbau im Duschbereich', 0],
+    ['close_valve', 'Armatur stilllegen', 45],
+    ['relocate_faucet', 'Armatur versetzen', 90],
+    ['relocate_drain', 'Abfluss verlegen', 30],
+    ['convert_faucet', 'Armatur umbauen', 90],
+    ['replace_thermostat', 'Thermostat auswechseln', 30],
+    ['replace_shower_no_thermo', 'Duschsystem auswechseln', 30],
+    ['replace_shower_with_thermo', 'Duschsystem + Thermostat auswechseln', 45],
+    ['install_shower_basket', 'Duschkorb montieren', 15],
+    ['remove_sink', 'Waschbecken entfernen', 30],
+    ['install_sink', 'Waschbecken einbauen', 45],
+    ['replace_sink_faucet', 'Waschbecken-Armatur auswechseln', 30],
+    ['remove_furniture', 'Bademöbel entfernen', 20],
+    ['install_furniture', 'Bademöbel einbauen', 30],
+    ['remove_toilet', 'Toilette entfernen', 50],
+    ['install_toilet', 'Toilette montieren', 20],
+    ['install_shower_wc', 'Dusch-WC einbauen', 60],
+    ['trockenbau_wc', 'Trockenbau für das WC', 0],
+    ['wv997', 'Wandverkleidung 997×2550 (je Platte)', 30],
+    ['wv1497', 'Wandverkleidung 1497×2550 (je Platte)', 40],
+    ['silikon', 'Silikon', 10],
+    ['flooring_m2', 'Fußboden individuell (je m²)', 8],
+    ['flooring_flat', 'Fußboden individuell (ohne Fläche, pauschal)', 25],
+    ['grab', 'Haltegriff (je Stück)', 30],
+  ].map(([task, label, value], i) => ({
+    key: `AZ_MIN_${task}`, value,
+    label, unit: 'min', type: 'integer', section: 'arbeitszeiten', order: i + 1,
+    description: value === 0
+      ? 'Zeit fehlt – mit Handwerk abstimmen. Gilt für neue Angebote.'
+      : 'Gilt für neue Angebote — gespeicherte Angebote/Entwürfe behalten ihren Wert.',
+  })),
+
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
   {
     key: 'AUTO_RECOMPUTE_PRICING', value: true,

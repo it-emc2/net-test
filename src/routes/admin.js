@@ -86,6 +86,10 @@ router.get('/api/config/public', async (req, res) => {
   try {
     const result = {};
     for (const key of PUBLIC_CONFIG_KEYS) result[key] = configService.get(key);
+    // Arbeitszeit minutes per task — one key per task, so read by prefix.
+    for (const { key } of CONFIG_SCHEMA) {
+      if (key.startsWith('AZ_MIN_')) result[key] = configService.get(key);
+    }
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: String(err) });
