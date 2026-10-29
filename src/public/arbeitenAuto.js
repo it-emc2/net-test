@@ -1,6 +1,6 @@
 // Ticks the BU work tasks ("Arbeiten") from the Umbauart and the chosen products.
 //
-// - Umbauart decides the Rückbau (what is there today gets removed).
+// - Umbauart decides Rückbau + Einbau (Wanne/Dusche → Dusche/Wanne).
 // - Products decide the installs — reuses the task↔product couplings of the
 //   Angebotscheck (WORK_RULES), so both always agree.
 // - A task the user ticked/unticked by hand is never touched again
@@ -13,11 +13,13 @@ import { isSentMode } from "./SentOfferBar.js";
 const TASK_SEL = 'input[name="duschwanne[workTasks][]"]';
 const UMBAU_SEL = 'input[name="duschwanne[umbauart]"]';
 
-const REMOVALS = {
-  wanne_dusche: ["remove_tub"],
-  wanne_wanne: ["remove_tub"],
-  dusche_dusche: ["remove_showertub"],
-  dusche_wanne: ["remove_showertub"],
+// Rückbau of what is there today + Einbau of the target. The Angebotscheck
+// flags the Einbau until the matching product is chosen.
+const BY_UMBAUART = {
+  wanne_dusche: ["remove_tub", "install_tray"],
+  wanne_wanne: ["remove_tub", "install_bathtub"],
+  dusche_dusche: ["remove_showertub", "install_tray"],
+  dusche_wanne: ["remove_showertub", "install_bathtub"],
   ohne_rueckbau: [],
 };
 
@@ -28,7 +30,7 @@ const AMBIGUOUS = new Set(["replace_shower_no_thermo", "replace_shower_with_ther
 const PRODUCT_RULES = WORK_RULES.filter((r) => !r.noReverse && !AMBIGUOUS.has(r.task));
 
 const CONTROLLED = new Set([
-  ...Object.values(REMOVALS).flat(),
+  ...Object.values(BY_UMBAUART).flat(),
   ...PRODUCT_RULES.map((r) => r.task),
 ]);
 
@@ -48,7 +50,7 @@ export function syncWorkTasks() {
   const checked = new Set(boxes.filter((b) => b.checked).map((b) => b.value));
   const sel = readSelection(window.__pricing);
 
-  const want = new Set(REMOVALS[art] || []);
+  const want = new Set(BY_UMBAUART[art] || []);
   for (const rule of PRODUCT_RULES) {
     // A sibling already covers this product (Toilette vs. Dusch-WC).
     if ((rule.sharesWith || []).some((t) => checked.has(t))) continue;
