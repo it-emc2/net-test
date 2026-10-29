@@ -4000,6 +4000,21 @@ button.dm-btn-danger:focus-visible {
             <p class="section-subtitle">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.
             </p>
 
+            <!-- Umbauart: drives the Rückbau tasks; installs follow the chosen
+                 products (arbeitenAuto.js). Manual ticks always win. -->
+            <div class="field" style="margin-bottom:14px;">
+              <label>Umbauart</label>
+              <div class="radio-group" role="radiogroup" aria-label="Umbauart">
+                <label class="radio-pill"><input type="radio" name="duschwanne[umbauart]" value="wanne_dusche" /><span class="circle"></span><span>Badewanne → Dusche</span></label>
+                <label class="radio-pill"><input type="radio" name="duschwanne[umbauart]" value="dusche_dusche" /><span class="circle"></span><span>Dusche → Dusche</span></label>
+                <label class="radio-pill"><input type="radio" name="duschwanne[umbauart]" value="wanne_wanne" /><span class="circle"></span><span>Badewanne → Badewanne</span></label>
+                <label class="radio-pill"><input type="radio" name="duschwanne[umbauart]" value="dusche_wanne" /><span class="circle"></span><span>Dusche → Badewanne</span></label>
+                <label class="radio-pill"><input type="radio" name="duschwanne[umbauart]" value="ohne_rueckbau" /><span class="circle"></span><span>Ohne Rückbau</span></label>
+              </div>
+              <div class="muted" style="margin-top:6px;">Arbeiten werden automatisch aus Umbauart und gewählten Produkten angehakt. Manuelle Änderungen bleiben erhalten.</div>
+              <input type="hidden" name="duschwanne[workTasksManual]" id="workTasksManual" value="" />
+            </div>
+
             <div class="wt-groups">
 
               <!-- 1. Badewanne -->
@@ -11173,6 +11188,7 @@ button.dm-btn-danger:focus-visible {
   <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
   <script type="module" src="/angebotscheck.js"></script>
+  <script type="module" src="/arbeitenAuto.js"></script>
   <script type="module" src="/angebotsversand.js"></script>
   <script type="module" src="/checkliste.js"></script>
 
