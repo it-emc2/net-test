@@ -15430,6 +15430,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("kk_versichertennr", k.kk_versichertennr ?? k.ah_versichertenr);
   setByNameOrId("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse);
   setByNameOrId("kk_pflegegradSeit", k.kk_pflegegradSeit);
+  setRadio("kk_rechnungskopie", k.kk_rechnungskopie || "nein");
   setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
