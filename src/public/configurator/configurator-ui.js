@@ -71,7 +71,9 @@ function duschwannenDisplayName(d, widthMm) {
 }
 
 export function mountConfigurator(el, model, options = {}) {
-  let state = w.settle(model, options.initialState || w.initialState());
+  // A saved card can be just {__supplier} (added, never configured) — give it the
+  // empty selections/sizes the engine expects instead of failing to mount.
+  let state = w.settle(model, { ...w.initialState(), ...(options.initialState || {}) });
   let pending = { width: null, height: null }; // in-progress component size
   let extrasOpen = true; // Verbreiterungsprofil section open by default
   // Drawings (picture tiles + live cabin) only for the stepwise Badolux model;
