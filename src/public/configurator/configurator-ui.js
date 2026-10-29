@@ -75,7 +75,6 @@ export function mountConfigurator(el, model, options = {}) {
   // empty selections/sizes the engine expects instead of failing to mount.
   let state = w.settle(model, { ...w.initialState(), ...(options.initialState || {}) });
   let pending = { width: null, height: null }; // in-progress component size
-  let extrasOpen = true; // Verbreiterungsprofil section open by default
   // Drawings (picture tiles + live cabin) only for the stepwise Badolux model;
   // Vigour and the old one-step Badolux model keep their photos / text buttons.
   const drawings = model.supplier === "BADOLUX" && model.params.some((p) => p.id === "Einbausituation");
@@ -330,6 +329,15 @@ export function mountConfigurator(el, model, options = {}) {
         t.addEventListener("click", () => openLightbox(images, i + 1));
         thumbs.appendChild(t);
       });
+      // above the step only the first few thumbs show (CSS); "+N" opens the rest
+      if (images.length > 6) {
+        const more = document.createElement("button");
+        more.type = "button";
+        more.className = "dac-leaf-more";
+        more.textContent = `+${images.length - 6}`;
+        more.addEventListener("click", () => openLightbox(images, 6));
+        thumbs.appendChild(more);
+      }
       wrap.appendChild(thumbs);
     }
     const cap = document.createElement("span");
@@ -392,39 +400,58 @@ export function mountConfigurator(el, model, options = {}) {
   }
 
   function canGoBack() {
-    const order = model.params.map((p) => p.id);
-    const answered = answeredSteps();
-    for (let i = answered.length - 1; i >= 0; i--) {
-      const target = answered[i];
-      const idx = order.indexOf(target);
-      const selections = {};
-      for (const id of order.slice(0, idx))
-        if (state.selections[id] != null) selections[id] = state.selections[id];
-      const cs = w.currentStep(model, w.settle(model, { selections, sizes: {} }));
-      if (
-        (cs.phase === "structure" || cs.phase === "finish") &&
-        cs.paramId === target
-      )
-        return true;
-    }
-    return false;
+    return answeredSteps().some(isRealChoice);
   }
 
-  function renderBreadcrumb(container) {
-    const ids = answeredSteps();
-    if (ids.length === 0) return;
-    const bc = document.createElement("div");
-    bc.className = "dac-breadcrumb";
-    for (const id of ids) {
-      const { paramLabel, valueLabel } = chipFor(id);
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "dac-chip";
-      chip.innerHTML = `<span class="dac-chip-k">${paramLabel}</span><span class="dac-chip-v">${valueLabel}</span><span class="dac-chip-x">✎</span>`;
-      chip.addEventListener("click", () => changeStep(id));
-      bc.appendChild(chip);
+  // A step the user really chose — auto-applied single-option steps (e.g. the derived
+  // "Duschabtrennung") are not listed and are not a target for "Zurück".
+  function isRealChoice(paramId) {
+    const order = model.params.map((p) => p.id);
+    const selections = {};
+    for (const id of order.slice(0, order.indexOf(paramId)))
+      if (state.selections[id] != null) selections[id] = state.selections[id];
+    const cs = w.currentStep(model, w.settle(model, { selections, sizes: {} }));
+    return (cs.phase === "structure" || cs.phase === "finish") && cs.paramId === paramId;
+  }
+
+  // Answered steps as an iOS list: "Frage  Antwort ›", a tap reopens that step.
+  // The finish picks (Glasart, Beschichtung, Profilfarbe …) share one "Ausführung" row.
+  function renderAnswered(container) {
+    const finishIds = new Set(w.finishParams(w.resolvedLeaf(model, state)).map((f) => f.id));
+    const rows = [];
+    for (const id of answeredSteps()) {
+      if (!isRealChoice(id)) continue;
+      const { paramLabel, valueLabel: full } = chipFor(id);
+      const valueLabel = String(full).split(" — ")[0]; // Badolux: "Ecke — zwei Wände …" → "Ecke"
+      const last = rows.at(-1);
+      if (finishIds.has(id) && last?.finish) last.values.push(valueLabel);
+      else rows.push({ id, label: finishIds.has(id) ? "Ausführung" : paramLabel, values: [valueLabel], finish: finishIds.has(id) });
     }
-    container.appendChild(bc);
+    if (!rows.length) return;
+    const group = document.createElement("div");
+    group.className = "dac-group dac-answered";
+    for (const r of rows) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "dac-row dac-row--nav";
+      const k = document.createElement("span");
+      k.className = "dac-row__k";
+      k.textContent = r.label;
+      const v = document.createElement("span");
+      v.className = "dac-row__v";
+      v.textContent = r.values.join(" · ");
+      row.append(k, v);
+      row.addEventListener("click", () => changeStep(r.id));
+      group.appendChild(row);
+    }
+    container.appendChild(group);
+  }
+
+  function groupLabel(text) {
+    const h = document.createElement("h4");
+    h.className = "dac-group-label";
+    h.textContent = text;
+    return h;
   }
 
   // model.images stores "assets/<uuid>_<ext>" but the files actually live at
@@ -501,10 +528,21 @@ export function mountConfigurator(el, model, options = {}) {
   function renderStep(main) {
     const step = w.currentStep(model, state);
     const heading = (text) => {
+      const bar = document.createElement("div");
+      bar.className = "dac-step-head";
       const h = document.createElement("h3");
       h.className = "dac-step-title";
       h.textContent = text;
-      main.appendChild(h);
+      bar.appendChild(h);
+      if (canGoBack()) {
+        const back = document.createElement("button");
+        back.type = "button";
+        back.className = "dac-back";
+        back.textContent = "‹ Zurück";
+        back.addEventListener("click", goBack);
+        bar.appendChild(back);
+      }
+      main.appendChild(bar);
     };
 
     // Show the leaf's product image as soon as it's pinned down (right after the
@@ -604,79 +642,71 @@ export function mountConfigurator(el, model, options = {}) {
 
     heading("Maße festlegen");
 
-    const sizePill = (label, selected, onClick, isSonder = false) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "dac-opt dac-size" + (isSonder ? " dac-sondermass" : "");
-      if (selected) b.dataset.selected = "true";
-      b.textContent = label;
-      b.addEventListener("click", onClick);
-      return b;
+    // Sizes as wrapping segmented pills, one inset group per component.
+    const seg = (items) => {
+      const wrap = document.createElement("div");
+      wrap.className = "dac-seg";
+      for (const it of items) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "dac-seg__opt" + (it.sonder ? " is-sonder" : "");
+        if (it.selected) b.dataset.selected = "true";
+        b.setAttribute("aria-pressed", it.selected ? "true" : "false");
+        b.textContent = it.label;
+        b.addEventListener("click", it.onClick);
+        wrap.appendChild(b);
+      }
+      return wrap;
+    };
+    const sizeRow = (label, control) => {
+      const row = document.createElement("div");
+      row.className = "dac-row dac-row--size";
+      const k = document.createElement("span");
+      k.className = "dac-row__k";
+      k.textContent = label;
+      row.append(k, control);
+      return row;
     };
 
     for (const c of leaf.components) {
       const cur = state.sizes[c.key] || {};
       const singleH = c.hoehe.length === 1 ? c.hoehe[0] : null;
 
+      main.appendChild(groupLabel(c.label));
       const group = document.createElement("div");
-      group.className = "dac-component";
-      const ct = document.createElement("h4");
-      ct.className = "dac-comp-title";
-      ct.textContent = c.label;
-      group.appendChild(ct);
-
-      const blbl = document.createElement("div");
-      blbl.className = "dac-sizelabel";
-      // Vigour: "Breite (mm)"; badolux overrides via model.sizeAxisLabel ("Maß (cm)").
-      blbl.textContent = model.sizeAxisLabel || "Breite (mm)";
-      group.appendChild(blbl);
-      const bwrap = document.createElement("div");
-      bwrap.className = "dac-grid dac-grid-sizes";
-      for (const n of c.breite) {
-        const selected = !cur.sondermass && cur.width === n;
-        bwrap.appendChild(
-          sizePill(String(n), selected, () => {
-            const height =
-              singleH != null ? singleH : cur.sondermass ? null : cur.height ?? null;
+      group.className = "dac-group dac-component";
+      group.appendChild(sizeRow(model.sizeAxisLabel || "Breite (mm)", seg([
+        ...c.breite.map((n) => ({
+          label: String(n),
+          selected: !cur.sondermass && cur.width === n,
+          onClick: () => {
+            const height = singleH != null ? singleH : cur.sondermass ? null : cur.height ?? null;
             state = w.setComponentSize(state, c.key, n, height);
             finishAndRender();
-          }),
-        );
-      }
-      for (const sm of c.sondermass) {
-        bwrap.appendChild(
-          sizePill(
-            sm,
-            cur.sondermass === sm,
-            () => {
-              state = w.setComponentSondermass(state, c.key, sm);
-              finishAndRender();
-            },
-            true,
-          ),
-        );
-      }
-      group.appendChild(bwrap);
+          },
+        })),
+        ...c.sondermass.map((sm) => ({
+          label: sm,
+          sonder: true,
+          selected: cur.sondermass === sm,
+          onClick: () => {
+            state = w.setComponentSondermass(state, c.key, sm);
+            finishAndRender();
+          },
+        })),
+      ])));
 
       // Höhe only when there is a real height choice (multi-height, non-Sondermaß)
-      if (singleH == null && !cur.sondermass) {
-        const hlbl = document.createElement("div");
-        hlbl.className = "dac-sizelabel";
-        hlbl.textContent = "Höhe (mm)";
-        group.appendChild(hlbl);
-        const hwrap = document.createElement("div");
-        hwrap.className = "dac-grid dac-grid-sizes";
-        for (const hh of c.hoehe) {
-          hwrap.appendChild(
-            sizePill(String(hh), cur.height === hh, () => {
-              state = w.setComponentSize(state, c.key, cur.width ?? null, hh);
-              finishAndRender();
-            }),
-          );
-        }
-        group.appendChild(hwrap);
+      if (singleH == null && !cur.sondermass && c.hoehe.length) {
+        group.appendChild(sizeRow("Höhe (mm)", seg(c.hoehe.map((hh) => ({
+          label: String(hh),
+          selected: cur.height === hh,
+          onClick: () => {
+            state = w.setComponentSize(state, c.key, cur.width ?? null, hh);
+            finishAndRender();
+          },
+        })))));
       }
-
       main.appendChild(group);
     }
 
@@ -684,232 +714,195 @@ export function mountConfigurator(el, model, options = {}) {
     renderDuschwanne(main);
 
     if (step.phase === "done") {
-      const done = document.createElement("p");
-      done.className = "dac-done-hint";
-      done.textContent =
-        "Die Konfiguration ist abgeschlossen und wurde dem Angebot hinzugefügt. Sie können die Maße oben jederzeit ändern.";
-      main.appendChild(done);
       const again = document.createElement("button");
       again.type = "button";
       again.className = "dac-reset";
-      again.textContent = "Neue Konfiguration";
+      again.textContent = "Neu konfigurieren";
       again.addEventListener("click", reset);
       main.appendChild(again);
     }
   }
 
-  // Optional Verbreiterungsprofil tiles, rendered right after the size selection.
-  // Reuses the option-button look; clicking toggles the article on/off.
+  // One list row: picture, name + small text, then whatever controls (stepper, switch …).
+  function itemRow({ img, title, sub, onClick, selected, controls = [] }) {
+    // a div, not a <button>: a row may hold a stepper with an <input>
+    const row = document.createElement("div");
+    if (onClick) {
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
+      // taps on a stepper inside the row change the quantity, not the row
+      row.addEventListener("click", (ev) => { if (!ev.target.closest(".ios-stepper")) onClick(); });
+      row.addEventListener("keydown", (ev) => {
+        if (ev.target === row && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); onClick(); }
+      });
+    }
+    row.className = "dac-row dac-row--item";
+    if (selected != null) row.setAttribute("aria-pressed", selected ? "true" : "false");
+    if (img) {
+      const pic = document.createElement("span");
+      pic.className = "dac-row__img";
+      const im = document.createElement("img");
+      im.src = img;
+      im.alt = "";
+      im.loading = "lazy";
+      im.onerror = () => im.remove();
+      pic.appendChild(im);
+      row.appendChild(pic);
+    }
+    const text = document.createElement("span");
+    text.className = "dac-row__text";
+    const t = document.createElement("strong");
+    t.textContent = title;
+    text.appendChild(t);
+    if (sub) {
+      const u = document.createElement("small");
+      u.textContent = sub;
+      text.appendChild(u);
+    }
+    row.appendChild(text);
+    row.append(...controls);
+    return row;
+  }
+
+  function switchEl(on) {
+    const sw = document.createElement("span");
+    sw.className = "dac-switch" + (on ? " is-on" : "");
+    sw.setAttribute("aria-hidden", "true");
+    return sw;
+  }
+
+  // Optional Verbreiterungsprofil: a switch row per article, a stepper for the
+  // quantity while it is on.
   function renderExtras(main) {
     const items = extrasAvailable();
     if (!items.length) return;
     const ids = Array.isArray(state.extras) ? state.extras : [];
-
-    // native <details> for the collapse; open state survives re-renders via extrasOpen
-    const group = document.createElement("details");
-    group.className = "dac-component dac-extras";
-    group.open = extrasOpen || ids.length > 0;
-    group.addEventListener("toggle", () => { extrasOpen = group.open; });
-    const title = document.createElement("summary");
-    title.className = "dac-comp-title";
-    title.textContent = "Verbreiterungsprofil (optional)";
-    group.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "dac-grid";
+    main.appendChild(groupLabel("Verbreiterungsprofil (optional)"));
+    const group = document.createElement("div");
+    group.className = "dac-group dac-extras";
     for (const e of items) {
-      const btn = optionButton(
-        {
-          label: `${e.name} · ${euro(e.net)}`,
-          imageId: null,
-        },
-        () => toggleExtra(e.articleNumber),
-      );
-      const selected = ids.includes(e.articleNumber);
-      if (selected) btn.dataset.selected = "true";
-      // extras carry a plain asset path, not a model imageId → build the <img> here
-      const wrap = document.createElement("span");
-      wrap.className = "dac-opt-img";
-      const img = document.createElement("img");
-      img.src = "/assets/Verbreiterungsprofil/" + e.image;
-      img.alt = e.name;
-      img.loading = "lazy";
-      img.onerror = () => wrap.remove();
-      wrap.appendChild(img);
-      btn.prepend(wrap);
-      if (!selected) {
-        grid.appendChild(btn);
-        continue;
+      const on = ids.includes(e.articleNumber);
+      const controls = [];
+      if (on) {
+        const step = document.createElement("span");
+        step.className = "ios-stepper";
+        step.innerHTML = '<button type="button" data-step="-1" aria-label="Weniger">−</button><input type="number" min="1" step="1" aria-label="Menge" /><button type="button" data-step="1" aria-label="Mehr">+</button>';
+        const input = step.querySelector("input");
+        input.value = String(extraQty(e.articleNumber));
+        input.addEventListener("change", () =>
+          setExtraQty(e.articleNumber, Math.max(1, Math.floor(Number(input.value) || 1))),
+        );
+        controls.push(step);
       }
-      // Menge input next to (not inside) the button — inputs can't nest in <button>
-      const cell = document.createElement("div");
-      cell.className = "dac-extra-cell";
-      const qtyLabel = document.createElement("label");
-      qtyLabel.className = "dac-extra-qty";
-      qtyLabel.textContent = "Menge:";
-      const qtyInput = document.createElement("input");
-      qtyInput.type = "number";
-      qtyInput.min = "1";
-      qtyInput.step = "1";
-      qtyInput.value = String(extraQty(e.articleNumber));
-      // change (not input) so the re-render doesn't steal focus mid-typing
-      qtyInput.addEventListener("change", () =>
-        setExtraQty(e.articleNumber, Math.max(1, Math.floor(Number(qtyInput.value) || 1))),
-      );
-      qtyLabel.appendChild(qtyInput);
-      cell.append(btn, qtyLabel);
-      grid.appendChild(cell);
+      controls.push(switchEl(on));
+      const row = itemRow({
+        img: "/assets/Verbreiterungsprofil/" + e.image,
+        title: e.name,
+        sub: `${e.articleNumber} · ${e.finishText} · ${euro(e.net)}`,
+        selected: on,
+        onClick: () => toggleExtra(e.articleNumber),
+        controls,
+      });
+      group.appendChild(row);
     }
-    group.appendChild(grid);
     main.appendChild(group);
   }
 
-  // Matching Viertelkreis-Duschwanne, shown once a Radius-550mm door width with a tray
-  // is picked. Single-select (click again to deselect) — mirrors renderExtras' look.
+  function stockBadge(article) {
+    if (article.stockQuantity == null && article.stockText == null) return null;
+    const inStock = Number(article.stockQuantity) > 0;
+    const b = document.createElement("span");
+    b.className = "dac-line-stock " + (inStock ? "dac-stock-in" : "dac-stock-out");
+    const qty = document.createElement("span");
+    qty.className = "dac-stock-qty";
+    qty.textContent = String(Number(article.stockQuantity) || 0);
+    b.append(qty, document.createTextNode(inStock ? "Auf Lager" : "Auf Bestellung"));
+    if (article.stockText) b.title = article.stockText;
+    return b;
+  }
+
+  // Matching Viertelkreis-Duschwanne for the picked radius + door width. Single
+  // choice, tap again to deselect.
   function renderDuschwanne(main) {
     const items = duschwannenAvailable();
     if (!items.length) return;
-
+    main.appendChild(groupLabel("Passende Duschwanne (optional)"));
     const group = document.createElement("div");
-    group.className = "dac-component";
-    const title = document.createElement("h4");
-    title.className = "dac-comp-title";
-    title.textContent = "Passende Duschwanne (optional)";
-    group.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "dac-grid";
+    group.className = "dac-group dac-dw";
     const width = currentDoorWidth();
     for (const d of items) {
-      const name = duschwannenDisplayName(d, width);
-      const btn = optionButton(
-        { label: `${name} · ${euro(d.net)}`, imageId: null },
-        () => selectDuschwanne(d.articleNumber),
-      );
-      if (state.duschwanne === d.articleNumber) btn.dataset.selected = "true";
-      const wrap = document.createElement("span");
-      wrap.className = "dac-opt-img";
-      const img = document.createElement("img");
-      img.src = "/assets/" + d.image;
-      img.alt = name;
-      img.loading = "lazy";
-      img.onerror = () => wrap.remove();
-      wrap.appendChild(img);
-      btn.prepend(wrap);
-      grid.appendChild(btn);
+      const on = state.duschwanne === d.articleNumber;
+      const check = document.createElement("span");
+      check.className = "dac-check" + (on ? " is-on" : "");
+      check.setAttribute("aria-hidden", "true");
+      group.appendChild(itemRow({
+        img: "/assets/" + d.image,
+        title: duschwannenDisplayName(d, width),
+        sub: `${d.articleNumber} · ${euro(d.net)}`,
+        selected: on,
+        onClick: () => selectDuschwanne(d.articleNumber),
+        controls: [stockBadge(d), check].filter(Boolean),
+      }));
     }
-    group.appendChild(grid);
     main.appendChild(group);
   }
 
+  // "Ihre Auswahl": big picture + gallery, then one row per article and the total.
   function renderSummary(aside) {
     aside.className = "dac-summary";
-    const h = document.createElement("h3");
-    h.textContent = "Auswahl";
-    aside.appendChild(h);
-
-    const body = document.createElement("div");
-    body.className = "dac-summary-body";
-    const productsCol = document.createElement("div");
-    productsCol.className = "dac-summary-products";
-    body.appendChild(productsCol);
+    aside.appendChild(groupLabel("Ihre Auswahl"));
+    const group = document.createElement("div");
+    group.className = "dac-group";
+    aside.appendChild(group);
 
     const previews = previewImages();
     if (previews.length) {
-      const imageCol = document.createElement("div");
-      imageCol.className = "dac-summary-image";
-      imageCol.appendChild(leafPreviewEl(previews));
-      body.appendChild(imageCol);
+      const hero = document.createElement("div");
+      hero.className = "dac-hero";
+      hero.appendChild(leafPreviewEl(previews));
+      group.appendChild(hero);
     }
 
     const cfg = resolved();
-    const list = document.createElement("div");
-    list.className = "dac-lines";
-    if (cfg) {
-      for (const line of cfg.lines) {
-        const row = document.createElement("div");
-        row.className = "dac-line";
-
-        const nameSpan = document.createElement("span");
-        nameSpan.className = "dac-line-name";
-        nameSpan.textContent =
-          (line.qty > 1 ? `${line.qty}× ` : "") + (line.article.displayName || line.component);
-        row.appendChild(nameSpan);
-
-        const artSpan = document.createElement("span");
-        artSpan.className = "dac-line-art";
-        artSpan.textContent = line.article.articleNumber;
-        row.appendChild(artSpan);
-
-        if (line.article.finishText) {
-          const finishSpan = document.createElement("span");
-          finishSpan.className = "dac-line-finish";
-          finishSpan.textContent = line.article.finishText;
-          row.appendChild(finishSpan);
-        }
-
-        // Einbaumaß — display-only, present for a minority of articles (~43%).
-        // Each entry's `label` is a ready-to-show string; join multiple with " · ".
-        if (Array.isArray(line.article.einbaumass) && line.article.einbaumass.length) {
-          const einbauSpan = document.createElement("span");
-          einbauSpan.className = "dac-line-einbau";
-          einbauSpan.textContent = line.article.einbaumass
-            .map((e) => e.label)
-            .filter(Boolean)
-            .join(" · ");
-          row.appendChild(einbauSpan);
-        }
-
-        // Stock badge — display-only. In stock when stockQuantity > 0; otherwise
-        // treated as "auf Bestellung". Shown only when the article carries stock data.
-        const hasStock =
-          line.article.stockQuantity != null || line.article.stockText != null;
-        if (hasStock) {
-          const inStock = Number(line.article.stockQuantity) > 0;
-          const stockSpan = document.createElement("span");
-          stockSpan.className =
-            "dac-line-stock " + (inStock ? "dac-stock-in" : "dac-stock-out");
-          const qty = document.createElement("span");
-          qty.className = "dac-stock-qty";
-          qty.textContent = String(Number(line.article.stockQuantity) || 0);
-          stockSpan.appendChild(qty);
-          stockSpan.appendChild(
-            document.createTextNode(inStock ? "Auf Lager" : "Auf Bestellung"),
-          );
-          if (line.article.stockText) stockSpan.title = line.article.stockText;
-          row.appendChild(stockSpan);
-        }
-
-        const priceSpan = document.createElement("span");
-        priceSpan.className = "dac-line-price";
-        priceSpan.textContent = euro(line.article.net * (line.qty || 1));
-        row.appendChild(priceSpan);
-
-        if (line.article.sourceUrl) {
-          const gcLink = document.createElement("a");
-          gcLink.className = "dac-line-gc";
-          gcLink.href = line.article.sourceUrl;
-          gcLink.target = "_blank";
-          gcLink.rel = "noopener noreferrer";
-          gcLink.textContent = "open ↗";
-          row.appendChild(gcLink);
-        }
-
-        list.appendChild(row);
-      }
-      productsCol.appendChild(list);
-      aside.appendChild(body);
-      const total = document.createElement("div");
-      total.className = "dac-total";
-      total.innerHTML = `<span>Gesamt (netto)</span><span>${euro(cfg.net)}</span>`;
-      aside.appendChild(total);
-    } else {
-      aside.appendChild(body);
+    if (!cfg) {
       const hint = document.createElement("div");
-      hint.className = "dac-hint";
+      hint.className = "dac-row dac-hint";
       hint.textContent = "Konfiguration noch nicht vollständig …";
-      aside.appendChild(hint);
+      group.appendChild(hint);
+      return;
     }
+    for (const line of cfg.lines) {
+      const a = line.article;
+      const meta = [a.articleNumber, a.finishText,
+        Array.isArray(a.einbaumass) ? a.einbaumass.map((e) => e.label).filter(Boolean).join(" · ") : ""]
+        .filter(Boolean).join(" · ");
+      const price = document.createElement("span");
+      price.className = "dac-line-price";
+      price.textContent = euro(a.net * (line.qty || 1));
+      const controls = [stockBadge(a), price];
+      if (a.sourceUrl) {
+        const link = document.createElement("a");
+        link.className = "dac-line-gc";
+        link.href = a.sourceUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.title = "Beim Lieferanten öffnen";
+        link.setAttribute("aria-label", "Beim Lieferanten öffnen");
+        link.textContent = "↗";
+        controls.push(link);
+      }
+      const row = itemRow({
+        title: (line.qty > 1 ? `${line.qty} × ` : "") + (a.displayName || line.component),
+        sub: meta,
+        controls: controls.filter(Boolean),
+      });
+      row.classList.add("dac-line");
+      group.appendChild(row);
+    }
+    const total = document.createElement("div");
+    total.className = "dac-row dac-total";
+    total.innerHTML = `<span>Gesamt (netto)</span><span>${euro(cfg.net)}</span>`;
+    group.appendChild(total);
   }
 
   function openLightbox(images, start) {
@@ -969,26 +962,12 @@ export function mountConfigurator(el, model, options = {}) {
     document.body.appendChild(overlay);
   }
 
-  function renderBackBar(main) {
-    if (!canGoBack()) return;
-    const bar = document.createElement("div");
-    bar.className = "dac-backbar";
-    const back = document.createElement("button");
-    back.type = "button";
-    back.className = "dac-back";
-    back.innerHTML = "&#8592; Zurück";
-    back.addEventListener("click", goBack);
-    bar.appendChild(back);
-    main.appendChild(bar);
-  }
-
   function render() {
     el.innerHTML = "";
     el.classList.add("dac-wizard");
     const main = document.createElement("div");
     main.className = "dac-main";
-    renderBackBar(main);
-    renderBreadcrumb(main);
+    renderAnswered(main);
     renderStep(main);
     el.appendChild(main);
     const aside = document.createElement("aside");

@@ -5394,257 +5394,148 @@ button.dm-btn-danger:focus-visible {
    
 <!-- Duschabtrennung (neu) — ported GC/Hassmann Konfigurator -->
 <style>
-  /* Scoped to the new Duschabtrennung configurator. Uses project design tokens. */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-wizard {
-    display: block;
-  }
+  /* Duschabtrennung (neu) — iOS grouped lists like Duschwanne / Wandverkleidung.
+     The markup comes from configurator/configurator-ui.js. */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-wizard { display: block; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main { min-width: 0; }
 
-  /* back bar */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-backbar { margin-bottom: 14px; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border); background: var(--panel);
-    border-radius: 8px; padding: 7px 14px; font-size: 0.9rem;
-    color: var(--text); cursor: pointer; font-family: inherit;
+  /* card per Duschabtrennung: title, Hersteller segment, Entfernen */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card { margin: 0 0 28px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card + .dac-config-card { padding-top: 24px; border-top: 1px solid var(--input-border, #e5e7eb); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-title { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove { border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 0.95rem; color: #ff3b30; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 14px 18px;
+    border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff);
+    font: inherit; font-size: 1rem; font-weight: 500; color: #0a84ff; cursor: pointer; text-align: left;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back:hover { border-color: var(--accent); color: var(--accent-strong); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config::before { content: "+"; font-size: 1.3rem; line-height: 1; }
 
-  /* per-component size group */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-component {
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 16px; background: var(--panel);
+  /* inset grouped list */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-group-label { margin: 18px 4px 6px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted, #6b7280); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-group { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; margin: 0 0 16px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row {
+    display: flex; align-items: center; gap: 14px; width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px 18px;
+    border: 0; border-radius: 0; background: none; font: inherit; font-size: 1rem; color: var(--text, #1f2937); text-align: left;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-comp-title {
-    margin: 0; font-size: 1rem; color: var(--text);
-  }
-  /* collapsible optional-extras group (Verbreiterungsprofil) */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras > summary {
-    cursor: pointer; font-weight: 700;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras[open] > summary {
-    margin-bottom: 16px;
-  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row + .dac-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row--nav, .dac-row[role="button"]) { cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row--nav, .dac-row[role="button"]):active { background: rgba(118, 118, 128, 0.12); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__k { flex: none; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__v { flex: 1 1 auto; min-width: 0; text-align: right; color: var(--muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--nav::after { content: "›"; flex: none; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__img { flex: none; width: 52px; height: 52px; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; overflow: hidden; display: grid; place-items: center; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__img img { width: 100%; height: 100%; object-fit: contain; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text strong { font-size: 1rem; font-weight: 500; line-height: 1.3; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text small { font-size: 0.82rem; color: var(--muted, #6b7280); line-height: 1.35; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row[aria-pressed="false"] .dac-row__img { opacity: 0.55; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row .ios-stepper { flex: none; }
+  /* page prefix beats the generic form-input width/border */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row .ios-stepper input { width: 44px; min-width: 0; height: 34px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 
-  /* breadcrumb of answered steps */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-breadcrumb {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border); background: var(--panel);
-    border-radius: 999px; padding: 5px 12px; font-size: 12px;
-    cursor: pointer; color: var(--text); font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip:hover { border-color: var(--accent); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-k { color: var(--muted); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-v { font-weight: 600; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-x { color: var(--accent); }
+  /* switch + checkmark (pure display; the row is the control) */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch { position: relative; flex: none; width: 51px; height: 31px; border-radius: 999px; background: #e5e5ea; transition: background-color 0.2s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22); transition: transform 0.2s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on { background: #34c759; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on::after { transform: translateX(20px); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-check { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--input-border, #c7c7cc); box-sizing: border-box; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-check.is-on { border-color: #0a84ff; background: #0a84ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px no-repeat; }
 
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title {
-    margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
+  /* open step: title, Zurück, picture tiles */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 4px 10px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back { flex: none; border: 0; background: none; padding: 4px 0; font: inherit; font-size: 1rem; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
+    display: flex; flex-direction: column; gap: 8px; padding: 10px; box-sizing: border-box;
+    border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff);
+    font-family: inherit; text-align: center; cursor: pointer; transition: box-shadow 0.12s, border-color 0.12s;
   }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:hover { border-color: #0a84ff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:active { transform: scale(0.98); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt[data-selected="true"] { border-color: #0a84ff; box-shadow: 0 0 0 2px #0a84ff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img { display: block; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 10px; background: #fff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label { font-size: 0.92rem; font-weight: 500; line-height: 1.25; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-title { display: block; font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sub { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 400; color: var(--muted, #6b7280); }
 
-  /* Badolux drawings (badolux-sketch.js): picture tiles + live drawing */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sketch {
-    display: block; width: 100%; max-width: 180px; margin: 0 auto 6px;
-    background: #fafaf9; border-radius: 8px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch {
-    border: 1px solid var(--border); border-radius: 12px; background: #fafaf9;
-    margin-bottom: 16px; padding: 6px; cursor: pointer; touch-action: manipulation;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch .bs { max-width: 560px; max-height: 250px; margin: 0 auto; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-title { display: block; font-weight: 700; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sub { display: block; font-weight: 400; font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch-hint {
-    text-align: center; font-size: 0.78rem; color: #6b7280; margin-top: 2px;
-  }
+  /* Badolux drawings (badolux-sketch.js) */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sketch { display: block; width: 100%; margin: 0 auto; background: #fafaf9; border-radius: 10px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: #fafaf9; margin: 0 0 12px; padding: 6px; cursor: pointer; touch-action: manipulation; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch .bs { max-width: 480px; max-height: 210px; margin: 0 auto; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch-hint { text-align: center; font-size: 0.78rem; color: #6b7280; margin-top: 2px; }
 
-  /* Badolux product info from cleverbad.de (description + features), collapsed */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info {
-    border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
-    margin: -6px 0 16px; background: var(--panel); font-size: 0.88rem; color: var(--text);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary {
-    cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center;
-  }
+  /* product photos: compact strip above the step, big in "Ihre Auswahl" */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img { width: 72px; height: 72px; object-fit: contain; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; flex: none; cursor: zoom-in; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main > .dac-leaf-preview .dac-leaf-thumbs img:nth-child(n+6) { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-more { width: 48px; height: 48px; border: 1px solid var(--input-border, #e5e7eb); border-radius: 10px; background: var(--panel, #fff); font: inherit; font-size: 0.85rem; font-weight: 600; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-more { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img { width: 48px; height: 48px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label { font-size: 0.9rem; font-weight: 600; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main > .dac-leaf-preview .dac-leaf-preview-label { order: -1; flex: 0 1 auto; margin-right: auto; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero { padding: 16px 18px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview { display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 10px 18px; margin: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview > img { grid-row: 1 / 3; width: 220px; height: 220px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview-label { grid-column: 2; grid-row: 1; font-size: 1.1rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-thumbs { grid-column: 2; grid-row: 2; flex-wrap: wrap; align-content: start; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-thumbs img { width: 56px; height: 56px; }
+
+  /* Badolux product info, collapsed */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; padding: 0 18px; margin: 0 0 12px; background: var(--panel, #fff); font-size: 0.9rem; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary { cursor: pointer; min-height: 46px; display: flex; align-items: center; font-weight: 500; list-style: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary::-webkit-details-marker { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); transition: transform 0.15s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info[open] summary::after { transform: rotate(90deg); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info[open] { padding-bottom: 12px; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info h5 { margin: 10px 0 4px; font-size: 0.9rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info p { margin: 6px 0; line-height: 1.45; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info ul { margin: 6px 0 0; padding-left: 18px; }
 
-  /* leaf preview — the resolved product's image, shown mid-wizard + in the summary */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview {
-    display: flex; align-items: center; gap: 12px;
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 10px 14px; margin-bottom: 16px; background: var(--panel);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
-    width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
-    background: #fff; flex: 0 0 auto; cursor: pointer;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs {
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img {
-    width: 40px; height: 40px; border: 1px solid var(--border);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
-    font-size: 0.85rem; color: var(--text); font-weight: 600;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview {
-    margin: 0; flex-direction: column; align-items: stretch;
-    border: none; padding: 0; background: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
-    width: 100%; height: 260px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 8px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-thumbs img {
-    width: 56px; height: 56px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
-    text-align: center;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sizelabel {
-    font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--muted); margin: 16px 0 8px;
-  }
+  /* Maße: wrapping segmented pills per component */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--size { flex-wrap: wrap; align-items: center; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--size .dac-row__k { min-width: 110px; color: var(--muted, #6b7280); font-size: 0.92rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); flex: 1 1 auto; min-width: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt { flex: 1 0 auto; min-width: 64px; padding: 8px 12px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 0.95rem; font-weight: 500; color: var(--text, #1f2937); cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt[data-selected="true"] { background: var(--panel, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt.is-sonder { color: #0a84ff; }
 
-  /* option grid — proper, larger image tiles */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid {
-    display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
-    display: flex; flex-direction: column; gap: 10px;
-    flex: 1 1 calc((100% - (3 * 14px)) / 4);
-    max-width: calc((100% - (3 * 14px)) / 4);
-    min-width: 200px;
-    padding: 12px; border: 1px solid var(--border); border-radius: 12px;
-    background: var(--panel); cursor: pointer; font-family: inherit;
-    text-align: center; transition: border-color .12s, box-shadow .12s;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:hover {
-    border-color: var(--accent); box-shadow: var(--shadow);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt[data-selected="true"] {
-    border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img {
-    display: block; width: 100%; aspect-ratio: 1 / 1;
-    overflow: hidden; border-radius: 8px; background: #fff;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img {
-    width: 100%; height: 100%; object-fit: contain; display: block;
-  }
-  /* selected Verbreiterungsprofil tile + its Menge input; the cell takes the tile's flex slot */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell {
-    display: flex; flex-direction: column; gap: 6px;
-    flex: 1 1 calc((100% - (3 * 14px)) / 4);
-    max-width: calc((100% - (3 * 14px)) / 4);
-    min-width: 200px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell > .dac-opt {
-    flex: 1 1 auto; max-width: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty {
-    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
-    font-size: 0.85rem; margin: 0; text-align: left;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty input {
-    width: 100%; box-sizing: border-box;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label {
-    font-size: 0.9rem; color: var(--text); line-height: 1.25;
-  }
+  /* Ihre Auswahl */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary { margin-top: 8px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line .dac-row__text strong { font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price { flex: none; min-width: 92px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(10, 132, 255, 0.1); color: #0a84ff; font-weight: 700; text-decoration: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 3px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; font-size: 0.72rem; color: #fff; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in .dac-stock-qty { background: #34c759; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out .dac-stock-qty { background: #ff3b30; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total { justify-content: space-between; font-weight: 700; font-size: 1.05rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total span:last-child { font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hint { color: var(--muted, #6b7280); font-size: 0.92rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset { display: block; margin: 4px 0 0 auto; border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 0.95rem; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted, #6b7280); padding: 24px 0; }
 
-  /* size pills — compact, no image */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid-sizes { gap: 10px; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-size {
-    flex: 0 0 auto; min-width: 84px; max-width: none;
-    padding: 12px 16px; font-size: 0.95rem; font-weight: 600;
-    align-items: center; justify-content: center;
-    color: var(--text);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sondermass {
-    background: var(--accent-weak); border-color: var(--accent);
-    color: var(--accent-strong);
-  }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch { background: #3a3a3c; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on { background: #30d158; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-seg, .dac-row .ios-stepper) { background: rgba(118, 118, 128, 0.24); }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt[data-selected="true"] { background: #636366; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row__img, .dac-leaf-preview img) { border-color: rgba(255, 255, 255, 0.12); }
 
-  /* summary card — full-width, at the bottom */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary {
-    margin-top: 24px;
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px; background: var(--panel); box-shadow: var(--shadow);
+  @media (max-width: 600px) {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview { grid-template-columns: 1fr; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview > img { grid-row: auto; width: 100%; height: 220px; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero :is(.dac-leaf-preview-label, .dac-leaf-thumbs) { grid-column: 1; grid-row: auto; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line { flex-wrap: wrap; }
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary h3 { margin: 0 0 14px; font-size: 1rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
-    display: flex; gap: 20px; align-items: flex-start;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-products {
-    flex: 1 1 auto; min-width: 0;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
-    flex: 0 0 300px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-lines {
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-    font-size: 0.8rem; padding: 14px; border: 1px solid var(--border);
-    border-radius: 12px; background: var(--bg, #fff);
-  }
-  @media (max-width: 700px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
-      flex-direction: column;
-    }
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
-      flex-basis: auto; width: 100%;
-    }
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; font-size: 0.9rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-art { color: var(--muted); font-family: monospace; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-finish { color: var(--muted); font-size: 0.75rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-einbau {
-    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 0.7rem; font-weight: 600;
-    border-radius: 999px; padding: 6px 14px 6px 6px; line-height: 1.5;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #fff; background: #0a7d33; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: #fff; background: #c81e3a; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-qty {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
-    font-variant-numeric: tabular-nums;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in .dac-stock-qty { background: #05541f; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out .dac-stock-qty { background: #7a0e21; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price {
-    margin-top: auto; padding-top: 6px; align-self: stretch;
-    font-size: 0.95rem; font-weight: 700; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc {
-    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong); text-decoration: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc:hover { text-decoration: underline; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total {
-    display: flex; justify-content: space-between; align-items: baseline;
-    margin-top: 14px; font-size: 1.15rem; font-weight: 700; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hint,
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-done-hint { color: var(--muted); font-size: 0.88rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset {
-    margin-top: 14px; padding: 8px 16px; font-size: 0.9rem; font-family: inherit;
-    border: 1px solid var(--accent); border-radius: 8px;
-    background: var(--accent); color: #fff; cursor: pointer;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset:hover { background: var(--accent-strong); }
-
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted); padding: 24px 0; }
 
   .dac-lightbox-overlay {
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
@@ -5676,46 +5567,6 @@ button.dm-btn-danger:focus-visible {
     position: absolute; bottom: 16px; left: 0; right: 0;
     text-align: center; color: #fff; font-size: 14px; padding: 0 16px;
   }
-
-  @media (max-width: 760px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-opt, .dac-extra-cell) {
-      flex-basis: calc((100% - 14px) / 2);
-      max-width: calc((100% - 14px) / 2);
-    }
-  }
-  .dac-supplier label { margin: 0; padding: 6px 22px; text-align: center; transition: background .12s, color .12s; color: var(--muted,#667085); }
-  .dac-supplier input:checked + span { color: #fff; }
-  .dac-supplier label:has(input:checked) { background: var(--accent,#2563eb); }
-
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card {
-    border: 1px solid var(--border,#d0d5dd); border-radius: 12px;
-    padding: 18px; margin-bottom: 18px; background: var(--panel);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin: 0 0 14px; flex-wrap: wrap;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-title {
-    margin: 0; font-size: 1rem; color: var(--muted); font-weight: 600;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border,#d0d5dd); background: var(--panel);
-    border-radius: 8px; padding: 6px 12px; font-size: 13px;
-    color: var(--text); cursor: pointer; font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove:hover {
-    border-color: #d92d20; color: #d92d20;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config {
-    display: inline-flex; align-items: center; gap: 8px;
-    border: 1px dashed var(--accent,#2563eb); background: var(--panel);
-    border-radius: 8px; padding: 10px 18px; font-size: 0.95rem; font-weight: 600;
-    color: var(--accent,#2563eb); cursor: pointer; font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config:hover {
-    background: var(--accent-weak,#eff4ff);
-  }
 </style>
 <section class="card page" id="page-DuschabtrennungNeu" hidden data-section-off>
   <div class="sec-keep" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
@@ -5736,20 +5587,12 @@ button.dm-btn-danger:focus-visible {
     <div class="dac-config-card" data-dac-card>
       <div class="dac-config-head">
         <h3 class="dac-config-title" data-dac-config-title>Duschabtrennung</h3>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div class="dac-supplier" role="radiogroup" aria-label="Hersteller" style="display:inline-flex; align-items:center; border:1px solid var(--border,#d0d5dd); border-radius:8px; overflow:hidden;">
-            <label style="cursor:pointer; font-size:14px;">
-              <input type="radio" data-dac-supplier-input value="vigour" checked style="position:absolute; opacity:0; pointer-events:none;">
-              <span>VIGOUR</span>
-            </label>
-            <label style="cursor:pointer; font-size:14px; border-left:1px solid var(--border,#d0d5dd);">
-              <input type="radio" data-dac-supplier-input value="badolux" style="position:absolute; opacity:0; pointer-events:none;">
-              <span>BADOLUX</span>
-            </label>
+        <div class="dac-config-tools">
+          <div class="ios-seg dac-supplier" role="radiogroup" aria-label="Hersteller">
+            <label><input type="radio" data-dac-supplier-input value="vigour" checked><span>VIGOUR</span></label>
+            <label><input type="radio" data-dac-supplier-input value="badolux"><span>Badolux</span></label>
           </div>
-          <button type="button" class="dac-config-remove" data-dac-remove hidden aria-label="Diese Duschabtrennung entfernen">
-            ✕ Entfernen
-          </button>
+          <button type="button" class="dac-config-remove" data-dac-remove hidden aria-label="Diese Duschabtrennung entfernen">Entfernen</button>
         </div>
       </div>
       <div class="dac-mount" data-dac-mount><div class="dac-loading">Konfigurator wird geladen …</div></div>
@@ -5758,7 +5601,7 @@ button.dm-btn-danger:focus-visible {
 
   <div id="dac-configs"></div>
 
-  <button type="button" id="dac-add-config" class="dac-add-config">+ Weitere Duschabtrennung hinzufügen</button>
+  <button type="button" id="dac-add-config" class="dac-add-config">Weitere Duschabtrennung hinzufügen</button>
 </section>
 
 <script type="module" src="/configurator/boot.js"></script>
