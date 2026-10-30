@@ -41,6 +41,7 @@ import Offer from "./models/Offer.js"; // (ESM import)
 import emailRouter from "./routes/email.js";
 import todaysCustomersRouter from "./routes/todayscustomers.js"; // <‑‑ NEW
 import signingRouter, { signingPageHandler } from "./routes/signing.js";
+import { KASSEN } from "./templates/kassenantrag.js";
 import authRouter from "./routes/auth.js";
 import usersRouter from "./routes/users.js";
 import { authGate } from "./middleware/authGate.js";
@@ -318,6 +319,8 @@ app.use('/api', todaysCustomersRouter);
 app.use('/admin', adminRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/signing', signingRouter);
+// Pflegekassen for the Kundendaten datalist (docs/plan-kassenantrag.md).
+app.get('/api/pflegekassen', (_req, res) => res.json(KASSEN));
 // Public signing page (must be before the SPA fallback so /sign/:token works).
 app.get('/sign/:token', signingPageHandler);
 

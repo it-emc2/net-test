@@ -23807,6 +23807,34 @@ async function sendPdfToAuftrag() {
   });
 });
 
+// ===== Pflegekasse: Vorschläge + Adresse (docs/plan-kassenantrag.md) =====
+// Native datalist on the free-text Kasse fields (unknown Kassen stay typeable).
+// Picking a listed Kasse with a postal address fills the address field only
+// if it is still empty — a typed Geschäftsstelle is never overwritten.
+document.addEventListener("DOMContentLoaded", async () => {
+  const list = document.getElementById("pflegekassenList");
+  if (!list) return;
+  let kassen = [];
+  try {
+    kassen = await (await fetch("/api/pflegekassen")).json();
+  } catch {
+    return;
+  }
+  list.innerHTML = kassen.map((k) => `<option value="${k.name.replace(/"/g, "&quot;")}"></option>`).join("");
+  [["kassenkundeName", "kk_krankenkasseAdresse"], ["partnerKassenkundeName", "partnerKrankenkasseAdresse"]].forEach(
+    ([nameId, addrId]) => {
+      const nameEl = document.getElementById(nameId);
+      const addrEl = document.getElementById(addrId);
+      nameEl?.addEventListener("change", () => {
+        const k = kassen.find((x) => x.name === nameEl.value);
+        if (!k || !addrEl || addrEl.value.trim() || k.address.length < 2) return;
+        addrEl.value = k.address.slice(1).join(", ");
+        addrEl.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    },
+  );
+});
+
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
   // ... dein bisheriger Code ...

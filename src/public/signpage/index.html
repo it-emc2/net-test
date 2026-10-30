@@ -29,6 +29,16 @@
     .feedback.is-error { background: #fdecea; border-color: #b71c1c; color: #7f1d1d; white-space: pre-line; }
     #backToOc { display: block; margin: 0 0 14px; font-size: 13px; color: #333; text-decoration: none; }
     #backToOc:hover { text-decoration: underline; }
+    /* Antrag an die Pflegekasse — rep only, after all documents are signed */
+    #kassenantrag { margin-top: 18px; border: 1px solid #000; padding: 14px 16px; }
+    #kassenantrag h2 { font-size: 16px; margin: 0 0 8px; }
+    #kassenantrag label { display: block; font-size: 13px; color: #333; margin: 10px 0 4px; }
+    #kassenantrag textarea { width: 100%; font: inherit; font-size: 14px; padding: 6px; border: 1px solid #aaa; }
+    #kassenantrag .ka-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    #kassenantrag button { font-size: 15px; padding: 10px 16px; border: 1px solid #000; background: #fff; cursor: pointer; }
+    #kassenantrag button.primary { background: #111; color: #fff; }
+    #kassenantrag button:disabled { opacity: .4; cursor: not-allowed; }
+    #kaStatus { margin-top: 10px; }
     @media (max-width: 640px) {
       body { padding: 10px 6px; }
       .sheet { padding: 10px 14px 22px; }
@@ -59,6 +69,20 @@
         Alle Dokumente wurden unterschrieben und an uns übermittelt.
         Sie erhalten in Kürze eine Kopie per E-Mail.
       </div>
+
+      <section id="kassenantrag" class="hidden">
+        <h2>Antrag an die Pflegekasse (§ 40 Abs. 4 SGB XI)</h2>
+        <div id="kaTarget"></div>
+        <label for="kaMeasures">Geplante Maßnahmen (eine pro Zeile)</label>
+        <textarea id="kaMeasures" rows="6"></textarea>
+        <label for="kaReason">Begründung</label>
+        <textarea id="kaReason" rows="4"></textarea>
+        <div class="ka-actions">
+          <button type="button" id="kaPreview">Vorschau (PDF)</button>
+          <button type="button" id="kaSend" class="primary">An Pflegekasse senden</button>
+        </div>
+        <div id="kaStatus" class="feedback hidden"></div>
+      </section>
     </main>
   </div>
 

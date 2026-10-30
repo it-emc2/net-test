@@ -80,6 +80,10 @@ const SigningRequestSchema = new Schema(
 
     documents: { type: [SignedDocumentSchema], default: [] },
 
+    // Zuschussantrag an die Pflegekasse (docs/plan-kassenantrag.md), set once
+    // sent: { sentAt, channel: 'mail'|'post'|'both', to, by }
+    kassenantrag: { type: Schema.Types.Mixed, default: null },
+
     status: {
       type: String,
       enum: ["sent", "opened", "partially_signed", "completed", "expired"],

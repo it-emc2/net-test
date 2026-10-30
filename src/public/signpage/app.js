@@ -43,6 +43,7 @@
     api(token)
       .then(function (data) {
         state.docs = (data.documents || []).slice();
+        state.offerNumber = data.offerNumber || "";
         loading.classList.add("hidden");
         app.classList.remove("hidden");
         // Reopen the actual offer instead of landing on Hauptmenü.
@@ -441,7 +442,98 @@
     el("progress").textContent = "";
     el("doneCard").classList.remove("hidden");
     window.scrollTo(0, 0);
+    // §40 Abtretung signed = BU Kassenkunde (AH signs abtretung_ah, §45b — no Antrag).
+    var hasAbtretung = state.docs.some(function (d) { return d.key === "abtretung"; });
+    if (isInternal && hasAbtretung && state.offerNumber) initKassenantrag();
   }
+
+  // ----- Antrag an die Pflegekasse (rep only, docs/plan-kassenantrag.md) -----
+  // Internal API under /api/signing/status — needs the rep's session cookie,
+  // so a customer on their own device never gets here (isInternal is false).
+  function kaApi(suffix, body) {
+    return fetch(
+      "/api/signing/status/" + encodeURIComponent(state.offerNumber) + "/kassenantrag" + suffix,
+      body
+        ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        : undefined,
+    );
+  }
+
+  function kaStatus(msg, ok) {
+    var box = el("kaStatus");
+    box.className = "feedback " + (ok ? "is-success" : "is-error");
+    box.textContent = msg;
+  }
+
+  function kaEdits() {
+    return {
+      measures: el("kaMeasures").value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean),
+      reason: el("kaReason").value.trim(),
+    };
+  }
+
+  function kaJson(r) {
+    return r.json().then(function (b) {
+      if (!r.ok) { var e = new Error(b && b.error ? b.error : "Fehler"); e.status = r.status; throw e; }
+      return b;
+    });
+  }
+
+  function kaShowSent(sent) {
+    el("kaSend").textContent = "Erneut senden";
+    kaStatus("✓ Gesendet am " + new Date(sent.sentAt).toLocaleString("de-DE") + " – " + sent.to, true);
+  }
+
+  function initKassenantrag() {
+    el("kassenantrag").classList.remove("hidden");
+    kaApi("")
+      .then(kaJson)
+      .then(function (d) {
+        var via = !d.kasse
+          ? "Kasse nicht in der Liste – Postversand übers Büro an: " + d.kasseAddress.join(", ")
+          : d.kasse.channel === "post"
+            ? "Postversand übers Büro an: " + d.kasseAddress.join(", ")
+            : "E-Mail an " + d.kasse.email + (d.kasse.channel === "both" ? " + Postversand übers Büro" : "");
+        el("kaTarget").innerHTML = "<strong></strong><br><span></span>";
+        el("kaTarget").firstChild.textContent = d.kasseName || "Keine Pflegekasse angegeben";
+        el("kaTarget").lastChild.textContent = via;
+        el("kaMeasures").value = (d.measures || []).join("\n");
+        el("kaReason").value = d.reason || "";
+        if (d.missing && d.missing.length) {
+          el("kaSend").disabled = true;
+          kaStatus("Es fehlt im Angebot: " + d.missing.join(", ") + ". Bitte im OC ergänzen und neu unterschreiben lassen.", false);
+        } else if (d.sent) {
+          kaShowSent(d.sent);
+        }
+      })
+      .catch(function (e) { kaStatus(e.message, false); });
+  }
+
+  el("kaPreview").addEventListener("click", function () {
+    // Open synchronously: iPad Safari blocks window.open after an await.
+    var w = window.open("", "_blank");
+    kaApi("/preview", kaEdits())
+      .then(function (r) {
+        if (!r.ok) return kaJson(r);
+        return r.blob().then(function (b) { if (w) w.location = URL.createObjectURL(b); });
+      })
+      .catch(function (e) { if (w) w.close(); kaStatus(e.message, false); });
+  });
+
+  el("kaSend").addEventListener("click", function () {
+    var btn = el("kaSend");
+    var force = btn.textContent === "Erneut senden";
+    if (!window.confirm(force ? "Antrag wurde schon gesendet. Wirklich erneut senden?" : "Antrag jetzt an die Pflegekasse senden?")) return;
+    var body = kaEdits();
+    body.force = force;
+    btn.disabled = true;
+    kaStatus("Wird gesendet …", true);
+    kaApi("/send", body)
+      .then(kaJson)
+      .then(function (d) { kaShowSent(d.sent); })
+      .catch(function (e) { kaStatus(e.message, false); })
+      .then(function () { btn.disabled = false; });
+  });
 
   el("prevDoc").addEventListener("click", function () { goToDoc(state.index - 1); });
   el("nextDoc").addEventListener("click", function () { goToDoc(state.index + 1); });
@@ -449,7 +541,8 @@
   // Only a logged-in rep (viewing from inside the OC app) gets a way back —
   // set server-side (signingPageHandler) from the net_session cookie, never
   // present for a customer who opened this link on their own device.
-  if (document.body.dataset.internalUser === "true") el("backToOc").classList.remove("hidden");
+  var isInternal = document.body.dataset.internalUser === "true";
+  if (isInternal) el("backToOc").classList.remove("hidden");
 
   start();
 })();

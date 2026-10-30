@@ -3173,6 +3173,7 @@ button.dm-btn-danger:focus-visible {
                       </div>
                     </label>
                   </div>
+                  <datalist id="pflegekassenList"></datalist>
                   <div id="kassenkundeDetails" class="pgb-reveal" aria-hidden="true" hidden>
                     <div class="pgb-reveal-in">
                       <div class="pgb-subcard">
@@ -3188,7 +3189,7 @@ button.dm-btn-danger:focus-visible {
                           </div>
                           <div class="pgb-field">
                             <label for="kassenkundeName">Name der Krankenkasse</label>
-                            <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                            <input id="kassenkundeName" name="kassenkundeName" type="text" list="pflegekassenList" autocomplete="off" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
                           </div>
                           <div class="pgb-field">
                             <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
@@ -3392,7 +3393,7 @@ button.dm-btn-danger:focus-visible {
 
                           <div class="pgb-field full" style="margin-top: 12px">
                             <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
-                            <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                            <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" list="pflegekassenList" autocomplete="off" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
                           </div>
 
                           <div class="pgb-field-row" style="margin-top: 12px">
