@@ -5,11 +5,9 @@
 // "tub"), so the picker, hidden inputs, payload and pricing need no special case:
 // pricing misses Vigor for these ids and quotes the snapshot price.
 //
-// ponytail: prices are RETAIL gross / 1.19 (Megabad 30.10.2026, OBI) as a
-// placeholder — replace with the Profibad purchase price once access exists.
-
-const VAT = 1.19;
-const net = (gross) => Math.round((gross / VAT) * 100) / 100;
+// ponytail: prices are the RETAIL prices incl. VAT (Megabad 30.10.2026, OBI),
+// used unchanged as netPrice — replace with the Profibad purchase price once
+// access exists.
 
 // Steinkamp easy entry via Megabad, regular (non-promo) prices incl. VAT.
 // [size, [E, ET, V, VT, N, NT]]  E=Einbau V=Vorwandmontage N=Nische, T=Trio-Ablauf
@@ -35,7 +33,7 @@ const base = (o) => ({
   zulauf: null,
   widthMaxCm: o.widthCm,
   ...o,
-  netPrice: net(o.grosPrice),
+  netPrice: o.grosPrice,
 });
 
 const steinkamp = STEINKAMP.flatMap(({ l, w, p }) =>

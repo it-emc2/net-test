@@ -11769,17 +11769,47 @@ function initWannePicker() {
     },
   };
 
+  // [key, label, one-line help]. Help is shown under the filter group so nobody
+  // has to guess what "Einbau" or "Trio" means.
   const FACETS = {
     tub: [
-      ["brand", "Marke"],
-      ["lengthCm", "Länge"],
-      ["side", "Seite"],
-      ["einbau", "Einbau"],
-      ["ablauf", "Ablauf"],
-      ["schuerze", "Schürze"],
-      ["zulauf", "Zulauf"],
+      ["brand", "Hersteller", ""],
+      ["lengthCm", "Länge", ""],
+      ["side", "Türseite", "Blick von vorn auf die Wanne: auf welcher Seite die Tür bzw. der Einstieg sitzt."],
+      ["einbau", "Einbauart", "Wie die Wanne im Bad eingebaut wird. Bitte mit der Einbausituation vor Ort abgleichen."],
+      ["ablauf", "Ablaufgarnitur", "Das Bauteil im Wannenboden, über das das Wasser abläuft."],
+      ["schuerze", "Wannenschürze", "Die Verkleidung der Wanne an der Seite, die man im Raum sieht."],
+      ["zulauf", "Wassereinlauf", "Wo das Wasser in die Wanne läuft."],
     ],
-    screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
+    screen: [
+      ["side", "Seite", "Auf welcher Seite der Wanne der Aufsatz angeschlagen wird (Blick von vorn)."],
+      ["heightCm", "Höhe", ""],
+      ["seitenwand", "Seitenwand", "S70 = mit 70 cm breiter fester Seitenwand, ohne = nur das Glasteil."],
+    ],
+  };
+
+  // Plain-German meaning of single values (shown only for values that exist).
+  // ponytail: Einbau/Vorwand/Nische/Trio wording is trade-standard, not from a
+  // Steinkamp data sheet — check against it before relying on it.
+  const VALUE_HELP = {
+    einbau: {
+      Einbau: "Standard: Wanne wird in den Baukörper eingebaut, vorn mit Verkleidung.",
+      Vorwandmontage: "Wanne steht vor einer Vorwand bzw. Installationswand. Aufpreis ca. 30–130 €.",
+      Nische: "Verkleidung für eine Nische zwischen zwei Wänden. Nur bei 180 × 80 cm.",
+    },
+    ablauf: {
+      Standard: "Normale Ablaufgarnitur.",
+      Trio: "Ablauf, Überlauf und Wassereinlauf in einem Bauteil. Aufpreis ca. 230–270 €.",
+      "inkl. Ablaufgarnitur": "Set mit zusätzlicher Ablaufgarnitur (ca. 130 € mehr). Was genau enthalten ist, klärt der Händler.",
+    },
+    schuerze: {
+      "2 Schürzen": "Verkleidung vorn und an einer Seite.",
+      Frontschürze: "Verkleidung nur vorn.",
+    },
+    zulauf: {
+      Wanneneinlauf: "Das Wasser läuft direkt in der Wanne ein.",
+      Ablauf: "Nur ein Ablauf; das Wasser kommt aus der Armatur an der Wand.",
+    },
   };
 
   const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
@@ -11809,7 +11839,19 @@ function initWannePicker() {
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
     );
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const showVal = (k, v) => (k === "heightCm" || k === "lengthCm" ? `${v} cm` : String(v));
+  const showVal = (k, v) =>
+    k === "heightCm" || k === "lengthCm"
+      ? `${v} cm`
+      : k === "side" && type === "tub"
+        ? `Tür ${v}`
+        : String(v);
+  // Card pills carry the facet name too, so "Trio" alone is not left unexplained.
+  const pillVal = (k, v) =>
+    k === "ablauf" && ["Standard", "Trio"].includes(v)
+      ? `${v}-Ablauf`
+      : k === "ablauf"
+        ? v
+        : showVal(k, v);
   const ofType = (t) => items.filter((p) => p.type === (t || type));
 
   // `skip` lets a facet count its own options against the OTHER active filters,
@@ -11861,7 +11903,7 @@ function initWannePicker() {
   function renderFilters() {
     const reco = recommendedScreenId();
     filtersEl.innerHTML = FACETS[type]
-      .map(([key, label]) => {
+      .map(([key, label, help]) => {
         const values = [
           ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
         ].sort();
@@ -11877,7 +11919,13 @@ function initWannePicker() {
               )} <span class="n">${n}</span></button>`;
           })
           .join("");
-        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div><div class="wanne-chips">${chips}</div></div>`;
+        const defs = values
+          .filter((v) => VALUE_HELP[key]?.[v])
+          .map((v) => `<div><strong>${esc(v)}:</strong> ${esc(VALUE_HELP[key][v])}</div>`)
+          .join("");
+        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div>${
+          help ? `<div class="wanne-fhelp">${esc(help)}</div>` : ""
+        }<div class="wanne-chips">${chips}</div>${defs ? `<div class="wanne-fdefs">${defs}</div>` : ""}</div>`;
       })
       .join("");
     return reco;
@@ -11908,7 +11956,7 @@ function initWannePicker() {
             .map(([k]) =>
               p[k] == null || p[k] === ""
                 ? ""
-                : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
+                : `<span class="wanne-pill">${esc(pillVal(k, p[k]))}</span>`,
             )
             .join("");
           // alt="" on purpose: the name sits right beside it, so the image is
