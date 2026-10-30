@@ -1531,6 +1531,7 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       const txt = await resp.text().catch(() => "");
       throw new Error(`${endpoint} (${resp.status}): ${txt}`);
     }
+    if (resp.status === 204) return null; // nothing to attach for this offer
     const cd = resp.headers.get("content-disposition") || "";
     let filename = fallbackName;
     const match = cd.match(/filename="?([^"]+)"?/i);
@@ -1560,17 +1561,20 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
       { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
+      // Only produced when the offer has articles bought outside Hassmann.
+      { endpoint: "/material-overview/online-orders", name: `Bestellhinweise_Online-Handel_${safeNo}.txt`, label: "Bestellhinweise Online-Handel" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
     ]
       .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
-      // AH/HMS/WD sell services only — no products, so no Hassmann cart.
-      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && j.endpoint.includes("hassmann")));
+      // AH/HMS/WD sell services only — no products, so no Hassmann cart or order note.
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && /hassmann|online-orders/.test(j.endpoint)));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
       try {
-        docs.push(await fetchBitrixExtraDoc(job.endpoint, payload, job.name));
+        const doc = await fetchBitrixExtraDoc(job.endpoint, payload, job.name);
+        if (doc) docs.push(doc);
       } catch (e) {
         console.error("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
         const message = `${job.label} konnte nicht erzeugt werden: ${e.message || e}`;

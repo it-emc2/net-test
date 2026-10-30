@@ -9,6 +9,7 @@ import Docxtemplater from "docxtemplater";
 
 import ProductModel from "../models/Product.js";
 import pricingFactory from "../logic/pricing.js";
+import { WANNE_SET_ORDER } from "../lib/wanneSets.js";
 import {
   aggregateMaterialsForOverview,
   formatQtyForOverview,
@@ -49,6 +50,7 @@ function isHassmannProduct(id, manufacturer) {
   if (s === "OPT_CUSTOM") return false;
   if (s === "REHA_DELIVERY") return false;
   if (INTERNAL_NON_HASSMANN.has(s)) return false;
+  if (WANNE_SET_ORDER.has(s)) return false; // online-retail door-tub sets
   if (!isHassmannManufacturer(manufacturer)) return false;
 
   return true;
@@ -134,7 +136,7 @@ async function buildMaterialOverviewDocx(body = {}) {
     name: m.name,
     quantity: formatQtyForOverview(m.hassmannQty || m.quantity, m.unit || "Stck."),
     unit: m.unit || "Stck.",
-    remarks: m.remarks || "",
+    remarks: m.remarks || WANNE_SET_ORDER.get(m.materialNumber)?.note || "",
   }));
 
   const b = body.Kundendaten || {};
@@ -317,5 +319,55 @@ router.post("/hassmann-cart", async (req, res) => {
       error: "Hassmann cart generation failed",
       detail: e.message || String(e),
     });
+  }
+});
+
+// Internal order note for articles bought outside Hassmann (online retail):
+// article, quantity and the product link to order from. Archived on the Bitrix
+// timeline with the other internal documents, never sent to the customer.
+// 204 = nothing to order, so the client attaches no file.
+router.post("/online-orders", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const offerKey =
+      body.activeOffer ||
+      body.currentOfferKey ||
+      body.offerType ||
+      computed?.activeOffer ||
+      "bu";
+    const bodyForOverview = { ...body, activeOffer: offerKey };
+    delete bodyForOverview.materials;
+
+    const rows = await aggregateMaterialsForOverview(bodyForOverview, computed);
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+
+    const items = rows
+      .map((r) => [r, WANNE_SET_ORDER.get(String(r.materialNumber || "").trim())])
+      .filter(([, o]) => o);
+    if (!items.length) return res.status(204).end();
+
+    const text = [
+      `Bestellhinweise Online-Handel – Angebot ${angebotNummer}`,
+      "Diese Artikel NICHT über Hassmann bestellen. Nur intern, nicht an den Kunden senden.",
+      "",
+      ...items.flatMap(([r, o]) => [
+        `${Math.round(Number(r.quantity) || 1)}x ${r.materialNumber} – ${r.name}`,
+        `   Bestellen bei: ${o.shop}, Art.-Nr. ${o.shopArt}`,
+        `   Link: ${o.url}`,
+        "",
+      ]),
+    ].join("\r\n");
+
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Bestellhinweise_Online-Handel_${safeOffer}.txt"`,
+    );
+    res.send("﻿" + text);
+  } catch (e) {
+    console.error("Online orders note failed:", e);
+    res.status(500).json({ error: "Online orders note failed", detail: e.message || String(e) });
   }
 });
