@@ -452,6 +452,24 @@ export function winwallOrderLines(decor, qtyByFormat = {}) {
   return lines;
 }
 
+/**
+ * Profiles from the wall plan (SW/TR 2026-10-30): Verbindungsprofil only at joints
+ * on a straight wall (columns − 1 per wall), one Inneneckprofil per corner between
+ * two clad walls, Abschlussprofil at the two open side edges. Außenecken don't
+ * occur in Wand/Ecke/U-Form and stay manual. One 255-cm profile per edge.
+ */
+export function winwallProfileSuggestion(plan) {
+  const perWall = new Map();
+  for (const p of plan?.pieces || []) perWall.set(p.wall, (perWall.get(p.wall) || 0) + 1);
+  const walls = perWall.size;
+  return {
+    WS80110: walls ? 2 : 0,
+    WS80111: Math.max(0, walls - 1),
+    WS80112: 0,
+    WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0),
+  };
+}
+
 /** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */
 export function winwallSealingSets(areaM2) {
   const a = Number(areaM2) || 0;
@@ -1451,9 +1469,16 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
           { name: `winwall Duschrückwand ${decorText} ${what}` });
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
+      const wwQty = (sku) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);
       for (const sku of [...Object.values(WINWALL_PROFILES), "WS80102"]) {
-        const q = Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0);
-        if (wv?.[`wvWw_${sku}`] && q > 0) add(sku, q);
+        if (wwQty(sku) > 0) add(sku, wwQty(sku));
+      }
+      // Sanitär-Silikon for the joints: from our stock, so Kleinmaterial and not
+      // in the winwall cart (only WS/NW articles go there).
+      if (wwQty("2000302") > 0) {
+        setCat("Kleinmaterial");
+        add("2000302", wwQty("2000302"));
+        setCat("Wandverkleidung");
       }
       // Sealing sets by area: the Wandfläche, else what the panels cover.
       if (wv?.wvWwSealing) {

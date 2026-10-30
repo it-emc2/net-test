@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -74,6 +74,13 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallSealingSets(11.5)).toEqual([{ productId: "WS80301", qty: 3 }]);
     expect(winwallSealingSets(0)).toEqual([]);
   });
+  test("profiles from the wall situation: joints per straight wall, one inner corner per corner", () => {
+    // U-Form 120 / 200 / 120 at full height: 150 | 150+50 | 150 → joints only on the back wall
+    const u = winwallProfileSuggestion(winwallPanelPlan("u", { links: 120, back: 200, rechts: 120 }, { heightCm: 250 }));
+    expect(u).toEqual({ WS80110: 2, WS80111: 2, WS80112: 0, WS80113: 1 });
+    expect(winwallProfileSuggestion(winwallPanelPlan("wand", { back: 90 }, { heightCm: 250 }))).toEqual({ WS80110: 2, WS80111: 0, WS80112: 0, WS80113: 0 });
+    expect(winwallProfileSuggestion(winwallPanelPlan("ecke", { links: 90, back: 90 }, { heightCm: 250 })).WS80111).toBe(1);
+  });
   test("decor codes: WS and NW, old digit-only values are WS", () => {
     expect(winwallDecorCode("203")).toBe("WS203");
     expect(winwallDecorCode("nw 220")).toBe("NW220");
@@ -111,6 +118,12 @@ describe("winwall pricing", () => {
     const by = Object.fromEntries(all.map((l) => [l.productId, l]));
     expect(Object.keys(by).sort()).toEqual(["NW23015", "NW23025", "WS80301"]);
     expect([by.NW23025.unitPrice, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([261.76, 132.35, 113.5]);
+  });
+  test("Silikon for the joints: Kleinmaterial from stock, not a winwall article", async () => {
+    PRODUCTS["2000302"] = PRODUCTS[2000302];
+    const all = await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "WS203", wvWwQty_15: "1", wvWw_2000302: "on", wvWwQty_2000302: "2" });
+    const sil = all.find((l) => l.productId === "2000302");
+    expect([sil.qty, sil.category]).toEqual([2, "Kleinmaterial"]);
   });
   test("sealing without Wandfläche covers what the panels cover", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "3", wvWwSealing: "on" }));
