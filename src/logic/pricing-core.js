@@ -207,18 +207,108 @@ export function vigourPanelPlan(situation, widths = {}, { heightCm = null, price
 // winwall Wandverkleidung (3 mm Aluverbund), second supplier next to VIGOUR,
 // default for new offers since 2026-10. Article = WS + decor code + format code.
 // Net dealer prices: winwall Händlerpreisliste 2026 (Stand 03/2026).
-export const WINWALL_DECORS = [
-  { code: "000", name: "weiß" },
-  { code: "203", name: "Marmor weiß" },
-  { code: "204", name: "Marmor grau" },
-  { code: "229", name: "Struktur steingrau" },
-  { code: "226", name: "Struktur dunkelgrau" },
-  { code: "248", name: "Steinwand grau" },
-  { code: "233", name: "Beton" },
-  { code: "225", name: "Kalkstein beige" },
-  { code: "290", name: "Eiche hell" },
-  { code: "227", name: "Struktur anthrazit" },
-];
+// Every decor of the winwall catalogue 2026 (Prospekt), code → name. Any of them
+// can be ordered via "Anderes Dekor"; WS and NW (Naturstein) both exist.
+export const WINWALL_CATALOG = {
+  WS000: "weiß",
+  WS002: "blütenweiß",
+  WS101: "cremeweiß",
+  WS004: "papyrusweiß",
+  WS130: "beige",
+  WS005: "silbergrau",
+  WS047: "hellblau",
+  WS160: "ocean",
+  WS151: "lindgrün",
+  WS132: "sand",
+  WS120: "hellgrau",
+  WS233: "Beton",
+  WS232: "Beton hell",
+  WS234: "Beton dunkel",
+  WS229: "Struktur steingrau",
+  WS228: "Struktur hellgrau",
+  WS226: "Struktur dunkelgrau",
+  WS227: "Struktur anthrazit",
+  WS213: "Lava",
+  WS243: "Beton weiß",
+  WS503: "Beton gespachtelt light",
+  WS502: "Beton gespachtelt grey",
+  WS501: "Beton gespachtelt dark",
+  WS504: "Beton gespachtelt mediterran",
+  WS203: "Marmor weiß",
+  WS204: "Marmor grau",
+  WS202: "Marmor gelb",
+  WS214: "Kalkstein",
+  WS212: "Jura Marmor",
+  WS219: "Sandstein geschliffen",
+  WS210: "Feinsteinzeug",
+  WS225: "Kalkstein beige",
+  NW220: "Limestone ivory",
+  NW221: "Limestone taupe",
+  NW222: "Limestone pearl",
+  NW215: "Marble Pur",
+  NW230: "Marble Copper Vein",
+  NW216: "Marble Alabaster",
+  NW218: "Marble Graphite",
+  WS293: "Ahorn Norwegen",
+  WS280: "Kernbuche",
+  WS294: "Kirsche",
+  WS292: "Walnuss",
+  WS299: "Altholz Planken",
+  WS297: "Scandi Style",
+  WS281: "Zebrano",
+  WS282: "Manio",
+  WS296: "Altholz",
+  WS298: "Rosewood",
+  WS290: "Eiche hell",
+  WS291: "Eiche rustikal",
+  WS289: "Eiche dunkel",
+  WS240: "Backstein",
+  WS350: "Vintage Fliesen grau",
+  WS247: "Steinwand beige",
+  WS248: "Steinwand grau",
+  WS242: "Verblender bunt",
+  WS241: "Verblender beige",
+  WS271: "Zementfliesen Portugal",
+  WS351: "Vintage Fliesen beige",
+  WS270: "Fliesen Heritage",
+  WS405: "Ornament bronze",
+  WS403: "soft Rhombus black-gold",
+  WS260: "Leinen salbei",
+  WS401: "Violett",
+  WS330: "Leder Buffalo",
+  WS257: "Lochblech",
+  WS261: "Leinen creme",
+  WS332: "Leder vintage",
+  WS402: "Gold",
+  WS258: "Riffelblech",
+  WS251: "Rost",
+  WS254: "Rost braun",
+  WS302: "Nordsee",
+  WS301: "Düne",
+  WS309: "Birkenwald",
+  WS411: "Wand der Kunst",
+  WS408: "Märchenwald",
+  WS407: "Seehund Otto",
+  WS406: "Flip-Flops",
+  WS409: "yellow duck",
+  WS410: "Colorful shapes",
+};
+// The decors shown as tiles (agreed 2026-10-30). Older offers may hold other
+// codes (e.g. WS204) — they reopen under "Anderes Dekor".
+export const WINWALL_DECORS = ["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203", "WS219",
+  "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"].map((code) => ({ code, name: WINWALL_CATALOG[code] }));
+
+/** "ws 233" / "NW220" / "233" (saved before 2026-10-30: digits only = WS) → "WS233"; else null. */
+export function winwallDecorCode(v) {
+  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
+  if (/^\d{3}$/.test(s)) return "WS" + s;
+  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+}
+/** Decor of a Wandverkleidung payload: the tile, or the typed number for "Anderes Dekor". */
+export function winwallDecor(wv) {
+  const code = winwallDecorCode(wv?.wvWwDecor === "custom" ? wv?.wvWwDecorCustom : wv?.wvWwDecor) || "WS203";
+  return { code, name: WINWALL_CATALOG[code] || null };
+}
 // `set` = two panels of the same decor; `single` = the format code of one panel.
 export const WINWALL_FORMATS = [
   { code: "13", widthCm: 100, heightCm: 205, price: 111.47 },
@@ -236,7 +326,7 @@ export const WINWALL_EXTRAS = [
   { id: "WS80112", name: "winwall Außeneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
   { id: "WS80113", name: "winwall Verbindungsprofil 2550 mm, Alu eloxiert", price: 16.39 },
   { id: "WS80102", name: "winwall Silikonkleber Novasil S800 weiß, Kartusche 290 ml", price: 10.5 },
-  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 169 },
+  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 113.5 }, // our price (TR, 2026-10-30), list says 169
   { id: "WS80302", name: "winwall Abdichtungsset 6,25 m² (DIN 18534-1)", price: 196 },
   { id: "WS-ZUSCHNITT", name: "winwall Zuschnitt (gerade Schnitte, je Platte)", price: 10 },
   { id: "WS-FRACHT", name: "winwall Lieferkosten je Bestellung", price: 45.5 },
@@ -350,31 +440,24 @@ export function supplierCodes(payload, lines = []) {
 /** Panels per single format → order lines: two of a kind become a set (cheaper). */
 export function winwallOrderLines(decor, qtyByFormat = {}) {
   const lines = [];
+  decor = winwallDecorCode(decor) || "WS203";
   for (const code of WINWALL_SINGLE_FORMATS) {
     const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
     if (!n) continue;
     const set = WINWALL_FORMATS.find((f) => f.set && f.single === code);
     const sets = set ? Math.floor(n / 2) : 0;
-    if (sets) lines.push({ productId: `WS${decor}${set.code}`, qty: sets, format: set, panels: sets * 2 });
-    if (n - sets * 2) lines.push({ productId: `WS${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
+    if (sets) lines.push({ productId: `${decor}${set.code}`, qty: sets, format: set, panels: sets * 2 });
+    if (n - sets * 2) lines.push({ productId: `${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
   }
   return lines;
 }
 
-/** Cheapest combination of the two sealing sets that covers `areaM2`. */
+/** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */
 export function winwallSealingSets(areaM2) {
   const a = Number(areaM2) || 0;
   if (a <= 0) return [];
-  let best = null;
-  for (let big = 0; big <= Math.ceil(a / 6.25); big++) {
-    const small = Math.max(0, Math.ceil((a - big * 6.25 - 1e-9) / 5));
-    const cost = big * 196 + small * 169;
-    if (!best || cost < best.cost) best = { cost, big, small };
-  }
-  return [
-    ...(best.small ? [{ productId: "WS80301", qty: best.small }] : []),
-    ...(best.big ? [{ productId: "WS80302", qty: best.big }] : []),
-  ];
+  if (a > 5 && a <= 6.25) return [{ productId: "WS80302", qty: 1 }];
+  return [{ productId: "WS80301", qty: Math.ceil(a / 5 - 1e-9) }];
 }
 
 function planWalls(sit, widths, each) {
@@ -1352,8 +1435,8 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     // ------- winwall panels + accessories
     let winwallPanels = 0;
     if (isWinwall) {
-      const decorCode = String(wv?.wvWwDecor || "203");
-      const decor = WINWALL_DECORS.find((d) => d.code === decorCode) || { code: decorCode, name: decorCode };
+      const decor = winwallDecor(wv);
+      const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
       const qtyByFormat = {};
       for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
       let coverM2 = 0;
@@ -1362,7 +1445,10 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         winwallPanels += l.panels;
         coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
         const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
-        add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decor.name} (WS ${decor.code})`);
+        // Price from the price list: any decor (also a typed one) costs the same per format.
+        // name for a typed decor that has no product in the DB
+        add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
+          { name: `winwall Duschrückwand ${decorText} ${what}` });
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
       for (const sku of [...Object.values(WINWALL_PROFILES), "WS80102"]) {
@@ -1372,7 +1458,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // Sealing sets by area: the Wandfläche, else what the panels cover.
       if (wv?.wvWwSealing) {
         const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
-        for (const l of winwallSealingSets(area)) add(l.productId, l.qty);
+        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
       }
       if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
       // No freight per offer: winwall is ordered in collective orders for several
@@ -2058,7 +2144,7 @@ if (l.source === "hl_pipe") {
       if (lineDiscount > 0 && lineDiscount < 1) unit = round2(unit * (1 - lineDiscount));
 
 
-      const displayNameBase = (prod.name || "").trim() || l.id;
+      const displayNameBase = (prod.name || "").trim() || l.meta?.name || l.id;
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
       const isWvPanel = /^V3WVK?\d/.test(l.id);
 

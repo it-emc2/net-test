@@ -11916,3 +11916,20 @@ details.az-group[open] > summary.az-group-title::before {
 
 /* Area suggestion (997/1497) as list rows — same as Wand als Boden. */
 #wvAreaCards { display: block; margin: 0; }
+
+/* winwall "Anderes Dekor": a "+" tile, then the typed WS/NW number with the catalogue name. */
+.ww-decor-custom .img-wrap { display: grid; place-items: center; background: rgba(118, 118, 128, 0.12) !important; }
+.ww-decor-custom .img-wrap img { grid-area: 1 / 1; }
+.ww-decor-custom__plus { grid-area: 1 / 1; font-size: 1.8rem; font-weight: 300; line-height: 1; color: #0a84ff; }
+.ww-decor-custom .img-wrap img:not([hidden]) + .ww-decor-custom__plus { display: none; }
+.ww-decor-entry { margin-top: 10px; }
+.ww-decor-entry[hidden] { display: none; }
+/* id prefix beats the generic full-width text input */
+#wvWwCustomRow input {
+  width: 130px; margin: 0; flex: none; padding: 8px 12px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 10px;
+  font: inherit; font-size: 1.05rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; text-align: center;
+}
+.ww-decor-entry small.is-ok { color: #1f8a3c; font-weight: 600; }
+.ww-decor-entry small.is-warn { color: #b26a00; font-weight: 600; }
+[data-mode="dark"] .ww-decor-entry small.is-ok { color: #5fe08a; }
+[data-mode="dark"] .ww-decor-entry small.is-warn { color: #ffc261; }

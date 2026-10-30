@@ -2532,6 +2532,7 @@ function resetAllForms() {
   // form.reset() keeps whatever the last restored offer set (e.g. "hm").
   const wvSupplierEl = document.getElementById("wvSupplier");
   if (wvSupplierEl) wvSupplierEl.value = "ww";
+  try { syncWwCustomDecor(); } catch {} // form.reset() left the tile on WS 203
   if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
@@ -8024,9 +8025,7 @@ function setupWandverkleidungPage() {
 
     // winwall: decor photo, panels per format (what will be ordered, sets included).
     function winwallCardHtml() {
-      const tile = page.querySelector('input[name="wvWwDecor"]:checked')?.closest("label");
-      const code = page.querySelector('input[name="wvWwDecor"]:checked')?.value || "";
-      const name = tile?.querySelector(".caption")?.textContent || code;
+      const { code, name } = wwSelectedDecor();
       const core = window.__pricingCore;
       if (typeof core?.winwallOrderLines !== "function" || !code) return "";
       const lines = core.winwallOrderLines(code, wwPanelCounts());
@@ -8037,10 +8036,10 @@ function setupWandverkleidungPage() {
         .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
         .join(" · ");
       return `<div class="wvc-sel">
-        <img class="wvc-sel__img is-panel" src="./assets/winwall/panel/WS${code}.jpg" alt="" />
+        <img class="wvc-sel__img is-panel" src="./assets/winwall/panel/${code}.jpg" alt="" onerror="this.hidden=true" />
         <div class="wvc-sel__info">
-          <strong class="wvc-sel__name">winwall Duschrückwand ${name}</strong>
-          <span class="wvc-sel__meta">WS ${code} · WV-WW · ${rows}</span>
+          <strong class="wvc-sel__name">winwall Duschrückwand ${escapeHtml(name || "Dekor laut Nummer")}</strong>
+          <span class="wvc-sel__meta">${code.slice(0, 2)} ${code.slice(2)} · WV-WW · ${rows}</span>
           <span class="wvc-sel__price">${eur(total)} € <small>Einkauf netto, ohne Zubehör</small></span>
         </div>
       </div>`;
@@ -12382,6 +12381,47 @@ window.applyWwPanelQty = (qty) => {
   document.getElementById("wvWwQty_13")?.dispatchEvent(new Event("change", { bubbles: true }));
   window.requestPricingRefresh?.({ delay: 120, reason: "winwall-plan" });
 };
+/* winwall decor: a tile, or "Anderes Dekor" with a typed WS/NW number.
+   Saved before 2026-10-30 as digits only ("203" = WS 203). */
+function wwDecorCode(v) {
+  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
+  if (/^\d{3}$/.test(s)) return "WS" + s;
+  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+}
+function wwSelectedDecor() {
+  const v = document.querySelector('input[name="wvWwDecor"]:checked')?.value || "";
+  const code = wwDecorCode(v === "custom" ? document.getElementById("wvWwDecorCustom")?.value : v);
+  const name = (code && window.__pricingCore?.WINWALL_CATALOG?.[code]) || null;
+  return { code, name, label: code ? `${name ? name + " · " : ""}${code.slice(0, 2)} ${code.slice(2)}` : "" };
+}
+// Show the number field only for "Anderes Dekor" and say what the number is.
+function syncWwCustomDecor() {
+  const custom = document.querySelector('input[name="wvWwDecor"][value="custom"]');
+  const row = document.getElementById("wvWwCustomRow");
+  const input = document.getElementById("wvWwDecorCustom");
+  const hint = document.getElementById("wvWwCustomHint");
+  if (!custom || !row || !input || !hint) return;
+  row.hidden = !custom.checked;
+  const raw = input.value.trim();
+  const { code, name } = wwSelectedDecor();
+  const tile = custom.closest("label");
+  const img = document.getElementById("wvWwCustomImg");
+  hint.classList.remove("is-ok", "is-warn");
+  if (!custom.checked || !raw) hint.textContent = "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.";
+  else if (!code) { hint.textContent = "Bitte WS oder NW und 3 Ziffern eingeben, z. B. NW 230."; hint.classList.add("is-warn"); }
+  else if (name) { hint.textContent = `✓ ${name}`; hint.classList.add("is-ok"); }
+  else { hint.textContent = "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt."; hint.classList.add("is-warn"); }
+  const cap = tile?.querySelector(".caption");
+  if (cap) cap.textContent = custom.checked && code ? `${code.slice(0, 2)} ${code.slice(2)}` : "Anderes Dekor";
+  if (img) {
+    // our own swatch when we have one (old tiles too), else the "+"
+    img.onerror = () => { img.hidden = true; img.removeAttribute("src"); };
+    img.onload = () => { img.hidden = false; };
+    if (custom.checked && code) { if (!img.src.endsWith(`/${code}.jpg`)) img.src = `./assets/winwall/${code}.jpg`; }
+    else { img.hidden = true; img.removeAttribute("src"); }
+  }
+}
+
 (function initWinwallSection() {
   const acc = document.getElementById("wvWwAccSection");
   const panels = document.getElementById("wvWwPanelsSection");
@@ -12402,8 +12442,18 @@ window.applyWwPanelQty = (qty) => {
     if (cb) cb.checked = Number(t.value) > 0;
   });
   document.getElementById("wvArea")?.addEventListener("input", () => updateWwSuggestions({ write: false }));
-  // pricing-core in the browser (for the sealing preview); loaded lazily.
-  import("/logic/pricing-core.js").then((m) => { window.__pricingCore = m; updateWwSuggestions({ write: false }); }).catch(() => {});
+  const decors = document.getElementById("wvWwDecorSection");
+  decors?.addEventListener("change", (e) => {
+    syncWwCustomDecor();
+    if (e.target?.value === "custom") setTimeout(() => document.getElementById("wvWwDecorCustom")?.focus(), 0);
+  });
+  // typing: hint + card live; the calculator repaints via its change listener
+  document.getElementById("wvWwDecorCustom")?.addEventListener("input", (e) => {
+    syncWwCustomDecor();
+    e.target.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  // pricing-core in the browser (for the sealing preview and catalogue names); loaded lazily.
+  import("/logic/pricing-core.js").then((m) => { window.__pricingCore = m; updateWwSuggestions({ write: false }); syncWwCustomDecor(); }).catch(() => {});
   syncWvSupplierGroups();
 })();
 
@@ -12527,8 +12577,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     if (/^WP007$/i.test(pid)) return document.querySelector(".kmp-card.is-selected img")?.src || "";
     // winwall: the whole flat panel (assets/winwall/panel), not the small colour field.
     if (winwall()) {
-      const code = document.querySelector('input[name="wvWwDecor"]:checked')?.value;
-      return code ? `./assets/winwall/panel/WS${code}.jpg` : "";
+      const { code } = wwSelectedDecor();
+      return code ? `./assets/winwall/panel/${code}.jpg` : "";
     }
     // Premium (Vigour): the picked colour tile's own image.
     if (vigour()) return document.querySelector('input[name="wvColor"]:checked')?.closest("label")?.querySelector("img")?.src || "";
@@ -12755,8 +12805,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       return;
     }
     // Same price as the offer and "Ihre Auswahl": two of a kind are ordered as a set.
-    const decor = document.querySelector('input[name="wvWwDecor"]:checked')?.value || "203";
-    const lines = core.winwallOrderLines(decor, plan.qty);
+    const lines = core.winwallOrderLines(wwSelectedDecor().code || "WS203", plan.qty);
     const cost = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
     const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
     const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -12812,8 +12861,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     // Premium: the Alu panel lines of the Plattenwahl (what the offer bills).
     // winwall: panels only (decor + format code), not the WS801xx accessories.
     const wwPanel = (id) => {
-      const m = /^WS(\d{3})(\d{2})$/.exec(id);
-      return !!m && core?.WINWALL_DECORS.some((d) => d.code === m[1]) && core.WINWALL_FORMATS.some((f) => f.code === m[2]);
+      const m = /^(?:WS|NW)\d{3}(\d{2})$/.exec(id);
+      return !!m && !id.startsWith("WS80") && !!core?.WINWALL_FORMATS.some((f) => f.code === m[1]);
     };
     const re = vigour() ? /^V3WVK?\d/i : /^WP\d/i;
     const isPanel = (id) => (winwall() ? wwPanel(id) : re.test(id));
@@ -12878,7 +12927,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   });
   // Repaint the walls when the decor or the Sonder-Dekor motif changes.
   document.addEventListener("change", (e) => {
-    if (["wvColor", "wvColor_997", "wvColor_1497", "wvWwDecor"].includes(e.target?.name)) render();
+    if (["wvColor", "wvColor_997", "wvColor_1497", "wvWwDecor", "wvWwDecorCustom"].includes(e.target?.name)) render();
   });
   document.getElementById("wvLineToggle")?.addEventListener("change", render);
   document.addEventListener("wv:supplier", render);
@@ -16859,7 +16908,13 @@ function restoreWV(wv) {
   // winwall (additive since 2026-10): a missing wvSupplier is VIGOUR.
   setInputByNameOrId("wvSupplier", wv.wvSupplier === "ww" ? "ww" : "hm");
   if (wv.wvSupplier === "ww") {
-    if (wv.wvWwDecor) setRadio("wvWwDecor", wv.wvWwDecor);
+    // a tile when the code has one, otherwise "Anderes Dekor" with the number
+    const raw = wv.wvWwDecor === "custom" ? wv.wvWwDecorCustom : wv.wvWwDecor;
+    const code = wwDecorCode(raw);
+    const tile = code && document.querySelector(`input[name="wvWwDecor"][value="${code}"]`);
+    setRadio("wvWwDecor", tile ? code : raw ? "custom" : "WS203");
+    setInputByNameOrId("wvWwDecorCustom", tile || !raw ? "" : code ? `${code.slice(0, 2)} ${code.slice(2)}` : String(raw));
+    syncWwCustomDecor();
     for (const c of ["13", "15", "16", "17"]) setInputByNameOrId(`wvWwQty_${c}`, wv[`wvWwQty_${c}`] || "0");
     document.querySelectorAll('#wvWwAccSection input[type="checkbox"]').forEach((cb) => {
       cb.checked = !!wv[cb.name];

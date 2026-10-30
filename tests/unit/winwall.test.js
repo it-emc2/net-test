@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -66,11 +66,23 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallOrderLines("203", { 15: 3, 16: 2, 17: 1 }).map((l) => [l.productId, l.qty]))
       .toEqual([["WS20325", 1], ["WS20315", 1], ["WS20326", 1], ["WS20317", 1]]);
   });
-  test("sealing: cheapest sets that cover the area", () => {
+  test("sealing: 6,25 m² only for 5–6,25 m², otherwise 5 m² sets", () => {
     expect(winwallSealingSets(5)).toEqual([{ productId: "WS80301", qty: 1 }]);
     expect(winwallSealingSets(6)).toEqual([{ productId: "WS80302", qty: 1 }]);
-    expect(winwallSealingSets(11.5)).toEqual([{ productId: "WS80302", qty: 2 }]);
+    expect(winwallSealingSets(6.25)).toEqual([{ productId: "WS80302", qty: 1 }]);
+    expect(winwallSealingSets(6.3)).toEqual([{ productId: "WS80301", qty: 2 }]);
+    expect(winwallSealingSets(11.5)).toEqual([{ productId: "WS80301", qty: 3 }]);
     expect(winwallSealingSets(0)).toEqual([]);
+  });
+  test("decor codes: WS and NW, old digit-only values are WS", () => {
+    expect(winwallDecorCode("203")).toBe("WS203");
+    expect(winwallDecorCode("nw 220")).toBe("NW220");
+    expect(winwallDecorCode("WS2O3")).toBe(null);
+    expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "ws 233" })).toEqual({ code: "WS233", name: "Beton" });
+    expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "WS999" })).toEqual({ code: "WS999", name: null });
+    expect(WINWALL_DECORS.map((d) => d.code)).toEqual(["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203",
+      "WS219", "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"]);
+    expect(WINWALL_DECORS.every((d) => d.name)).toBe(true);
   });
 });
 
@@ -94,9 +106,15 @@ describe("winwall pricing", () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_17: "1" }));
     expect(q).toEqual({ WS20317: 1 });
   });
+  test("a typed NW decor is ordered and priced from the price list (no DB article)", async () => {
+    const all = await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "custom", wvWwDecorCustom: "nw 230", wvWwQty_15: "3", wvWwSealing: "on", wvArea: "4" });
+    const by = Object.fromEntries(all.map((l) => [l.productId, l]));
+    expect(Object.keys(by).sort()).toEqual(["NW23015", "NW23025", "WS80301"]);
+    expect([by.NW23025.unitPrice, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([261.76, 132.35, 113.5]);
+  });
   test("sealing without Wandfläche covers what the panels cover", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "3", wvWwSealing: "on" }));
-    // 3 × 2,5 m² = 7,5 m²: 2 × 5 m² (338 €) beats 6,25 + 5 (365 €) and 2 × 6,25 (392 €).
+    // 3 × 2,5 m² = 7,5 m² → 2 × 5 m²
     expect([q.WS80301, q.WS80302]).toEqual([2, undefined]);
   });
   test("VIGOUR (hm) leaves the fingerprint of an old offer alone; winwall changes it", () => {

@@ -1,10 +1,13 @@
 /* eslint-disable no-undef */
 // seedWinwall.mjs
-// Adds the winwall Wandverkleidung line to KonfiguratorDB.Products: the 10 chosen
-// decors in every format of the dealer price list, the accessories, cutting and
-// freight. productId = winwall article number (WS + decor + format), so the
-// winwall cart can order exactly what the offer lists. Only inserts missing
-// products — never changes or deletes an existing one (prices are edited in the DB).
+// Adds the winwall Wandverkleidung line to KonfiguratorDB.Products: the decors
+// shown as tiles in every format of the dealer price list, the accessories,
+// cutting and freight. productId = winwall article number (WS/NW + decor +
+// format), so the winwall cart can order exactly what the offer lists.
+// Inserts missing products; an existing winwall product only gets its price
+// set to the list below when it differs (e.g. WS80301 113,50 €). Nothing is deleted.
+// Panels and sealing sets are priced from pricing-core in the offer anyway, so
+// a typed "Anderes Dekor" needs no product here.
 //
 // Prices = net dealer prices, winwall Händlerpreisliste 2026 (Stand 03/2026).
 //
@@ -22,7 +25,7 @@ for (const d of WINWALL_DECORS) {
   for (const f of WINWALL_FORMATS) {
     const size = `${f.widthCm} × ${f.heightCm} cm`;
     rows.push({
-      productId: `WS${d.code}${f.code}`,
+      productId: `${d.code}${f.code}`,
       name: `winwall Duschrückwand ${d.name} ${f.set ? `Set 2 × ${size}` : size}`,
       price: f.price,
       widthCm: f.widthCm,
@@ -37,8 +40,12 @@ const col = mongoose.connection.db.collection("Products");
 const now = new Date();
 let added = 0;
 for (const r of rows) {
-  if (await col.findOne({ productId: r.productId }, { projection: { _id: 1 } })) {
-    console.log(`${r.productId}: exists, unchanged`);
+  const have = await col.findOne({ productId: r.productId }, { projection: { _id: 1, price: 1, source: 1 } });
+  if (have) {
+    if (have.source === "winwall" && Number(have.price) !== r.price) {
+      console.log(`${r.productId}: price ${have.price} → ${r.price} €${write ? "" : " (dry run)"}`);
+      if (write) await col.updateOne({ _id: have._id }, { $set: { price: r.price, updatedAt: new Date() } });
+    } else console.log(`${r.productId}: exists, unchanged`);
     continue;
   }
   console.log(`${r.productId}: ${write ? "insert" : "would insert"} "${r.name}" ${r.price} €`);

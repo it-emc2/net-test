@@ -318,7 +318,7 @@ router.post("/winwall-cart", async (req, res) => {
   try {
     const body = req.body || {};
     const computed = await pricing.computePrices(body);
-    const lines = (computed?.materials?.lines || []).filter((l) => /^WS/i.test(String(l.productId || "")));
+    const lines = (computed?.materials?.lines || []).filter((l) => /^(WS|NW)/i.test(String(l.productId || "")));
     if (!lines.length) return res.status(204).end();
     const items = new Map();
     const services = [];
