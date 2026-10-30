@@ -12351,14 +12351,12 @@ function updateWwSuggestions({ write = true } = {}) {
   };
   if (write && !window.__restoring && !window.__RESTORING__) {
     set("WS80102", glue);
-    // Profiles from the calculator's wall plan when it matches the panels entered;
-    // typed panel counts without a plan only give the joint count (panels − 1).
+    // Verbindungsprofile from the calculator's wall plan (joints on straight walls,
+    // none at corners) when it matches the panels entered, else panels − 1.
     const plan = window.__wwPlan;
     const fits = plan?.qty && ["13", "15", "16", "17"].every((c) => (plan.qty[c] || 0) === q[c]);
     const prof = fits ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
-    if (prof) {
-      for (const [sku, n] of Object.entries(prof)) if (sku !== "WS80112") set(sku, panels ? n : 0);
-    } else set("WS80113", Math.max(0, panels - 1));
+    set("WS80113", prof ? prof.WS80113 : Math.max(0, panels - 1));
     // Silikon for the joints: as with VIGOUR, one per Abschlussprofil
     const abschluss = Number(document.getElementById("wvWwQty_WS80110")?.value) || 0;
     set("2000302", panels ? Math.max(1, abschluss) : 0);

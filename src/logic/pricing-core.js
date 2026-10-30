@@ -326,8 +326,9 @@ export const WINWALL_EXTRAS = [
   { id: "WS80112", name: "winwall Außeneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
   { id: "WS80113", name: "winwall Verbindungsprofil 2550 mm, Alu eloxiert", price: 16.39 },
   { id: "WS80102", name: "winwall Silikonkleber Novasil S800 weiß, Kartusche 290 ml", price: 10.5 },
-  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 113.5 }, // our price (TR, 2026-10-30), list says 169
-  { id: "WS80302", name: "winwall Abdichtungsset 6,25 m² (DIN 18534-1)", price: 196 },
+  // our prices (2026-10-30), the list says 169 / 196: 5 m² = 2 panels 100×250, 6,25 m² = 2 panels 125×250
+  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 113.5 },
+  { id: "WS80302", name: "winwall Abdichtungsset 6,25 m² (DIN 18534-1)", price: 135.75 },
   { id: "WS-ZUSCHNITT", name: "winwall Zuschnitt (gerade Schnitte, je Platte)", price: 10 },
   { id: "WS-FRACHT", name: "winwall Lieferkosten je Bestellung", price: 45.5 },
   { id: "WS-FRACHT-GROSS", name: "winwall Lieferkosten Großplatte", price: 85 },
@@ -453,21 +454,14 @@ export function winwallOrderLines(decor, qtyByFormat = {}) {
 }
 
 /**
- * Profiles from the wall plan (SW/TR 2026-10-30): Verbindungsprofil only at joints
- * on a straight wall (columns − 1 per wall), one Inneneckprofil per corner between
- * two clad walls, Abschlussprofil at the two open side edges. Außenecken don't
- * occur in Wand/Ecke/U-Form and stay manual. One 255-cm profile per edge.
+ * Verbindungsprofile from the wall plan (2026-10-30): only at joints on a straight
+ * wall (columns − 1 per wall), none at corners. Abschluss-, Innen- and
+ * Außeneckprofile are not calculated — picked by hand.
  */
 export function winwallProfileSuggestion(plan) {
   const perWall = new Map();
   for (const p of plan?.pieces || []) perWall.set(p.wall, (perWall.get(p.wall) || 0) + 1);
-  const walls = perWall.size;
-  return {
-    WS80110: walls ? 2 : 0,
-    WS80111: Math.max(0, walls - 1),
-    WS80112: 0,
-    WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0),
-  };
+  return { WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0) };
 }
 
 /** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */

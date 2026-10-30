@@ -74,12 +74,11 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallSealingSets(11.5)).toEqual([{ productId: "WS80301", qty: 3 }]);
     expect(winwallSealingSets(0)).toEqual([]);
   });
-  test("profiles from the wall situation: joints per straight wall, one inner corner per corner", () => {
-    // U-Form 120 / 200 / 120 at full height: 150 | 150+50 | 150 → joints only on the back wall
-    const u = winwallProfileSuggestion(winwallPanelPlan("u", { links: 120, back: 200, rechts: 120 }, { heightCm: 250 }));
-    expect(u).toEqual({ WS80110: 2, WS80111: 2, WS80112: 0, WS80113: 1 });
-    expect(winwallProfileSuggestion(winwallPanelPlan("wand", { back: 90 }, { heightCm: 250 }))).toEqual({ WS80110: 2, WS80111: 0, WS80112: 0, WS80113: 0 });
-    expect(winwallProfileSuggestion(winwallPanelPlan("ecke", { links: 90, back: 90 }, { heightCm: 250 })).WS80111).toBe(1);
+  test("Verbindungsprofile: joints on straight walls only, none at corners", () => {
+    // U-Form 120 / 200 / 120 at full height: only the back wall has two panels
+    expect(winwallProfileSuggestion(winwallPanelPlan("u", { links: 120, back: 200, rechts: 120 }, { heightCm: 250 }))).toEqual({ WS80113: 1 });
+    expect(winwallProfileSuggestion(winwallPanelPlan("wand", { back: 90 }, { heightCm: 250 }))).toEqual({ WS80113: 0 });
+    expect(winwallProfileSuggestion(winwallPanelPlan("ecke", { links: 90, back: 90 }, { heightCm: 250 }))).toEqual({ WS80113: 0 });
   });
   test("decor codes: WS and NW, old digit-only values are WS", () => {
     expect(winwallDecorCode("203")).toBe("WS203");
