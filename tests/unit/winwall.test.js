@@ -102,10 +102,10 @@ describe("winwall pricing", () => {
     const q = ids(await lines({
       ...vigourWall, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "2", wvWwQty_16: "1",
       wvWw_WS80110: "on", wvWwQty_WS80110: "3", wvWw_WS80113: "on", wvWwQty_WS80113: "2",
-      wvWw_WS80102: "on", wvWwQty_WS80102: "4", wvWwSealing: "on", wvArea: "6", wvWwCut: "on",
+      wvWw_R_4260602: "on", wvWwQty_R_4260602: "4", wvWwSealing: "on", wvArea: "6", wvWwCut: "on",
     }));
     expect(q).toEqual({
-      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, WS80102: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
+      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, R_4260602: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
     });
   });
   test("no freight per offer (collective orders); no cutting unless ticked", async () => {
@@ -118,11 +118,9 @@ describe("winwall pricing", () => {
     expect(Object.keys(by).sort()).toEqual(["NW23015", "NW23025", "WS80301"]);
     expect([by.NW23025.unitPrice, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([261.76, 132.35, 113.5]);
   });
-  test("Silikon for the joints: Kleinmaterial from stock, not a winwall article", async () => {
-    PRODUCTS["2000302"] = PRODUCTS[2000302];
-    const all = await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "WS203", wvWwQty_15: "1", wvWw_2000302: "on", wvWwQty_2000302: "2" });
-    const sil = all.find((l) => l.productId === "2000302");
-    expect([sil.qty, sil.category]).toEqual([2, "Kleinmaterial"]);
+  test("adhesive is the VIGOUR Flächenkleber from stock, no separate Silikon", async () => {
+    const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "WS203", wvWwQty_15: "1", wvWw_R_4260602: "on", wvWwQty_R_4260602: "2" }));
+    expect(q).toEqual({ WS20315: 1, R_4260602: 2 });
   });
   test("sealing without Wandfläche covers what the panels cover", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "203", wvWwQty_15: "3", wvWwSealing: "on" }));

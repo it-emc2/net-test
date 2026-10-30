@@ -1464,16 +1464,14 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
       const wwQty = (sku) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);
-      for (const sku of [...Object.values(WINWALL_PROFILES), "WS80102"]) {
+      for (const sku of Object.values(WINWALL_PROFILES)) {
         if (wwQty(sku) > 0) add(sku, wwQty(sku));
       }
-      // Sanitär-Silikon for the joints: from our stock, so Kleinmaterial and not
-      // in the winwall cart (only WS/NW articles go there).
-      if (wwQty("2000302") > 0) {
-        setCat("Kleinmaterial");
-        add("2000302", wwQty("2000302"));
-        setCat("Wandverkleidung");
-      }
+      // Adhesive: the Flächenkleber of the VIGOUR line from our stock (TR 2026-10-30),
+      // not winwall's Novasil — so it stays out of the winwall cart. Silikon for the
+      // joints is in the Kleinmaterial flat rate.
+      if (wwQty("R_4260602") > 0)
+        add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
       // Sealing sets by area: the Wandfläche, else what the panels cover.
       if (wv?.wvWwSealing) {
         const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
