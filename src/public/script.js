@@ -11770,7 +11770,15 @@ function initWannePicker() {
   };
 
   const FACETS = {
-    tub: [["side", "Seite"], ["schuerze", "Schürze"], ["zulauf", "Zulauf"]],
+    tub: [
+      ["brand", "Marke"],
+      ["lengthCm", "Länge"],
+      ["side", "Seite"],
+      ["einbau", "Einbau"],
+      ["ablauf", "Ablauf"],
+      ["schuerze", "Schürze"],
+      ["zulauf", "Zulauf"],
+    ],
     screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
   };
 
@@ -11801,7 +11809,7 @@ function initWannePicker() {
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
     );
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const showVal = (k, v) => (k === "heightCm" ? `${v} cm` : String(v));
+  const showVal = (k, v) => (k === "heightCm" || k === "lengthCm" ? `${v} cm` : String(v));
   const ofType = (t) => items.filter((p) => p.type === (t || type));
 
   // `skip` lets a facet count its own options against the OTHER active filters,
