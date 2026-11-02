@@ -5784,6 +5784,17 @@ button:active,
   color: var(--accent-strong);
 }
 
+/* Once a door is picked, grey out the others so the selection stands out;
+   hover/focus restores them so switching is still obvious. */
+#bwtDoors .bwt-door-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
+    background 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+}
+#bwtDoors:has(input[name="bwtDoorType"]:checked) .bwt-door-card:not(:has(input:checked)):not(:hover):not(:focus-within) {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
 @media (max-width: 900px) {
   #bwtDoors.bwt-door-grid--premium {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
