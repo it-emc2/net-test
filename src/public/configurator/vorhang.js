@@ -138,71 +138,91 @@ if (mountEl) {
     return `<svg class="vhc-svg${empty ? " vhc-svg--empty" : ""}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="Ansicht ${esc(SHAPES[shape].label)}">${out}${badges.join("")}</svg>`;
   };
 
-  // ---- tiles --------------------------------------------------------------
-  // An item tile: a checkbox .image-check card (identical to the Optional tab),
-  // with a Menge .field below. kind selects the qty map.
+  // ---- product rows ---------------------------------------------------------
+  // iOS grouped lists like Duschwanne / Wandverkleidung: one row per article with
+  // a switch, and a − n + stepper while it is on. kind selects the qty map.
   const QTY_MAP = { curtain: "curtainQty", rod: "rodQty", rosette: "mandatoryQty", opt: "optionalQty" };
-  const tile = (item, kind) => {
-    const qty = state[QTY_MAP[kind]]?.[item.articleNumber] || 0;
+  const isCeiling = (art) => /^DEPDS\d+$/.test(art);
+  let showAll = false; // "Andere Größe oder Länge" opened
+  const qtyOf = (kind, art) => Number(state[QTY_MAP[kind]]?.[art]) || 0;
+  const titleOf = (item, kind) =>
+    kind === "curtain" && item.sizeCm != null ? curtainLabel(item) : item.packNote ? `${item.name} (${item.packNote})` : item.name;
+
+  const row = (item, kind, sub = "", extra = "") => {
+    const qty = qtyOf(kind, item.articleNumber);
     const on = qty > 0;
-    const caption = kind === "curtain" && item.sizeCm != null ? curtainLabel(item) : item.packNote ? `${item.name} (${item.packNote})` : item.name;
     return `
-    <div class="opt-item vh-acc" data-kind="${kind}" data-art="${esc(item.articleNumber)}">
-      <label class="image-check">
-        <input type="checkbox" data-role="acc-toggle" ${on ? "checked" : ""}>
-        <span class="img-wrap">${item.image ? `<img src="${esc(item.image)}" alt="" loading="lazy">` : ""}</span>
-        <span class="caption">${esc(caption)}</span>
-        <span class="vh-price-row"><span class="vh-price">${eur(item.net)}</span></span>
-      </label>
-      <div class="field vh-qty-field" ${on ? "" : "hidden"}>
-        <label>Menge</label>
-        <input type="number" data-role="acc-qty" min="1" step="1" value="${on ? qty : 1}" placeholder="1">
-      </div>
+    <div class="vh-item" role="button" tabindex="0" aria-pressed="${on}" data-kind="${kind}" data-art="${esc(item.articleNumber)}">
+      <span class="vh-item__img">${item.image ? `<img src="${esc(item.image)}" alt="" loading="lazy">` : ""}</span>
+      <span class="vh-item__text"><strong>${esc(titleOf(item, kind))}</strong><small>${esc([item.articleNumber, sub, eur(item.net)].filter(Boolean).join(" · "))}</small></span>
+      ${extra}
+      ${on ? `<span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input type="number" min="1" step="1" value="${qty}" data-role="acc-qty" aria-label="Menge"><button type="button" data-step="1" aria-label="Mehr">+</button></span>` : ""}
+      <span class="vh-switch${on ? " is-on" : ""}" aria-hidden="true"></span>
     </div>`;
   };
 
-  // Stats are always written with their final value; countUp() only animates
-  // the visible digits from the previous value (as in the WV calculator).
-  const STAT_FMT = { rods: String, bogen: String, len: (v) => (v ? String(v) : "–"), sum: eur };
-  const statsHtml = () => {
-    const lines = getLines();
-    const sum = lines.reduce((a, l) => a + l.net * l.qty, 0);
-    const count = (m) => Object.values(m || {}).reduce((a, q) => a + (q > 0 ? q : 0), 0);
-    const total = legValues(viewShape(), state.legs).reduce((a, b) => a + b, 0);
-    const b = (key, v) => `<b data-count="${key}" data-v="${v}">${STAT_FMT[key](v)}</b>`;
+  // Deckenstütze 30 / 50 / 80 cm as one row: the segment picks which article
+  // carries the quantity.
+  const ceilingRow = () => {
+    const all = (catalog.optional || []).filter((o) => isCeiling(o.articleNumber)).sort((x, y) => x.articleNumber.localeCompare(y.articleNumber, "de", { numeric: true }));
+    if (!all.length) return "";
+    const cur = all.find((o) => qtyOf("opt", o.articleNumber) > 0) || all.find((o) => o.articleNumber === "DEPDS50") || all[0];
+    const seg = `<span class="vh-seg" role="group" aria-label="Länge Deckenstütze">${all
+      .map((o) => `<button type="button" data-ceiling="${esc(o.articleNumber)}" aria-pressed="${o === cur}">${String(o.articleNumber).replace(/\D/g, "")}</button>`)
+      .join("")}<span class="vh-seg__unit">cm</span></span>`;
+    return row({ ...cur, name: "Deckenstütze" }, "opt", "1 je Ecke", seg);
+  };
+
+  const SUB = { DEPVSROS: "immer nötig", DEPVSBO: "1 je Ecke", DEPVSK: "verbindet zwei Stangen auf einer Seite" };
+  const productsHtml = () => {
+    const pick = (list, kind) => (list || []).filter((x) => qtyOf(kind, x.articleNumber) > 0);
+    const rest = (list, kind) => (list || []).filter((x) => !(qtyOf(kind, x.articleNumber) > 0));
+    const chosen = [...pick(catalog.curtains, "curtain").map((c) => row(c, "curtain", "uni weiß")), ...pick(catalog.rods, "rod").map((r) => row(r, "rod", "verchromt"))];
+    const others = [...rest(catalog.curtains, "curtain").map((c) => row(c, "curtain", "uni weiß")), ...rest(catalog.rods, "rod").map((r) => row(r, "rod", "verchromt"))];
+    const acc = [
+      ...(catalog.mandatory || []).map((m) => row(m, "rosette", SUB[m.articleNumber] || "")),
+      ...(catalog.optional || []).filter((o) => !isCeiling(o.articleNumber) && o.articleNumber !== ART.rings).map((o) => row(o, "opt", SUB[o.articleNumber] || "")),
+      ceilingRow(),
+      ...(catalog.optional || []).filter((o) => o.articleNumber === ART.rings).map((o) => row(o, "opt")),
+    ];
     return `
-      <div class="vhc-stat"><span class="vhc-stat-label">Vorhangstangen</span><span>${b("rods", count(state.rodQty))} Stück</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Verbindungsbögen</span><span>${b("bogen", state.optionalQty[ART.bogen] || 0)} Stück</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Vorhanglänge</span><span>${b("len", total)} cm</span></div>
-      <div class="vhc-stat"><span class="vhc-stat-label">Material netto</span><span>${b("sum", Math.round(sum * 100) / 100)}</span></div>`;
+      <h4 class="vh-label">Vorhang und Stangen</h4>
+      <div class="vh-group">
+        ${chosen.join("") || `<div class="vh-hint">Seitenlängen eintragen – Vorhang und Stangen werden vorgeschlagen.</div>`}
+        <button type="button" class="vh-more" aria-expanded="${showAll}">${showAll ? "Weitere Größen ausblenden" : "Andere Größe oder Länge wählen"}</button>
+        ${showAll ? others.join("") : ""}
+      </div>
+      <h4 class="vh-label">Befestigung und Zubehör</h4>
+      <div class="vh-group">${acc.join("")}</div>`;
   };
 
-  const shownStats = {}; // last value per stat, the start of the next count
-  const countUp = () => {
-    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    mountEl.querySelectorAll(".vhc-stats b[data-count]").forEach((el) => {
-      const key = el.dataset.count, to = Number(el.dataset.v), fmt = STAT_FMT[key];
-      const from = shownStats[key];
-      shownStats[key] = to;
-      if (from == null || from === to || still) return;
-      const t0 = performance.now();
-      const step = (t) => {
-        if (!el.isConnected || el.dataset.v !== String(to)) return;
-        const k = Math.min(1, (t - t0) / 320);
-        const v = from + (to - from) * (1 - (1 - k) ** 3);
-        el.textContent = fmt(key === "sum" ? Math.round(v * 100) / 100 : Math.round(v));
-        if (k < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-      // guarantees the exact final value even if frames don't run (background tab)
-      setTimeout(() => { if (el.isConnected) el.textContent = fmt(to); }, 380);
-    });
+  const stockBadge = (item) => {
+    if (!item || (item.stockQuantity == null && item.stockText == null)) return "";
+    const n = Number(item.stockQuantity) || 0;
+    return `<span class="dac-line-stock ${n > 0 ? "dac-stock-in" : "dac-stock-out"}" title="${esc(item.stockText || "")}"><span class="dac-stock-qty">${n}</span>${n > 0 ? "Auf Lager" : "Auf Bestellung"}</span>`;
   };
+  const itemByArt = (art) =>
+    [...(catalog.curtains || []), ...(catalog.rods || []), ...(catalog.mandatory || []), ...(catalog.optional || [])].find((x) => x.articleNumber === art);
 
-  const updateStats = () => {
-    const el = mountEl.querySelector(".vhc-stats");
-    if (el) el.innerHTML = statsHtml();
-    countUp();
+  // "Ihre Auswahl": the situation, one row per article (stock, price), total.
+  const summaryHtml = () => {
+    const lines = getLines();
+    if (!lines.length) return "";
+    const sum = lines.reduce((a, l) => a + l.net * l.qty, 0);
+    const total = legValues(viewShape(), state.legs).reduce((a, b) => a + b, 0);
+    const cfg = configLabel(state.shape, state.legs);
+    const head = cfg
+      ? `<div class="vh-sum-head"><strong>${esc(cfg)}</strong><small>Vorhanglänge ${total} cm</small></div>`
+      : "";
+    return `
+      <h4 class="vh-label">Ihre Auswahl</h4>
+      <div class="vh-group">
+        ${head}
+        ${lines
+          .map((l) => `<div class="vh-line"><span class="vh-line__name">${l.qty > 1 ? `${l.qty} × ` : ""}${esc(l.label.replace(/ \((Nische|Ecke|U-Form) [^)]*\)$/, ""))}<small>${esc(l.articleNumber)}</small></span>${stockBadge(itemByArt(l.articleNumber))}<span class="vh-line__price">${eur(l.net * l.qty)}</span></div>`)
+          .join("")}
+        <div class="vh-line vh-total"><span>Gesamt (netto)</span><span>${eur(Math.round(sum * 100) / 100)}</span></div>
+      </div>`;
   };
 
   const render = () => {
@@ -212,52 +232,32 @@ if (mountEl) {
     }
     const shape = viewShape();
     const names = LEG_NAMES[shape];
-    const chips = Object.entries(SHAPES)
-      .map(([k, s]) => `<button type="button" class="vhc-chip" data-shape="${k}" aria-pressed="${k === shape}"><span>${s.label}</span><small>${CHIP_SUB[k]}</small></button>`)
+    const seg = Object.entries(SHAPES)
+      .map(([k, s]) => `<button type="button" data-shape="${k}" aria-pressed="${k === shape}">${s.label}</button>`)
       .join("");
     const rows = SHAPES[shape].legs
-      .map((k, i) => `<label class="vhc-row" data-leg="${k}"><span class="vhc-dot" style="background:${TONES[i]}">${i + 1}</span><span class="vhc-name">${names[k]}</span><input type="number" inputmode="decimal" min="1" max="2000" step="1" data-leg="${k}" value="${esc(state.legs?.[k] ?? "")}" placeholder="${k === "b" && shape === "u" ? 120 : 90}"><span class="vhc-unit">cm</span></label>`)
+      .map((k, i) => `<label class="vh-row vhc-row" data-leg="${k}"><span class="vhc-dot" style="background:${TONES[i]}">${i + 1}</span><span class="vh-row__k">${names[k]}</span><input type="number" inputmode="decimal" min="1" max="2000" step="1" data-leg="${k}" value="${esc(state.legs?.[k] ?? "")}" placeholder="${k === "b" && shape === "u" ? 120 : 90}"><span class="vhc-unit">cm</span></label>`)
       .join("");
     // On/off is the page's section switch (#vorhangToggle, script.js), which
     // calls setEnabled(true) — no second checkbox here.
     mountEl.innerHTML = `
       <div class="vh-body${state.enabled ? "" : " is-disabled"}" aria-disabled="${state.enabled ? "false" : "true"}">
-        <div class="vhc">
-          <div class="vhc-head">
-            <h3>Vorhang-Situation</h3>
-            <p class="vhc-note">Situation wählen und die Seitenlängen eintragen — Vorhang, Stangen, Bögen und Befestigung werden vorgeschlagen. Alle Mengen bleiben änderbar.</p>
+        <h4 class="vh-label">Situation</h4>
+        <div class="vh-group">
+          <div class="vh-row"><span class="vh-row__k">Form</span><span class="vh-seg vhc-shapes" role="group" aria-label="Vorhang-Situation">${seg}</span></div>
+          <div class="vhc-stage">${drawSvg()}</div>
+          ${rows}
+          <div class="vh-legend">
+            <span><i class="vhc-lg vhc-lg--rod"></i>Stange (vor Ort gekürzt)</span>
+            <span><i class="vhc-lg vhc-lg--corner"></i>Bogen + Deckenstütze</span>
+            <span><i class="vhc-lg vhc-lg--joint"></i>Kupplung</span>
+            <span><i class="vhc-lg vhc-lg--ros"></i>Rosette</span>
           </div>
-          <div class="vhc-chips" role="group" aria-label="Vorhang-Situation">${chips}</div>
-          <div class="vhc-main">
-            <div class="vhc-stage">${drawSvg()}</div>
-            <div class="vhc-side">
-              <div class="vhc-rows">${rows}</div>
-              <ul class="vhc-legend">
-                <li><i class="vhc-lg vhc-lg--rod"></i>Vorhangstange (vor Ort gekürzt)</li>
-                <li><i class="vhc-lg vhc-lg--corner"></i>Verbindungsbogen + Deckenstütze</li>
-                <li><i class="vhc-lg vhc-lg--joint"></i>Kupplung (zwei Stangen verbunden)</li>
-                <li><i class="vhc-lg vhc-lg--ros"></i>Wandbefestigung (Rosette)</li>
-              </ul>
-            </div>
-          </div>
-          <div class="vhc-stats">${statsHtml()}</div>
         </div>
-        <div class="vh-tiles">${tilesHtml()}</div>
+        <div class="vh-products">${productsHtml()}</div>
+        <div class="vh-summary">${summaryHtml()}</div>
       </div>`;
     wire();
-    countUp();
-  };
-
-  const tilesHtml = () => {
-    const section = (title, items, kind) =>
-      items.length
-        ? `<div class="vh-section"><div class="vh-step-title">${title}</div><div class="vh-grid vh-acc-grid">${items.map((it) => tile(it, kind)).join("")}</div></div>`
-        : "";
-    return `
-        ${section("Duschvorhang", catalog.curtains, "curtain")}
-        ${section("Vorhangstangen", catalog.rods, "rod")}
-        ${section("Erforderliche Befestigung", catalog.mandatory || [], "rosette")}
-        ${section("Zubehör", catalog.optional || [], "opt")}`;
   };
 
   const replan = () => {
@@ -268,7 +268,7 @@ if (mountEl) {
   };
 
   const wire = () => {
-    mountEl.querySelectorAll(".vhc-chip").forEach((btn) =>
+    mountEl.querySelectorAll(".vhc-shapes button").forEach((btn) =>
       btn.addEventListener("click", () => {
         if (state.shape === btn.dataset.shape) return;
         state.shape = btn.dataset.shape;
@@ -277,7 +277,7 @@ if (mountEl) {
     );
 
     // Side lengths update live while typing (iPad: no blur needed). Only the
-    // drawing, stats and tiles are redrawn, so the input keeps focus + keyboard.
+    // drawing, products and summary are redrawn, so the input keeps focus + keyboard.
     let typingTimer = null;
     mountEl.querySelectorAll(".vhc-row input").forEach((inp) => {
       const commit = () => {
@@ -300,7 +300,7 @@ if (mountEl) {
       inp.addEventListener("change", commit);
     });
 
-    wireTiles();
+    wireProducts();
   };
 
   // highlight one side in the drawing (the one being typed)
@@ -313,36 +313,57 @@ if (mountEl) {
   const refreshParts = () => {
     const stage = mountEl.querySelector(".vhc-stage");
     if (stage) stage.innerHTML = drawSvg();
-    const tiles = mountEl.querySelector(".vh-tiles");
-    if (tiles) tiles.innerHTML = tilesHtml();
-    updateStats();
-    wireTiles();
+    const products = mountEl.querySelector(".vh-products");
+    if (products) products.innerHTML = productsHtml();
+    const summary = mountEl.querySelector(".vh-summary");
+    if (summary) summary.innerHTML = summaryHtml();
+    wireProducts();
     const active = document.activeElement;
     if (active && mountEl.contains(active) && active.dataset?.leg) focusLeg(active.dataset.leg);
   };
 
-  // item tiles — every group shares the same toggle + Menge logic
-  const wireTiles = () => {
-    mountEl.querySelectorAll(".vh-acc").forEach((row) => {
-      const art = row.dataset.art;
-      const key = QTY_MAP[row.dataset.kind];
-      const cb = row.querySelector('input[data-role="acc-toggle"]');
-      const qtyField = row.querySelector(".vh-qty-field");
-      const qtyInput = row.querySelector('input[data-role="acc-qty"]');
-      cb?.addEventListener("change", () => {
+  const changed = () => {
+    refreshParts();
+    refreshOffer();
+  };
+
+  // Rows: a tap switches the article on (qty 1) / off; the stepper and the
+  // Deckenstütze segment work inside the row without switching it.
+  const wireProducts = () => {
+    mountEl.querySelectorAll(".vh-item").forEach((el) => {
+      const key = QTY_MAP[el.dataset.kind];
+      const art = el.dataset.art;
+      const toggle = () => {
         state[key] = state[key] || {};
-        state[key][art] = cb.checked ? Math.max(1, Number(qtyInput?.value) || 1) : 0;
-        if (qtyField) qtyField.hidden = !cb.checked;
-        updateStats();
-        refreshOffer();
+        state[key][art] = (Number(state[key][art]) || 0) > 0 ? 0 : 1;
+        changed();
+      };
+      el.addEventListener("click", (e) => {
+        if (e.target.closest(".ios-stepper, .vh-seg")) return;
+        toggle();
       });
-      qtyInput?.addEventListener("change", () => {
-        if (cb?.checked) {
-          state[key][art] = Math.max(1, Number(qtyInput.value) || 1);
-          updateStats();
-          refreshOffer();
-        }
+      el.addEventListener("keydown", (e) => {
+        if (e.target === el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(); }
       });
+      el.querySelector('input[data-role="acc-qty"]')?.addEventListener("change", (e) => {
+        state[key][art] = Math.max(1, Math.floor(Number(e.target.value) || 1));
+        changed();
+      });
+    });
+    // Deckenstütze length: move the quantity to the picked article
+    mountEl.querySelectorAll("[data-ceiling]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const opt = state.optionalQty;
+        const cur = Object.keys(opt).find((a) => isCeiling(a) && opt[a] > 0);
+        const qty = cur ? opt[cur] : 0;
+        Object.keys(opt).filter(isCeiling).forEach((a) => (opt[a] = 0));
+        opt[btn.dataset.ceiling] = qty || 1; // picking a length switches it on
+        changed();
+      }),
+    );
+    mountEl.querySelector(".vh-more")?.addEventListener("click", () => {
+      showAll = !showAll;
+      refreshParts();
     });
   };
 

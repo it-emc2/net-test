@@ -5621,80 +5621,66 @@ button.dm-btn-danger:focus-visible {
 
 <!-- Duschvorhang — curtain + rail system from the vigor catalog -->
 <style>
-  #page-Duschvorhang .vh-enable {
-    display: inline-flex; align-items: center; gap: 10px;
-    margin: 0 0 16px; padding: 12px 16px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
-    font-weight: 700; color: var(--text);
-  }
-  #page-Duschvorhang .vh-enable input { width: 18px; height: 18px; accent-color: var(--accent-strong); }
+  /* Duschvorhang — iOS grouped lists like Duschwanne / Wandverkleidung (markup: configurator/vorhang.js) */
   #page-Duschvorhang .vh-body.is-disabled { display: none; }
-  #page-Duschvorhang .vh-widthbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-    padding: 14px; margin-bottom: 18px;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
-  }
-  #page-Duschvorhang .vh-width-label { font-weight: 600; color: var(--text); }
-  #page-Duschvorhang .vh-width-input {
-    width: 120px; padding: 8px 10px; border: 1px solid var(--border);
-    border-radius: 8px; font: inherit;
-  }
-  #page-Duschvorhang .vh-hint { flex: 1 1 240px; color: var(--muted); font-size: 0.85rem; }
-  #page-Duschvorhang .vh-section { margin-bottom: 22px; }
-  #page-Duschvorhang .vh-step-title { font-weight: 700; margin-bottom: 10px; color: var(--text); }
-  #page-Duschvorhang .vh-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-  /* Duschvorhang + Vorhangstange side by side */
-  #page-Duschvorhang .vh-tworow { display: flex; flex-wrap: wrap; gap: 28px; }
-  #page-Duschvorhang .vh-col { flex: 1 1 300px; min-width: 260px; }
-  /* accessory cards: narrower so more fit per row */
-  #page-Duschvorhang .vh-acc { width: auto; }
-  #page-Duschvorhang .vh-acc-grid .image-check {
-    width: 168px; padding: 10px; box-sizing: border-box; min-width: 0;
-  }
-  /* let the caption wrap so the inline-grid column can shrink to 168px
-     (otherwise the long word forces the column — and img-wrap — wider than the card) */
-  #page-Duschvorhang .vh-acc-grid .image-check .caption { min-width: 0; overflow-wrap: anywhere; }
-  #page-Duschvorhang .vh-acc-grid .img-wrap {
-    aspect-ratio: 1 / 1; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;
-  }
-  #page-Duschvorhang .vh-acc-grid .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
-  #page-Duschvorhang .vh-acc .vh-qty-field { max-width: 168px; }
-  /* cards reuse the Optional tab's .image-check / .field look */
-  #page-Duschvorhang .vh-price-row { text-align: center; }
-  #page-Duschvorhang .vh-price { font-weight: 700; color: var(--text); }
-  #page-Duschvorhang .vh-muted { color: var(--muted); font-weight: 500; }
-  #page-Duschvorhang .vh-pickcard { cursor: default; }
-  #page-Duschvorhang .vh-pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 2px; }
-  #page-Duschvorhang .vh-pill {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--panel); color: var(--text); font: inherit; font-size: 0.82rem;
-    cursor: pointer; transition: border-color .12s, background .12s;
-  }
-  #page-Duschvorhang .vh-pill:hover { border-color: var(--accent); }
-  #page-Duschvorhang .vh-pill[data-selected="true"] {
-    border-color: var(--accent); background: var(--accent-weak, var(--ring)); font-weight: 700;
-  }
-  #page-Duschvorhang .vh-qty-field { max-width: 220px; margin-top: 4px; }
-  /* Vorhang-Situation (Nische / Ecke / U-Form) — same language as the WV Bedarfsrechner */
-  #page-Duschvorhang .vhc { margin: 4px 0 24px; padding: 18px 18px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
-  #page-Duschvorhang .vhc-head h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
-  #page-Duschvorhang .vhc-note { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
-  #page-Duschvorhang .vhc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  #page-Duschvorhang button.vhc-chip {
-    display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-    min-height: 44px; height: auto; margin: 0; padding: 0 18px; line-height: 1.2; text-align: center; white-space: nowrap;
-    border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text);
-    font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: background .2s, color .2s, border-color .2s;
-  }
-  #page-Duschvorhang button.vhc-chip > span,
-  #page-Duschvorhang button.vhc-chip > small { display: inline; margin: 0; padding: 0; line-height: 1.2; }
-  #page-Duschvorhang button.vhc-chip > small { font-weight: 500; font-size: 0.78rem; opacity: .7; }
-  #page-Duschvorhang button.vhc-chip:hover { border-color: var(--accent); }
-  #page-Duschvorhang button.vhc-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
-  #page-Duschvorhang .vhc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #page-Duschvorhang .vhc-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 20px; align-items: center; }
-  #page-Duschvorhang .vhc-stage { border-radius: 12px; background: #f7f6f4; border: 1px solid var(--border); padding: 6px; }
-  #page-Duschvorhang .vhc-svg { display: block; width: 100%; height: auto; }
+  #page-Duschvorhang .vh-label { margin: 18px 4px 6px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted, #6b7280); }
+  #page-Duschvorhang .vh-group { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; margin: 0 0 16px; }
+  #page-Duschvorhang .vh-group > * + * { border-top: 1px solid var(--input-border, #e5e7eb); }
+  #page-Duschvorhang .vh-row { display: flex; align-items: center; gap: 12px; margin: 0; padding: 10px 18px; min-height: 48px; box-sizing: border-box; font-weight: 400; }
+  #page-Duschvorhang .vh-row__k { flex: 1 1 auto; color: var(--text, #1f2937); font-size: 1rem; }
+  #page-Duschvorhang .vh-hint { padding: 14px 18px; color: var(--muted, #6b7280); font-size: 0.92rem; }
+
+  /* segmented controls (Form, Deckenstütze) */
+  #page-Duschvorhang .vh-seg { display: inline-flex; align-items: center; flex: none; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+  #page-Duschvorhang .vh-seg button { margin: 0; min-height: 0; height: auto; padding: 6px 14px; border: 0; border-radius: 7px; background: none; box-shadow: none; font: inherit; font-size: 0.92rem; font-weight: 500; color: var(--text, #1f2937); cursor: pointer; }
+  #page-Duschvorhang .vh-seg button[aria-pressed="true"] { background: var(--panel, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+  #page-Duschvorhang .vh-seg__unit { padding: 0 8px 0 4px; font-size: 0.85rem; color: var(--muted, #6b7280); }
+
+  /* side lengths */
+  #page-Duschvorhang .vhc-row input { width: 90px; height: 38px; margin: 0; padding: 0 10px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 10px; font: inherit; font-size: 1rem; text-align: right; background: var(--panel, #fff); color: var(--text, #1f2937); }
+  #page-Duschvorhang .vhc-row input:focus { outline: none; border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2); }
+  #page-Duschvorhang .vhc-dot { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 0.75rem; font-weight: 700; }
+  #page-Duschvorhang .vhc-unit { color: var(--muted, #6b7280); font-size: 0.9rem; }
+  #page-Duschvorhang .vh-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 18px; color: var(--muted, #6b7280); font-size: 0.8rem; }
+  #page-Duschvorhang .vh-legend span { display: inline-flex; align-items: center; gap: 8px; }
+
+  /* product rows */
+  #page-Duschvorhang .vh-item { display: flex; align-items: center; gap: 14px; padding: 10px 18px; min-height: 56px; box-sizing: border-box; cursor: pointer; position: relative; }
+  #page-Duschvorhang .vh-item:active { background: rgba(118, 118, 128, 0.1); }
+  #page-Duschvorhang .vh-item__img { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; overflow: hidden; display: grid; place-items: center; }
+  #page-Duschvorhang .vh-item__img img { width: 100%; height: 100%; object-fit: contain; }
+  #page-Duschvorhang .vh-item[aria-pressed="false"] .vh-item__img { opacity: 0.5; }
+  #page-Duschvorhang .vh-item__text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+  #page-Duschvorhang .vh-item__text strong { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+  #page-Duschvorhang .vh-item__text small { font-size: 0.82rem; color: var(--muted, #6b7280); }
+  #page-Duschvorhang .vh-item .ios-stepper input { width: 44px; height: 34px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  #page-Duschvorhang .vh-switch { position: relative; flex: none; width: 51px; height: 31px; border-radius: 999px; background: #e5e5ea; transition: background-color 0.2s ease; }
+  #page-Duschvorhang .vh-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22); transition: transform 0.2s ease; }
+  #page-Duschvorhang .vh-switch.is-on { background: #34c759; }
+  #page-Duschvorhang .vh-switch.is-on::after { transform: translateX(20px); }
+  #page-Duschvorhang button.vh-more { display: flex; align-items: center; width: 100%; margin: 0; min-height: 46px; padding: 10px 18px; border: 0; border-radius: 0; background: none; box-shadow: none; font: inherit; font-size: 1rem; color: #0a84ff; text-align: left; cursor: pointer; }
+  #page-Duschvorhang button.vh-more::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); transition: transform 0.15s ease; }
+  #page-Duschvorhang button.vh-more[aria-expanded="true"]::after { transform: rotate(90deg); }
+
+  /* Ihre Auswahl */
+  #page-Duschvorhang .vh-sum-head { display: grid; gap: 2px; padding: 12px 18px; }
+  #page-Duschvorhang .vh-sum-head strong { font-size: 1.05rem; font-weight: 600; }
+  #page-Duschvorhang .vh-sum-head small { color: var(--muted, #6b7280); font-size: 0.85rem; }
+  #page-Duschvorhang .vh-line { display: flex; align-items: center; gap: 12px; padding: 10px 18px; min-height: 46px; box-sizing: border-box; }
+  #page-Duschvorhang .vh-line__name { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; font-size: 0.95rem; }
+  #page-Duschvorhang .vh-line__name small { color: var(--muted, #6b7280); font-size: 0.8rem; }
+  #page-Duschvorhang .vh-line__price { flex: none; min-width: 84px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #page-Duschvorhang .vh-total { font-weight: 700; font-size: 1.05rem; justify-content: space-between; }
+  #page-Duschvorhang .dac-line-stock { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 3px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  #page-Duschvorhang .dac-stock-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; font-size: 0.72rem; color: #fff; }
+  #page-Duschvorhang .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+  #page-Duschvorhang .dac-stock-in .dac-stock-qty { background: #34c759; }
+  #page-Duschvorhang .dac-stock-out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+  #page-Duschvorhang .dac-stock-out .dac-stock-qty { background: #ff3b30; }
+
+  /* 3D drawing (unchanged look, sits inside the Situation group) */
+  #page-Duschvorhang .vhc-stage { background: #f7f6f4; padding: 6px 18px; }
+  #page-Duschvorhang .vhc-svg { display: block; width: 100%; max-width: 520px; max-height: 300px; height: auto; margin: 0 auto; }
   #page-Duschvorhang .vhc-svg * { transition: opacity .2s ease; }
   #page-Duschvorhang .vhc-floor { fill: rgba(10,10,10,0.07); stroke: rgba(10,10,10,0.18); stroke-width: 1; }
   #page-Duschvorhang .vhc-wallp { fill: rgba(255,255,255,0.75); stroke: rgba(10,10,10,0.28); stroke-width: 1.2; }
@@ -5710,26 +5696,23 @@ button.dm-btn-danger:focus-visible {
   #page-Duschvorhang .vhc-badge-t { fill: #1c1917; font-size: 13px; font-weight: 600; text-anchor: middle; }
   #page-Duschvorhang .vhc-svg--empty .vhc-badge-t { fill: #9ca3af; }
   #page-Duschvorhang .vhc-has-focus [data-leg]:not(.vhc-on) { opacity: .28; }
-  #page-Duschvorhang .vhc-rows { display: grid; gap: 10px; }
-  #page-Duschvorhang .vhc-row { display: grid; grid-template-columns: 26px minmax(100px, 1fr) 100px auto; align-items: center; gap: 10px; margin: 0; font-weight: 500; }
-  #page-Duschvorhang .vhc-row input { height: 46px; font-size: 1rem; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
-  #page-Duschvorhang .vhc-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
-  #page-Duschvorhang .vhc-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #44403c; color: #fff; font-size: 0.78rem; font-weight: 700; }
-  #page-Duschvorhang .vhc-unit { color: var(--muted); font-size: 0.85rem; }
-  #page-Duschvorhang .vhc-legend { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 6px; color: var(--muted); font-size: 0.8rem; }
-  #page-Duschvorhang .vhc-legend li { display: flex; align-items: center; gap: 8px; }
   #page-Duschvorhang .vhc-lg { display: inline-block; flex: none; }
   #page-Duschvorhang .vhc-lg--rod { width: 20px; height: 4px; border-radius: 2px; background: #3f3a36; }
   #page-Duschvorhang .vhc-lg--corner { width: 12px; height: 12px; border-radius: 50%; background: #3f3a36; }
   #page-Duschvorhang .vhc-lg--joint { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid #3f3a36; box-sizing: border-box; }
   #page-Duschvorhang .vhc-lg--ros { width: 10px; height: 10px; border-radius: 2px; border: 2px solid #44403c; }
-  #page-Duschvorhang .vhc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
-  #page-Duschvorhang .vhc-stat { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--muted); }
-  #page-Duschvorhang .vhc-stat b { font-size: 1.3rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-  #page-Duschvorhang .vhc-stat-label { font-size: 0.78rem; }
-  @media (max-width: 760px) {
-    #page-Duschvorhang .vhc-main { grid-template-columns: 1fr; }
-    #page-Duschvorhang .vhc-stats { grid-template-columns: 1fr 1fr; }
+
+  [data-mode="dark"] #page-Duschvorhang :is(.vh-seg, .vh-item .ios-stepper) { background: rgba(118, 118, 128, 0.24); }
+  [data-mode="dark"] #page-Duschvorhang .vh-seg button[aria-pressed="true"] { background: #636366; }
+  [data-mode="dark"] #page-Duschvorhang .vh-switch { background: #3a3a3c; }
+  [data-mode="dark"] #page-Duschvorhang .vh-switch.is-on { background: #30d158; }
+  [data-mode="dark"] #page-Duschvorhang .vh-legend .vhc-lg--rod, [data-mode="dark"] #page-Duschvorhang .vh-legend .vhc-lg--corner { background: #d6d3d1; }
+  [data-mode="dark"] #page-Duschvorhang .vh-legend :is(.vhc-lg--joint, .vhc-lg--ros) { border-color: #d6d3d1; }
+  [data-mode="dark"] #page-Duschvorhang .dac-stock-in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+  [data-mode="dark"] #page-Duschvorhang .dac-stock-out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+  @media (max-width: 600px) {
+    #page-Duschvorhang .vh-item { flex-wrap: wrap; }
+    #page-Duschvorhang .vh-line { flex-wrap: wrap; }
   }
 </style>
 <section class="card page" id="page-Duschvorhang" hidden data-section-off>
