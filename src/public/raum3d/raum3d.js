@@ -54,7 +54,7 @@ const M = {
   furniture: new THREE.MeshStandardMaterial({ color: 0xcfc8bd, roughness: 0.7 }),
   glass: new THREE.MeshStandardMaterial({ color: 0xd6ecf2, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
   chrome: new THREE.MeshStandardMaterial({ color: 0xc8ccd0, roughness: 0.2, metalness: 0.9 }),
-  cladding: new THREE.MeshStandardMaterial({ color: 0xfaf9f6, roughness: 0.5 }),
+  cladding: new THREE.MeshStandardMaterial({ color: 0xfaf9f6, roughness: 0.5, side: THREE.DoubleSide }),
   joint: new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.4, metalness: 0.6 }),
   windowGlass: new THREE.MeshStandardMaterial({ color: 0xbfd9ea, roughness: 0.1, transparent: true, opacity: 0.45, side: THREE.DoubleSide }),
   frame: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }),
@@ -254,9 +254,26 @@ function addShower(sh, withGlass) {
     const ang = -Math.atan2(e.B[1] - e.A[1], e.B[0] - e.A[0]);
     const toC = [sh.x - e.m[0], sh.y - e.m[1]], l = Math.hypot(...toC) || 1;
     if (e.wall) {
-      const p = box(len, H, 0.004, M.cladding); // wall cladding behind the tray
-      p.position.copy(v3(e.m[0] + (toC[0] / l) * 0.003, e.m[1] + (toC[1] / l) * 0.003, H / 2));
-      p.rotation.y = ang;
+      // wall cladding behind the tray, with cut-outs where a window / door is in that wall
+      const dir = [(e.B[0] - e.A[0]) / len, (e.B[1] - e.A[1]) / len];
+      const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(len, 0), new THREE.Vector2(len, H), new THREE.Vector2(0, H)]);
+      for (const [k, o] of S.data.room.openings.entries()) {
+        if (o.kind === "wallItem" || S.hidden.has("o" + k) || o.a[0] == null) continue;
+        const om = [(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2];
+        const rel = [om[0] - e.A[0], om[1] - e.A[1]];
+        const t = rel[0] * dir[0] + rel[1] * dir[1], off = Math.abs(rel[0] * -dir[1] + rel[1] * dir[0]);
+        const w = o.width || Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1]);
+        if (off > 0.2 || t + w / 2 < 0 || t - w / 2 > len) continue;
+        const u0 = Math.max(0.001, t - w / 2), u1 = Math.min(len - 0.001, t + w / 2);
+        const v0 = Math.max(0.001, o.sill || 0), v1 = Math.min(H - 0.001, v0 + (o.height || 2));
+        if (u1 - u0 < 0.01 || v1 - v0 < 0.01) continue;
+        shape.holes.push(new THREE.Path([new THREE.Vector2(u0, v0), new THREE.Vector2(u1, v0), new THREE.Vector2(u1, v1), new THREE.Vector2(u0, v1)]));
+      }
+      const X = new THREE.Vector3(dir[0], 0, dir[1]), Y = new THREE.Vector3(0, 1, 0);
+      const basis = new THREE.Matrix4().makeBasis(X, Y, new THREE.Vector3().crossVectors(X, Y));
+      const p = new THREE.Mesh(new THREE.ShapeGeometry(shape), M.cladding);
+      p.applyMatrix4(basis.setPosition(v3(e.A[0] + (toC[0] / l) * 0.004, e.A[1] + (toC[1] / l) * 0.004, 0)));
+      p.receiveShadow = true;
       roomGroup.add(p);
     } else if (withGlass) {
       const gh = 2.0;
@@ -284,6 +301,34 @@ function addShower(sh, withGlass) {
     facing = [m[0] / l, m[1] / l];
   }
   return { center: [sh.x, sh.y], facing, size: [sh.W, sh.D] };
+}
+
+// A tray position is valid when all corners lie inside the room (1 cm tolerance)
+// and no wall runs through the tray — glass then can't stick through a wall.
+function segCross(p1, p2, p3, p4) {
+  const d = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  return d1 * d2 < -1e-9 && d3 * d4 < -1e-9;
+}
+function fits(sh) {
+  const edges = trayEdges({ ...sh, W: sh.W - 0.02, D: sh.D - 0.02 }); // 1 cm inside the edge
+  const polys = S.data.room.rooms.map((r) => r.inner);
+  if (!edges.every((e) => polys.some((p) => inside(e.A, p)))) return false;
+  const walls = roomWalls();
+  // diagonals + edges must not cross a wall
+  const segs = [...edges.map((e) => [e.A, e.B]), [edges[0].A, edges[2].A], [edges[1].A, edges[3].A]];
+  return !segs.some(([a, b]) => walls.some(([c, d]) => segCross(a, b, c, d)));
+}
+/** Scanned objects the tray overlaps (corner of one inside the other). */
+function overlaps(sh) {
+  const tray = trayEdges(sh).map((e) => e.A);
+  return S.data.room.objects.filter((o, i) => {
+    if (S.hidden.has("f" + i)) return false;
+    const spot = S.data.spots[S.spot]?.object;
+    if (spot && o.x === spot.x && o.y === spot.y) return false; // the bathtub that is replaced
+    const oc = trayEdges({ x: o.x, y: o.y, angle: o.angle, W: o.w, D: o.d }).map((e) => e.A);
+    return oc.some((p) => inside(p, tray)) || tray.some((p) => inside(p, oc));
+  });
 }
 
 // Snap the tray to nearby walls: any edge within 10 cm of a parallel wall moves onto it.
@@ -381,6 +426,7 @@ function rebuild(keepCamera = false) {
 const SIT = { nische: "Nische (3 Wände)", ecke: "Ecke (2 Wände)", wand: "an einer Wand", frei: "freistehend" };
 function renderInfo() {
   const d = S.data;
+  setTimeout(() => { S.note = null; }, 0); // one-off notes show once
   if (!d) return;
   if (!d.plan.measured) {
     info.innerHTML = `<b>${d.plan.name}</b><br><span class="warn">Der Plan ist noch nicht vermessen (leer). Keine 3D-Ansicht möglich.</span>`;
@@ -394,6 +440,9 @@ function renderInfo() {
     (spot
       ? `Neue Dusche statt <b>${spot.object.name}</b> (${(spot.object.w * 100).toFixed(0)} × ${(spot.object.d * 100).toFixed(0)} cm) · Situation laut Aufmaß: <b>${SIT[spot.situation]}</b>`
       : `<span class="warn">Keine Badewanne/Dusche im Plan – Position müsste gewählt werden.</span>`) +
+    (S.mode === "nachher" && S.shower && !fits(S.shower) ? `<br><span class="warn">Die Duschwanne passt an dieser Stelle nicht in den Raum – bitte verschieben oder kleiner wählen.</span>` : "") +
+    (S.mode === "nachher" && S.shower && overlaps(S.shower).length ? `<br><span class="warn">Überschneidet: ${[...new Set(overlaps(S.shower).map((o) => o.name || "Objekt"))].join(", ")} – verschieben oder unter „Objekte“ ausblenden.</span>` : "") +
+    (S.note ? `<br><span class="warn">${S.note}</span>` : "") +
     `<br><span style="color:var(--muted)">Visualisierung auf Basis des Aufmaßes · Produkte vereinfacht · Farben können abweichen</span>`;
 }
 
@@ -447,8 +496,9 @@ $("#objects").addEventListener("change", (e) => {
 });
 $("#rotate").addEventListener("click", () => {
   if (!S.shower) return;
-  S.shower.angle += Math.PI / 2;
-  snap(S.shower);
+  const next = snap({ ...S.shower, angle: S.shower.angle + Math.PI / 2 });
+  if (fits(next)) S.shower = next;
+  else S.note = "Gedreht passt die Duschwanne hier nicht – erst verschieben.";
   rebuild(true);
 });
 
@@ -476,9 +526,13 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   pointerAt(e);
   const p = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
   if (!p) return;
-  S.shower.x = p.x + drag.dx;
-  S.shower.y = p.z + drag.dy;
-  snap(S.shower);
+  // move only as far as the room allows: the tray stops at the walls
+  const next = snap({ ...S.shower, x: p.x + drag.dx, y: p.z + drag.dy });
+  if (fits(next)) S.shower = next;
+  else {
+    const slideX = snap({ ...S.shower, x: p.x + drag.dx }), slideY = snap({ ...S.shower, y: p.z + drag.dy });
+    if (fits(slideX)) S.shower = slideX; else if (fits(slideY)) S.shower = slideY; else return;
+  }
   rebuild(true);
 });
 const endDrag = () => { if (drag) { drag = null; controls.enabled = true; } };
