@@ -484,6 +484,29 @@ async function updateDealAfterSigning({ dealId, customerType, categoryId, stageI
   });
 }
 
+// Kassenantrag sent (signing.js, docs/plan-kassenantrag.md) — same steps the
+// office did by hand: pin the filing comment, move the deal to "Warten auf
+// Freigabe Kasse". Only inside category 38: a deal in another pipeline is left
+// where it is rather than pulled across. Returns what happened for the UI.
+const KASSE_WARTEN_STAGE_ID = "C38:UC_A8LBDE"; // "[VI] Warten auf Freigabe Kasse"
+
+async function markKassenantragSent({ dealId, commentId }) {
+  const id = Number(dealId);
+  const out = { pinned: false, moved: false };
+  if (commentId) {
+    // Bitrix allows only 3 pinned items per deal — a failed pin is not fatal.
+    await bxPost("crm.timeline.item.pin", { id: Number(commentId), ownerTypeId: DEAL_ENTITY_TYPE_ID, ownerId: id })
+      .then(() => (out.pinned = true))
+      .catch((err) => console.warn("[bitrix] pin Kassenantrag comment failed:", err?.message || err));
+  }
+  const stage = String((await bxPost("crm.deal.get", { id }))?.result?.STAGE_ID || "");
+  if (stage.startsWith("C38:") && stage !== KASSE_WARTEN_STAGE_ID) {
+    await bxPost("crm.deal.update", { id, fields: { STAGE_ID: KASSE_WARTEN_STAGE_ID } });
+    out.moved = true;
+  }
+  return out;
+}
+
 // Two-person offers: the partner is a second insured person and needs their
 // own contact (documents are filed per contact). Finds an existing contact by
 // name (excluding ones whose PLZ is known and differs), else creates one, and
@@ -1193,6 +1216,7 @@ export {
   buildInternalNoteComment,
   updateDealStage,
   updateDealAfterSigning,
+  markKassenantragSent,
   AH_SIGNING_CATEGORY_ID,
   AH_SIGNING_STAGE_ID,
 };

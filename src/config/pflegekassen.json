@@ -20,7 +20,7 @@
   { "id": "bkk-pfalz", "name": "BKK Pfalz", "aliases": [], "address": ["BKK Pfalz – Pflegekasse"], "email": "pflege@bkkpfalz.de", "channel": "mail" },
   { "id": "heimat-bkk", "name": "Heimat BKK", "aliases": ["Heimat Krankenkasse"], "address": ["Heimat Krankenkasse – Pflegekasse"], "email": "info@heimat-krankenkasse.de", "channel": "mail" },
   { "id": "mkk", "name": "Pflegekasse der mkk", "aliases": ["mkk", "meine krankenkasse"], "address": ["Pflegekasse der mkk – meine krankenkasse", "10857 Berlin"], "email": "info@meine-krankenkasse.de", "channel": "post" },
-  { "id": "generali", "name": "Generali Deutschland Krankenversicherung AG", "aliases": ["Generali"], "address": ["Generali Deutschland Krankenversicherung AG", "Hansaring 40-50", "50670 Köln"], "email": "", "channel": "post" },
+  { "id": "generali", "name": "Generali Deutschland Krankenversicherung AG", "aliases": ["Generali"], "address": ["Generali Deutschland Krankenversicherung AG", "Hansaring 40-50", "50670 Köln"], "email": "pflegeversicherung@generali.de", "channel": "post" },
   { "id": "allianz", "name": "Allianz Private Pflegepflichtversicherung", "aliases": ["Allianz", "Allianz Private Krankenversicherung"], "address": ["Allianz Private Krankenversicherungs-AG", "10870 Berlin"], "email": "krankenversicherung@allianz.de", "channel": "post" },
   { "id": "ikk-gesund-plus", "name": "IKK gesund plus", "aliases": [], "address": ["IKK gesund plus", "39092 Magdeburg"], "email": "", "channel": "post" },
   { "id": "bkk-bosch", "name": "BKK-Bosch", "aliases": ["Bosch BKK", "BKK Bosch"], "address": ["Bosch BKK – Pflegekasse"], "email": "info@bosch-bkk.de", "channel": "mail" },

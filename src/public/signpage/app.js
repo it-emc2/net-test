@@ -465,10 +465,27 @@
     box.textContent = msg;
   }
 
+  function kaChecked(name) {
+    var c = document.querySelector('input[name="' + name + '"]:checked');
+    return c ? c.value : "";
+  }
+
+  function kaSetRadio(name, value) {
+    var r = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (r) r.checked = true;
+  }
+
   function kaEdits() {
     return {
       measures: el("kaMeasures").value.split("\n").map(function (l) { return l.trim(); }).filter(Boolean),
-      reason: el("kaReason").value.trim(),
+      individualReason: el("kaReason").value.trim(),
+      answers: {
+        wohnsituation: kaChecked("kaWohn") || kaState.otherWohn,
+        vermieter: kaChecked("kaVermieter"),
+        weitere: Number(el("kaWeitere").value) || 0,
+        zweck: Array.prototype.map.call(document.querySelectorAll('input[name="kaZweck"]:checked'), function (c) { return c.value; }),
+      },
+      postMode: kaChecked("kaPost"),
     };
   }
 
@@ -479,26 +496,66 @@
     });
   }
 
-  function kaShowSent(sent) {
+  function kaShowSent(sent, bitrix) {
     el("kaSend").textContent = "Erneut senden";
-    kaStatus("✓ Gesendet am " + new Date(sent.sentAt).toLocaleString("de-DE") + " – " + sent.to, true);
+    var msg = "✓ Gesendet am " + new Date(sent.sentAt).toLocaleString("de-DE") + " – " + sent.to;
+    if (bitrix) {
+      msg += "\nBitrix: Kommentar " + (bitrix.pinned ? "fixiert" : "abgelegt (bitte manuell fixieren)") +
+        (bitrix.moved ? ", Deal → „Warten auf Freigabe Kasse“" : "");
+    }
+    kaStatus(msg, true);
   }
+
+  // What will happen, in plain words — shown before sending (yes/no).
+  function kaPlan() {
+    var d = kaState.data;
+    var steps = [];
+    var post = kaChecked("kaPost");
+    if (d.kasse && d.kasse.channel !== "post") steps.push("E-Mail an " + d.kasse.email + " (Kopie ans Büro)");
+    if (!d.kasse || d.kasse.channel !== "mail") {
+      steps.push(post === "direct"
+        ? "Brief per Onlinebrief24 an: " + d.kasseAddress.join(", ")
+        : "PDF für den Postversand ans Büro");
+    }
+    steps.push("Ablage im Bitrix-Deal");
+    return steps;
+  }
+
+  var kaState = { data: null, otherWohn: "" };
 
   function initKassenantrag() {
     el("kassenantrag").classList.remove("hidden");
     kaApi("")
       .then(kaJson)
       .then(function (d) {
+        kaState.data = d;
         var via = !d.kasse
-          ? "Kasse nicht in der Liste – Postversand übers Büro an: " + d.kasseAddress.join(", ")
+          ? "Kasse nicht in der Liste – Versand per Post an: " + d.kasseAddress.join(", ")
           : d.kasse.channel === "post"
-            ? "Postversand übers Büro an: " + d.kasseAddress.join(", ")
-            : "E-Mail an " + d.kasse.email + (d.kasse.channel === "both" ? " + Postversand übers Büro" : "");
-        el("kaTarget").innerHTML = "<strong></strong><br><span></span>";
-        el("kaTarget").firstChild.textContent = d.kasseName || "Keine Pflegekasse angegeben";
-        el("kaTarget").lastChild.textContent = via;
+            ? "Versand per Post an: " + d.kasseAddress.join(", ")
+            : "E-Mail an " + d.kasse.email + (d.kasse.channel === "both" ? " + Post" : "");
+        var t = el("kaTarget");
+        t.innerHTML = "<strong></strong><br><span></span><br><span></span>";
+        t.children[0].textContent = d.kasseName || "Keine Pflegekasse angegeben";
+        t.children[2].textContent = via;
+        t.children[4].textContent = "Unterzeichnet: i. A. " + (d.signer || "(Ihr Name fehlt im Benutzerkonto)");
         el("kaMeasures").value = (d.measures || []).join("\n");
-        el("kaReason").value = d.reason || "";
+        el("kaStandard").textContent = d.standardReason || "";
+        var a = d.answers || {};
+        if (a.wohnsituation === "Eigentum" || a.wohnsituation === "Miete") kaSetRadio("kaWohn", a.wohnsituation);
+        else kaState.otherWohn = a.wohnsituation || "";
+        kaSetRadio("kaVermieter", a.vermieter || "wird nachgereicht");
+        el("kaVermieterRow").classList.toggle("hidden", kaChecked("kaWohn") !== "Miete");
+        el("kaWeitere").value = a.weitere || 0;
+        el("kaZweck").innerHTML = "";
+        Object.keys(d.zweckOptions || {}).forEach(function (key) {
+          var l = document.createElement("label");
+          l.innerHTML = '<input type="checkbox" name="kaZweck"> <span></span>';
+          l.firstChild.value = key;
+          l.lastChild.textContent = d.zweckOptions[key];
+          el("kaZweck").appendChild(l);
+        });
+        el("kaPostRow").classList.toggle("hidden", !!(d.kasse && d.kasse.channel === "mail"));
         if (d.missing && d.missing.length) {
           el("kaSend").disabled = true;
           kaStatus("Es fehlt im Angebot: " + d.missing.join(", ") + ". Bitte im OC ergänzen und neu unterschreiben lassen.", false);
@@ -508,6 +565,12 @@
       })
       .catch(function (e) { kaStatus(e.message, false); });
   }
+
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="kaWohn"]'), function (r) {
+    r.addEventListener("change", function () {
+      el("kaVermieterRow").classList.toggle("hidden", kaChecked("kaWohn") !== "Miete");
+    });
+  });
 
   el("kaPreview").addEventListener("click", function () {
     // Open synchronously: iPad Safari blocks window.open after an await.
@@ -523,14 +586,20 @@
   el("kaSend").addEventListener("click", function () {
     var btn = el("kaSend");
     var force = btn.textContent === "Erneut senden";
-    if (!window.confirm(force ? "Antrag wurde schon gesendet. Wirklich erneut senden?" : "Antrag jetzt an die Pflegekasse senden?")) return;
     var body = kaEdits();
+    var d = kaState.data;
+    if ((!d.kasse || d.kasse.channel !== "mail") && !body.postMode) {
+      return kaStatus("Bitte beim Postversand wählen: direkt per Post oder ans Büro.", false);
+    }
+    var question = (force ? "Der Antrag wurde schon gesendet. Wirklich ERNEUT senden?\n\n" : "Jetzt passiert:\n") +
+      kaPlan().map(function (x) { return "• " + x; }).join("\n") + "\n\nFortfahren?";
+    if (!window.confirm(question)) return;
     body.force = force;
     btn.disabled = true;
     kaStatus("Wird gesendet …", true);
     kaApi("/send", body)
       .then(kaJson)
-      .then(function (d) { kaShowSent(d.sent); })
+      .then(function (r) { kaShowSent(r.sent, r.bitrix); })
       .catch(function (e) { kaStatus(e.message, false); })
       .then(function () { btn.disabled = false; });
   });

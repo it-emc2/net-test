@@ -51,13 +51,21 @@ export function defaultReason(measures) {
   );
 }
 
+// "Ziel der Maßnahme" — the three purposes the official forms ask about (LP).
+export const ZWECK = {
+  ermoeglicht: "die häusliche Pflege wird erst ermöglicht",
+  erleichtert: "die häusliche Pflege wird erheblich erleichtert",
+  selbststaendig: "eine möglichst selbstständige Lebensführung wird wiederhergestellt",
+};
+
 const fmtDate = (v) => {
   const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}.${m[2]}.${m[1]}` : String(v || "");
 };
 
 // Everything the Antrag shows. `data` = getOfferRenderData(...).data of the
-// signed offer; overrides = what the rep edited in the preview.
+// signed offer; overrides = what the rep entered on site: measures, the
+// customer-specific reason (individualReason), answers, signer.
 export function antragValues(sr, data = {}, overrides = {}) {
   const f = resolveFields(sr, { key: "vollmacht" });
   const k = sr.payloadSnapshot?.Kundendaten || {};
@@ -69,14 +77,27 @@ export function antragValues(sr, data = {}, overrides = {}) {
     .map(clean)
     .filter(Boolean);
   const kasse = findKasse(f.kassenkundeName);
+  // Prefilled from the offer's Wohnsituation/Vermieter fields, confirmed on site.
+  const a = overrides.answers || {};
+  const answers = {
+    wohnsituation: a.wohnsituation ?? k.wohnsituation ?? "",
+    vermieter: a.vermieter ?? (k.vermieterGenehmigung === "Ja" ? "liegt vor" : "wird nachgereicht"),
+    weitere: Number(a.weitere ?? 0) || 0,
+    zweck: (Array.isArray(a.zweck) ? a.zweck : []).filter((z) => ZWECK[z]),
+  };
+  const individualReason = String(overrides.individualReason || "").trim();
   return {
     kasse,
     kasseName: kasse?.name || f.kassenkundeName,
-    // A typed address beats the list (the rep may know the right Geschäftsstelle).
-    kasseAddress: f.kk_krankenkasseAdresse
-      ? [kasse?.address?.[0] || f.kassenkundeName, f.kk_krankenkasseAdresse]
-      : kasse?.address || [f.kassenkundeName],
+    // LP's list holds the verified Antrag address (a branch address only
+    // matters for the final invoice), so a full list address wins over a typed
+    // one (seen live: just "Nordhausen"). Typed only fills the gap.
+    kasseAddress:
+      kasse?.address?.length > 1 || !f.kk_krankenkasseAdresse
+        ? kasse?.address || [f.kassenkundeName]
+        : [kasse?.address?.[0] || f.kassenkundeName, f.kk_krankenkasseAdresse],
     name: `${f.lastName}, ${f.firstName}`.replace(/^, |, $/g, ""),
+    subjectName: `${f.lastName} ${f.firstName}`.trim(),
     address: [f.street, `${f.postalCode} ${f.city}`.trim()].filter(Boolean).join(", "),
     phone: f.phone,
     geburtsdatum: fmtDate(f.geburtsdatum),
@@ -84,13 +105,17 @@ export function antragValues(sr, data = {}, overrides = {}) {
     pflegegrad: f.pflegegrad,
     offerNumber: sr.offerNumber || "",
     measures,
-    reason: String(overrides.reason || "").trim() || defaultReason(measures),
-    signer: k.emc2_contact || "",
+    answers,
+    individualReason,
+    // LP: a reason specific to this customer first (why THIS measure), the
+    // standard § 40 sentence after it.
+    reason: [individualReason, defaultReason(measures)].filter(Boolean).join(" "),
+    signer: overrides.signer || k.emc2_contact || "",
     date: new Date().toLocaleDateString("de-DE"),
   };
 }
 
-// Required before anything goes to a Kasse.
+// Required from the offer before anything goes to a Kasse.
 export function missingFields(v) {
   return [
     ["kasseName", "Pflegekasse"],
@@ -100,6 +125,20 @@ export function missingFields(v) {
   ]
     .filter(([key]) => !v[key])
     .map(([, label]) => label);
+}
+
+// Required from the rep on site (send only).
+export function missingAnswers(v) {
+  const out = [];
+  if (v.individualReason.length < 20) out.push("individuelle Begründung (mind. 1 Satz)");
+  if (!v.answers.wohnsituation) out.push("Wohnsituation");
+  if (!v.answers.zweck.length) out.push("Ziel der Maßnahme");
+  return out;
+}
+
+function wohnText(a) {
+  if (a.wohnsituation === "Miete") return `Mietwohnung – Zustimmung des Vermieters ${a.vermieter}`;
+  return a.wohnsituation === "Eigentum" ? "Eigentum" : a.wohnsituation;
 }
 
 function esc(v) {
@@ -137,6 +176,11 @@ export function antragText(v) {
     "Begründung:",
     v.reason,
     "",
+    "Angaben zur Wohnsituation:",
+    `- Wohnsituation: ${wohnText(v.answers)}`,
+    `- Weitere pflegebedürftige Personen, die das Bad nutzen: ${v.answers.weitere || "keine"}`,
+    ...(v.answers.zweck.length ? [`- Ziel der Maßnahme: ${v.answers.zweck.map((z) => ZWECK[z]).join("; ")}`] : []),
+    "",
     "Im Anhang übersenden wir Ihnen:",
     ...ATTACHMENTS.map((a) => `- ${a}`),
     "",
@@ -151,8 +195,9 @@ export function antragText(v) {
   ].join("\n");
 }
 
+// Short on purpose: BARMER's mailbox sorts by it and failed on a long subject (LP).
 export function antragSubject(v) {
-  return `Antrag auf Zuschuss § 40 Abs. 4 SGB XI – ${v.name}, Vers.-Nr. ${v.kvnr}`;
+  return `Wohnumfeldverbesserung – ${v.subjectName} – KVNR: ${v.kvnr}`;
 }
 
 // Blank-line separated blocks; "- " lines become a list.
@@ -171,16 +216,21 @@ function textToHtml(text) {
     .join("");
 }
 
+// Margins for htmlToPdfBuffer — must match the @page rule in the letter.
+export const PDF_OPTS = { margin: { top: "20mm", bottom: "20mm", left: "0", right: "0" } };
+
 // A4 letter, address block in the DIN-5008 window (Onlinebrief24 reads it there).
 export function buildKassenantragHtml(v) {
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
 <title>Antrag § 40 SGB XI</title><style>
-  @page { size: A4; margin: 0; }
+  /* 20 mm page margin so page 2+ don't start at the edge; positions below
+     are relative to it — the address window stays at 45 mm from the top. */
+  @page { size: A4; margin: 20mm 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.4; color: #111; margin: 0; }
-  .page { padding: 27mm 20mm 20mm 25mm; position: relative; }
-  .window { position: absolute; top: 45mm; left: 20mm; width: 85mm; height: 45mm; }
+  .page { padding: 7mm 20mm 0 25mm; position: relative; }
+  .window { position: absolute; top: 25mm; left: 20mm; width: 85mm; height: 45mm; }
   .sender { font-size: 7pt; border-bottom: 0.5pt solid #000; padding-bottom: 1mm; margin-bottom: 3mm; }
-  .date { position: absolute; top: 80mm; right: 20mm; }
+  .date { position: absolute; top: 60mm; right: 20mm; }
   .content { margin-top: 68mm; }
   h1 { font-size: 11pt; margin: 0 0 2mm; }
   .ref { margin: 0 0 6mm; }

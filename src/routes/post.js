@@ -367,6 +367,25 @@ async function normalizeRequestedAttachments(rawAttachments) {
   return out;
 }
 
+// Kassenantrag (signing.js): Anschreiben (address in the window) + signed
+// documents as one printjob. OB24_MODE=test parks it in the cart instead.
+export async function submitLetter({ letterBase64, attachmentsBase64 = [], notice = "" }) {
+  const main = await normalizeToA4(letterBase64, "Antrag");
+  const letter = {
+    base64_file: main,
+    base64_file_checksum: md5(main),
+    filename_original: "Antrag.pdf",
+    specification: DEFAULT_SPECIFICATION,
+    notice: String(notice).slice(0, 255),
+  };
+  if (attachmentsBase64.length) {
+    letter.base64_attachments = await Promise.all(attachmentsBase64.map((b, i) => normalizeToA4(b, `Anlage ${i + 1}`)));
+  }
+  const printjob = (await ob24Fetch("/printjobs", { method: "POST", body: { letter } }))?.data;
+  if (!printjob?.id) throw new Error("onlinebrief24 hat keine Auftrags-ID zurückgegeben.");
+  return { printjobId: String(printjob.id), mode: getConfig().mode };
+}
+
 router.post("/send", async (req, res) => {
   try {
     logPost("incoming /api/post/send payload", req.body);

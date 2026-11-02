@@ -29,11 +29,18 @@ import {
   antragText,
   antragSubject,
   buildKassenantragHtml,
+  defaultReason,
   missingFields,
+  missingAnswers,
+  PDF_OPTS,
+  ZWECK,
 } from "../templates/kassenantrag.js";
+import { submitLetter } from "./post.js";
+import User from "../models/User.js";
 import {
   addTimelineComment,
   updateDealAfterSigning,
+  markKassenantragSent,
   ensurePartnerContact,
   getDealContactId,
   AH_SIGNING_CATEGORY_ID,
@@ -596,8 +603,9 @@ router.get("/status/:offerNumber/signed", async (req, res) => {
 // docs/plan-kassenantrag.md. Under /status so authGate keeps it internal.
 // The rep opens these from the signing page once the customer has signed.
 //   GET  /status/:offerNumber/kassenantrag          what will be sent (+ sent state)
-//   POST /status/:offerNumber/kassenantrag/preview  Antrag-PDF with the rep's edits
+//   POST /status/:offerNumber/kassenantrag/preview  Antrag-PDF with the rep's input
 //   POST /status/:offerNumber/kassenantrag/send     send to the Kasse + file in Bitrix
+// Body of preview/send: { measures[], individualReason, answers, postMode, force }.
 // ponytail: one Antrag for the main person; partner (_p2) offers need a second
 // Antrag (each Bewohner applies separately) — add when such a case comes up.
 
@@ -615,23 +623,39 @@ async function loadKasseSr(req, res) {
   return sr;
 }
 
-async function kassenantragValues(sr, body = {}) {
+// LP: the employee who prepares the Antrag signs it ("i. A. <Name>").
+async function signerName(req) {
+  const email = String(req.user?.email || "").toLowerCase();
+  const user = email ? await User.findOne({ email }).lean() : null;
+  return user?.name || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "";
+}
+
+async function kassenantragValues(sr, req) {
   const angebot = sr.documents.find((d) => d.key === "angebot");
   const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, angebot));
-  return antragValues(sr, data, { measures: body.measures, reason: body.reason });
+  const b = req.body || {};
+  return antragValues(sr, data, {
+    measures: b.measures,
+    individualReason: b.individualReason,
+    answers: b.answers,
+    signer: await signerName(req),
+  });
 }
 
 router.get("/status/:offerNumber/kassenantrag", async (req, res) => {
   try {
     const sr = await loadKasseSr(req, res);
     if (!sr) return;
-    const v = await kassenantragValues(sr);
+    const v = await kassenantragValues(sr, req);
     return res.json({
       kasse: v.kasse ? { name: v.kasse.name, channel: v.kasse.channel, email: v.kasse.email } : null,
       kasseName: v.kasseName,
       kasseAddress: v.kasseAddress,
       measures: v.measures,
-      reason: v.reason,
+      standardReason: defaultReason(v.measures),
+      answers: v.answers,
+      zweckOptions: ZWECK,
+      signer: v.signer,
       missing: missingFields(v),
       sent: sr.kassenantrag || null,
     });
@@ -645,7 +669,7 @@ router.post("/status/:offerNumber/kassenantrag/preview", express.json(), async (
   try {
     const sr = await loadKasseSr(req, res);
     if (!sr) return;
-    const pdf = await htmlToPdfBuffer(buildKassenantragHtml(await kassenantragValues(sr, req.body)));
+    const pdf = await htmlToPdfBuffer(buildKassenantragHtml(await kassenantragValues(sr, req)), PDF_OPTS);
     return res.type("application/pdf").send(pdf);
   } catch (err) {
     console.error("POST kassenantrag/preview failed:", err);
@@ -659,19 +683,25 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
   try {
     const sr = await loadKasseSr(req, res);
     if (!sr) return;
-    const v = await kassenantragValues(sr, req.body);
-    const missing = missingFields(v);
+    const v = await kassenantragValues(sr, req);
+    const missing = [...missingFields(v), ...missingAnswers(v)];
     if (missing.length) return res.status(400).json({ error: `Es fehlt: ${missing.join(", ")}` });
 
     // Unknown Kasse (free text, not in src/config/pflegekassen.json): no email
     // address on file, so it can only go by post — which needs an address.
     const channel = v.kasse?.channel || "post";
     const toEmail = v.kasse?.email || "";
+    const postMode = req.body?.postMode; // 'direct' (Onlinebrief24 now) | 'office'
     if (channel !== "post" && !toEmail) {
       return res.status(400).json({ error: "Für diese Kasse ist keine E-Mail-Adresse hinterlegt." });
     }
-    if (channel !== "mail" && v.kasseAddress.length < 2) {
-      return res.status(400).json({ error: "Bitte die Adresse der Pflegekasse im Angebot eintragen (Postversand)." });
+    if (channel !== "mail") {
+      if (v.kasseAddress.length < 2) {
+        return res.status(400).json({ error: "Bitte die Adresse der Pflegekasse im Angebot eintragen (Postversand)." });
+      }
+      if (!["direct", "office"].includes(postMode)) {
+        return res.status(400).json({ error: "Bitte wählen: direkt per Post senden oder ans Büro geben." });
+      }
     }
 
     const office = process.env.SIGNING_OFFICE_EMAIL;
@@ -680,8 +710,8 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
     const redirect = process.env.KASSENANTRAG_REDIRECT_TO;
     const transporter = buildTransport();
     if (!transporter) return res.status(500).json({ error: "E-Mail-Versand ist nicht konfiguriert (SMTP)." });
-    if (channel !== "mail" && !office && !redirect) {
-      return res.status(500).json({ error: "SIGNING_OFFICE_EMAIL fehlt (Postversand läuft übers Büro)." });
+    if (postMode === "office" && channel !== "mail" && !office && !redirect) {
+      return res.status(500).json({ error: "SIGNING_OFFICE_EMAIL fehlt (Postversand übers Büro)." });
     }
 
     const existing = await claimSendLock(EmailSend, lockKey, req.body?.force === true, {
@@ -698,7 +728,7 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
     }
     locked = true;
 
-    const antragPdf = await htmlToPdfBuffer(buildKassenantragHtml(v));
+    const antragPdf = await htmlToPdfBuffer(buildKassenantragHtml(v), PDF_OPTS);
     const files = [{ filename: `Antrag_Pflegekasse_${sr.offerNumber}.pdf`, buffer: antragPdf }];
     for (const d of sr.documents) {
       files.push({ filename: `${d.key}_${sr.offerNumber}.pdf`, buffer: await buildSignedPdf(sr, d) });
@@ -708,7 +738,8 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
 
     const subject = (redirect ? `[TEST → ${toEmail || "Post"}] ` : "") + antragSubject(v);
     const text = antragText(v);
-    const sentTo = [];
+    const done = []; // what actually went out to the Kasse ("Mail", "Post")
+    const log = [];
     if (channel !== "post") {
       await transporter.sendMail({
         from: smtpFrom(),
@@ -719,12 +750,20 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
         text,
         attachments: asAttachments(files),
       });
-      sentTo.push(redirect ? `${redirect} (Test statt ${toEmail})` : toEmail);
+      done.push("Mail");
+      log.push(redirect ? `E-Mail an ${redirect} (Test statt ${toEmail})` : `E-Mail an ${toEmail}`);
     }
-    if (channel !== "mail") {
-      // ponytail: post goes to the office as ONE ready-to-upload PDF (letter
-      // first, address in the window) instead of calling Onlinebrief24 from
-      // here — direct OB24 once SW decides who pays/approves letters (plan §6.4).
+    if (channel !== "mail" && postMode === "direct") {
+      const { printjobId, mode } = await submitLetter({
+        letterBase64: antragPdf.toString("base64"),
+        attachmentsBase64: files.slice(1).map((f) => f.buffer.toString("base64")),
+        notice: `Kassenantrag ${sr.offerNumber}`,
+      });
+      done.push("Post");
+      log.push(`Onlinebrief24 Auftrag ${printjobId}${mode === "test" ? " (Testmodus – liegt im Warenkorb)" : ""}`);
+    }
+    if (channel !== "mail" && postMode === "office") {
+      // One ready-to-upload PDF (letter first, address in the window).
       const merged = await PDFDocument.create();
       for (const f of files) {
         const src = await PDFDocument.load(f.buffer);
@@ -741,10 +780,18 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
           { filename: `Post_Antrag_${sr.offerNumber}.pdf`, content: Buffer.from(await merged.save()), contentType: "application/pdf" },
         ],
       });
-      sentTo.push(`Post (Büro): ${v.kasseName}`);
+      log.push("Postversand ans Büro übergeben");
     }
 
-    sr.kassenantrag = { sentAt: new Date(), channel, to: sentTo.join(", "), by: req.user?.email || "" };
+    sr.kassenantrag = {
+      sentAt: new Date(),
+      channel,
+      postMode: postMode || "",
+      to: log.join(", "),
+      by: req.user?.email || "",
+      answers: v.answers,
+      individualReason: v.individualReason,
+    };
     await sr.save();
     await EmailSend.updateOne(
       { dealId: lockKey },
@@ -752,15 +799,26 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
     );
     locked = false;
 
-    await postTimeline(
+    // Same wording the office used by hand (LP). Office-only post isn't sent
+    // yet, so it gets a note instead and the deal stays for the office to move.
+    const comment = done.length
+      ? `Der Antrag wurde heute per ${done.join(" und ")} bei der ${v.kasseName} gestellt.`
+      : `Antrag für die ${v.kasseName} liegt zum Postversand beim Büro (noch nicht verschickt).`;
+    const timeline = await postTimeline(
       sr,
-      `📨 Antrag § 40 SGB XI an ${v.kasseName} – ${channel === "post" ? "zum Postversand ans Büro" : `per E-Mail an ${toEmail}`}` +
-        (channel === "both" ? " + Postversand übers Büro" : "") +
-        ` (${sr.offerNumber})`,
+      `${comment}\n(${sr.offerNumber}, ${log.join(", ")}, i. A. ${v.signer || req.user?.email || ""})`,
       files.map((f) => ({ filename: f.filename, base64: f.buffer.toString("base64") })),
     );
+    let bitrix = { pinned: false, moved: false };
+    if (done.length && sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
+      try {
+        bitrix = await markKassenantragSent({ dealId: sr.bitrixEntityId, commentId: timeline?.result });
+      } catch (err) {
+        console.warn("[signing] Kassenantrag deal update failed:", err?.message || err);
+      }
+    }
 
-    return res.json({ ok: true, sent: sr.kassenantrag });
+    return res.json({ ok: true, sent: sr.kassenantrag, bitrix });
   } catch (err) {
     console.error("POST kassenantrag/send failed:", err);
     if (locked) await EmailSend.updateOne({ dealId: lockKey }, { $set: { inFlightUntil: null } }).catch(() => {});

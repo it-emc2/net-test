@@ -6,15 +6,21 @@
 
 Status: Phase 1 umgesetzt (nicht live) · Datum: 2026-10-30 · Basis-Branch: `main`
 
-> **Phase 1 – so umgesetzt (weicht in 3 Punkten vom Entwurf unten ab):**
-> - Panel „Antrag an die Pflegekasse“ erscheint auf der Signaturseite nach der letzten
->   Unterschrift, nur für eingeloggte Mitarbeiter und nur bei §40-Abtretung (nicht AH).
-> - Routen: `GET|POST /api/signing/status/:offerNumber/kassenantrag[/preview|/send]`.
-> - **Post** geht vorerst als *eine* PDF (Anschreiben + Anlagen) per Mail ans Büro
->   (`SIGNING_OFFICE_EMAIL`) zum Hochladen bei Onlinebrief24, kein direkter OB24-Aufruf (Frage 6.4).
-> - Kein Deal-Feld/Stufe, nur Timeline-Kommentar mit allen PDFs (Frage 6.5).
-> - Testbetrieb: `KASSENANTRAG_REDIRECT_TO=<testadresse>` leitet alle Kassen-/Büro-Mails dorthin um.
-> - Doppelversand-Sperre: `EmailSend` mit Schlüssel `kassenantrag:<Angebotsnr>`, erneutes Senden nur bewusst.
+> **Phase 1 – so umgesetzt (Stand 02.11., nach Rückmeldung LP):**
+> - Panel „Antrag an die Pflegekasse“ auf der Signaturseite nach der letzten Unterschrift,
+>   nur für eingeloggte Mitarbeiter und nur bei §40-Abtretung (nicht AH).
+> - Vor Ort Pflicht: **individuelle Begründung** (Standardsatz wird angehängt), Wohnsituation
+>   (Eigentum/Miete + Vermieter-Zustimmung, vorbelegt aus dem Angebot), weitere
+>   pflegebedürftige Personen im Bad, Ziel der Maßnahme.
+> - Unterzeichner: „i. A.“ + Name des Mitarbeiters, der sendet. Nur EmC2 unterschreibt, nicht der Kunde.
+> - Betreff (BARMER-Zuordnung): „Wohnumfeldverbesserung – Nachname Vorname – KVNR: X“.
+> - Postversand: Mitarbeiter sieht, was passiert, und wählt **direkt per Onlinebrief24** oder **ans Büro**.
+> - Bitrix wie bisher von Hand: Kommentar „Der Antrag wurde heute per Mail/Post bei der XX gestellt.“
+>   wird fixiert, Deal → „[VI] Warten auf Freigabe Kasse“ (nur innerhalb Pipeline 38;
+>   bei „ans Büro“ nur Notiz, Phase setzt das Büro).
+> - Anschrift: Listen-Adresse (von LP geprüft) geht vor einer im Angebot getippten Adresse.
+> - Absender live: service@e-m-c-2.de. Test: `KASSENANTRAG_REDIRECT_TO=<adresse>`.
+> - Konto in den Formularen (Phase 2): EmC2-Konto ING (LP). Die AOK-Bayern-Vorlage hat noch das alte Konto.
 
 ---
 

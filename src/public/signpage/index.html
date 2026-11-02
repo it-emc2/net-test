@@ -38,7 +38,12 @@
     #kassenantrag button { font-size: 15px; padding: 10px 16px; border: 1px solid #000; background: #fff; cursor: pointer; }
     #kassenantrag button.primary { background: #111; color: #fff; }
     #kassenantrag button:disabled { opacity: .4; cursor: not-allowed; }
-    #kaStatus { margin-top: 10px; }
+    #kaStatus { margin-top: 10px; white-space: pre-line; }
+    #kassenantrag .ka-hint { font-size: 12px; color: #555; margin-top: 4px; }
+    #kassenantrag .ka-opts { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 15px; margin-top: 6px; }
+    #kassenantrag .ka-opts label { display: inline-flex; gap: 6px; margin: 0; font-size: 15px; color: #111; }
+    #kassenantrag .ka-col { flex-direction: column; align-items: flex-start; }
+    #kassenantrag input[type=number] { width: 80px; font-size: 15px; padding: 4px; }
     @media (max-width: 640px) {
       body { padding: 10px 6px; }
       .sheet { padding: 10px 14px 22px; }
@@ -75,8 +80,28 @@
         <div id="kaTarget"></div>
         <label for="kaMeasures">Geplante Maßnahmen (eine pro Zeile)</label>
         <textarea id="kaMeasures" rows="6"></textarea>
-        <label for="kaReason">Begründung</label>
-        <textarea id="kaReason" rows="4"></textarea>
+        <label for="kaReason">Individuelle Begründung (Pflicht)</label>
+        <textarea id="kaReason" rows="4" placeholder="Warum braucht genau dieser Kunde genau diese Maßnahme? Was ist heute das Problem? Was ist schon vorhanden (z. B. ebenerdige Dusche) und warum reicht es nicht?"></textarea>
+        <div class="ka-hint">Danach wird automatisch angehängt: <span id="kaStandard"></span></div>
+        <label>Wohnsituation</label>
+        <div class="ka-opts" id="kaWohn">
+          <label><input type="radio" name="kaWohn" value="Eigentum"> Eigentum</label>
+          <label><input type="radio" name="kaWohn" value="Miete"> Miete</label>
+        </div>
+        <div class="ka-opts hidden" id="kaVermieterRow">
+          Zustimmung des Vermieters:
+          <label><input type="radio" name="kaVermieter" value="liegt vor"> liegt vor</label>
+          <label><input type="radio" name="kaVermieter" value="wird nachgereicht"> wird nachgereicht</label>
+        </div>
+        <label for="kaWeitere">Weitere pflegebedürftige Personen, die das Bad nutzen</label>
+        <input id="kaWeitere" type="number" min="0" max="9" value="0">
+        <label>Ziel der Maßnahme (mind. eins)</label>
+        <div class="ka-opts ka-col" id="kaZweck"></div>
+        <div class="ka-opts hidden" id="kaPostRow">
+          <strong>Postversand:</strong>
+          <label><input type="radio" name="kaPost" value="direct"> jetzt direkt per Post (Onlinebrief24)</label>
+          <label><input type="radio" name="kaPost" value="office"> ans Büro geben</label>
+        </div>
         <div class="ka-actions">
           <button type="button" id="kaPreview">Vorschau (PDF)</button>
           <button type="button" id="kaSend" class="primary">An Pflegekasse senden</button>
