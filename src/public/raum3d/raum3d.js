@@ -9,7 +9,8 @@ import { OrbitControls } from "https://unpkg.com/three@0.170.0/examples/jsm/cont
 const $ = (s) => document.querySelector(s);
 const stage = $("#stage");
 const info = $("#info");
-const S = { data: null, mode: "nachher", view: "oben", spot: 0 };
+const S = { data: null, mode: "nachher", view: "oben", spot: 0, shower: null, hidden: new Set() };
+window.__raum3d = S; // for checks in the browser console
 
 // ---- renderer / scene ---------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -38,6 +39,8 @@ const resize = () => {
   camera.updateProjectionMatrix();
 };
 new ResizeObserver(resize).observe(stage);
+window.addEventListener("resize", resize);
+resize(); // ResizeObserver can lag (background tab) — size once right away
 renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 
 // ---- materials ------------------------------------------------------------------
@@ -45,6 +48,8 @@ const M = {
   wall: new THREE.MeshStandardMaterial({ color: 0xf3f1ed, roughness: 0.9 }),
   floor: new THREE.MeshStandardMaterial({ color: 0xc9c6c0, roughness: 0.8, side: THREE.DoubleSide }),
   ceramic: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 }),
+  tray: new THREE.MeshStandardMaterial({ color: 0xf6f5f2, roughness: 0.75 }),
+  drain: new THREE.MeshStandardMaterial({ color: 0xe9e8e4, roughness: 0.6 }),
   old: new THREE.MeshStandardMaterial({ color: 0xdedcd7, roughness: 0.6 }),
   furniture: new THREE.MeshStandardMaterial({ color: 0xcfc8bd, roughness: 0.7 }),
   glass: new THREE.MeshStandardMaterial({ color: 0xd6ecf2, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
@@ -95,7 +100,7 @@ function buildRoom(room) {
       const wallShape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(len, 0), new THREE.Vector2(len, H), new THREE.Vector2(0, H)]);
       const extras = [];
       for (const o of room.openings) {
-        if (o.kind === "wallItem" || o.a[0] == null) continue;
+        if (o.kind === "wallItem" || o.a[0] == null || S.hidden.has("o" + room.openings.indexOf(o))) continue;
         const om = [(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2];
         const rel = [om[0] - p[0], om[1] - p[1]];
         const t = rel[0] * dir[0] + rel[1] * dir[1];
@@ -137,7 +142,7 @@ function buildRoom(room) {
     });
   }
   // wall-mounted items (washbasin …) as simple boxes on the wall
-  for (const o of room.openings.filter((x) => x.kind === "wallItem")) {
+  for (const o of room.openings.filter((x) => x.kind === "wallItem" && !S.hidden.has("o" + room.openings.indexOf(x)))) {
     const w = o.width || 0.45, d = Math.max(0.25, o.depth || 0.3), sill = o.sill ?? 0.68;
     const dir = [(o.b[0] - o.a[0]) / (Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1]) || 1), (o.b[1] - o.a[1]) / (Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1]) || 1)];
     let n = [-dir[1], dir[0]];
@@ -163,81 +168,142 @@ function addObject(o, mat = objMat(o.name)) {
 }
 
 // ---- after: new shower in place of the bathtub / old shower ----------------------
-// Sides of the scanned object (0 back, 1 right, 2 front, 3 left in its own frame);
-// the tray sits in the wall corner they form. Returns the tray frame for cameras.
-function addShower(spot, trayW, trayD, withGlass) {
+// Start placement: the tray sits in the wall corner of the scanned bathtub/shower
+// (sides 0 back, 1 right, 2 front, 3 left in the object's own frame). After that the
+// user can drag / rotate it; S.shower holds { x, y, angle, W, D }.
+function initialShower(spot, W, D) {
   const o = spot.object;
-  const wall = spot.sides.map((s) => s.wall);
+  const wall = spot.sides.map((x) => x.wall);
   const c = Math.cos(o.angle), s = Math.sin(o.angle);
   const hw = o.w / 2, hd = o.d / 2;
-  // the tray's long side follows the object's long side
-  const W = trayW, D = trayD;
   const back = wall[0] || !wall[2];
   const left = wall[3] ? true : wall[1] ? false : null; // null = centred (one wall)
   const uc = left === true ? -hw + W / 2 : left === false ? hw - W / 2 : 0;
   const vc = back ? -hd + D / 2 : hd - D / 2;
-  const at = (u, v) => [o.x + u * c - v * s, o.y + u * s + v * c];
-  const [tx, ty] = at(uc, vc);
-  const yaw = -o.angle;
+  // angle: keep the object's frame, flipped so the tray's local "back" (−v) faces the wall
+  return { x: o.x + uc * c - vc * s, y: o.y + uc * s + vc * c, angle: back ? o.angle : o.angle + Math.PI, W, D };
+}
 
-  const tray = box(W, 0.035, D, M.ceramic);
-  tray.position.copy(v3(tx, ty, 0.0175));
-  tray.rotation.y = yaw;
+const roomWalls = () => S.data.room.rooms.flatMap((r) => r.inner.map((p, i) => [p, r.inner[(i + 1) % r.inner.length]]));
+function distSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+/** Tray corners/edges in plan coordinates; edge.wall = stands against a wall. */
+function trayEdges(sh) {
+  const c = Math.cos(sh.angle), s = Math.sin(sh.angle);
+  const at = (u, v) => [sh.x + u * c - v * s, sh.y + u * s + v * c];
+  const w = sh.W / 2, d = sh.D / 2;
+  const P = [at(-w, -d), at(w, -d), at(w, d), at(-w, d)];
+  const walls = roomWalls();
+  return P.map((A, i) => {
+    const B = P[(i + 1) % 4], m = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+    return { i, A, B, m, wall: walls.some(([a, b]) => distSeg(m, a, b) <= 0.06) };
+  });
+}
+
+// "Duschwanne ohne Rand": 3 cm slab, top falling ~8 mm towards a square drain near
+// the back edge (as Badolux Riviera / Slate), matt stone-white.
+function trayMesh(W, D, drainUV) {
+  const g = new THREE.Group();
+  const H = 0.03, fall = 0.008;
+  const base = box(W, H - fall, D, M.tray);
+  base.position.y = (H - fall) / 2;
+  g.add(base);
+  const top = new THREE.PlaneGeometry(W, D, 30, 30);
+  top.rotateX(-Math.PI / 2);
+  const pos = top.attributes.position;
+  const maxR = Math.hypot(W, D);
+  for (let i = 0; i < pos.count; i++) {
+    const r = Math.hypot(pos.getX(i) - drainUV[0], pos.getZ(i) - drainUV[1]);
+    pos.setY(i, H - fall + fall * Math.min(1, r / (maxR * 0.6)));
+  }
+  top.computeVertexNormals();
+  const surf = new THREE.Mesh(top, M.tray);
+  surf.receiveShadow = true;
+  g.add(surf);
+  // closing strips on the 4 sides above the base (the sloped top leaves a small gap)
+  for (const [w, d, x, z] of [[W, 0.004, 0, -D / 2], [W, 0.004, 0, D / 2], [0.004, D, -W / 2, 0], [0.004, D, W / 2, 0]]) {
+    const strip = box(w, fall, d, M.tray);
+    strip.position.set(x, H - fall / 2, z);
+    g.add(strip);
+  }
+  const drain = box(0.12, 0.003, 0.12, M.drain);
+  drain.position.set(drainUV[0], H - fall + 0.0005, drainUV[1]);
+  g.add(drain);
+  return g;
+}
+
+function addShower(sh, withGlass) {
+  const edges = trayEdges(sh);
+  const wallBack = edges.find((e) => e.wall) || edges[0];
+  // drain near the first wall edge, 20 cm from its left end (as on the Riviera)
+  // local (u, v) of the drain: 10 cm off the wall edge, 20 cm from its start
+  const w = sh.W / 2, d = sh.D / 2;
+  const drainUV = [[-w + 0.2, -d + 0.1], [w - 0.1, -d + 0.2], [w - 0.2, d - 0.1], [-w + 0.1, d - 0.2]][wallBack.i];
+  const tray = trayMesh(sh.W, sh.D, drainUV);
+  tray.position.copy(v3(sh.x, sh.y, 0));
+  tray.rotation.y = -sh.angle;
+  tray.traverse((m) => { m.userData.tray = true; });
   roomGroup.add(tray);
-  const drain = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.004, 24), M.chrome);
-  const [dx, dy] = at(uc, vc + (back ? D / 2 - 0.12 : -(D / 2 - 0.12)));
-  drain.position.copy(v3(dx, dy, 0.037));
-  roomGroup.add(drain);
 
-  // tray edges in local (u, v): which stand against a wall
-  const edges = [
-    { key: "back", a: [uc - W / 2, vc - D / 2], b: [uc + W / 2, vc - D / 2], wall: back && wall[0] },
-    { key: "right", a: [uc + W / 2, vc - D / 2], b: [uc + W / 2, vc + D / 2], wall: left === false && wall[1] },
-    { key: "front", a: [uc + W / 2, vc + D / 2], b: [uc - W / 2, vc + D / 2], wall: !back && wall[2] },
-    { key: "left", a: [uc - W / 2, vc + D / 2], b: [uc - W / 2, vc - D / 2], wall: left === true && wall[3] },
-  ];
   const H = Math.min(2.55, (S.data.room.ceiling || 2.5) - 0.02);
   for (const e of edges) {
-    const A = at(...e.a), B = at(...e.b);
-    const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
-    const m = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
-    const ang = -Math.atan2(B[1] - A[1], B[0] - A[0]);
+    const len = Math.hypot(e.B[0] - e.A[0], e.B[1] - e.A[1]);
+    const ang = -Math.atan2(e.B[1] - e.A[1], e.B[0] - e.A[0]);
+    const toC = [sh.x - e.m[0], sh.y - e.m[1]], l = Math.hypot(...toC) || 1;
     if (e.wall) {
-      // wall cladding panel (+ joint profile at its ends)
-      const n = [(tx - m[0]) / (Math.hypot(tx - m[0], ty - m[1]) || 1), (ty - m[1]) / (Math.hypot(tx - m[0], ty - m[1]) || 1)]; // wall → tray
-      const p = box(len, H, 0.004, M.cladding);
-      p.position.copy(v3(m[0] + n[0] * 0.003, m[1] + n[1] * 0.003, H / 2));
+      const p = box(len, H, 0.004, M.cladding); // wall cladding behind the tray
+      p.position.copy(v3(e.m[0] + (toC[0] / l) * 0.003, e.m[1] + (toC[1] / l) * 0.003, H / 2));
       p.rotation.y = ang;
       roomGroup.add(p);
     } else if (withGlass) {
       const gh = 2.0;
       const g = box(len - 0.01, gh, 0.008, M.glass);
-      g.position.copy(v3(m[0], m[1], 0.035 + gh / 2));
+      g.position.copy(v3(e.m[0], e.m[1], 0.03 + gh / 2));
       g.rotation.y = ang;
       g.castShadow = false;
       roomGroup.add(g);
-      for (const [px, py, w, h] of [[m[0], m[1], len, 0.025]]) {
-        const top = box(w, h, 0.03, M.chrome);
-        top.position.copy(v3(px, py, 0.035 + gh));
-        top.rotation.y = ang;
-        roomGroup.add(top);
-      }
-      for (const P of [A, B]) {
+      const top = box(len, 0.025, 0.03, M.chrome);
+      top.position.copy(v3(e.m[0], e.m[1], 0.03 + gh));
+      top.rotation.y = ang;
+      roomGroup.add(top);
+      for (const P of [e.A, e.B]) {
         const post = box(0.025, gh, 0.03, M.chrome);
-        post.position.copy(v3(P[0], P[1], 0.035 + gh / 2));
+        post.position.copy(v3(P[0], P[1], 0.03 + gh / 2));
         post.rotation.y = ang;
         roomGroup.add(post);
       }
     }
   }
-  const open = edges.find((e) => !e.wall && e.key === (back ? "front" : "back")) || edges.find((e) => !e.wall);
-  // camera side: from the tray centre through its open edge
+  const open = edges.find((e) => !e.wall && e.i === (wallBack.i + 2) % 4) || edges.find((e) => !e.wall);
   let facing = [0, 1];
   if (open) {
-    const A = at(...open.a), B = at(...open.b), m = [(A[0] + B[0]) / 2 - tx, (A[1] + B[1]) / 2 - ty], l = Math.hypot(...m) || 1;
+    const m = [open.m[0] - sh.x, open.m[1] - sh.y], l = Math.hypot(...m) || 1;
     facing = [m[0] / l, m[1] / l];
   }
-  return { center: [tx, ty], facing, size: [W, D] };
+  return { center: [sh.x, sh.y], facing, size: [sh.W, sh.D] };
+}
+
+// Snap the tray to nearby walls: any edge within 10 cm of a parallel wall moves onto it.
+function snap(sh) {
+  for (let pass = 0; pass < 2; pass++) {
+    for (const e of trayEdges(sh)) {
+      for (const [a, b] of roomWalls()) {
+        const wl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, wd = [(b[0] - a[0]) / wl, (b[1] - a[1]) / wl];
+        const el = Math.hypot(e.B[0] - e.A[0], e.B[1] - e.A[1]) || 1;
+        if (Math.abs((e.B[0] - e.A[0]) / el * -wd[1] + (e.B[1] - e.A[1]) / el * wd[0]) > 0.05) continue; // not parallel
+        const n = [-wd[1], wd[0]];
+        const dist = (e.m[0] - a[0]) * n[0] + (e.m[1] - a[1]) * n[1];
+        if (Math.abs(dist) < 0.1 && Math.abs(dist) > 0.0005 && distSeg(e.m, a, b) < 0.12) {
+          sh.x -= n[0] * dist;
+          sh.y -= n[1] * dist;
+        }
+      }
+    }
+  }
+  return sh;
 }
 
 // ---- cameras ---------------------------------------------------------------------
@@ -288,7 +354,7 @@ function setView(view) {
 }
 
 // ---- build + UI ------------------------------------------------------------------
-function rebuild() {
+function rebuild(keepCamera = false) {
   scene.remove(roomGroup);
   roomGroup = new THREE.Group();
   scene.add(roomGroup);
@@ -298,13 +364,17 @@ function rebuild() {
   buildRoom(d.room);
   const spot = d.spots[S.spot];
   const [tw, td] = $("#tray").value.split("×").map((n) => Number(n) / 100);
-  for (const o of d.room.objects) {
-    if (S.mode === "nachher" && spot && o === spot.object) continue;
-    if (S.mode === "nachher" && spot && o.x === spot.object.x && o.y === spot.object.y) continue;
+  d.room.objects.forEach((o, i) => {
+    if (S.hidden.has("f" + i)) return;
+    if (S.mode === "nachher" && spot && o === spot.object) return;
+    if (S.mode === "nachher" && spot && o.x === spot.object.x && o.y === spot.object.y) return;
     addObject(o);
+  });
+  if (S.mode === "nachher" && spot) {
+    if (!S.shower) S.shower = snap(initialShower(spot, tw, td));
+    showerFrame = addShower(S.shower, $("#glass").value !== "ohne");
   }
-  if (S.mode === "nachher" && spot) showerFrame = addShower(spot, tw, td, $("#glass").value !== "ohne");
-  setView(S.view === "vorn" && !showerFrame ? "oben" : S.view);
+  if (!keepCamera) setView(S.view === "vorn" && !showerFrame ? "oben" : S.view);
   renderInfo();
 }
 
@@ -337,6 +407,9 @@ async function load(deal) {
   if (!res.ok) { info.innerHTML = `<span class="warn">${data.error || "Fehler " + res.status}</span>`; return; }
   S.data = data;
   S.spot = 0;
+  S.shower = null;
+  S.hidden = new Set();
+  renderObjectList();
   $("#spot").innerHTML = data.spots.map((s, i) => `<option value="${i}">${s.object.name} · ${SIT[s.situation]}</option>`).join("") || `<option>–</option>`;
   history.replaceState(null, "", `?deal=${encodeURIComponent(deal)}`);
   rebuild();
@@ -351,7 +424,66 @@ $("#mode").addEventListener("click", (e) => {
   rebuild();
 });
 $("#views").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.view; if (v) setView(v); });
-for (const id of ["#spot", "#tray", "#glass"]) $(id).addEventListener("change", () => { S.spot = Number($("#spot").value) || 0; rebuild(); });
+for (const id of ["#spot", "#tray"]) $(id).addEventListener("change", () => { S.spot = Number($("#spot").value) || 0; S.shower = null; rebuild(); });
+$("#glass").addEventListener("change", () => rebuild(true));
+
+// ---- editing: show/hide objects, rotate and drag the shower ---------------------------
+function renderObjectList() {
+  const d = S.data;
+  if (!d?.room) { $("#objects").innerHTML = ""; return; }
+  const items = [
+    ...d.room.objects.map((o, i) => ({ key: "f" + i, name: o.name || "Objekt" })),
+    ...d.room.openings.map((o, i) => ({ key: "o" + i, name: o.name || (o.kind === "window" ? "Fenster" : o.kind === "door" ? "Tür" : "Wandobjekt") })),
+  ];
+  $("#objects").innerHTML = items
+    .map((it) => `<label><input type="checkbox" data-key="${it.key}" ${S.hidden.has(it.key) ? "" : "checked"}> ${it.name}</label>`)
+    .join("");
+}
+$("#objects").addEventListener("change", (e) => {
+  const k = e.target.dataset.key;
+  if (!k) return;
+  if (e.target.checked) S.hidden.delete(k); else S.hidden.add(k);
+  rebuild(true);
+});
+$("#rotate").addEventListener("click", () => {
+  if (!S.shower) return;
+  S.shower.angle += Math.PI / 2;
+  snap(S.shower);
+  rebuild(true);
+});
+
+// Drag the tray on the floor (finger or mouse); orbiting is paused meanwhile.
+const ray = new THREE.Raycaster();
+const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+let drag = null;
+const pointerAt = (e) => {
+  const r = renderer.domElement.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+};
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (S.mode !== "nachher" || !S.shower) return;
+  pointerAt(e);
+  const hit = ray.intersectObjects(roomGroup.children, true).find((h) => h.object.userData.tray);
+  if (!hit) return;
+  const p = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
+  if (!p) return;
+  drag = { dx: S.shower.x - p.x, dy: S.shower.y - p.z, id: e.pointerId };
+  controls.enabled = false;
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  pointerAt(e);
+  const p = ray.ray.intersectPlane(floorPlane, new THREE.Vector3());
+  if (!p) return;
+  S.shower.x = p.x + drag.dx;
+  S.shower.y = p.z + drag.dy;
+  snap(S.shower);
+  rebuild(true);
+});
+const endDrag = () => { if (drag) { drag = null; controls.enabled = true; } };
+renderer.domElement.addEventListener("pointerup", endDrag);
+renderer.domElement.addEventListener("pointercancel", endDrag);
 $("#shot").addEventListener("click", () => {
   const a = document.createElement("a");
   a.href = renderer.domElement.toDataURL("image/jpeg", 0.9);

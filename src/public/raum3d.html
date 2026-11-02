@@ -26,6 +26,12 @@
     .warn { color: #b26a00; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
     .toolbar label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.9rem; }
+    .objs { position: relative; }
+    .objs summary { list-style: none; cursor: pointer; padding: 6px 12px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+    .objs summary::-webkit-details-marker { display: none; }
+    #objects { position: absolute; z-index: 5; top: 38px; left: 0; display: grid; gap: 6px; min-width: 260px; max-height: 50vh; overflow: auto; padding: 12px 14px; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); }
+    #objects label { color: var(--text); }
+    canvas { touch-action: none; }
   </style>
 </head>
 <body>
@@ -41,6 +47,9 @@
       <option>80×80</option><option>90×90</option><option>100×80</option><option selected>100×70</option><option>100×90</option><option>120×80</option><option>120×90</option><option>140×90</option><option>160×90</option><option>170×75</option>
     </select></label>
     <label>Abtrennung <select id="glass"><option value="auto">nach Situation</option><option value="ohne">ohne</option></select></label>
+    <button type="button" id="rotate" title="Dusche um 90° drehen">↻ Drehen</button>
+    <details class="objs"><summary>Objekte</summary><div id="objects"></div></details>
+    <span style="color:var(--muted);font-size:0.85rem">Duschwanne ziehen zum Verschieben</span>
     <button type="button" id="shot">Bild speichern</button>
   </div>
   <main><div id="stage"></div><div id="info">Deal-ID eingeben (z. B. 66270) und laden.</div></main>
