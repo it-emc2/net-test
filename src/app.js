@@ -16,6 +16,7 @@ import traysRouter from "./routes/trays.js";
 import vorhangRouter from "./routes/vorhang.js";
 import daConfigRouter from "./routes/da-config.js";
 import magicRouter from "./routes/magic.js";
+import room3dRouter from "./routes/room3d.js";
 import customersRouter from "./routes/customers.js";
 import bitrixRouter from "./routes/bitrix.js";
 import routingRouter from "./routes/routing.js";
@@ -299,6 +300,7 @@ const pricing = pricingFactory(Product);
 // ---------------- Routers ----------------
 app.use("/api/trays", traysRouter);
 app.use("/api/vorhang", vorhangRouter);
+app.use("/api/room3d", room3dRouter);
 app.use("/api/da-config", daConfigRouter);
 app.use("/pdf", pdfRouter);
 app.use("/pdf-template", pdfTemplateRouter);
