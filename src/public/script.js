@@ -15480,6 +15480,8 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse);
   setByNameOrId("kk_pflegegradSeit", k.kk_pflegegradSeit);
   setRadio("kk_rechnungskopie", k.kk_rechnungskopie || "nein");
+  setRadio("kk_rechnungskopie_art", k.kk_rechnungskopie_art || "post");
+  syncRechnungskopieArt();
   setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
@@ -23853,6 +23855,8 @@ function updateKassenkundeDetailsVisibility() {
     el.disabled = !isKassenkunde;
   });
 
+  syncRechnungskopieArt();
+
   // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
   const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
   [
@@ -23864,10 +23868,25 @@ function updateKassenkundeDetailsVisibility() {
 }
 window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
 
+// "Per Post / Per E-Mail" is only asked (and only serialized) when the
+// Kassen-Rechnungskopie answer is "ja" for a Kassenkunde.
+function syncRechnungskopieArt() {
+  const field = document.getElementById("kkRechnungskopieArtField");
+  if (!field) return;
+  const yes =
+    document.querySelector('input[name="kk_rechnungskopie"]:checked')?.value === "ja" &&
+    !document.querySelector('input[name="kk_rechnungskopie"]')?.disabled;
+  field.hidden = !yes;
+  field.querySelectorAll("input").forEach((el) => (el.disabled = !yes));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document
     .querySelectorAll('input[name="payer"]')
     .forEach((r) => r.addEventListener("change", updateKassenkundeDetailsVisibility));
+  document
+    .querySelectorAll('input[name="kk_rechnungskopie"]')
+    .forEach((r) => r.addEventListener("change", syncRechnungskopieArt));
   updateKassenkundeDetailsVisibility();
 });
 // Hide Pflegegrad + Pflegekasse fields when customer is Selbstzahler
