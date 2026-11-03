@@ -6,6 +6,7 @@ const SECTIONS = [
   { id: 'shared',   label: 'Allgemein',           icon: 'fa-sliders' },
   { id: 'fahrt',    label: 'Arbeitszeit & Fahrt',  icon: 'fa-car' },
   { id: 'bu',       label: 'BU – Badumbau',        icon: 'fa-bath' },
+  { id: 'arbeitszeiten', label: 'Arbeitszeiten je Tätigkeit', icon: 'fa-clock' },
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
   { id: 'hl',       label: 'HL – Handläufe',       icon: 'fa-grip-lines' },
   { id: 'ah',       label: 'AH – Alltagshilfe',    icon: 'fa-hands-helping' },

@@ -487,6 +487,10 @@ export function initEmailManager(options = {}) {
       if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
         payload.selfPayAmount = offerExtra.selfPayAmount;
       }
+      // Kassen-Rechnungskopie (post|email): only "ja" is sent (Selbstzahler always get the invoice).
+      if (offerExtra.isKassenkunde && offerExtra.payload?.Kundendaten?.kk_rechnungskopie === "ja") {
+        payload.invoiceCopy = offerExtra.payload.Kundendaten.kk_rechnungskopie_art === "email" ? "email" : "post";
+      }
       // AH derives its own Bitrix fields server-side from the full offer payload.
       if (offerExtra.offerType === "ah" && offerExtra.payload) {
         payload.payload = JSON.stringify(offerExtra.payload);
@@ -1572,12 +1576,14 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       // winwall cart (WV-WW), same rules: only with winwall items, never blocks sending.
       { endpoint: "/material-overview/winwall-cart?format=csv", name: `winwall_Warenkorb_${safeNo}.csv`, label: "winwall-Warenkorb (CSV)", optional: true },
       { endpoint: "/material-overview/winwall-cart?format=json", name: `winwall_Warenkorb_${safeNo}.json`, label: "winwall-Warenkorb (JSON)", optional: true },
+      // Only produced when the offer has articles bought outside Hassmann.
+      { endpoint: "/material-overview/online-orders", name: `Bestellhinweise_Online-Handel_${safeNo}.txt`, label: "Bestellhinweise Online-Handel" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
     ]
       .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
-      // AH/HMS/WD sell services only — no products, so no Hassmann cart.
-      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && j.endpoint.includes("hassmann")));
+      // AH/HMS/WD sell services only — no products, so no Hassmann cart or order note.
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && /hassmann|online-orders/.test(j.endpoint)));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);

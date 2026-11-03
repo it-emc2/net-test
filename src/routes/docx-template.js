@@ -18,6 +18,7 @@ import ProductModel from "../models/Product.js";
 import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
 import cfg from "../services/configService.js";
+import { replaceTextInDocx } from "../lib/docxTextReplace.js";
 
 
 // ============================
@@ -162,6 +163,35 @@ function getAngebotTemplatePath(body) {
     `[docx-template] template "${file}" for offer "${offer}" not found; falling back to Angebot.docx`,
   );
   return fallbackPath;
+}
+
+// Per-offer wording changes the user makes in OC (payload.offerOverrides.textReplacements
+// = [{ from, to }]), applied to every customer-facing string of the render data. Same
+// seam as the blocklist, so DOCX, PDF, mail PDF and the signing page all agree.
+function applyTextReplacements(value, replacements) {
+  const list = (Array.isArray(replacements) ? replacements : [])
+    .map((r) => ({ from: String(r?.from ?? "").trim(), to: String(r?.to ?? "") }))
+    .filter((r) => r.from);
+  if (!list.length) return value;
+  const walk = (v) => {
+    if (typeof v === "string") {
+      return list.reduce((s, r) => s.replace(new RegExp(escapeRegExpDocx(r.from), "gi"), () => r.to), v);
+    }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    }
+    return v;
+  };
+  return walk(value);
+}
+
+// Blocklist first, then the offer's own overrides.
+function sanitizeRenderData(dataRaw, body) {
+  return applyTextReplacements(
+    deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST),
+    body?.offerOverrides?.textReplacements,
+  );
 }
 
 const pricing = pricingFactory(ProductModel);
@@ -341,7 +371,8 @@ function getImageSizeFromBuffer(buf) {
 }
 
 // ✅ UPDATED: image-enabled docx render (supports {%SignatureImage})
-async function renderDocx(templatePath, data) {
+// replacements: offer wording rules, also applied to the template's fixed sentences.
+async function renderDocx(templatePath, data, replacements) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
 
@@ -412,7 +443,7 @@ async function renderDocx(templatePath, data) {
     throw new Error(`DOCX render failed: ${msg}`);
   }
 
-  return doc.getZip().generate({ type: "nodebuffer" });
+  return replaceTextInDocx(doc.getZip().generate({ type: "nodebuffer" }), replacements);
 }
 
 // Persistent LibreOffice profile: creating a fresh profile per conversion
@@ -638,7 +669,10 @@ async function convertDocxToPdfUnqueued(docxBuffer) {
 async function getOfferRenderData(body) {
   const computed = await pricing.computePrices(body || {});
   const dataRaw = await mapData(body || {}, computed);
-  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  const data = sanitizeRenderData(dataRaw, body);
+  // The raw rules (not run through the replacement above) — for pages that render
+  // their own fixed text, e.g. the signing page.
+  data.TextReplacements = body?.offerOverrides?.textReplacements || [];
   return { data, computed };
 }
 
@@ -651,7 +685,7 @@ async function generateOfferPdfBuffer(body) {
 
   console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
-  const docxBuffer = await renderDocx(templatePath, data);
+  const docxBuffer = await renderDocx(templatePath, data, body?.offerOverrides?.textReplacements);
 
   try {
     const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
@@ -2061,6 +2095,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
     SelfPayLines,
 
+    // Free-text lines the user added after "Wichtige Hinweise" (payload.offerOverrides.extraHinweise)
+    ExtraHinweise: (Array.isArray(body?.offerOverrides?.extraHinweise) ? body.offerOverrides.extraHinweise : [])
+      .map((t) => String(t ?? "").trim())
+      .filter(Boolean)
+      .map((Text) => ({ Text })),
+
     // for Regie-Stundensatz
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
@@ -2497,7 +2537,7 @@ router.post("/", async (req, res) => {
     });
 
     const dataRaw = await mapData(req.body || {}, computed);
-    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+    const data = sanitizeRenderData(dataRaw, req.body);
 
     if (STATIC_DOCX_WORD_BLOCKLIST.length) {
       console.log(
@@ -2512,7 +2552,7 @@ router.post("/", async (req, res) => {
     console.log("[docx] SignatureImage present?", !!data.SignatureImage);
 
     // ✅ use shared image-enabled renderer
-    const out = await renderDocx(templatePath, data);
+    const out = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
 
     try {
       const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
@@ -2667,6 +2707,8 @@ export {
   generateOfferPdfBuffer,
   getOfferRenderData,
   deepSanitizeDocxPayload,
+  applyTextReplacements,
+  sanitizeRenderData,
   STATIC_DOCX_WORD_BLOCKLIST,
   buildAhData,
 };

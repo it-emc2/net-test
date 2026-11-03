@@ -152,7 +152,7 @@
   /* accent-weak/strong overridden per-theme in the DARK MODE PASS block below */
   --accent-weak:      rgba(124, 58, 237, 0.18);
   --accent-strong:    #a78bfa;
-  --ring:             rgba(167, 139, 250, 0.28);
+  --ring:             color-mix(in srgb, var(--accent) 40%, transparent); /* follows each theme accent */
 }
 
 /* ---------- Reset / basics ---------- */
@@ -319,6 +319,7 @@ h1 {
   white-space: nowrap;
 }
 
+#hardRefreshBtn,
 .user-box #logoutBtn {
   width: 40px;
   height: 40px;
@@ -333,6 +334,12 @@ h1 {
   font-family: inherit;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+#hardRefreshBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-weak);
 }
 
 .user-box #logoutBtn:hover {
@@ -5891,8 +5898,8 @@ button:active,
   min-height: 100%;
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  border: 1px solid var(--border);
+  background: var(--card);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
   transition:
     transform 0.18s ease,
@@ -5904,7 +5911,7 @@ button:active,
 #bwtDoors .bwt-door-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
-  border-color: rgba(124, 58, 237, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 #bwtDoors .bwt-door-card .img-wrap {
@@ -5934,13 +5941,13 @@ button:active,
 #bwtDoors .bwt-door-card .caption {
   font-size: 1rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--text);
 }
 
 #bwtDoors .bwt-door-card .caption-sub {
   margin-top: 2px;
   line-height: 1.55;
-  color: #667085;
+  color: var(--muted);
 }
 
 #bwtDoors .bwt-door-card .bwt-door-height-inline {
@@ -5955,9 +5962,9 @@ button:active,
   width: 100%;
   min-width: 0;
   border-radius: 8px;
-  border: 1px solid #dbe2ea;
-  background: #fff;
-  color: #0f172a;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
   font-size: 0.86rem;
   padding: 5px 8px;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -5986,7 +5993,7 @@ button:active,
 
 #bwtDoors .bwt-door-spec-row label {
   font-size: 0.82rem;
-  color: #667085;
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -6005,32 +6012,43 @@ button:active,
 #bwtDoors .bwt-door-spec-field .unit {
   flex: 0 0 auto;
   font-size: 0.78rem;
-  color: #98a2b3;
+  color: var(--muted);
   white-space: nowrap;
 }
 
 #bwtDoors .bwt-door-facts {
   display: block;
-  color: #667085;
+  color: var(--muted);
   line-height: 1.55;
 }
 
 #bwtDoors .bwt-door-specs + .bwt-door-facts {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #eef0f4;
+  border-top: 1px solid var(--border);
 }
 
 #bwtDoors label.image-check:has(input:checked),
 #bwtDoors label.image-check.is-checked {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--ring), 0 16px 34px rgba(15, 23, 42, 0.10);
-  background: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
 }
 
 #bwtDoors label.image-check:has(input:checked) .caption,
 #bwtDoors label.image-check.is-checked .caption {
   color: var(--accent-strong);
+}
+
+/* Once a door is picked, grey out the others so the selection stands out;
+   hover/focus restores them so switching is still obvious. */
+#bwtDoors .bwt-door-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease,
+    background 0.18s ease, opacity 0.18s ease, filter 0.18s ease;
+}
+#bwtDoors:has(input[name="bwtDoorType"]:checked) .bwt-door-card:not(:has(input:checked)):not(:hover):not(:focus-within) {
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 
 @media (max-width: 900px) {
@@ -6244,29 +6262,6 @@ img[alt="Variodoor"] {
   opacity: 1 !important;
   pointer-events: auto !important;
   display: block;
-}
-
-/* ===== BWT door cards — dark mode contrast fix =====
-   Card background is always white — keep all text and inputs dark-coloured. */
-[data-mode="dark"] #bwtDoors .bwt-door-card .caption {
-  color: #334155;
-}
-[data-mode="dark"] #bwtDoors .bwt-door-card .caption-sub {
-  color: #667085;
-}
-[data-mode="dark"] #bwtDoors .bwt-door-card.is-checked .caption,
-[data-mode="dark"] #bwtDoors label.image-check:has(input:checked) .caption {
-  color: var(--accent-strong);
-}
-[data-mode="dark"] #bwtDoors .bwt-door-extra input,
-[data-mode="dark"] #bwtDoors .bwt-door-extra select,
-[data-mode="dark"] #bwtDoors .bwt-door-extra textarea {
-  background: #f1f5f9;
-  color: #0f172a;
-  border-color: #cbd5e1;
-}
-[data-mode="dark"] #bwtDoors .bwt-door-extra label {
-  color: #475569;
 }
 
 #bwtDoors .bwt-door-extra label {
@@ -11586,10 +11581,10 @@ details.az-group[open] > summary.az-group-title::before {
   gap: 10px;
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border);
   border-radius: 10px;
-  background: #fff;
-  color: #1f2937;
+  background: var(--input-bg);
+  color: var(--text);
   font: inherit;
   font-size: 0.95rem;
   cursor: pointer;
@@ -11985,3 +11980,36 @@ details.az-group[open] > summary.az-group-title::before {
 #wvColors label.image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
 #wvColors label.image-check.wv-active .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
 #wvColors label.image-check.wv-active .caption { color: var(--text, #1f2937); }
+
+/* Wortlaut-Overrides (OfferOverrides.js) — iOS-style grouped list */
+.offer-overrides-card{margin:0 0 16px;padding:16px;background:var(--panel,#fff);border:1px solid var(--border,#e5e7eb);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+.offer-overrides-card .oo-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.offer-overrides-card .oo-title{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+.offer-overrides-card .oo-badge{padding:3px 10px;border-radius:999px;background:rgba(255,159,10,.14);color:#b36b00;font-size:.8rem;font-weight:600}
+.offer-overrides-card .oo-hint{margin:6px 0 12px;font-size:.88rem;line-height:1.4;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-row{position:relative;margin:0 0 10px;background:rgba(120,120,128,.08);border-radius:12px;overflow:hidden}
+.offer-overrides-card .oo-line{display:flex;align-items:center;gap:12px;padding:0 44px 0 14px;min-height:46px}
+.offer-overrides-card .oo-line + .oo-line{border-top:1px solid rgba(120,120,128,.2)}
+.offer-overrides-card .oo-line span{flex:0 0 56px;white-space:nowrap;font-size:.85rem;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-line input{flex:1;min-width:0;border:0;background:transparent;box-shadow:none;padding:12px 0;font:inherit;color:inherit;outline:none}
+.offer-overrides-card .oo-line input:focus{outline:none;box-shadow:none}
+.offer-overrides-card .oo-del{position:absolute;top:10px;right:10px;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:rgba(255,59,48,.12);color:#ff3b30;font-size:.9rem;line-height:1;cursor:pointer}
+.offer-overrides-card .oo-del:hover{background:rgba(255,59,48,.2)}
+.offer-overrides-card .oo-add{border:0;background:none;padding:6px 2px;color:var(--accent-strong,#0a84ff);font:inherit;font-weight:600;cursor:pointer;box-shadow:none}
+.offer-overrides-card .oo-add:hover{text-decoration:underline}
+.offer-overrides-card button:disabled{opacity:.4;cursor:default}
+[data-mode="dark"] .offer-overrides-card .oo-badge{color:#ffb340}
+.offer-overrides-card .oo-group-title{margin:14px 0 8px;font-size:.78rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-line select{flex:1;min-width:0;border:0;background:transparent;font:inherit;color:inherit;padding:12px 0;outline:none;box-shadow:none}
+.offer-overrides-card .oo-gross{flex:0 0 auto;white-space:nowrap;margin-right:-30px;font-size:.82rem;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums}
+.offer-overrides-card .oo-line textarea{flex:1;min-width:0;border:0;background:transparent;box-shadow:none;padding:12px 0;font:inherit;color:inherit;outline:none;resize:vertical;min-height:46px}
+.offer-overrides-card .oo-row.oo-single .oo-line{padding-right:44px}
+.offer-overrides-card .oo-locked{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:rgba(255,159,10,.12);color:#8a5200;font-size:.9rem}
+.offer-overrides-card .oo-locked button{border:0;border-radius:999px;padding:6px 14px;background:#ff9f0a;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.offer-overrides-card [hidden]{display:none !important}
+.offer-overrides-card > summary.oo-head{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative;padding-right:28px}
+.offer-overrides-card > summary.oo-head::-webkit-details-marker{display:none}
+.offer-overrides-card > summary.oo-head::after{content:"";position:absolute;right:6px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);transition:transform .2s}
+.offer-overrides-card[open] > summary.oo-head::after{transform:rotate(-135deg);margin-top:-2px}
+.offer-overrides-card[open] > summary.oo-head{margin-bottom:2px}
+.offer-overrides-card .oo-badge--lock{background:rgba(255,159,10,.18);color:#8a5200}

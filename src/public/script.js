@@ -1908,6 +1908,22 @@ const ARBEITSZEIT_RULES = {
   install_shower_wc: { label: "Dusch-WC einbauen", minutes: 60 },
 };
 
+// Minutes come from the admin panel (AZ_MIN_* → __azMinutesLive). A saved
+// offer is pinned to its snapshot (pricingRules.azMinutes); one saved before
+// the snapshot existed pins to {} and so keeps the legacy values above.
+window.__azMinutesLive = {};
+window.__azMinutesPinned = null;
+function azMinutes(key, legacy) {
+  const v = (window.__azMinutesPinned || window.__azMinutesLive)[key];
+  return typeof v === "number" ? v : legacy;
+}
+// null = fresh offer (live config); payload = restored offer.
+window.__applyAzMinutesSnapshot = function (p) {
+  window.__azMinutesPinned = p ? { ...(p.pricingRules?.azMinutes || {}) } : null;
+  computeArbeitszeitSuggestion();
+  renderArbeitszeitSuggestion();
+};
+
 function getArbeitszeitQty(inputId, qtyId) {
   const checked = !!document.getElementById(inputId)?.checked;
   if (!checked) return 0;
@@ -1933,8 +1949,15 @@ function computeArbeitszeitSuggestion() {
     .querySelectorAll('input[name="duschwanne[workTasks][]"]:checked')
     .forEach((el) => {
       const rule = ARBEITSZEIT_RULES[el.value];
-      if (!rule) return;
-      pushArbeitszeitRow(rows, el.value, rule.label, rule.minutes, 1);
+      const minutes = azMinutes(el.value, rule?.minutes);
+      // No rule anywhere → not a timed task (e.g. Wandverkleidung, timed per panel).
+      if (minutes == null) return;
+      const label =
+        rule?.label ||
+        el.closest(".task-card")?.querySelector(".task-card__title")?.textContent.trim() ||
+        el.value;
+      if (minutes > 0) pushArbeitszeitRow(rows, el.value, label, minutes, 1);
+      else rows.push({ key: el.value, label, minutes: 0, qty: 1, missing: true });
     });
 
   // Extras = additional panels of the same size, so they add to the work-time
@@ -1956,7 +1979,7 @@ function computeArbeitszeitSuggestion() {
       1,
       Math.round(main997 + sumWvExtraQtys("wvExtraList997")),
     );
-    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
+    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", azMinutes("wv997", 30), qty997);
   }
   if (wvOn && document.getElementById("wv1497")?.checked) {
     const main1497 = parseArbeitszeitNumber(
@@ -1966,7 +1989,7 @@ function computeArbeitszeitSuggestion() {
       1,
       Math.round(main1497 + sumWvExtraQtys("wvExtraList1497")),
     );
-    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
+    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", azMinutes("wv1497", 40), qty1497);
   }
   // Keramico (95 cm) takes the same time as a 997 panel.
   const keramicoQty = wvOn ? window.keramicoCurrentCount?.() || 0 : 0;
@@ -1974,7 +1997,7 @@ function computeArbeitszeitSuggestion() {
     pushArbeitszeitRow(rows, "wvKeramico", "Wandpaneel Keramico 950×2550", 30, keramicoQty);
   }
   if (wvOn && document.getElementById("wvSilikonSelected")?.checked) {
-    pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
+    pushArbeitszeitRow(rows, "Silikon", "Silikon", azMinutes("silikon", 10), 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
     const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
@@ -1983,11 +2006,11 @@ function computeArbeitszeitSuggestion() {
         rows,
         "flooring",
         "Fußboden individuell",
-        8,
+        azMinutes("flooring_m2", 8),
         Math.round(floorArea * 10) / 10,
       );
     } else {
-      pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", 25, 1);
+      pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", azMinutes("flooring_flat", 25), 1);
     }
   }
 
@@ -1999,7 +2022,7 @@ function computeArbeitszeitSuggestion() {
   ];
   grabConfigs.forEach(([optId, qtyId, label]) => {
     const qty = getArbeitszeitQty(optId, qtyId);
-    if (qty > 0) pushArbeitszeitRow(rows, optId, label, 30, qty);
+    if (qty > 0) pushArbeitszeitRow(rows, optId, label, azMinutes("grab", 30), qty);
   });
 
   const totalMinutes = rows.reduce((sum, row) => sum + row.minutes * row.qty, 0);
@@ -2047,7 +2070,7 @@ function renderArbeitszeitSuggestion() {
     tr.innerHTML = `
       <td>${row.label}</td>
       <td>${qtyText}</td>
-      <td>${formatDurationHHMM(row.minutes * row.qty)}</td>
+      <td>${row.missing ? "Zeit fehlt" : formatDurationHHMM(row.minutes * row.qty)}</td>
     `;
     body.appendChild(tr);
   });
@@ -3244,6 +3267,7 @@ function startOfferFlow(offerKey) {
   window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
   window.__grabBonusRefId = "CLPESG30";
   window.__applyBonusNeuSnapshot?.(null);
+  window.__applyAzMinutesSnapshot?.(null);
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -4426,6 +4450,7 @@ function buildPayload() {
   // offers (see restore path) keep these at the historical 200/2 default
   // instead of the live-fetched value, so reopening one doesn't silently
   // adopt today's config before the user has chosen to.
+  payload.pricingRules.azMinutes = { ...(window.__azMinutesPinned || window.__azMinutesLive) };
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
@@ -4574,6 +4599,15 @@ function buildPayload() {
 
       const wvHoehe = String(fdDW.get("duschwanne[wandverkleidungHoehe]") || "").trim();
       if (wvHoehe) dw.wandverkleidungHoehe = wvHoehe;
+
+      // Umbauart + hand-edited tasks (arbeitenAuto.js)
+      const umbauart = String(fdDW.get("duschwanne[umbauart]") || "");
+      if (umbauart) dw.umbauart = umbauart;
+      // Not "workTasks…": pricing-core prints every key matching /worktasks/i.
+      const manual = String(fdDW.get("duschwanne[manualTasks]") || "");
+      dw.manualTasks = manual ? manual.split(",") : [];
+      delete dw["duschwanne[umbauart]"];
+      delete dw["duschwanne[manualTasks]"];
     }
   } catch (e) {
     console.warn("[buildPayload] workTasks normalization failed:", e);
@@ -5190,6 +5224,9 @@ if (anschlag) {
     // Verbreiterungsprofil). Workflow state — not part of the price fingerprint.
     checkAck: window.__zfCheckAck || {},
   };
+
+  const offerOverrides = window.getOfferOverrides?.();
+  if (offerOverrides) payload.offerOverrides = offerOverrides;
 
   payload.mail = {
     auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
@@ -6589,7 +6626,13 @@ window.confirmBeforeSend = async function (payload, offerType) {
   return window.confirmHauptpunkte(payload, offerType);
 };
 function validateOptional() {
-  return true;
+  if (!document.getElementById("cat_SHOWER")?.checked) return true;
+  if (document.querySelector('#form-optional input[name="showerMount"]:checked')) return true;
+  window.toast?.error(
+    "Angaben unvollständig",
+    "Duschsystem: Bitte angeben, ob die Armatur direkt unter dem Gestänge sitzt oder versetzt ist."
+  );
+  return false;
 }
 function validateRabatt() {
   const f = document.getElementById("form-rabatt");
@@ -7098,6 +7141,13 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
       window.__bonusNeuThresholdLive = d.NEUKUNDENBONUS_SCHWELLE;
       if (!window.__bonusNeuPinned) window.__bonusNeuThreshold = d.NEUKUNDENBONUS_SCHWELLE;
     }
+    var az = {};
+    Object.keys(d).forEach(function (k) {
+      if (k.indexOf("AZ_MIN_") === 0 && typeof d[k] === "number") az[k.slice(7)] = d[k];
+    });
+    window.__azMinutesLive = az;
+    computeArbeitszeitSuggestion();
+    renderArbeitszeitSuggestion();
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
@@ -14067,9 +14117,47 @@ function initWannePicker() {
     },
   };
 
+  // [key, label, one-line help]. Help is shown under the filter group so nobody
+  // has to guess what "Einbau" or "Trio" means.
   const FACETS = {
-    tub: [["side", "Seite"], ["schuerze", "Schürze"], ["zulauf", "Zulauf"]],
-    screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
+    tub: [
+      ["brand", "Hersteller", ""],
+      ["lengthCm", "Länge", ""],
+      ["side", "Türseite", "Blick von vorn auf die Wanne: auf welcher Seite die Tür bzw. der Einstieg sitzt."],
+      ["einbau", "Einbauart", "Wie die Wanne im Bad eingebaut wird. Bitte mit der Einbausituation vor Ort abgleichen."],
+      ["ablauf", "Ablaufgarnitur", "Das Bauteil im Wannenboden, über das das Wasser abläuft."],
+      ["schuerze", "Wannenschürze", "Die Verkleidung der Wanne an der Seite, die man im Raum sieht."],
+      ["zulauf", "Wassereinlauf", "Wo das Wasser in die Wanne läuft."],
+    ],
+    screen: [
+      ["side", "Seite", "Auf welcher Seite der Wanne der Aufsatz angeschlagen wird (Blick von vorn)."],
+      ["heightCm", "Höhe", ""],
+      ["seitenwand", "Seitenwand", "S70 = mit 70 cm breiter fester Seitenwand, ohne = nur das Glasteil."],
+    ],
+  };
+
+  // Plain-German meaning of single values (shown only for values that exist).
+  // ponytail: Einbau/Vorwand/Nische/Trio wording is trade-standard, not from a
+  // Steinkamp data sheet — check against it before relying on it.
+  const VALUE_HELP = {
+    einbau: {
+      Einbau: "Standard: Wanne wird in den Baukörper eingebaut, vorn mit Verkleidung.",
+      Vorwandmontage: "Wanne steht vor einer Vorwand bzw. Installationswand. Aufpreis ca. 30–130 €.",
+      Nische: "Verkleidung für eine Nische zwischen zwei Wänden. Nur bei 180 × 80 cm.",
+    },
+    ablauf: {
+      Standard: "Normale Ablaufgarnitur.",
+      Trio: "Ablauf, Überlauf und Wassereinlauf in einem Bauteil. Aufpreis ca. 230–270 €.",
+      "inkl. Ablaufgarnitur": "Set mit zusätzlicher Ablaufgarnitur (ca. 130 € mehr). Was genau enthalten ist, klärt der Händler.",
+    },
+    schuerze: {
+      "2 Schürzen": "Verkleidung vorn und an einer Seite.",
+      Frontschürze: "Verkleidung nur vorn.",
+    },
+    zulauf: {
+      Wanneneinlauf: "Das Wasser läuft direkt in der Wanne ein.",
+      Ablauf: "Nur ein Ablauf; das Wasser kommt aus der Armatur an der Wand.",
+    },
   };
 
   const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
@@ -14099,7 +14187,19 @@ function initWannePicker() {
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
     );
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const showVal = (k, v) => (k === "heightCm" ? `${v} cm` : String(v));
+  const showVal = (k, v) =>
+    k === "heightCm" || k === "lengthCm"
+      ? `${v} cm`
+      : k === "side" && type === "tub"
+        ? `Tür ${v}`
+        : String(v);
+  // Card pills carry the facet name too, so "Trio" alone is not left unexplained.
+  const pillVal = (k, v) =>
+    k === "ablauf" && ["Standard", "Trio"].includes(v)
+      ? `${v}-Ablauf`
+      : k === "ablauf"
+        ? v
+        : showVal(k, v);
   const ofType = (t) => items.filter((p) => p.type === (t || type));
 
   // `skip` lets a facet count its own options against the OTHER active filters,
@@ -14151,7 +14251,7 @@ function initWannePicker() {
   function renderFilters() {
     const reco = recommendedScreenId();
     filtersEl.innerHTML = FACETS[type]
-      .map(([key, label]) => {
+      .map(([key, label, help]) => {
         const values = [
           ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
         ].sort();
@@ -14167,7 +14267,13 @@ function initWannePicker() {
               )} <span class="n">${n}</span></button>`;
           })
           .join("");
-        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div><div class="wanne-chips">${chips}</div></div>`;
+        const defs = values
+          .filter((v) => VALUE_HELP[key]?.[v])
+          .map((v) => `<div><strong>${esc(v)}:</strong> ${esc(VALUE_HELP[key][v])}</div>`)
+          .join("");
+        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div>${
+          help ? `<div class="wanne-fhelp">${esc(help)}</div>` : ""
+        }<div class="wanne-chips">${chips}</div>${defs ? `<div class="wanne-fdefs">${defs}</div>` : ""}</div>`;
       })
       .join("");
     return reco;
@@ -14198,7 +14304,7 @@ function initWannePicker() {
             .map(([k]) =>
               p[k] == null || p[k] === ""
                 ? ""
-                : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
+                : `<span class="wanne-pill">${esc(pillVal(k, p[k]))}</span>`,
             )
             .join("");
           // alt="" on purpose: the name sits right beside it, so the image is
@@ -16996,6 +17102,34 @@ async function loadOfferByNumber(offerNumber) {
   }
 }
 
+// "Neue Version erstellen": also used by the Angebot-anpassen card when a draft carries
+// the number of an already-sent offer (its price is frozen until it gets a new number).
+async function startNewOfferVersion() {
+  // The new version belongs to whoever is creating it now, not the
+  // original sender: reset Ansprechpartner (name + signature) and the
+  // date, which the restore from the sent offer left stale.
+  window.resetAnsprechpartnerToMe?.();
+  ensureKundendatenDate(false);
+  const result = await window.createOfferVersion?.();
+  const nr = result?.offerNumber;
+  if (result?.queued) {
+    window.toast?.warn?.(
+      "Offline",
+      "Neue Version offline gespeichert — Nummer und Preis folgen beim Sync.",
+    );
+    return;
+  }
+  window.toast?.success?.(
+    "Neue Version erstellt",
+    nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
+  );
+  window.requestPricingRefresh?.({ reason: "new-offer-version" });
+  window.dispatchEvent(
+    new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
+  );
+}
+window.startNewOfferVersion = startNewOfferVersion;
+
 // Read-only state for an already-sent offer, plus the one way out of it:
 // "Neue Version erstellen" saves the current state as an Entwurf, which the
 // server gives its own offer number so pricing goes live again.
@@ -17008,30 +17142,7 @@ async function applySentOfferState(offer) {
   enterSentMode({
     offerNumber: offer.offerNumber,
     sentAt: offer.updatedAt || offer.createdAt,
-    onNewVersion: async () => {
-      // The new version belongs to whoever is creating it now, not the
-      // original sender: reset Ansprechpartner (name + signature) and the
-      // date, which the restore from the sent offer left stale.
-      window.resetAnsprechpartnerToMe?.();
-      ensureKundendatenDate(false);
-      const result = await window.createOfferVersion?.();
-      const nr = result?.offerNumber;
-      if (result?.queued) {
-        window.toast?.warn?.(
-          "Offline",
-          "Neue Version offline gespeichert — Nummer und Preis folgen beim Sync.",
-        );
-        return;
-      }
-      window.toast?.success?.(
-        "Neue Version erstellt",
-        nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
-      );
-      window.requestPricingRefresh?.({ reason: "new-offer-version" });
-      window.dispatchEvent(
-        new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
-      );
-    },
+    onNewVersion: startNewOfferVersion,
   });
 }
 
@@ -17232,6 +17343,14 @@ function restoreWorkTasks(dw) {
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     });
     break; // stop after the group we found
+  }
+
+  document.querySelectorAll('input[name="duschwanne[umbauart]"]').forEach((r) => {
+    r.checked = r.value === dw.umbauart;
+  });
+  const manualInput = document.getElementById("workTasksManual");
+  if (manualInput) {
+    manualInput.value = Array.isArray(dw.manualTasks) ? dw.manualTasks.join(",") : "";
   }
 
   const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');
@@ -17864,6 +17983,9 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("kk_versichertennr", k.kk_versichertennr ?? k.ah_versichertenr);
   setByNameOrId("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse);
   setByNameOrId("kk_pflegegradSeit", k.kk_pflegegradSeit);
+  setRadio("kk_rechnungskopie", k.kk_rechnungskopie || "nein");
+  setRadio("kk_rechnungskopie_art", k.kk_rechnungskopie_art || "post");
+  syncRechnungskopieArt();
   setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
@@ -18123,6 +18245,13 @@ function restoreOptionalPage(opt) {
     setRadio("wcSeatHeight", opt.wcSeatHeight);
   }
 
+  // Duschsystem-Montage: clear first — the form is not reset between offers
+  document
+    .querySelectorAll('#form-optional input[name="showerMount"]')
+    .forEach((r) => (r.checked = false));
+  if (opt.showerMount != null) setRadio("showerMount", opt.showerMount);
+  window.applyShowerMount?.();
+
   // Sonderprodukte (quickAdd) — delegate to the rebuilder exposed by
   // initOptionalSonderprodukte so each row is created via createRow() and
   // gets the proper input listeners. Falls back to a minimal inline rebuild
@@ -18202,6 +18331,7 @@ function restoreOptionalPage(opt) {
         "opt_V22BG903R",
         "opt_V12DS250E",
         "opt_STRAYT",
+        "opt_DESIBS160",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -18746,6 +18876,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
     window.__applyBonusNeuSnapshot?.(p);
+    window.__applyAzMinutesSnapshot?.(p);
 
     // normalize offerType
     const rawOfferType =
@@ -21524,6 +21655,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupHassmannEmbedFallback();
 });
+// ---- Duschsystem: Pflichtfrage "Armatur direkt darunter / versetzt" ----
+// Tiles carry data-mount="direkt|versetzt"; only the answered group is shown.
+// "versetzt" (user click only, not restore) auto-adds the hose (160 cm) and an
+// AP-Thermostat if none is picked yet.
+function initShowerMount() {
+  const form = document.getElementById("form-optional");
+  const hint = document.getElementById("showerMountHint");
+  const tiles = [...document.querySelectorAll("#menu_SHOWER [data-mount]")];
+  if (!form || !tiles.length) return;
+  let autoThermo = null;
+
+  const setChecked = (cb, on) => {
+    if (!cb || cb.checked === on) return;
+    cb.checked = on;
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const apply = () => {
+    const mount = form.querySelector('input[name="showerMount"]:checked')?.value || "";
+    tiles.forEach((tile) => {
+      // No answer (new or older offer): hide unpicked tiles, keep picked ones visible.
+      const show = mount
+        ? tile.dataset.mount === mount
+        : !!tile.querySelector('input[type="checkbox"]')?.checked;
+      tile.style.display = show ? "" : "none"; // grid CSS overrides [hidden]
+    });
+    if (hint) hint.hidden = mount !== "versetzt";
+  };
+
+  form.addEventListener("change", (e) => {
+    if (e.target?.name === "showerMount" && e.isTrusted) {
+      const mount = e.target.value;
+      tiles.forEach((tile) => {
+        if (tile.dataset.mount !== mount) setChecked(tile.querySelector('input[type="checkbox"]'), false);
+      });
+      if (mount === "versetzt") {
+        setChecked(document.getElementById("opt_DESIBS160"), true);
+        const thermos = ["opt_CLTB", "opt_DEPTB", "opt_CLB"].map((id) => document.getElementById(id));
+        if (!thermos.some((cb) => cb?.checked)) {
+          setChecked(thermos[0], true);
+          autoThermo = thermos[0];
+        }
+      } else {
+        // Fixed system brings its own thermostat — drop the one we auto-added.
+        setChecked(autoThermo, false);
+        autoThermo = null;
+      }
+      window.updatePricing?.();
+    }
+    apply();
+  });
+  form.addEventListener("reset", () => setTimeout(apply));
+  window.applyShowerMount = apply;
+  apply();
+}
+
 // ---- ONSHB -> YNORGH21825 rosette: auto-select required accessory, 1:1 qty ----
 function initOnshbAutoAccessory() {
   const reqWrap = document.getElementById("tapRequiredWrap");
@@ -21743,6 +21930,8 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
   wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
+  wireTileQty("opt_DESIBS160", "qty_DESIBS160_wrap");
+  initShowerMount();
   wireTileQty("opt_STRAYT", "qty_STRAYT_wrap");
 
   // ---- THERMO ----
@@ -22566,6 +22755,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_V22BG903R",
       "opt_V12DS250E",
       "opt_STRAYT",
+      "opt_DESIBS160",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -26195,6 +26385,8 @@ function updateKassenkundeDetailsVisibility() {
     el.disabled = !isKassenkunde;
   });
 
+  syncRechnungskopieArt();
+
   // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
   const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
   [
@@ -26206,10 +26398,25 @@ function updateKassenkundeDetailsVisibility() {
 }
 window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
 
+// "Per Post / Per E-Mail" is only asked (and only serialized) when the
+// Kassen-Rechnungskopie answer is "ja" for a Kassenkunde.
+function syncRechnungskopieArt() {
+  const field = document.getElementById("kkRechnungskopieArtField");
+  if (!field) return;
+  const yes =
+    document.querySelector('input[name="kk_rechnungskopie"]:checked')?.value === "ja" &&
+    !document.querySelector('input[name="kk_rechnungskopie"]')?.disabled;
+  field.hidden = !yes;
+  field.querySelectorAll("input").forEach((el) => (el.disabled = !yes));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document
     .querySelectorAll('input[name="payer"]')
     .forEach((r) => r.addEventListener("change", updateKassenkundeDetailsVisibility));
+  document
+    .querySelectorAll('input[name="kk_rechnungskopie"]')
+    .forEach((r) => r.addEventListener("change", syncRechnungskopieArt));
   updateKassenkundeDetailsVisibility();
 });
 // Hide Pflegegrad + Pflegekasse fields when customer is Selbstzahler
