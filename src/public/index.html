@@ -8569,6 +8569,32 @@ button.dm-btn-danger:focus-visible {
           <!-- Email Versand (unter PDF Vorschau) -->
 <!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
      never into the mail body, PDF or post payload. -->
+<details class="offer-overrides-card" id="offerOverridesCard">
+  <summary class="oo-head">
+    <strong class="oo-title">Angebot anpassen</strong>
+    <span id="offerOverridesBadge" class="oo-badge" hidden></span>
+    <span id="offerLockedMark" class="oo-badge oo-badge--lock" hidden title="Preis eingefroren – Neue Version nötig">🔒 Preis eingefroren</span>
+  </summary>
+  <p class="oo-hint">Änderungen gelten für Angebot (DOCX/PDF), E-Mail-PDF und Online-Unterschrift – ohne Word – und werden in „Neue Version“ übernommen.</p>
+
+  <div id="offerLockedNote" class="oo-locked" hidden>
+    <span>🔒 Diese Angebotsnummer wurde bereits versendet – der Preis ist eingefroren, Preisänderungen wirken erst in einer neuen Version.</span>
+    <button type="button" id="offerLockedNew">Neue Version erstellen</button>
+  </div>
+
+  <div class="oo-group-title">Wortlaut ersetzen</div>
+  <div id="offerOverridesList"></div>
+  <button type="button" id="offerOverridesAdd" class="oo-add">+ Ersetzung hinzufügen</button>
+
+  <div class="oo-group-title" id="offerPriceTitle">Preis anpassen</div>
+  <div id="offerPriceList"></div>
+  <button type="button" id="offerPriceAdd" class="oo-add">+ Preisanpassung hinzufügen</button>
+
+  <div class="oo-group-title" id="offerHinweiseTitle">Zusätzliche Hinweise</div>
+  <div id="offerHinweiseList"></div>
+  <button type="button" id="offerHinweiseAdd" class="oo-add">+ Hinweis hinzufügen</button>
+</details>
+
 <section class="internal-note-card" id="internalNoteCard">
   <label for="internalNote" class="internal-note-label">🔒 Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)</label>
   <textarea id="internalNote" rows="3" maxlength="5000" placeholder="z. B. Besonderheiten, Absprachen, Hinweise für Innendienst/Montage …"></textarea>
@@ -11209,6 +11235,7 @@ button.dm-btn-danger:focus-visible {
   <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
   <script type="module" src="/angebotscheck.js"></script>
+  <script type="module" src="/OfferOverrides.js"></script>
   <script type="module" src="/arbeitenAuto.js"></script>
   <script type="module" src="/angebotsversand.js"></script>
   <script type="module" src="/checkliste.js"></script>

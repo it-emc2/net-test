@@ -280,6 +280,7 @@ export function initRestoreManager({
     window.setZfVersand?.(payload?.zusammenfassung?.versand);
     window.setZfCheckliste?.(payload?.zusammenfassung?.checkliste);
     window.setZfCheckAck?.(payload?.zusammenfassung?.checkAck);
+    window.setOfferOverrides?.(payload?.offerOverrides);
 
     try {
       const mail = payload?.mail || {};
