@@ -170,6 +170,14 @@ function paint() {
   badge();
 }
 
+// A draft that still carries the number of a sent offer gets that offer's frozen price
+// (server flag _locked), so price edits would silently do nothing.
+function paintLocked(ev) {
+  const el = document.getElementById("offerLockedNote");
+  const pricing = ev?.detail || window.__pricing;
+  if (el) el.hidden = !(pricing?._locked && !locked());
+}
+
 function badge() {
   const el = document.getElementById("offerOverridesBadge");
   if (!el) return;
@@ -203,4 +211,9 @@ if (typeof document !== "undefined") {
   // Sent offers are read-only; the offer type decides whether price edits apply.
   new MutationObserver(paint).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("offerflow:changed", paint);
+  window.addEventListener("pricing:updated", paintLocked);
+  document.getElementById("offerLockedNew")?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try { await window.startNewOfferVersion?.(); } finally { e.target.disabled = false; paintLocked(); }
+  });
 }

@@ -14670,6 +14670,34 @@ async function loadOfferByNumber(offerNumber) {
   }
 }
 
+// "Neue Version erstellen": also used by the Angebot-anpassen card when a draft carries
+// the number of an already-sent offer (its price is frozen until it gets a new number).
+async function startNewOfferVersion() {
+  // The new version belongs to whoever is creating it now, not the
+  // original sender: reset Ansprechpartner (name + signature) and the
+  // date, which the restore from the sent offer left stale.
+  window.resetAnsprechpartnerToMe?.();
+  ensureKundendatenDate(false);
+  const result = await window.createOfferVersion?.();
+  const nr = result?.offerNumber;
+  if (result?.queued) {
+    window.toast?.warn?.(
+      "Offline",
+      "Neue Version offline gespeichert — Nummer und Preis folgen beim Sync.",
+    );
+    return;
+  }
+  window.toast?.success?.(
+    "Neue Version erstellt",
+    nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
+  );
+  window.requestPricingRefresh?.({ reason: "new-offer-version" });
+  window.dispatchEvent(
+    new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
+  );
+}
+window.startNewOfferVersion = startNewOfferVersion;
+
 // Read-only state for an already-sent offer, plus the one way out of it:
 // "Neue Version erstellen" saves the current state as an Entwurf, which the
 // server gives its own offer number so pricing goes live again.
@@ -14682,30 +14710,7 @@ async function applySentOfferState(offer) {
   enterSentMode({
     offerNumber: offer.offerNumber,
     sentAt: offer.updatedAt || offer.createdAt,
-    onNewVersion: async () => {
-      // The new version belongs to whoever is creating it now, not the
-      // original sender: reset Ansprechpartner (name + signature) and the
-      // date, which the restore from the sent offer left stale.
-      window.resetAnsprechpartnerToMe?.();
-      ensureKundendatenDate(false);
-      const result = await window.createOfferVersion?.();
-      const nr = result?.offerNumber;
-      if (result?.queued) {
-        window.toast?.warn?.(
-          "Offline",
-          "Neue Version offline gespeichert — Nummer und Preis folgen beim Sync.",
-        );
-        return;
-      }
-      window.toast?.success?.(
-        "Neue Version erstellt",
-        nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
-      );
-      window.requestPricingRefresh?.({ reason: "new-offer-version" });
-      window.dispatchEvent(
-        new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
-      );
-    },
+    onNewVersion: startNewOfferVersion,
   });
 }
 

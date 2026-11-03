@@ -178,7 +178,8 @@ export default (ProductModel, deps = {}) => {
   function cachedResponseFor(existing, payload) {
     if (!existing?.pricing) return null;
     if (existing.pricingFingerprint === computeFingerprint(payload)) {
-      return JSON.parse(JSON.stringify(existing.pricing));
+      const { _locked, ...cached } = JSON.parse(JSON.stringify(existing.pricing));
+      return cached;
     }
     // Priced inputs changed, but the admin has auto-recompute turned off:
     // keep serving the last computed snapshot until someone hits "Preis
@@ -2206,7 +2207,8 @@ color: metaColor || null,
       if (savedOfferNumber) {
         existingOfferSnapshot = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
         if (existingOfferSnapshot?.locked && existingOfferSnapshot?.pricing) {
-          return JSON.parse(JSON.stringify(existingOfferSnapshot.pricing));
+          // _locked tells the UI why edits don't move the price (response flag, never persisted).
+          return { ...JSON.parse(JSON.stringify(existingOfferSnapshot.pricing)), _locked: true };
         }
       }
 

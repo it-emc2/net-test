@@ -41,3 +41,16 @@ test('invalid rows are ignored; none = unchanged', async () => {
   const b = await computePrices(adj([]));
   expect(b.total).toBe(a.total);
 });
+
+test('a sent (locked) offer number returns its frozen price, flagged _locked; a draft number does not', async () => {
+  const snap = { locked: true, pricing: { total: 111, services: { sum: 5 } } };
+  const mk = (doc) => ({ findOne: () => ({ select: () => ({ sort: () => ({ lean: async () => doc }) }) }) });
+  const withOffer = (doc) => pricingFactory(model([]), { cfg: { get: (_k, f) => f }, fetchVigourNetPrices: async () => new Map(), OfferModel: mk(doc), DraftModel: mk(null) });
+  const payload = { ...base, offerNumber: 'ANG2026-1008-104733', offerOverrides: { priceAdjustments: [{ target: 'material', amountNet: 1500 }] } };
+  const locked = await withOffer(snap).computePrices(payload);
+  expect(locked.total).toBe(111); // adjustment cannot move a sent offer
+  expect(locked._locked).toBe(true);
+  const live = await withOffer(null).computePrices(payload);
+  expect(live._locked).toBeUndefined();
+  expect(live.priceAdjustments.material).toBe(1500);
+});
