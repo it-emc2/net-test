@@ -4521,11 +4521,11 @@ button.dm-btn-danger:focus-visible {
         <h2 style="margin:0 0 12px">Fußboden</h2>
         <form id="form-fussboden" autocomplete="on">
         <!-- Ein Schalter fuer beides; addFlooring / addWallCladding bleiben als versteckte Datenfelder (script.js initFussbodenTabSwitch). -->
-        <div class="field sec-switch-field">
+        <div class="field sec-switch-field full">
           <label class="sec-switch"><input type="checkbox" role="switch" id="fbMaster" /><span class="sec-switch__track" aria-hidden="true"></span><span
               class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag oder Wandverkleidung als Fußboden im Angebot. Aus: nichts berechnet.</small></span></label>
         </div>
-        <div id="fbModeWrap" hidden>
+        <div id="fbModeWrap" class="full" hidden>
         <div class="fb-tab-switch" role="tablist" aria-label="Fußboden oder Wandverkleidung">
           <button type="button" class="fb-tab-switch-btn active" id="fbTabBtnFloor" data-target="fbTabFloor"
             role="tab" aria-selected="true">Fußboden</button>
