@@ -11632,6 +11632,22 @@ details.az-group[open] > summary.az-group-title::before {
 .kc-sits { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .kc-chip { min-height: 40px; padding: 0 16px; border: 1px solid rgba(10,10,10,0.18); border-radius: 999px; background: #fff; color: #111; font: inherit; font-size: 0.9rem; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
 .kc-chip[aria-pressed="true"] { background: #111; border-color: #111; color: #fff; }
+.kc-view-chip { min-height: 40px; padding: 0 16px; border: 1px solid rgba(10,10,10,0.18); border-radius: 999px; background: #fff; color: #111; font: inherit; font-weight: 600; cursor: pointer; }
+.kc-view-chip[aria-pressed="true"] { background: #111; border-color: #111; color: #fff; }
+[data-mode="dark"] .kc-view-chip { background: transparent; color: #f3f4f6; border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .kc-view-chip[aria-pressed="true"] { background: #f3f4f6; color: #111; }
+.kc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.kc-toolbar .kc-sits { margin-bottom: 0; }
+.kc-view-chip { display: inline-flex; align-items: center; justify-content: center; }
+.kc-floor--room { fill: #d6d9dc; }
+.kc-tile { stroke: rgba(0,0,0,0.12); stroke-width: 0.8; }
+.kc-room-base { stroke: #cfc9bf; stroke-width: 1; }
+.kc-room-base--back { fill: #f3f0ea; }
+.kc-room-base--links { fill: #e6e1d8; }
+.kc-room-base--rechts { fill: #ece8e0; }
+.kc-skirting { fill: #ffffff; stroke: #cfc9bf; stroke-width: 0.8; }
+.kc-hline { stroke: #0a84ff; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.kc-hlabel { fill: #0a6fd6; font-size: 11px; font-weight: 600; }
 .kc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .kc-stage { width: 100%; max-width: 640px; margin: 0 auto; }
 .kc-svg { display: block; width: 100%; height: auto; touch-action: manipulation; }
@@ -11911,8 +11927,8 @@ details.az-group[open] > summary.az-group-title::before {
 #form-wandverkleidung .kc { margin: 0; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); }
 #form-wandverkleidung .kc-head h3 { display: none; }
 #form-wandverkleidung .kc-sits { display: inline-flex; flex-wrap: nowrap; gap: 0; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
-#form-wandverkleidung .kc-chip { min-height: 32px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; color: var(--text, #1f2937); font-weight: 500; }
-#form-wandverkleidung .kc-chip[aria-pressed="true"] { background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+#form-wandverkleidung .kc-chip, #form-wandverkleidung .kc-view-chip { min-height: 32px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; color: var(--text, #1f2937); font-weight: 500; }
+#form-wandverkleidung .kc-chip[aria-pressed="true"], #form-wandverkleidung .kc-view-chip[aria-pressed="true"] { background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
 #form-wandverkleidung .kc-rows { gap: 0; border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; overflow: hidden; }
 #form-wandverkleidung .kc-row { grid-template-columns: 26px minmax(0, 1fr) 90px auto; padding: 8px 14px; }
 #form-wandverkleidung .kc-row + .kc-row { border-top: 1px solid var(--input-border, #e5e7eb); }
@@ -11923,8 +11939,8 @@ details.az-group[open] > summary.az-group-title::before {
 #form-wandverkleidung #kcVigourApply:disabled { background: rgba(118, 118, 128, 0.2); color: var(--muted, #6b7280); }
 [data-mode="dark"] #form-wandverkleidung .kc { background: var(--panel); border-color: rgba(255, 255, 255, 0.12); }
 [data-mode="dark"] #form-wandverkleidung .kc-sits { background: rgba(118, 118, 128, 0.24); }
-[data-mode="dark"] #form-wandverkleidung .kc-chip { color: #f3f4f6; }
-[data-mode="dark"] #form-wandverkleidung .kc-chip[aria-pressed="true"] { background: #636366; color: #fff; }
+[data-mode="dark"] #form-wandverkleidung .kc-chip, [data-mode="dark"] #form-wandverkleidung .kc-view-chip { color: #f3f4f6; }
+[data-mode="dark"] #form-wandverkleidung .kc-chip[aria-pressed="true"], [data-mode="dark"] #form-wandverkleidung .kc-view-chip[aria-pressed="true"] { background: #636366; color: #fff; }
 [data-mode="dark"] #form-wandverkleidung .kc-rows,
 [data-mode="dark"] #form-wandverkleidung .kc-row + .kc-row { border-color: rgba(255, 255, 255, 0.12); }
 

@@ -12939,6 +12939,17 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const DEPTH = [-0.55, 0.32]; // screen offset per cm towards the viewer
   const VIEW = { w: 560, h: 320 };
 
+  // "panels": only the panels on tinted walls. "room": the room behind them (plaster
+  // walls, skirting, tiled floor) so a low cladding height shows what stays visible.
+  let view = "room";
+  root.querySelectorAll(".kc-view-chip").forEach((b) =>
+    b.addEventListener("click", () => {
+      view = b.dataset.view === "room" ? "room" : "panels";
+      root.querySelectorAll(".kc-view-chip").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      render();
+    }),
+  );
+
   let core = null; // { keramicoPanelPlan, KERAMICO_SITUATIONS, KERAMICO_HEIGHT_CM }
   let shownKeys = new Set();
   let focusWall = null;
@@ -13089,7 +13100,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       });
     }
     let out = defs ? `<defs>${defs}</defs>` : "";
-    out += `<polygon class="kc-floor" points="${pts([[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D]].map(([x, y, z]) => project(x, y, z, cam)))}"/>`;
+    const room = view === "room";
+    out += `<polygon class="kc-floor${room ? " kc-floor--room" : ""}" points="${pts([[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D]].map(([x, y, z]) => project(x, y, z, cam)))}"/>`;
+    if (room) {
+      // 30 × 30 cm floor tiles
+      for (let x = 30; x < W; x += 30) out += `<line class="kc-tile" x1="${project(x, 0, 0, cam)[0].toFixed(1)}" y1="${project(x, 0, 0, cam)[1].toFixed(1)}" x2="${project(x, 0, D, cam)[0].toFixed(1)}" y2="${project(x, 0, D, cam)[1].toFixed(1)}"/>`;
+      for (let z = 30; z < D; z += 30) out += `<line class="kc-tile" x1="${project(0, 0, z, cam)[0].toFixed(1)}" y1="${project(0, 0, z, cam)[1].toFixed(1)}" x2="${project(W, 0, z, cam)[0].toFixed(1)}" y2="${project(W, 0, z, cam)[1].toFixed(1)}"/>`;
+    }
 
     const labels = { left: [], right: [], inline: [] };
     const nowKeys = new Set();
@@ -13106,7 +13123,12 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       const back = Math.sign(signedArea(base)) !== frontSign;
       const cls = `kc-wall${back ? " kc-wall--back" : ""}`;
       out += `<g class="${cls}" data-wall="${i}">`;
-      out += `<polygon class="kc-wall-base" points="${pts(base)}" style="fill:${tone.wash};stroke:${tone.solid}"/>`;
+      if (room) {
+        out += `<polygon class="kc-wall-base kc-room-base kc-room-base--${key}" points="${pts(base)}"/>`;
+        out += `<polygon class="kc-skirting" points="${pts(quad(key, 0, len, 8))}"/>`;
+      } else {
+        out += `<polygon class="kc-wall-base" points="${pts(base)}" style="fill:${tone.wash};stroke:${tone.solid}"/>`;
+      }
       const pieces = plan.pieces.filter((p) => p.key === key);
       for (const pc of pieces) {
         const k = `${sit}-${key}-${pc.platte}-${pc.breite}`;
@@ -13128,6 +13150,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       out += `</g>`;
     }
 
+    if (room && plan.heightCm) {
+      // Where the cladding ends: the rest of the wall stays as it is.
+      const hk = walls.includes("back") ? "back" : walls[0];
+      const l = P(hk, 0, PH), r = P(hk, drawn[hk], PH), m = P(hk, drawn[hk] / 2, PH + 9);
+      out += `<line class="kc-hline" x1="${l[0].toFixed(1)}" y1="${l[1].toFixed(1)}" x2="${r[0].toFixed(1)}" y2="${r[1].toFixed(1)}"/>`;
+      out += `<text class="kc-hlabel" x="${m[0].toFixed(1)}" y="${m[1].toFixed(1)}" text-anchor="middle">Wandverkleidung bis ${fmtCm(plan.heightCm)} cm</text>`;
+    }
     const pill = (x, y, pc, i) =>
       `<g class="kc-mark" data-platte="${pc.platte}" data-wall="${i}"><rect x="${(x - 22).toFixed(1)}" y="${(y - 9).toFixed(1)}" width="44" height="18" rx="9"/><circle cx="${(x - 12).toFixed(1)}" cy="${y.toFixed(1)}" r="6"/><text class="kc-mark-n" x="${(x - 12).toFixed(1)}" y="${(y + 2.6).toFixed(1)}">${pc.platte}</text><text class="kc-mark-w" x="${(x + 6).toFixed(1)}" y="${(y + 3.4).toFixed(1)}">${fmtCm(pc.breite)}</text></g>`;
     for (const l of labels.inline) out += pill(l.c[0], l.c[1], l.pc, l.i);
