@@ -121,6 +121,20 @@ export function computeFingerprint(payload) {
   return stableStringify(rest);
 }
 
+// Net price changes the user set by hand, per position: { services, material }.
+// Anything not a finite number within ±100 000 € is ignored.
+export function sumPriceAdjustments(payload) {
+  const out = { services: 0, material: 0 };
+  const rows = payload?.offerOverrides?.priceAdjustments;
+  for (const r of Array.isArray(rows) ? rows : []) {
+    const amt = Number(r?.amountNet);
+    if (!Number.isFinite(amt) || Math.abs(amt) > 100000) continue;
+    const key = r?.target === "material" ? "material" : r?.target === "services" ? "services" : null;
+    if (key) out[key] = Math.round((out[key] + amt) * 100) / 100;
+  }
+  return out;
+}
+
 export default (ProductModel, deps = {}) => {
   const {
     // { get(key, fallback) } — admin-tunable business numbers.
@@ -2499,6 +2513,15 @@ try {
         console.warn("[pricing] addSelectedTrayLine failed:", e?.message || e);
       }
 
+      // Hand-set price changes (payload.offerOverrides.priceAdjustments, net €):
+      // "services" moves position 001 (Auszuführende Arbeiten), "material" position 002.
+      // Applied before the totals, so MwSt, Gesamt, Selbstkostenanteil and the
+      // Bitrix amount all follow.
+      const adj = sumPriceAdjustments(payload);
+      if (adj.services) {
+        services = { ...services, sum: round2(Number(services?.sum || 0) + adj.services) };
+      }
+
       // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
       // ---- HALTEGRIFF + DISPLAY PREP ----
       const grabCounts = materials?.grabCounts || { cl30: 0, total: 0 };
@@ -2634,7 +2657,7 @@ try {
 
       // Nettobetrag
       const baseSubtotal = round2(
-        productsSubtotal + (services?.sum ?? 0) + markup,
+        productsSubtotal + (services?.sum ?? 0) + markup + adj.material,
       );
       const TAX_RATE = cfg.get('TAX_RATE', 0.19);
       const baseVat = round2(baseSubtotal * TAX_RATE);
@@ -2831,6 +2854,9 @@ try {
 
         materialsDisplayDocx,
         servicesDisplayDocx,
+
+        // hand-set price changes that went into the totals (net €), for display/audit
+        priceAdjustments: adj,
 
         // Produkte + Material in kosten-details
         material_afterRabatt_and_aufschlag,

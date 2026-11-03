@@ -11428,7 +11428,7 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card .oo-row{position:relative;margin:0 0 10px;background:rgba(120,120,128,.08);border-radius:12px;overflow:hidden}
 .offer-overrides-card .oo-line{display:flex;align-items:center;gap:12px;padding:0 44px 0 14px;min-height:46px}
 .offer-overrides-card .oo-line + .oo-line{border-top:1px solid rgba(120,120,128,.2)}
-.offer-overrides-card .oo-line span{flex:0 0 44px;font-size:.85rem;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-line span{flex:0 0 56px;white-space:nowrap;font-size:.85rem;color:var(--muted,#6b7280)}
 .offer-overrides-card .oo-line input{flex:1;min-width:0;border:0;background:transparent;box-shadow:none;padding:12px 0;font:inherit;color:inherit;outline:none}
 .offer-overrides-card .oo-line input:focus{outline:none;box-shadow:none}
 .offer-overrides-card .oo-del{position:absolute;top:10px;right:10px;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:rgba(255,59,48,.12);color:#ff3b30;font-size:.9rem;line-height:1;cursor:pointer}
@@ -11437,3 +11437,6 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card .oo-add:hover{text-decoration:underline}
 .offer-overrides-card button:disabled{opacity:.4;cursor:default}
 [data-mode="dark"] .offer-overrides-card .oo-badge{color:#ffb340}
+.offer-overrides-card .oo-group-title{margin:14px 0 8px;font-size:.78rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-line select{flex:1;min-width:0;border:0;background:transparent;font:inherit;color:inherit;padding:12px 0;outline:none;box-shadow:none}
+.offer-overrides-card .oo-gross{flex:0 0 auto;white-space:nowrap;margin-right:-30px;font-size:.82rem;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums}
