@@ -4703,6 +4703,10 @@ button.dm-btn-danger:focus-visible {
                     <label><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span>Gesamter Badboden</span></label>
                   </div>
                 </div>
+                <div class="sec-settings__row" id="wvcLeftoverRow" hidden>
+                  <div class="sec-settings__text"><strong>Reste aus Wandverkleidung anrechnen</strong><small id="wvcLeftoverHint"></small></div>
+                  <label class="sec-switch"><input type="checkbox" role="switch" id="wallCladdingUseLeftover" name="wallCladdingUseLeftover" aria-label="Reste aus Wandverkleidung anrechnen" /><span class="sec-switch__track" aria-hidden="true"></span></label>
+                </div>
               </div>
             </div>
 
@@ -4737,6 +4741,8 @@ button.dm-btn-danger:focus-visible {
                       type="number" id="wallCladdingQtyInput" min="1" step="1" inputmode="numeric" /><span>Stück</span></span></label>
               </div>
             </div>
+            <div id="wvcLeftoverNote" class="wvc-leftover-note" hidden></div>
+            <input type="hidden" id="wallCladdingLeftoverM2" name="wallCladdingLeftoverM2" value="" />
             <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
             <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
 
@@ -5400,6 +5406,17 @@ button.dm-btn-danger:focus-visible {
           <div class="full sec-settings wv-summary">
             <div class="sec-divider"><span>Ihre Auswahl</span></div>
             <div id="wvProductCard" class="sec-settings__group" hidden></div>
+          </div>
+
+          <!-- Reste: Verschnitt der Alu-Paneele als Fußboden verwenden (initWvLeftover). Nur sichtbar, wenn Reste da sind. -->
+          <div class="full sec-settings" id="wvLeftoverBox" hidden>
+            <div class="sec-divider"><span>Reste verwenden</span></div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Aus dieser Wand bleibt Material übrig</strong><small id="wvLeftoverText"></small></div>
+                <button type="button" id="wvLeftoverBtn" class="wv-leftover-btn">Als Fußboden verwenden</button>
+              </div>
+            </div>
           </div>
 
           <div class="actions full">

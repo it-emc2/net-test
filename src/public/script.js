@@ -7105,6 +7105,9 @@ return fetch("/admin/api/config/public", { cache: "no-store" })
       window.__wvOwnLager = d.WV_OWN_LAGER;
       document.dispatchEvent(new CustomEvent("wvOwnLagerLoaded"));
     }
+    if (typeof d.WV_LEFTOVER_USABLE_PERCENT === "number") window.__wvLeftoverUsable = d.WV_LEFTOVER_USABLE_PERCENT;
+    if (typeof d.WV_LEFTOVER_MIN_M2 === "number") window.__wvLeftoverMin = d.WV_LEFTOVER_MIN_M2;
+    document.dispatchEvent(new CustomEvent("wvLeftoverConfig"));
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
@@ -11900,6 +11903,104 @@ if (document.readyState === "loading") {
   pull();
 })();
 
+/* ========== WANDVERKLEIDUNG-RESTE → FUSSBODEN ==========
+   The Alu panels are billed whole, so the cut-off material is already paid for.
+   getWvLeftover() says how much of it can be used (admin: usable share + minimum);
+   the Fußboden tab then bills only the panels still missing. One colour only —
+   mixed colours or extra-colour rows give no usable single-colour rest. */
+(function initWvLeftover() {
+  const PANEL_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+  const num = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const colorName = (raw) => String(raw || "").split("|").pop().trim();
+  const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  window.__wvLeftoverUsable = 0.8; // admin: WV_LEFTOVER_USABLE_PERCENT
+  window.__wvLeftoverMin = 0.5; // admin: WV_LEFTOVER_MIN_M2
+
+  window.getWvLeftover = function getWvLeftover() {
+    try {
+      if (getLine("wand") !== "premium" || isWvWinwall()) return null;
+      // Wall area: typed (Fläche) or from the wall-width calculator (Maße × Höhe).
+      let area = num(document.getElementById("wvArea")?.value);
+      if (area <= 0) {
+        const core = window.__pricingCore;
+        const sitKey = document.getElementById("wvKSituation")?.value;
+        const walls = core?.KERAMICO_SITUATIONS?.[sitKey]?.walls || [];
+        const W = { links: "wvKLinks", back: "wvKBack", rechts: "wvKRechts" };
+        const widthCm = walls.reduce((a, k) => a + num(document.getElementById(W[k])?.value), 0);
+        const h = num(document.getElementById("wvKHoehe")?.value);
+        const heightCm = h > 0 && h < core.KERAMICO_HEIGHT_CM ? h : core?.KERAMICO_HEIGHT_CM;
+        area = (widthCm * heightCm) / 10000;
+      }
+      if (!(area > 0)) return null;
+      const hasExtras = [...document.querySelectorAll("#wvExtraList997 .wv-extra-qty, #wvExtraList1497 .wv-extra-qty")]
+        .some((el) => num(el.value) > 0);
+      if (hasExtras) return null;
+      let delivered = 0;
+      const colors = new Set();
+      for (const size of [997, 1497]) {
+        const qty = num(document.getElementById(`wvQty${size}`)?.value);
+        if (!document.getElementById(`wv${size}`)?.checked || qty <= 0) continue;
+        delivered += qty * PANEL_M2[size];
+        colors.add(colorName(
+          document.getElementById(`wvColor_${size}`)?.value ||
+          document.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß"));
+      }
+      if (colors.size !== 1) return null;
+      const color = [...colors][0];
+      // Only colours the Fußboden tab can order too.
+      const radio = [...document.querySelectorAll('input[name="wallCladdingColor"]')]
+        .find((r) => r.value.trim().toLowerCase() === color.toLowerCase());
+      if (!radio) return null;
+      const usable = Math.round(Math.max(0, delivered - area) * window.__wvLeftoverUsable * 100) / 100;
+      if (usable < window.__wvLeftoverMin || usable <= 0) return null;
+      return { usableM2: usable, color: radio.value.trim() };
+    } catch {
+      return null;
+    }
+  };
+
+  const box = document.getElementById("wvLeftoverBox");
+  const textEl = document.getElementById("wvLeftoverText");
+  const btn = document.getElementById("wvLeftoverBtn");
+  if (!box || !btn) return;
+
+  function render() {
+    const lo = window.getWvLeftover();
+    box.hidden = !lo;
+    if (lo) textEl.textContent = `Ca. ${fmt(lo.usableM2)} m² ${lo.color} bleiben nutzbar übrig und sind schon bezahlt. Damit können Sie den Fußboden belegen, statt neue Paneele zu bestellen.`;
+  }
+  let t = 0;
+  const later = () => { clearTimeout(t); t = setTimeout(render, 150); };
+  document.addEventListener("input", (e) => { if (e.target.closest?.("#page-Wandverkleidung")) later(); });
+  document.addEventListener("change", (e) => { if (e.target.closest?.("#page-Wandverkleidung")) later(); });
+  document.addEventListener("wvLeftoverConfig", render);
+  window.addEventListener("hashchange", later);
+  window.renderWvLeftover = render;
+  render();
+
+  btn.addEventListener("click", async () => {
+    const lo = window.getWvLeftover();
+    if (!lo) return;
+    const master = document.getElementById("fbMaster");
+    if (document.getElementById("addFlooring")?.checked) {
+      const ok = await appConfirm({
+        title: "Fußboden umstellen?",
+        message: "Der Fußboden ist als Bodenbelag gewählt. Auf Wandverkleidung mit Resten umstellen?",
+        confirmLabel: "Umstellen",
+      });
+      if (!ok) return;
+    }
+    if (!master.checked) master.click();
+    document.getElementById("fbTabBtnWall").click();
+    const radio = [...document.querySelectorAll('input[name="wallCladdingColor"]')]
+      .find((r) => r.value.trim().toLowerCase() === lo.color.toLowerCase());
+    if (radio && !radio.checked) { radio.checked = true; radio.dispatchEvent(new Event("change", { bubbles: true })); }
+    const sw = document.getElementById("wallCladdingUseLeftover");
+    if (sw && !sw.checked) { sw.checked = true; sw.dispatchEvent(new Event("change", { bubbles: true })); }
+    location.hash = "#Fussboden";
+  });
+})();
+
 /* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
    Panel coverage per size (m²), always rounded UP — full panel price even
    with leftover waste, no partial panels sold. Self-contained: writes into
@@ -11962,9 +12063,12 @@ if (document.readyState === "loading") {
     panel.setAttribute("aria-hidden", on ? "false" : "true");
   }
 
-  function computeSuggestion(areaRaw) {
-    const area = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
-    if (area <= 0) return null;
+  function computeSuggestion(areaRaw, creditM2 = 0) {
+    const full = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
+    if (full <= 0) return null;
+    // Leftover from the Wandverkleidung covers part of the floor (see initWvLeftover).
+    const area = Math.max(0, full - creditM2);
+    if (area <= 0) return { area: 0, full, allCovered: true };
     const opt997 = { size: 997, qty: Math.ceil(area / PANEL_AREA_M2[997]) };
     opt997.covered = opt997.qty * PANEL_AREA_M2[997];
     opt997.waste = opt997.covered - area;
@@ -11972,7 +12076,7 @@ if (document.readyState === "loading") {
     opt1497.covered = opt1497.qty * PANEL_AREA_M2[1497];
     opt1497.waste = opt1497.covered - area;
     const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
-    return { area, opt997, opt1497, best };
+    return { area, full, opt997, opt1497, best };
   }
   // Shared with the Wandverkleidung page's Flächenrechner, so both places use the
   // same panel sizes and the same "least waste wins" rule.
@@ -12004,6 +12108,55 @@ if (document.readyState === "loading") {
       </button>`;
   }
 
+  // ---- Reste aus der Wandverkleidung (initWvLeftover) ----
+  const useLeftoverEl = document.getElementById("wallCladdingUseLeftover");
+  const leftoverRow = document.getElementById("wvcLeftoverRow");
+  const leftoverHint = document.getElementById("wvcLeftoverHint");
+  const leftoverNote = document.getElementById("wvcLeftoverNote");
+  const leftoverField = document.getElementById("wallCladdingLeftoverM2");
+
+  // m² the switch credits right now: same colour as the rest, switch on.
+  function leftoverCredit() {
+    const lo = window.getWvLeftover?.();
+    if (!lo || !useLeftoverEl?.checked) return 0;
+    return selectedColor() === lo.color.toLowerCase() ? lo.usableM2 : 0;
+  }
+
+  function syncLeftoverUi(result, credit) {
+    const fmtM2 = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const lo = window.getWvLeftover?.();
+    if (leftoverRow) leftoverRow.hidden = !lo;
+    if (!lo && useLeftoverEl?.checked) { useLeftoverEl.checked = false; credit = 0; }
+    if (leftoverHint && lo) {
+      const same = selectedColor() === lo.color.toLowerCase();
+      leftoverHint.textContent = same
+        ? `${fmtM2(lo.usableM2)} m² ${lo.color}, schon bezahlt — kostenlos für den Boden.`
+        : `Reste sind ${lo.color}. Wählen Sie dieselbe Farbe, um sie anzurechnen.`;
+    }
+    if (leftoverField) leftoverField.value = credit > 0 ? String(credit) : "";
+    if (leftoverNote) {
+      const show = credit > 0 && result;
+      leftoverNote.hidden = !show;
+      if (show) {
+        const missing = result.allCovered ? 0 : result.area;
+        leftoverNote.textContent = result.allCovered
+          ? `${fmtM2(credit)} m² kommen aus Ihrer Wand. Das reicht für den ganzen Boden, es sind keine zusätzlichen Paneele nötig. Der Flächenkleber wird normal berechnet.`
+          : `${fmtM2(credit)} m² kommen aus Ihrer Wand. Es fehlen ${fmtM2(missing)} m², dafür reichen die zusätzlichen Paneele oben. Der Flächenkleber wird normal berechnet.`;
+      }
+    }
+    if (result?.allCovered) {
+      // Nothing to order: clear any earlier size/quantity once.
+      if (panelSizeEl?.value || Number(qtyEl?.value) > 0) {
+        if (panelSizeEl) panelSizeEl.value = "";
+        if (qtyEl) qtyEl.value = "0";
+        if (qtyInput) qtyInput.value = "";
+        if (qtyRow) qtyRow.hidden = true;
+        window.updatePricing?.();
+      }
+    }
+  }
+  window.syncWvcLeftoverUi = () => renderCards(panelSizeEl?.value ? Number(panelSizeEl.value) : null);
+
   function applyOption(size, qty) {
     if (panelSizeEl) panelSizeEl.value = size;
     if (qtyEl) qtyEl.value = qty;
@@ -12017,8 +12170,11 @@ if (document.readyState === "loading") {
 
   function renderCards(selectedSize) {
     if (!cardsEl) return;
-    const result = computeSuggestion(areaEl?.value);
-    if (!result) { suggestionBox.hidden = true; return; }
+    const credit = leftoverCredit();
+    const result = computeSuggestion(areaEl?.value, credit);
+    syncLeftoverUi(result, credit);
+    renderWvcProductCard(selectedColor());
+    if (!result || result.allCovered) { suggestionBox.hidden = true; return; }
     const colorKey = selectedColor();
     cardsEl.innerHTML =
       buildCard(result.opt997, result.best.size === 997, selectedSize, colorKey) +
@@ -12056,6 +12212,15 @@ if (document.readyState === "loading") {
   toggle.addEventListener("change", () => showPanel(toggle.checked));
   showPanel(toggle.checked);
   areaEl?.addEventListener("input", updateSuggestion);
+  // Switching the credit re-sizes the order: keep the chosen panel size, new quantity.
+  useLeftoverEl?.addEventListener("change", async () => {
+    await updateSuggestion();
+    const size = panelSizeEl?.value ? Number(panelSizeEl.value) : 0;
+    const result = computeSuggestion(areaEl?.value, leftoverCredit());
+    if (size && result && !result.allCovered) applyOption(size, (size === 997 ? result.opt997 : result.opt1497).qty);
+    else window.updatePricing?.();
+  });
+  document.addEventListener("wvLeftoverConfig", updateSuggestion);
   updateSuggestion();
 
   // ---- product card for selected WVC color ----
@@ -12073,33 +12238,37 @@ if (document.readyState === "loading") {
 
   async function renderWvcProductCard(colorKey) {
     if (!wvcCardEl) return;
-    const { id997, id1497 } = articleIds(colorKey);
-    const panelSizeVal = panelSizeEl?.value || "997";
-    const artId = panelSizeVal === "1497" ? id1497 : id997;
-    if (!artId) { wvcCardEl.hidden = true; return; }
-    let d = wvcFullCache.get(artId);
-    if (!d) {
-      try {
-        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
-        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
-      } catch {}
-    }
-    if (!d) { wvcCardEl.hidden = true; return; }
-    const inStock = d.stockQuantity > 0;
-    const ownQty = (window.__wvOwnLager || {})[artId];
-    const ownBadge = (ownQty > 0)
-      ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
-      : "";
-    // One block: picture | name, colour, Art.-Nr. · Format, price, stock badges.
-    // The long stock sentence moves into the badge's tooltip (wvcStockSpan).
-    const colourInput = form.querySelector('input[name="wallCladdingColor"]:checked');
-    const colourLabel = colourInput?.value || "";
-    // Same picture as the colour tile: our own photos are colour-corrected, the
-    // supplier's (d.image) is e.g. yellowish for Marmor weiß.
-    const pic = colourInput?.closest("label")?.querySelector("img")?.getAttribute("src") || d.image;
-    const qty = Number(qtyEl?.value) || 0;
     const euroDe = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    wvcCardEl.innerHTML = `<div class="wvc-sel">
+    const qty = Number(qtyEl?.value) || 0;
+    const credit = leftoverCredit();
+    const areaM2 = Number(String(areaEl?.value ?? "").replace(",", ".")) || 0;
+    const rows = [];
+
+    // Panels: not when the leftover alone covers the floor (nothing is ordered).
+    if (!(credit > 0 && qty === 0)) {
+      const { id997, id1497 } = articleIds(colorKey);
+      const panelSizeVal = panelSizeEl?.value || "997";
+      const artId = panelSizeVal === "1497" ? id1497 : id997;
+      let d = artId ? wvcFullCache.get(artId) : null;
+      if (artId && !d) {
+        try {
+          const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+          if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
+        } catch {}
+      }
+      if (d) {
+        const ownQty = (window.__wvOwnLager || {})[artId];
+        const ownBadge = (ownQty > 0)
+          ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
+          : "";
+        // One block: picture | name, colour, Art.-Nr. · Format, price, stock badges.
+        // The long stock sentence moves into the badge's tooltip (wvcStockSpan).
+        const colourInput = form.querySelector('input[name="wallCladdingColor"]:checked');
+        const colourLabel = colourInput?.value || "";
+        // Same picture as the colour tile: our own photos are colour-corrected, the
+        // supplier's (d.image) is e.g. yellowish for Marmor weiß.
+        const pic = colourInput?.closest("label")?.querySelector("img")?.getAttribute("src") || d.image;
+        rows.push(`<div class="wvc-sel">
       ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="${d.name}" />` : ""}
       <div class="wvc-sel__info">
         <strong class="wvc-sel__name">${d.name || artId}</strong>
@@ -12107,8 +12276,41 @@ if (document.readyState === "loading") {
         ${d.netPrice ? `<span class="wvc-sel__price">${qty > 0 ? `${qty} × ` : ""}${euroDe(d.netPrice)} €${qty > 1 ? ` <small>= ${euroDe(d.netPrice * qty)} €</small>` : ""}</span>` : ""}
         <span class="wvc-sel__badges">${wvcStockSpan(d)}${ownBadge}</span>
       </div>
-    </div>`;
-    wvcCardEl.hidden = false;
+    </div>`);
+      }
+    }
+
+    // Reste aus der Wandverkleidung: already paid, so no price.
+    if (credit > 0) {
+      const colourInput = form.querySelector('input[name="wallCladdingColor"]:checked');
+      const pic = colourInput?.closest("label")?.querySelector("img")?.getAttribute("src");
+      rows.push(`<div class="wvc-sel wvc-sel--small">
+      ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="" />` : ""}
+      <div class="wvc-sel__info">
+        <strong class="wvc-sel__name">Reste aus Wandverkleidung</strong>
+        <span class="wvc-sel__meta">${colourInput?.value || ""} · ${euroDe(credit)} m² · schon bezahlt</span>
+        <span class="wvc-sel__price">0,00 €</span>
+      </div>
+    </div>`);
+    }
+
+    // Flächenkleber: billed for the whole floor, with or without leftovers.
+    if (toggle.checked && areaM2 > 0) {
+      const packs = Math.ceil(areaM2 / 0.6 - 1e-12);
+      const adh = await getProduct("R_4260602").catch(() => null);
+      const unit = Number(adh?.price || 0);
+      rows.push(`<div class="wvc-sel wvc-sel--small">
+      <img class="wvc-sel__img" src="./assets/Flächen-Kleber.PNG" alt="" />
+      <div class="wvc-sel__info">
+        <strong class="wvc-sel__name">Flächenkleber 600 ml</strong>
+        <span class="wvc-sel__meta">Art.-Nr. R_4260602 · 1 Pkg je 0,60 m² · ${euroDe(areaM2)} m² Boden</span>
+        ${unit > 0 ? `<span class="wvc-sel__price">${packs} × ${euroDe(unit)} € <small>= ${euroDe(unit * packs)} €</small></span>` : `<span class="wvc-sel__price">${packs} Pkg</span>`}
+      </div>
+    </div>`);
+    }
+
+    wvcCardEl.innerHTML = rows.join("");
+    wvcCardEl.hidden = rows.length === 0;
   }
 
   form.addEventListener("change", (e) => {
@@ -18985,6 +19187,11 @@ function restoreDuschwanne(dw) {
     const qtyRow = document.getElementById("wallCladdingQtyRow");
     if (qtyRow) qtyRow.hidden = !(Number(dw.wallCladdingQty) > 0);
     setNumber("wallCladdingArea", dw.wallCladdingArea ?? "");
+    // Direct assignment, no change event: the handler would re-size the saved order.
+    const useLo = document.getElementById("wallCladdingUseLeftover");
+    if (useLo) useLo.checked = !!dw.wallCladdingUseLeftover;
+    setHiddenById("wallCladdingLeftoverM2", dw.wallCladdingLeftoverM2 ?? "");
+    window.syncWvcLeftoverUi?.();
     setCheckbox("addWallCladding", !!dw.addWallCladding);
   }
 

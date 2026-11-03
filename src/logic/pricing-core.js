@@ -1242,21 +1242,27 @@ function grossToNet(gross, taxRate) {
     // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
     setCat("Fußboden");
     const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
-    if (dusch.addWallCladding && wallCladdingQty > 0) {
+    // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
+    // panel line then, but the adhesive is still billed for the full floor area.
+    const wcLeftoverOnly =
+      !!dusch.wallCladdingUseLeftover && wallCladdingQty === 0 &&
+      (Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) || 0) > 0;
+    if (dusch.addWallCladding && (wallCladdingQty > 0 || wcLeftoverOnly)) {
       const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
       const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
       const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
       // hassmannArticle = color-specific article (for Hassmann CSV)
       const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
-      add(
-        wallCladdingHassmannPid,
-        wallCladdingQty,
-        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
-        null,
-        null,
-        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
-      );
+      if (wallCladdingQty > 0)
+        add(
+          wallCladdingHassmannPid,
+          wallCladdingQty,
+          `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
+          null,
+          null,
+          { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
+        );
 
       // Flächenkleber — same rule as the regular Fußboden; no area entered → panel coverage.
       const wcArea =

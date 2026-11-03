@@ -1966,6 +1966,11 @@ input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgb
   background: rgba(10, 132, 255, 0.12); color: #0a84ff; font-size: 0.85rem; font-weight: 600;
 }
 .sec-divider > span::before { content: "\2713"; font-size: 0.8rem; }
+.wv-leftover-btn { flex: none; border: 0; border-radius: 8px; padding: 9px 16px; background: #0a84ff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+#wvcLeftoverRow .sec-switch { display: inline-flex; flex: none; width: auto; margin: 0 0 0 auto; }
+#wvcProductCard .wvc-sel--small .wvc-sel__img { width: 72px; height: 72px; }
+.wvc-leftover-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: rgba(52, 199, 89, 0.14); color: #1d7a3a; font-weight: 500; }
+[data-mode="dark"] .wvc-leftover-note { color: #4cd964; }
 .sec-settings__group {
   border: 1px solid var(--input-border, #d0d5dd);
   border-radius: 14px;
@@ -11889,6 +11894,7 @@ details.az-group[open] > summary.az-group-title::before {
 
 /* Ihre Auswahl (Wandverkleidung): hide the label while there is nothing to show. */
 .wv-summary:has(> #wvProductCard[hidden]) { display: none; }
+#wvcProductCard .wvc-sel + .wvc-sel,
 #wvProductCard .wvc-sel + .wvc-sel { border-top: 1px solid var(--input-border, #e5e7eb); }
 #wvProductCard .wvc-sel__badges .dac-line-stock,
 #wvProductCard .wvc-sel__badges .wv-own-lager-badge {

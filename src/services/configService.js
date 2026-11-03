@@ -202,6 +202,17 @@ export const CONFIG_SCHEMA = [
     description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
   },
 
+  {
+    key: 'WV_LEFTOVER_USABLE_PERCENT', value: 0.8,
+    label: 'WV-Reste: nutzbarer Anteil', unit: '%', type: 'percent', section: 'bu', order: 7,
+    description: 'Anteil der Wandverkleidungs-Reste (Verschnitt in m²), der als Fußboden angerechnet wird (0.8 = 80 %). Der Rest ist Schnittverlust und zu kleine Stücke.',
+  },
+  {
+    key: 'WV_LEFTOVER_MIN_M2', value: 0.5,
+    label: 'WV-Reste: Mindestmenge', unit: 'm²', type: 'number', section: 'bu', order: 8,
+    description: 'Ab dieser nutzbaren Restfläche wird "Reste als Fußboden verwenden" angeboten. Darunter gibt es keine Anrechnung.',
+  },
+
   // ── PRODUKTBILDER-PDF ────────────────────────────────────────────────────
   {
     key: 'PRODUCT_IMAGE_SKIP_IDS',
