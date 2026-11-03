@@ -17586,6 +17586,17 @@ setByNameOrId("wvV3VSelected", !!v3vOn);
 
 window.pullWvRows?.();
 
+// Floor credit from the wall leftovers (saved with the Fußboden data, see restoreDuschwanne).
+{
+  const lo = window.__wvcRestoreLeftover;
+  delete window.__wvcRestoreLeftover;
+  const useLo = document.getElementById("wallCladdingUseLeftover");
+  if (lo?.on && useLo) {
+    useLo.checked = true;
+    window.syncWvcLeftoverUi?.();
+  }
+}
+
 // ------------------------------------------------------------
 // 4) Done restoring
 // ------------------------------------------------------------
@@ -19519,6 +19530,12 @@ function restoreDuschwanne(dw) {
     const useLo = document.getElementById("wallCladdingUseLeftover");
     if (useLo) useLo.checked = !!dw.wallCladdingUseLeftover;
     setHiddenById("wallCladdingLeftoverM2", dw.wallCladdingLeftoverM2 ?? "");
+    // Wandverkleidung is restored after this block, so the leftover doesn't exist
+    // yet and the sync below would switch the credit off: restoreWV re-applies it.
+    window.__wvcRestoreLeftover = {
+      on: !!dw.wallCladdingUseLeftover,
+      m2: dw.wallCladdingLeftoverM2 ?? "",
+    };
     window.syncWvcLeftoverUi?.();
     setCheckbox("addWallCladding", !!dw.addWallCladding);
   }
