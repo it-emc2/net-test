@@ -15,6 +15,10 @@ export const KASSEN = JSON.parse(
   fs.readFileSync(path.join(__dirname, "..", "config", "pflegekassen.json"), "utf8"),
 );
 
+// Offers the Antrag is enabled for (Aufgabe 45556: BU + BWT first; HL/BL
+// once they have been checked). AH applies under § 45b — never here.
+export const isKassenantragOffer = (offerType) => /^(bu|bwt)$/i.test(String(offerType || ""));
+
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
 
 // The OC field kassenkundeName is free text (datalist suggestions only), so

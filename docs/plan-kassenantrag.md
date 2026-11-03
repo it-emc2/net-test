@@ -176,3 +176,14 @@ PDF, welches Feld wohin gehört.
 - Einreichung über Kassen-Apps bzw. -Portale (der Kunde muss sich dort selbst einloggen; LP rät ab).
 - Statusverfolgung der Bewilligung (Antwort der Kasse kommt weiter per Post bzw. Mail ins Büro).
 - Private Zusatzbögen (z. B. Generali Einwilligung/Schweigepflicht). In v1 bleibt die PKV formlos, die Bögen kommen bei Bedarf in Phase 3.
+
+## Prüfung durch das Büro (LP, 2026-11-03)
+
+LP prüft jeden Antrag vor dem Versand (Vier-Augen-Prinzip):
+
+1. Außendienst füllt das Panel aus → **„Zur Prüfung ans Büro“** (`POST …/kassenantrag/submit`). Entwurf in `sr.kassenantrag` (`status: "review"`), Bitrix-Aufgabe an LP (ID 248), SW (ID 6) beobachtet, Frist nächster Werktag 17:00, mit dem Deal verknüpft, Link `/sign/<token>`.
+2. LP öffnet den Link im OC angemeldet → dasselbe Panel, vorausgefüllt, änderbar → **„An Pflegekasse senden“**. „i. A.“ bleibt der Außendienst.
+3. Versand wie bisher; danach wird die Bitrix-Aufgabe automatisch erledigt.
+
+Senden geht nur mit eingereichtem Entwurf und durch einen anderen Benutzer als den Einreicher. `KASSENANTRAG_DIRECT_SEND=1` schaltet später den Direktversand vor Ort wieder frei.
+Braucht den Scope `task` am Server-Webhook (`BITRIX_WEBHOOK_BASE`).

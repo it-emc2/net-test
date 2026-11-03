@@ -44,6 +44,7 @@
       .then(function (data) {
         state.docs = (data.documents || []).slice();
         state.offerNumber = data.offerNumber || "";
+        state.kassenantrag = !!data.kassenantrag;
         loading.classList.add("hidden");
         app.classList.remove("hidden");
         // Reopen the actual offer instead of landing on Hauptmenü.
@@ -442,9 +443,8 @@
     el("progress").textContent = "";
     el("doneCard").classList.remove("hidden");
     window.scrollTo(0, 0);
-    // §40 Abtretung signed = BU Kassenkunde (AH signs abtretung_ah, §45b — no Antrag).
-    var hasAbtretung = state.docs.some(function (d) { return d.key === "abtretung"; });
-    if (isInternal && hasAbtretung && state.offerNumber) initKassenantrag();
+    // Server decides (Kassenkunde, BU/BWT, § 40 Abtretung signed).
+    if (isInternal && state.kassenantrag && state.offerNumber) initKassenantrag();
   }
 
   // ----- Antrag an die Pflegekasse (rep only, docs/plan-kassenantrag.md) -----
@@ -501,7 +501,8 @@
     var msg = "✓ Gesendet am " + new Date(sent.sentAt).toLocaleString("de-DE") + " – " + sent.to;
     if (bitrix) {
       msg += "\nBitrix: Kommentar " + (bitrix.pinned ? "fixiert" : "abgelegt (bitte manuell fixieren)") +
-        (bitrix.moved ? ", Deal → „Warten auf Freigabe Kasse“" : "");
+        (bitrix.moved ? ", Deal → „Warten auf Freigabe Kasse“" : "") +
+        (bitrix.taskDone ? ", Prüf-Aufgabe erledigt" : "");
     }
     kaStatus(msg, true);
   }
@@ -523,6 +524,13 @@
 
   var kaState = { data: null, otherWohn: "" };
 
+  // Rep: "Zur Prüfung ans Büro" (LP checks first). LP / direct-send: "Senden".
+  function kaShowDraft(draft, taskError) {
+    el("kaSend").textContent = "Änderung ans Büro senden";
+    kaStatus("✓ Liegt seit " + new Date(draft.submittedAt).toLocaleString("de-DE") +
+      " beim Büro zur Prüfung. Noch nichts an die Kasse gesendet." + (taskError ? "\n⚠ " + taskError : ""), !taskError);
+  }
+
   function initKassenantrag() {
     el("kassenantrag").classList.remove("hidden");
     kaApi("")
@@ -539,9 +547,12 @@
         t.children[0].textContent = d.kasseName || "Keine Pflegekasse angegeben";
         t.children[2].textContent = via;
         t.children[4].textContent = "Unterzeichnet: i. A. " + (d.signer || "(Ihr Name fehlt im Benutzerkonto)");
-        el("kaMeasures").value = (d.measures || []).join("\n");
+        // A submitted draft (rep → LP) brings back exactly what was filled in.
+        var dr = d.draft || {};
+        el("kaMeasures").value = (dr.measures || d.measures || []).join("\n");
+        el("kaReason").value = dr.individualReason || "";
         el("kaStandard").textContent = d.standardReason || "";
-        var a = d.answers || {};
+        var a = dr.answers || d.answers || {};
         if (a.wohnsituation === "Eigentum" || a.wohnsituation === "Miete") kaSetRadio("kaWohn", a.wohnsituation);
         else kaState.otherWohn = a.wohnsituation || "";
         kaSetRadio("kaVermieter", a.vermieter || "wird nachgereicht");
@@ -554,17 +565,33 @@
           l.firstChild.value = key;
           l.lastChild.textContent = d.zweckOptions[key];
           el("kaZweck").appendChild(l);
+          if ((a.zweck || []).indexOf(key) >= 0) l.firstChild.checked = true;
         });
+        if (dr.postMode) kaSetRadio("kaPost", dr.postMode);
+        el("kaSend").textContent = d.canSend ? "An Pflegekasse senden" : "Zur Prüfung ans Büro";
         el("kaPostRow").classList.toggle("hidden", !!(d.kasse && d.kasse.channel === "mail"));
         if (d.missing && d.missing.length) {
           el("kaSend").disabled = true;
           kaStatus("Es fehlt im Angebot: " + d.missing.join(", ") + ". Bitte im OC ergänzen und neu unterschreiben lassen.", false);
         } else if (d.sent) {
           kaShowSent(d.sent);
+        } else if (dr.status === "review" && !d.canSend) {
+          kaShowDraft(dr);
+        } else if (dr.status === "review") {
+          kaStatus("Zur Prüfung eingereicht von i. A. " + (dr.signer || dr.submittedBy) + " am " +
+            new Date(dr.submittedAt).toLocaleString("de-DE") + ". Bitte prüfen, ggf. ändern, dann senden.", true);
         }
       })
       .catch(function (e) { kaStatus(e.message, false); });
   }
+
+  // An old "Es fehlt …" disappears as soon as the rep changes something.
+  ["input", "change"].forEach(function (ev) {
+    el("kassenantrag").addEventListener(ev, function () {
+      // (not the "Es fehlt im Angebot" note: send stays disabled, so it must stay)
+      if (el("kaStatus").classList.contains("is-error") && !el("kaSend").disabled) el("kaStatus").className = "feedback hidden";
+    });
+  });
 
   Array.prototype.forEach.call(document.querySelectorAll('input[name="kaWohn"]'), function (r) {
     r.addEventListener("change", function () {
@@ -588,8 +615,23 @@
     var force = btn.textContent === "Erneut senden";
     var body = kaEdits();
     var d = kaState.data;
-    if ((!d.kasse || d.kasse.channel !== "mail") && !body.postMode) {
-      return kaStatus("Bitte beim Postversand wählen: direkt per Post oder ans Büro.", false);
+    // Same checks as the server (missingAnswers) — before the confirm, not after.
+    var missing = [];
+    if (body.individualReason.length < 20) missing.push("individuelle Begründung (mind. 1 Satz)");
+    if (!body.answers.wohnsituation) missing.push("Wohnsituation");
+    if (!body.answers.zweck.length) missing.push("Ziel der Maßnahme");
+    if ((!d.kasse || d.kasse.channel !== "mail") && !body.postMode) missing.push("Postversand: direkt oder ans Büro");
+    if (missing.length) return kaStatus("Es fehlt: " + missing.join(", "), false);
+    if (!d.canSend) {
+      if (!window.confirm("Der Antrag geht zur Prüfung an das Büro (LP bekommt eine Bitrix-Aufgabe).\n" +
+        "An die Pflegekasse wird noch nichts gesendet.\n\nFortfahren?")) return;
+      btn.disabled = true;
+      kaStatus("Wird ans Büro übergeben …", true);
+      return kaApi("/submit", body)
+        .then(kaJson)
+        .then(function (r) { d.draft = r.draft; kaShowDraft(r.draft, r.taskError); })
+        .catch(function (e) { kaStatus(e.message, false); })
+        .then(function () { btn.disabled = false; });
     }
     var question = (force ? "Der Antrag wurde schon gesendet. Wirklich ERNEUT senden?\n\n" : "Jetzt passiert:\n") +
       kaPlan().map(function (x) { return "• " + x; }).join("\n") + "\n\nFortfahren?";

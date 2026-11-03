@@ -1,4 +1,4 @@
-import { findKasse, defaultReason, antragValues, missingFields, missingAnswers, antragText, antragSubject, buildKassenantragHtml } from '../../src/templates/kassenantrag.js';
+import { isKassenantragOffer, findKasse, defaultReason, antragValues, missingFields, missingAnswers, antragText, antragSubject, buildKassenantragHtml } from '../../src/templates/kassenantrag.js';
 
 const sr = {
   offerNumber: 'ANG-1',
@@ -58,4 +58,17 @@ test('missing offer data and missing on-site answers block sending', () => {
   const v = antragValues({ ...sr, payloadSnapshot: { Kundendaten: {} } }, data, { individualReason: 'zu kurz' });
   expect(missingFields(v)).toEqual(['Pflegekasse', 'Versichertennummer']);
   expect(missingAnswers(v)).toEqual(['individuelle Begründung (mind. 1 Satz)', 'Wohnsituation', 'Ziel der Maßnahme']);
+});
+
+test('Antrag only for BU and BWT offers (HL/BL later, AH never)', () => {
+  expect(['bu', 'BU', 'bwt', 'BWT'].every(isKassenantragOffer)).toBe(true);
+  expect(['hl', 'bl', 'ah', 'hms', 'wd', '', undefined].some(isKassenantragOffer)).toBe(false);
+});
+
+test('LP review task is due next business day 17:00', async () => {
+  const { nextBusinessDay } = await import('../../src/routes/bitrix.js');
+  const at = (s) => nextBusinessDay(new Date(s));
+  expect(at('2026-11-03T10:00:00').toString()).toBe(new Date('2026-11-04T17:00:00').toString()); // Tue → Wed
+  expect(at('2026-11-06T10:00:00').getDate()).toBe(9); // Fri → Mon
+  expect(at('2026-11-07T10:00:00').getDate()).toBe(9); // Sat → Mon
 });

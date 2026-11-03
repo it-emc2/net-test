@@ -507,6 +507,36 @@ async function markKassenantragSent({ dealId, commentId }) {
   return out;
 }
 
+// LP checks every Antrag before it goes to the Kasse: the rep's "Zur Prüfung"
+// opens a task for her (SW observes), due next business day 17:00.
+// ponytail: weekends only, no public holidays — a holiday deadline just shows overdue.
+const KASSE_REVIEWER_ID = 248; // Controlling EmC2 (LP)
+const KASSE_REVIEW_AUDITOR_IDS = [6]; // Stefan Wolfrum (SW)
+
+function nextBusinessDay(from = new Date()) {
+  const d = new Date(from);
+  do d.setDate(d.getDate() + 1); while (d.getDay() === 0 || d.getDay() === 6);
+  d.setHours(17, 0, 0, 0);
+  return d;
+}
+
+async function createKassenantragReviewTask({ dealId, title, description }) {
+  const fields = {
+    TITLE: title,
+    DESCRIPTION: description,
+    RESPONSIBLE_ID: KASSE_REVIEWER_ID,
+    AUDITORS: KASSE_REVIEW_AUDITOR_IDS,
+    DEADLINE: nextBusinessDay().toISOString(),
+  };
+  if (Number(dealId) > 0) fields.UF_CRM_TASK = [`D_${Number(dealId)}`];
+  const res = await bxPost("tasks.task.add", { fields });
+  return res?.result?.task?.id || null;
+}
+
+async function completeTask(taskId) {
+  return bxPost("tasks.task.complete", { taskId: Number(taskId) });
+}
+
 // Two-person offers: the partner is a second insured person and needs their
 // own contact (documents are filed per contact). Finds an existing contact by
 // name (excluding ones whose PLZ is known and differs), else creates one, and
@@ -1217,6 +1247,9 @@ export {
   updateDealStage,
   updateDealAfterSigning,
   markKassenantragSent,
+  createKassenantragReviewTask,
+  completeTask,
+  nextBusinessDay,
   AH_SIGNING_CATEGORY_ID,
   AH_SIGNING_STAGE_ID,
 };

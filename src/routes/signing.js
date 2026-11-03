@@ -32,6 +32,7 @@ import {
   defaultReason,
   missingFields,
   missingAnswers,
+  isKassenantragOffer,
   PDF_OPTS,
   ZWECK,
 } from "../templates/kassenantrag.js";
@@ -41,6 +42,8 @@ import {
   addTimelineComment,
   updateDealAfterSigning,
   markKassenantragSent,
+  createKassenantragReviewTask,
+  completeTask,
   ensurePartnerContact,
   getDealContactId,
   AH_SIGNING_CATEGORY_ID,
@@ -604,8 +607,12 @@ router.get("/status/:offerNumber/signed", async (req, res) => {
 // The rep opens these from the signing page once the customer has signed.
 //   GET  /status/:offerNumber/kassenantrag          what will be sent (+ sent state)
 //   POST /status/:offerNumber/kassenantrag/preview  Antrag-PDF with the rep's input
-//   POST /status/:offerNumber/kassenantrag/send     send to the Kasse + file in Bitrix
-// Body of preview/send: { measures[], individualReason, answers, postMode, force }.
+//   POST /status/:offerNumber/kassenantrag/submit   rep: draft + Bitrix task for LP
+//   POST /status/:offerNumber/kassenantrag/send     LP: send to the Kasse + file in Bitrix
+// Body of preview/submit/send: { measures[], individualReason, answers, postMode, force }.
+// LP checks every Antrag first (four eyes): send needs a submitted draft and a
+// different user than the one who submitted it. KASSENANTRAG_DIRECT_SEND=1 lets
+// the rep send directly again once the office trusts the flow.
 // ponytail: one Antrag for the main person; partner (_p2) offers need a second
 // Antrag (each Bewohner applies separately) — add when such a case comes up.
 
@@ -618,6 +625,7 @@ async function loadKasseSr(req, res) {
     status: "completed",
     customerType: "KASSE",
     "documents.key": "abtretung", // §40 only — AH (§45b) has abtretung_ah
+    offerType: { $regex: /^(bu|bwt)$/i }, // same rule as isKassenantragOffer
   }).sort({ completedAt: -1, createdAt: -1 });
   if (!sr) res.status(404).json({ error: "Keine vollständig unterschriebenen Kassenunterlagen gefunden." });
   return sr;
@@ -638,8 +646,31 @@ async function kassenantragValues(sr, req) {
     measures: b.measures,
     individualReason: b.individualReason,
     answers: b.answers,
-    signer: await signerName(req),
+    // "i. A." stays the rep who filled it in, also when LP sends it.
+    signer: sr.kassenantrag?.signer || (await signerName(req)),
   });
+}
+
+function canSendKassenantrag(sr, req) {
+  if (process.env.KASSENANTRAG_DIRECT_SEND === "1") return true;
+  const k = sr.kassenantrag;
+  if (!k || !(k.status === "review" || k.sentAt)) return false;
+  return String(k.submittedBy || "").toLowerCase() !== String(req.user?.email || "").toLowerCase();
+}
+
+// Same checks for submit and send; returns an error text or "".
+function kassenantragProblem(v, postMode) {
+  const missing = [...missingFields(v), ...missingAnswers(v)];
+  if (missing.length) return `Es fehlt: ${missing.join(", ")}`;
+  // Unknown Kasse (free text, not in src/config/pflegekassen.json): no email
+  // address on file, so it can only go by post — which needs an address.
+  const channel = v.kasse?.channel || "post";
+  if (channel !== "post" && !v.kasse?.email) return "Für diese Kasse ist keine E-Mail-Adresse hinterlegt.";
+  if (channel !== "mail") {
+    if (v.kasseAddress.length < 2) return "Bitte die Adresse der Pflegekasse im Angebot eintragen (Postversand).";
+    if (!["direct", "office"].includes(postMode)) return "Bitte wählen: direkt per Post senden oder ans Büro geben.";
+  }
+  return "";
 }
 
 router.get("/status/:offerNumber/kassenantrag", async (req, res) => {
@@ -657,7 +688,9 @@ router.get("/status/:offerNumber/kassenantrag", async (req, res) => {
       zweckOptions: ZWECK,
       signer: v.signer,
       missing: missingFields(v),
-      sent: sr.kassenantrag || null,
+      draft: sr.kassenantrag || null,
+      sent: sr.kassenantrag?.sentAt ? sr.kassenantrag : null,
+      canSend: canSendKassenantrag(sr, req),
     });
   } catch (err) {
     console.error("GET kassenantrag failed:", err);
@@ -677,32 +710,75 @@ router.post("/status/:offerNumber/kassenantrag/preview", express.json(), async (
   }
 });
 
+router.post("/status/:offerNumber/kassenantrag/submit", express.json(), async (req, res) => {
+  try {
+    const sr = await loadKasseSr(req, res);
+    if (!sr) return;
+    if (sr.kassenantrag?.sentAt) return res.status(409).json({ error: "Der Antrag wurde bereits gesendet." });
+    const signer = await signerName(req);
+    const v = await kassenantragValues(sr, req);
+    v.signer = signer; // a resubmit by another rep signs with their name
+    const postMode = req.body?.postMode || "";
+    const problem = kassenantragProblem(v, postMode);
+    if (problem) return res.status(400).json({ error: problem });
+
+    const prev = sr.kassenantrag || {};
+    sr.kassenantrag = {
+      status: "review",
+      measures: v.measures,
+      individualReason: v.individualReason,
+      answers: v.answers,
+      postMode,
+      signer,
+      submittedBy: req.user?.email || "",
+      submittedAt: new Date(),
+      taskId: prev.taskId || null,
+    };
+    sr.markModified("kassenantrag");
+    await sr.save();
+
+    // One task per Antrag; a resubmit (rep corrected something) reuses it.
+    let taskError = "";
+    if (!prev.taskId) {
+      const link = `${publicBaseUrl(req)}/sign/${sr.token}`;
+      try {
+        sr.kassenantrag.taskId = await createKassenantragReviewTask({
+          dealId: sr.bitrixEntityType === "deal" ? sr.bitrixEntityId : null,
+          title: `Antrag Pflegekasse prüfen: ${v.subjectName} (${v.kasseName}) – ${sr.offerNumber}`,
+          description:
+            `${signer || req.user?.email || "Der Außendienst"} hat den Antrag nach § 40 SGB XI vor Ort ausgefüllt.\n` +
+            `Bitte prüfen, bei Bedarf ändern und senden (im OC angemeldet öffnen):\n${link}\n\n` +
+            `Kasse: ${v.kasseName}\nMaßnahmen:\n${v.measures.map((m) => `- ${m}`).join("\n")}`,
+        });
+        sr.markModified("kassenantrag");
+        await sr.save();
+      } catch (err) {
+        console.warn("[signing] Kassenantrag review task failed:", err?.message || err);
+        taskError = "Bitrix-Aufgabe für das Büro konnte nicht angelegt werden – bitte LP kurz Bescheid geben.";
+      }
+    }
+    return res.json({ ok: true, draft: sr.kassenantrag, taskError });
+  } catch (err) {
+    console.error("POST kassenantrag/submit failed:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req, res) => {
   const lockKey = `kassenantrag:${String(req.params.offerNumber || "").trim()}`;
   let locked = false;
   try {
     const sr = await loadKasseSr(req, res);
     if (!sr) return;
+    if (!canSendKassenantrag(sr, req)) {
+      return res.status(403).json({ error: "Der Antrag muss erst vom Büro geprüft werden (Zur Prüfung ans Büro)." });
+    }
     const v = await kassenantragValues(sr, req);
-    const missing = [...missingFields(v), ...missingAnswers(v)];
-    if (missing.length) return res.status(400).json({ error: `Es fehlt: ${missing.join(", ")}` });
-
-    // Unknown Kasse (free text, not in src/config/pflegekassen.json): no email
-    // address on file, so it can only go by post — which needs an address.
+    const postMode = req.body?.postMode; // 'direct' (Onlinebrief24 now) | 'office'
+    const problem = kassenantragProblem(v, postMode);
+    if (problem) return res.status(400).json({ error: problem });
     const channel = v.kasse?.channel || "post";
     const toEmail = v.kasse?.email || "";
-    const postMode = req.body?.postMode; // 'direct' (Onlinebrief24 now) | 'office'
-    if (channel !== "post" && !toEmail) {
-      return res.status(400).json({ error: "Für diese Kasse ist keine E-Mail-Adresse hinterlegt." });
-    }
-    if (channel !== "mail") {
-      if (v.kasseAddress.length < 2) {
-        return res.status(400).json({ error: "Bitte die Adresse der Pflegekasse im Angebot eintragen (Postversand)." });
-      }
-      if (!["direct", "office"].includes(postMode)) {
-        return res.status(400).json({ error: "Bitte wählen: direkt per Post senden oder ans Büro geben." });
-      }
-    }
 
     const office = process.env.SIGNING_OFFICE_EMAIL;
     // Test runs (e.g. the walkthrough with a Testkunde) must never reach a real
@@ -783,7 +859,12 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
       log.push("Postversand ans Büro übergeben");
     }
 
+    const draft = sr.kassenantrag || {};
     sr.kassenantrag = {
+      ...draft,
+      status: "sent",
+      measures: v.measures,
+      signer: v.signer,
       sentAt: new Date(),
       channel,
       postMode: postMode || "",
@@ -816,6 +897,12 @@ router.post("/status/:offerNumber/kassenantrag/send", express.json(), async (req
       } catch (err) {
         console.warn("[signing] Kassenantrag deal update failed:", err?.message || err);
       }
+    }
+
+    if (draft.taskId) {
+      await completeTask(draft.taskId)
+        .then(() => (bitrix.taskDone = true))
+        .catch((err) => console.warn("[signing] Kassenantrag task complete failed:", err?.message || err));
     }
 
     return res.json({ ok: true, sent: sr.kassenantrag, bitrix });
@@ -868,6 +955,11 @@ router.get("/:token", async (req, res) => {
       customerType: sr.customerType,
       status: sr.status,
       completed: sr.status === "completed",
+      // Rep-only Antrag panel after signing (docs/plan-kassenantrag.md).
+      kassenantrag:
+        sr.customerType === "KASSE" &&
+        isKassenantragOffer(sr.offerType) &&
+        (sr.documents || []).some((d) => d.key === "abtretung"),
       prefill: sr.prefill,
       documents: (sr.documents || []).map((d) => ({
         key: d.key,
