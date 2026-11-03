@@ -215,7 +215,7 @@ if (mountEl) {
       ? `<div class="vh-sum-head"><strong>${esc(cfg)}</strong><small>Vorhanglänge ${total} cm</small></div>`
       : "";
     return `
-      <h4 class="vh-label">Ihre Auswahl</h4>
+      <div class="sec-divider"><span>Ihre Auswahl</span></div>
       <div class="vh-group">
         ${head}
         ${lines

@@ -850,7 +850,10 @@ export function mountConfigurator(el, model, options = {}) {
   // "Ihre Auswahl": big picture + gallery, then one row per article and the total.
   function renderSummary(aside) {
     aside.className = "dac-summary";
-    aside.appendChild(groupLabel("Ihre Auswahl"));
+    const divider = document.createElement("div");
+    divider.className = "sec-divider";
+    divider.innerHTML = "<span>Ihre Auswahl</span>";
+    aside.appendChild(divider);
     const group = document.createElement("div");
     group.className = "dac-group";
     aside.appendChild(group);

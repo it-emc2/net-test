@@ -1958,6 +1958,14 @@ input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgb
   text-transform: uppercase;
   color: var(--muted, #6b7280);
 }
+/* "Ihre Auswahl" divider: full-width hairline with a centred accent pill. */
+.sec-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
+.sec-divider::before, .sec-divider::after { content: ""; flex: 1; border-top: 1px solid var(--input-border, #d0d5dd); }
+.sec-divider > span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px;
+  background: rgba(10, 132, 255, 0.12); color: #0a84ff; font-size: 0.85rem; font-weight: 600;
+}
+.sec-divider > span::before { content: "\2713"; font-size: 0.8rem; }
 .sec-settings__group {
   border: 1px solid var(--input-border, #d0d5dd);
   border-radius: 14px;
