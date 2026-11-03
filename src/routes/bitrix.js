@@ -807,6 +807,8 @@ router.post("/deal/:id/upload/:type", express.json({ limit: "25mb" }), async (re
   }
 });
 
+const INVOICE_COPY_ENUM = { post: "3080", email: "3078" }; // UF_CRM_1721218585 Rechnungsversand
+
 // POST /api/bitrix/deal/:id/move-ang-verschickt
 // Body: { opportunity?: number, currencyId?: string }
 // Fills Betrag/Währung (if provided) and moves the deal to "[VI] ANG verschickt".
@@ -868,9 +870,9 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       offerNumber: req.body?.offerNumber,
       finalTotal: req.body?.finalTotal ?? amount,
       selfPayAmount: req.body?.selfPayAmount,
-      // "Rechnungsversand" -> "Rechnung per Post" (3080); never touched on "nein".
-      extraFields: req.body?.invoiceCopyPost === true
-        ? { ...ahExtraFields, UF_CRM_1721218585: "3080" }
+      // "Rechnungsversand": Post 3080 / Mail 3078; never touched on "nein".
+      extraFields: INVOICE_COPY_ENUM[req.body?.invoiceCopy]
+        ? { ...ahExtraFields, UF_CRM_1721218585: INVOICE_COPY_ENUM[req.body.invoiceCopy] }
         : ahExtraFields,
     });
 

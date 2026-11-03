@@ -487,9 +487,9 @@ export function initEmailManager(options = {}) {
       if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
         payload.selfPayAmount = offerExtra.selfPayAmount;
       }
-      // Kassen-Rechnungskopie per Post: only "ja" is sent (Selbstzahler always get the invoice).
+      // Kassen-Rechnungskopie (post|email): only "ja" is sent (Selbstzahler always get the invoice).
       if (offerExtra.isKassenkunde && offerExtra.payload?.Kundendaten?.kk_rechnungskopie === "ja") {
-        payload.invoiceCopyPost = true;
+        payload.invoiceCopy = offerExtra.payload.Kundendaten.kk_rechnungskopie_art === "email" ? "email" : "post";
       }
       // AH derives its own Bitrix fields server-side from the full offer payload.
       if (offerExtra.offerType === "ah" && offerExtra.payload) {

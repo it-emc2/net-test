@@ -152,6 +152,8 @@ export function resolveFields(sr, doc) {
     pflegegrad: pick("pflegegrad", String(k.pflegegrad || "")),
     kk_pflegegradSeit: pick("kk_pflegegradSeit", k.kk_pflegegradSeit || ""),
     kk_krankenkasseAdresse: pick("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse || ""),
+    // Prefill for the Rechnungsversand checkboxes ("post" | "email" | "").
+    rechnungskopieArt: k.kk_rechnungskopie === "ja" ? k.kk_rechnungskopie_art || "post" : "",
   };
 }
 
@@ -924,8 +926,8 @@ function rechnungsversandBox(doc, prefill, mode) {
     </div>`;
   }
   return `<div class="box">
-    <label class="opt-label"><input type="checkbox" id="rechnungPostCheckbox"><span>Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></span></label>
-    <label class="opt-label"><input type="checkbox" id="rechnungEmailCheckbox"><span>Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></span></label>
+    <label class="opt-label"><input type="checkbox" id="rechnungPostCheckbox"${prefill?.rechnungskopieArt === "post" ? " checked" : ""}><span>Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></span></label>
+    <label class="opt-label"><input type="checkbox" id="rechnungEmailCheckbox"${prefill?.rechnungskopieArt === "email" ? " checked" : ""}><span>Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></span></label>
     ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode)}
   </div>`;
 }
