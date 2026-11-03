@@ -1,0 +1,49 @@
+{
+  "_note": "BU/Kassenkunde, Eigenanteil 3.298,98 € (über Schwelle → Flexibel/Sparen), ohne Vermieter.",
+  "activeOffer": "bu",
+  "Kundendaten": {
+    "salutation": "Herr",
+    "firstName": "Max",
+    "lastName": "Mustermann",
+    "street": "Musterstraße 1",
+    "postalCode": "12345",
+    "city": "Musterstadt",
+    "payer": "Kassenkunde",
+    "budgetOption": "4180 maximal",
+    "aufschlag": "35%",
+    "date": "2026-07-28",
+    "wohnumfeld": {
+      "done": false,
+      "amount": 0
+    },
+    "vermieterGenehmigungErforderlich": "Nein",
+    "vermieterGenehmigung": ""
+  },
+  "services": {
+    "title": "Auszuführende Arbeiten",
+    "sum": 1927.74,
+    "payer": "Kassenkunde"
+  },
+  "materials": {
+    "title": "Material für Badumbau"
+  },
+  "Arbeitszeit": {
+    "distanceKm": 0,
+    "totalHoursNumeric": 20,
+    "ArbeitHoursNumeric": 20,
+    "ReiseHoursNumeric": 0
+  },
+  "duschwanne": {},
+  "wandverkleidung": {},
+  "duschabtrennung": {},
+  "optional": {},
+  "rabatt": {},
+  "bwt": {},
+  "hl": {},
+  "pricing": {},
+  "_computed": {
+    "selfPayAmount": 3298.98,
+    "subsidyAmount": 4180,
+    "subsidyAmount_max": 4180
+  }
+}

@@ -1841,19 +1841,35 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
-  // KK, Eigenanteil >= Schwelle: Wahlmöglichkeit zwischen 50/50 und 100 % Skonto
+  // Vermieter-Zustimmung: same condition as the "Wichtige Hinweise" sentence below.
+  const needsLandlord =
+    (!offerKey || ["bu", "bwt", "hl"].includes(offerKey)) &&
+    toBoolish(b.vermieterGenehmigungErforderlich) &&
+    b.vermieterGenehmigung !== "Ja";
+  const KK_INVOICE_LINE =
+    "Sie erhalten für Ihren Eigenanteil eine eigene Rechnung. Bitte zahlen Sie erst nach Erhalt und geben Sie die Rechnungsnummer im Verwendungszweck an.";
+
+  // KK, Eigenanteil >= Schwelle: Wahlmöglichkeit Flexibel (50/50) oder Sparen (100 % Skonto).
+  // "O …" lines are the options (ticked by mapPayLines / signing), "•" lines are their details.
   const PARA_kk_uber2000_LINES = [
-    "Wählen Sie aus folgenden Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):",
-    "O 50 % sofort und 50 % nach Fertigstellung, ohne Abzug oder",
-    "O 100 % sofort abzüglich 2 % Skonto",
-    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
+    "Wählen Sie, wie Sie Ihren Eigenanteil begleichen möchten (bitte ankreuzen):",
+    "O Flexibel:",
+    "• 50 % vorab*, 50 % nach Fertigstellung",
+    "• ohne Abzug",
+    "O Sparen:",
+    "• 100 % vorab*",
+    "• abzüglich 2 % Skonto",
+    needsLandlord
+      ? "* Erst wenn alles sicher ist: Zahlung fällig nach Zusage Ihrer Krankenkasse und Zustimmung Ihres Vermieters. Vorher entstehen Ihnen keine Kosten."
+      : "* Erst wenn alles sicher ist: Zahlung fällig nach Zusage Ihrer Krankenkasse. Vorher entstehen Ihnen keine Kosten.",
+    KK_INVOICE_LINE,
   ];
 
   // KK, Eigenanteil < Schwelle: keine Wahl, 100 % sofort ohne Skonto (kein Ankreuzen nötig)
   const PARA_kk_unter2000_LINES = [
-    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "Zahlungsbedingungen für den Eigenanteil:",
     "100 % sofort, ohne Skonto",
-    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
+    KK_INVOICE_LINE,
   ];
 
   // SZ: Selbstzahler-Zahlungsbedingungen (20/30/40 % Anzahlung)
@@ -1888,7 +1904,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     });
   };
 
-  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil (Selbstkostenanteil) anfällt;
+  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil anfällt;
   // unter der Schwelle nur die 100%-Zeile ohne Auswahlmöglichkeit.
   if (isKK && selfPayAmountNum > 0) {
     const kkLines =
@@ -2092,7 +2108,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     hasSubsidyTotals,
     IhrZuschussFmt,
 
-    // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
+    // Textblock zur Fälligkeit des Eigenanteils unter oder nach 2000 fur kk
     SelfPayLines,
 
     // Free-text lines the user added after "Wichtige Hinweise" (payload.offerOverrides.extraHinweise)

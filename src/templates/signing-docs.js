@@ -41,10 +41,10 @@ export const SZ_PAYMENT_OPTIONS = [
   "40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
 ];
 
-// Kassenkunde: Zahlungsbedingungen für den Selbstkostenanteil.
+// Kassenkunde: Zahlungsbedingungen für den Eigenanteil.
 export const KK_PAYMENT_OPTIONS = [
-  "50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
-  "100 % sofort abzüglich 2 % Skonto",
+  "Flexibel: 50 % vorab*, 50 % nach Fertigstellung, ohne Abzug",
+  "Sparen: 100 % vorab*, abzüglich 2 % Skonto",
 ];
 
 export function paymentOptionsFor(customerType) {
@@ -320,13 +320,15 @@ function parsePayLines(selfPayLines) {
     const t = String(l?.Text || "");
     if (l?.IsTitle) title = t;
     else if (/^[O☒]\s/.test(t)) options.push(t.replace(/^[O☒]\s+/, "").replace(/\s+oder\s*$/i, ""));
+    // "•" detail lines belong to the option above ("Flexibel:" + "• 50 % …" → one radio label)
+    else if (/^•\s/.test(t) && options.length) options[options.length - 1] += (/:$/.test(options[options.length - 1]) ? " " : ", ") + t.replace(/^•\s+/, "");
     else footer.push(t);
   }
   return { title, options, footer };
 }
 
 // Whether SelfPayLines actually offers a choice (vs. a single fixed line,
-// e.g. Kassenkunde Selbstkostenanteil under KK_PAYMENT_THRESHOLD).
+// e.g. Kassenkunde Eigenanteil under KK_PAYMENT_THRESHOLD).
 export function hasPaymentChoice(selfPayLines) {
   return parsePayLines(selfPayLines).options.length > 0;
 }
