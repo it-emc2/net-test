@@ -8556,11 +8556,13 @@ button.dm-btn-danger:focus-visible {
 <!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
      never into the mail body, PDF or post payload. -->
 <section class="offer-overrides-card" id="offerOverridesCard">
-  <strong>✏️ Wortlaut im Angebot anpassen</strong>
-  <span id="offerOverridesBadge" class="oo-badge" hidden></span>
-  <p class="internal-note-hint">Ersetzt Text in Angebot (DOCX/PDF), E-Mail-PDF und Online-Unterschrift – ohne Word. Gilt auch für „Neue Version“. Groß-/Kleinschreibung egal; ersetzt überall, wo der Text vorkommt.</p>
+  <div class="oo-head">
+    <strong class="oo-title">Wortlaut im Angebot anpassen</strong>
+    <span id="offerOverridesBadge" class="oo-badge" hidden></span>
+  </div>
+  <p class="oo-hint">Ersetzt Text in Angebot (DOCX/PDF), E-Mail-PDF und Online-Unterschrift – ohne Word. Gilt auch für „Neue Version“. Groß-/Kleinschreibung egal; ersetzt überall, wo der Text vorkommt.</p>
   <div id="offerOverridesList"></div>
-  <button type="button" id="offerOverridesAdd">+ Ersetzung hinzufügen</button>
+  <button type="button" id="offerOverridesAdd" class="oo-add">+ Ersetzung hinzufügen</button>
 </section>
 
 <section class="internal-note-card" id="internalNoteCard">

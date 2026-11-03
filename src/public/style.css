@@ -11419,8 +11419,21 @@ details.az-group[open] > summary.az-group-title::before {
 @keyframes du-rot { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .dealUploadBox .du-spin { animation-duration: 2s; } }
 
-/* Wortlaut-Overrides (OfferOverrides.js) */
-.offer-overrides-card{margin:0 0 16px;padding:12px 14px;background:var(--panel,#fff);border:1px solid var(--border,#ddd);border-radius:10px}
-.offer-overrides-card .oo-badge{margin-left:8px;padding:2px 8px;border-radius:999px;background:#fff8e1;border:1px solid #f0c36d;font-size:.85em}
-.offer-overrides-card .oo-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:8px 0}
-.offer-overrides-card .oo-row input{min-width:0;box-sizing:border-box}
+/* Wortlaut-Overrides (OfferOverrides.js) — iOS-style grouped list */
+.offer-overrides-card{margin:0 0 16px;padding:16px;background:var(--panel,#fff);border:1px solid var(--border,#e5e7eb);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+.offer-overrides-card .oo-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.offer-overrides-card .oo-title{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+.offer-overrides-card .oo-badge{padding:3px 10px;border-radius:999px;background:rgba(255,159,10,.14);color:#b36b00;font-size:.8rem;font-weight:600}
+.offer-overrides-card .oo-hint{margin:6px 0 12px;font-size:.88rem;line-height:1.4;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-row{position:relative;margin:0 0 10px;background:rgba(120,120,128,.08);border-radius:12px;overflow:hidden}
+.offer-overrides-card .oo-line{display:flex;align-items:center;gap:12px;padding:0 44px 0 14px;min-height:46px}
+.offer-overrides-card .oo-line + .oo-line{border-top:1px solid rgba(120,120,128,.2)}
+.offer-overrides-card .oo-line span{flex:0 0 44px;font-size:.85rem;color:var(--muted,#6b7280)}
+.offer-overrides-card .oo-line input{flex:1;min-width:0;border:0;background:transparent;box-shadow:none;padding:12px 0;font:inherit;color:inherit;outline:none}
+.offer-overrides-card .oo-line input:focus{outline:none;box-shadow:none}
+.offer-overrides-card .oo-del{position:absolute;top:10px;right:10px;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:rgba(255,59,48,.12);color:#ff3b30;font-size:.9rem;line-height:1;cursor:pointer}
+.offer-overrides-card .oo-del:hover{background:rgba(255,59,48,.2)}
+.offer-overrides-card .oo-add{border:0;background:none;padding:6px 2px;color:var(--accent-strong,#0a84ff);font:inherit;font-weight:600;cursor:pointer;box-shadow:none}
+.offer-overrides-card .oo-add:hover{text-decoration:underline}
+.offer-overrides-card button:disabled{opacity:.4;cursor:default}
+[data-mode="dark"] .offer-overrides-card .oo-badge{color:#ffb340}

@@ -29,7 +29,11 @@ function paint() {
   state.textReplacements.forEach((r, i) => {
     const row = document.createElement("div");
     row.className = "oo-row";
-    for (const key of ["from", "to"]) {
+    for (const [key, label] of [["from", "Statt"], ["to", "Neu"]]) {
+      const line = document.createElement("label");
+      line.className = "oo-line";
+      const name = document.createElement("span");
+      name.textContent = label;
       const input = document.createElement("input");
       input.type = "text";
       input.value = r[key];
@@ -39,10 +43,12 @@ function paint() {
         state.textReplacements[i][key] = input.value;
         badge();
       });
-      row.append(input);
+      line.append(name, input);
+      row.append(line);
     }
     const del = document.createElement("button");
     del.type = "button";
+    del.className = "oo-del";
     del.textContent = "✕";
     del.title = "Entfernen";
     del.disabled = locked;
@@ -63,7 +69,7 @@ function badge() {
   if (!el) return;
   const n = clean(state.textReplacements).length;
   el.hidden = !n;
-  el.textContent = n ? `✏️ ${n} Textänderung${n > 1 ? "en" : ""} aktiv` : "";
+  el.textContent = n ? `${n} Textänderung${n > 1 ? "en" : ""} aktiv` : "";
 }
 
 if (typeof document !== "undefined") {
