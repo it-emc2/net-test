@@ -92,6 +92,7 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
     "Auszuführende Arbeiten",
     "Material für Badumbau",
     "Optional",
+    "Raum3D",
     "Rabatt",
     "Kosten",
     "Zusammenfassung",

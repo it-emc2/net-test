@@ -528,7 +528,8 @@ function finishPlan(sit, walls, pieces, heightCm, reuse, panelH = KERAMICO_HEIGH
 export function computeFingerprint(payload) {
   // zusammenfassung (Versandstatus, Checkliste) is workflow state, not a price
   // input — the same reasoning as duschwanne.trayEnabled below.
-  const { pricing, forceRecompute, zusammenfassung, ...rest } = payload || {};
+  // raum3d (3D view: tray position, hidden objects) is display only.
+  const { pricing, forceRecompute, zusammenfassung, raum3d, ...rest } = payload || {};
   // duschwanne.trayEnabled is a UI switch, not a price input — what it changes
   // (the tray keys being present or not) is already in the payload. Leaving it
   // in would give every offer saved before the switch existed a new

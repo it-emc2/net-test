@@ -235,6 +235,7 @@ const OFFERS = {
       "DuschabtrennungNeu",
       "Duschvorhang",
       "Optional",
+      "Raum3D",
       "Rabatt",
       "Kosten",
       // The old single Zusammenfassung page is three steps for bu: the check,
@@ -2608,6 +2609,7 @@ function resetAllForms() {
   }
   try {
     window.__vorhangConfigurator?.reset?.();
+    window.__raum3dPage?.reset?.();
   } catch (e) {
     console.warn("[resetAllForms] Duschvorhang configurator reset failed:", e);
   }
@@ -3002,6 +3004,7 @@ function updateSidebarForOffer() {
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
     Optional: "Optionale Produkte",
+    Raum3D: "3D-Ansicht",
   };
 
   // Badumbau and Badewannentür group their pages into numbered sections; every
@@ -4502,6 +4505,11 @@ function buildPayload() {
   collectDuschabtrennungQuickAdd(payload);
   collectDuschabtrennungConfigurator(payload);
   collectDuschvorhangConfigurator(payload);
+  // 3D view: position / rotation / hidden objects of this offer (display only, no price)
+  try {
+    const r3 = window.__raum3dPage?.getState?.();
+    if (r3) payload.raum3d = r3;
+  } catch {}
   payload.duschabtrennung = payload.duschabtrennung || {};
   payload.duschabtrennung.configEnabled = isSectionOn("daNeu");
   payload.duschabtrennung.curtainEnabled = isSectionOn("curtain");

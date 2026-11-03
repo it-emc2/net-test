@@ -6,11 +6,18 @@
 import * as THREE from "https://unpkg.com/three@0.170.0?module";
 import { OrbitControls } from "https://unpkg.com/three@0.170.0/examples/jsm/controls/OrbitControls.js?module";
 
-const $ = (s) => document.querySelector(s);
-const stage = $("#stage");
-const info = $("#info");
-const S = { data: null, mode: "nachher", view: "oben", spot: 0, shower: null, hidden: new Set() };
+/**
+ * Mounts the 3D view into `root` (controls are found by data-r3="…" inside it).
+ * opts.products() → { tray: { W, D } | null, claddingImage, situation } from the offer;
+ * opts.onChange(state) is called after every user edit (position, rotation, objects).
+ */
+export function createViewer(root, opts = {}) {
+const $ = (k) => root.querySelector(`[data-r3="${k}"]`);
+const stage = $("stage");
+const info = $("info");
+const S = { data: null, deal: null, mode: "nachher", view: "oben", spot: 0, shower: null, hidden: new Set() };
 window.__raum3d = S; // for checks in the browser console
+const changed = () => opts.onChange?.(getState());
 
 // ---- renderer / scene ---------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -355,7 +362,7 @@ function snap(sh) {
 let showerFrame = null;
 function setView(view) {
   S.view = view;
-  document.querySelectorAll("#views button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === view));
+  $("views").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === view));
   const room = S.data?.room;
   if (!room) return;
   const pts = room.rooms.flatMap((r) => r.inner);
@@ -408,7 +415,7 @@ function rebuild(keepCamera = false) {
   if (!d?.room) return;
   buildRoom(d.room);
   const spot = d.spots[S.spot];
-  const [tw, td] = $("#tray").value.split("×").map((n) => Number(n) / 100);
+  const [tw, td] = String($("tray").value).replace(/[^\d×]/g, "").split("×").map((n) => Number(n) / 100);
   d.room.objects.forEach((o, i) => {
     if (S.hidden.has("f" + i)) return;
     if (S.mode === "nachher" && spot && o === spot.object) return;
@@ -417,7 +424,7 @@ function rebuild(keepCamera = false) {
   });
   if (S.mode === "nachher" && spot) {
     if (!S.shower) S.shower = snap(initialShower(spot, tw, td));
-    showerFrame = addShower(S.shower, $("#glass").value !== "ohne");
+    showerFrame = addShower(S.shower, $("glass").value !== "ohne");
   }
   if (!keepCamera) setView(S.view === "vorn" && !showerFrame ? "oben" : S.view);
   renderInfo();
@@ -447,7 +454,7 @@ function renderInfo() {
 }
 
 let loadSeq = 0;
-async function load(deal) {
+async function load(deal, saved = null) {
   const seq = ++loadSeq; // only the last request may draw (a slow earlier plan must not win)
   info.textContent = "Lade Plan …";
   const res = await fetch(`/api/room3d/${encodeURIComponent(deal)}`, { credentials: "include" });
@@ -455,51 +462,96 @@ async function load(deal) {
   if (seq !== loadSeq) return;
   if (!res.ok) { info.innerHTML = `<span class="warn">${data.error || "Fehler " + res.status}</span>`; return; }
   S.data = data;
+  S.deal = String(deal);
   S.spot = 0;
   S.shower = null;
   S.hidden = new Set();
+  applyProducts();
+  // saved edits of this offer (same plan only — a re-scan starts fresh)
+  if (saved && saved.planId === data.plan.id) {
+    S.spot = Math.min(saved.spot || 0, Math.max(0, data.spots.length - 1));
+    S.hidden = new Set(saved.hidden || []);
+    if (saved.shower && Number.isFinite(saved.shower.x)) S.shower = { ...saved.shower };
+  }
   renderObjectList();
-  $("#spot").innerHTML = data.spots.map((s, i) => `<option value="${i}">${s.object.name} · ${SIT[s.situation]}</option>`).join("") || `<option>–</option>`;
-  history.replaceState(null, "", `?deal=${encodeURIComponent(deal)}`);
+  $("spot").innerHTML = data.spots.map((s, i) => `<option value="${i}">${s.object.name} · ${SIT[s.situation]}</option>`).join("") || `<option>–</option>`;
+  $("spot").value = String(S.spot);
   rebuild();
+  return data;
 }
 
-$("#load").addEventListener("submit", (e) => { e.preventDefault(); load(new FormData(e.target).get("deal").trim()); });
-$("#mode").addEventListener("click", (e) => {
+// Products from the offer: tray size into the select (added if missing), decor image.
+function applyProducts() {
+  const p = opts.products?.() || {};
+  const sel = $("tray");
+  if (p.tray && sel) {
+    const v = `${Math.round(p.tray.W * 100)}×${Math.round(p.tray.D * 100)}`;
+    if (![...sel.options].some((o) => o.value === v || o.text === v)) sel.add(new Option(`${v} (Angebot)`, v), 0);
+    sel.value = v;
+  }
+  setCladdingImage(p.claddingImage || null);
+  S.offer = p;
+}
+
+const texLoader = new THREE.TextureLoader();
+let cladSrc = null;
+function setCladdingImage(src) {
+  if (src === cladSrc) return;
+  cladSrc = src;
+  if (!src) { M.cladding.map = null; M.cladding.needsUpdate = true; return; }
+  texLoader.load(src, (t) => {
+    if (cladSrc !== src) return;
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(1, 1 / 2.5); // shape UVs are metres; one decor image = one 1.0 × 2.5 m panel
+    M.cladding.map = t;
+    M.cladding.color.set(0xffffff);
+    M.cladding.needsUpdate = true;
+  }, undefined, () => {});
+}
+
+function getState() {
+  if (!S.data?.plan) return null;
+  return { deal: S.deal, planId: S.data.plan.id, spot: S.spot, shower: S.shower ? { ...S.shower } : null, hidden: [...S.hidden] };
+}
+
+$("mode").addEventListener("click", (e) => {
   const m = e.target.closest("button")?.dataset.mode;
   if (!m) return;
   S.mode = m;
-  document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === m));
+  $("mode").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === m));
   rebuild();
 });
-$("#views").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.view; if (v) setView(v); });
-for (const id of ["#spot", "#tray"]) $(id).addEventListener("change", () => { S.spot = Number($("#spot").value) || 0; S.shower = null; rebuild(); });
-$("#glass").addEventListener("change", () => rebuild(true));
+$("views").addEventListener("click", (e) => { const v = e.target.closest("button")?.dataset.view; if (v) setView(v); });
+for (const id of ["spot", "tray"]) $(id).addEventListener("change", () => { S.spot = Number($("spot").value) || 0; S.shower = null; rebuild(); changed(); });
+$("glass").addEventListener("change", () => rebuild(true));
 
 // ---- editing: show/hide objects, rotate and drag the shower ---------------------------
 function renderObjectList() {
   const d = S.data;
-  if (!d?.room) { $("#objects").innerHTML = ""; return; }
+  if (!d?.room) { $("objects").innerHTML = ""; return; }
   const items = [
     ...d.room.objects.map((o, i) => ({ key: "f" + i, name: o.name || "Objekt" })),
     ...d.room.openings.map((o, i) => ({ key: "o" + i, name: o.name || (o.kind === "window" ? "Fenster" : o.kind === "door" ? "Tür" : "Wandobjekt") })),
   ];
-  $("#objects").innerHTML = items
+  $("objects").innerHTML = items
     .map((it) => `<label><input type="checkbox" data-key="${it.key}" ${S.hidden.has(it.key) ? "" : "checked"}> ${it.name}</label>`)
     .join("");
 }
-$("#objects").addEventListener("change", (e) => {
+$("objects").addEventListener("change", (e) => {
   const k = e.target.dataset.key;
   if (!k) return;
   if (e.target.checked) S.hidden.delete(k); else S.hidden.add(k);
   rebuild(true);
+  changed();
 });
-$("#rotate").addEventListener("click", () => {
+$("rotate").addEventListener("click", () => {
   if (!S.shower) return;
   const next = snap({ ...S.shower, angle: S.shower.angle + Math.PI / 2 });
   if (fits(next)) S.shower = next;
   else S.note = "Gedreht passt die Duschwanne hier nicht – erst verschieben.";
   rebuild(true);
+  changed();
 });
 
 // Drag the tray on the floor (finger or mouse); orbiting is paused meanwhile.
@@ -535,15 +587,36 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   }
   rebuild(true);
 });
-const endDrag = () => { if (drag) { drag = null; controls.enabled = true; } };
+const endDrag = () => { if (drag) { drag = null; controls.enabled = true; changed(); } };
 renderer.domElement.addEventListener("pointerup", endDrag);
 renderer.domElement.addEventListener("pointercancel", endDrag);
-$("#shot").addEventListener("click", () => {
+$("shot").addEventListener("click", () => {
   const a = document.createElement("a");
   a.href = renderer.domElement.toDataURL("image/jpeg", 0.9);
   a.download = `raum3d-${S.data?.plan?.name || "plan"}-${S.mode}-${S.view}.jpg`;
   a.click();
 });
 
-const q = new URLSearchParams(location.search).get("deal");
-if (q) { $("#load").deal.value = q; load(q); }
+/** Image of one view (for the PDF): renders it once and returns a JPEG data URL. */
+function snapshot(view) {
+  const keep = { view: S.view, pos: camera.position.clone(), target: controls.target.clone() };
+  setView(view);
+  controls.update();
+  renderer.render(scene, camera);
+  const url = renderer.domElement.toDataURL("image/jpeg", 0.88);
+  S.view = keep.view;
+  camera.position.copy(keep.pos);
+  controls.target.copy(keep.target);
+  return url;
+}
+
+return {
+  load,
+  getState,
+  snapshot,
+  /** Re-read the offer's products (tray size, decor) and redraw. */
+  refresh() { if (!S.data) return; const before = $("tray").value; applyProducts(); if ($("tray").value !== before) S.shower = null; rebuild(); },
+  resize,
+  get loaded() { return !!S.data; },
+};
+}

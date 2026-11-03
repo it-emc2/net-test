@@ -220,6 +220,13 @@ export function initRestoreManager({
         console.warn("[daConfigurator] restore failed:", e?.message || e);
       }
 
+      // 3D view: saved position etc. — applied when the page is opened
+      try {
+        window.__raum3dPage?.restore?.(payload?.raum3d || null);
+      } catch (e) {
+        console.warn("[raum3d] restore failed:", e?.message || e);
+      }
+
       // Rehydrate the "Duschvorhang" configurator from its saved state
       try {
         const vhState = payload?.duschvorhang?.configurator?.state || null;
