@@ -4987,6 +4987,7 @@ button.dm-btn-danger:focus-visible {
                       <label for="wvColor_997">Farbe nur für 997×2550</label>
                       <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
                     <option value="">Wie unten gewählt</option>
+                    <option value="Sonderdekor">Sonderdruck (Vigour)</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Struktur weiß">Struktur weiß</option>
@@ -5019,6 +5020,7 @@ button.dm-btn-danger:focus-visible {
                       <label for="wvColor_1497">Farbe nur für 1497×2550</label>
                       <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
                     <option value="">Wie unten gewählt</option>
+                    <option value="Sonderdekor">Sonderdruck (Vigour)</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Struktur weiß">Struktur weiß</option>
@@ -5093,8 +5095,25 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
+            <!-- Paneele (VIGOUR): eine Liste statt 997/1497-Schalter, Farbwahl und "Andere Farbe".
+                 Die alten Felder bleiben die Datenbasis (Preis, Speichern, Laden) — initWvRows
+                 schreibt in sie und liest aus ihnen; sie sind nur ausgeblendet. -->
+            <div id="wvRowsSection" class="sec-settings">
+              <div class="sec-settings__label">Paneele — Premium</div>
+              <div id="wvRows" class="sec-settings__group"></div>
+              <button type="button" id="wvRowAdd" class="wv-row-add">+ Zeile hinzufügen (Farbe oder Sonderdruck)</button>
+              <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
+                <label for="wvSonderConfigNr">Konfigurations-Nr. von Vigour</label>
+                <input id="wvSonderConfigNr" name="wvSonderConfigNr" type="text" placeholder="z. B. VI-00002468" autocomplete="off" />
+                <p class="muted" style="margin: 8px 0 0;">
+                  Noch keine Nummer? Feld frei lassen — der Angebotscheck erinnert, bis sie eingetragen ist.
+                  Sonderdruck im <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">Vigour Wall Configurator</a> gestalten.
+                </p>
+              </div>
+            </div>
+
             <div id="wvColorSection" class="sec-settings">
-              <div class="sec-settings__label">Dekor — Premium</div>
+              <div class="sec-settings__label">Dekor-Übersicht — Tippen ändert die markierte Zeile</div>
               <div id="wvColors" class="sec-settings__group dw-color-grid is-square">
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Weiß" required />
@@ -5186,22 +5205,6 @@ button.dm-btn-danger:focus-visible {
                     <span class="caption">Sonderdekor</span>
                   </label>
 
-                </div>
-              <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
-                  <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
-                  <input
-                    id="wvSonderConfigNr"
-                    name="wvSonderConfigNr"
-                    type="text"
-                    placeholder="z. B. WC-123456"
-                    autocomplete="off"
-                  />
-                  <p class="muted" style="margin: 8px 0 0;">
-                    Sonderdekor im Vigour Wall Configurator auswählen:
-                    <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">
-                      https://vigour.wallconfigurator.com/
-                    </a>
-                  </p>
                 </div>
             </div>
 

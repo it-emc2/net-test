@@ -7936,16 +7936,10 @@ function setupWandverkleidungPage() {
 
   const sonderDetails = document.getElementById("wvSonderDecorDetails");
   const sonderInput = document.getElementById("wvSonderConfigNr");
+  // The Konfigurations-Nr. box is shown by initWvRows (any Sonderdruck row); the
+  // number itself is optional — Vigour sends it after the request.
   const syncSonderDecorUi = () => {
-    const selected = page.querySelector('input[type="radio"][name="wvColor"]:checked');
-    const show = selected?.value === "Sonderdekor" || selected?.value === "Sonder Dekor";
-    if (sonderDetails) {
-      sonderDetails.hidden = !show;
-      sonderDetails.setAttribute("aria-hidden", show ? "false" : "true");
-    }
-    if (sonderInput) {
-      sonderInput.required = !!show;
-    }
+    if (sonderInput) sonderInput.required = false;
   };
   page.__syncWvSonderDecorUi = syncSonderDecorUi;
 
@@ -11464,6 +11458,9 @@ const PRODUKT_LINES = {
     page: "page-Wandverkleidung",
     groups: [
       { premium: "wvColorSection", standard: "wvBudgetColorSection", what: "Wandverkleidungsfarbe" },
+      // Paneel-Zeilen (initWvRows) replace the 997/1497 switches and the colour grid
+      // on the Premium line; those stay as hidden data fields.
+      { premium: "wvRowsSection", standard: "", what: "Paneele" },
       // The 997/1497 Alu panels are Premium only: Standard (Keramico) is priced
       // from the Wandfläche. resetFields zeroes the quantities when hidden —
       // buildPayload reads them straight from the DOM, so a hidden "2" would
@@ -12555,7 +12552,7 @@ function syncWvSupplierGroups() {
   // Haßmann accessories exist on VIGOUR and Badolux, not on winwall.
   for (const id of ["wvHmAccSection", "wvHmProfileSection"]) setGroupActive(byId(id), !ww);
   // VIGOUR-only groups: the line logic has already set them for Premium/Standard.
-  if (ww) for (const id of ["wvColorSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
+  if (ww) for (const id of ["wvColorSection", "wvRowsSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
   updateWwSuggestions({ write: false });
 }
 
@@ -12723,6 +12720,175 @@ window.syncWvDisclosures = syncWvDisclosures;
 document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   if (e.target.open) window.dispatchEvent(new Event("resize"));
 });
+
+/* ========== WANDVERKLEIDUNG (VIGOUR): Paneel-Zeilen ==========
+   One row = size + colour (or Sonderdruck) + count. The old fields stay the data
+   (pricing, save, load all read them): per size the first row is the main
+   panel (wv997 / wvQty997 / wvColor_997), further rows are the "zusätzliche
+   Farben" extras, and the first row's colour is the global wvColor. So nothing
+   downstream changes — this is a view that writes into them and reads from them
+   (restore, Flächen-Vorschlag, Wandmaße-Übernahme). */
+(function initWvRows() {
+  const section = document.getElementById("wvRowsSection");
+  const listEl = document.getElementById("wvRows");
+  const addBtn = document.getElementById("wvRowAdd");
+  const sonderBox = document.getElementById("wvSonderDecorDetails");
+  if (!section || !listEl || !addBtn) return;
+  const SONDER = "Sonderdekor";
+  const SIZES = [997, 1497];
+  const num = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const fire = (el, t) => el.dispatchEvent(new Event(t, { bubbles: true }));
+  let rows = []; // { size, qty, color }
+  let activeIdx = -1; // row the colour overview writes to
+  let lastPush = 0;
+  let pushing = false;
+
+  const colorRadios = () => [...document.querySelectorAll('#wvColors input[name="wvColor"]')];
+  const globalColor = () => colorRadios().find((r) => r.checked)?.value || "Marmor weiß";
+  const colorInfo = (value) => {
+    const r = colorRadios().find((x) => x.value === value);
+    return {
+      label: value === SONDER ? "Sonderdruck (Vigour)" : value,
+      img: r?.closest("label")?.querySelector("img")?.getAttribute("src") || "",
+    };
+  };
+  const ensureWired = () => { if (typeof setupWandverkleidungPage === "function") setupWandverkleidungPage(); };
+
+  function render() {
+    const colors = colorRadios().map((r) => r.value);
+    listEl.innerHTML = rows.length
+      ? rows.map((r, i) => {
+          const opts = (colors.includes(r.color) ? colors : [...colors, r.color])
+            .map((c) => `<option value="${escapeHtml(c)}"${c === r.color ? " selected" : ""}>${escapeHtml(colorInfo(c).label)}</option>`).join("");
+          const img = colorInfo(r.color).img;
+          return `<div class="wv-row" data-i="${i}">
+            ${img ? `<img class="wv-row__sw" src="${escapeHtml(img)}" alt="" />` : `<span class="wv-row__sw"></span>`}
+            <select class="wv-row__color" aria-label="Dekor">${opts}</select>
+            <select class="wv-row__size wv-row__sizesel" aria-label="Breite">
+              ${SIZES.map((z) => `<option value="${z}"${z === r.size ? " selected" : ""}>${z} mm</option>`).join("")}
+            </select>
+            <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
+            <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
+          </div>`;
+        }).join("")
+      : `<div class="wv-rows-empty">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</div>`;
+    if (activeIdx >= rows.length || activeIdx < 0) activeIdx = rows.length - 1;
+    listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`)?.classList.add("is-active");
+    const used = new Set(rows.map((r) => r.color));
+    colorRadios().forEach((r) => {
+      const tile = r.closest("label");
+      tile?.classList.toggle("wv-used", used.has(r.value));
+      tile?.classList.toggle("wv-active", rows[activeIdx]?.color === r.value);
+    });
+    const showNr = rows.some((r) => r.color === SONDER);
+    if (sonderBox) { sonderBox.hidden = !showNr; sonderBox.setAttribute("aria-hidden", String(!showNr)); }
+  }
+
+  // Fields → rows (restore, Flächen-Vorschlag, Wandmaße-Übernahme).
+  function pull() {
+    if (pushing) return;
+    ensureWired();
+    const g = globalColor();
+    const out = [];
+    for (const size of SIZES) {
+      const qty = num(document.getElementById(`wvQty${size}`)?.value);
+      if (document.getElementById(`wv${size}`)?.checked && qty > 0) {
+        out.push({ size, qty, color: document.getElementById(`wvColor_${size}`)?.value || g });
+      }
+      document.querySelectorAll(`#wvExtraList${size} .wv-extra-row`).forEach((r) => {
+        const q = parseInt(r.querySelector(".wv-extra-qty")?.value || "0", 10) || 0;
+        const c = String(r.querySelector(".wv-extra-color")?.value || "").trim();
+        if (q > 0 && c) out.push({ size, qty: q, color: c });
+      });
+    }
+    rows = out;
+    render();
+  }
+
+  // Rows → fields.
+  function push() {
+    pushing = true;
+    try {
+      ensureWired();
+      const clean = rows.filter((r) => r.qty > 0);
+      const g = clean[0]?.color || globalColor();
+      const gRadio = colorRadios().find((r) => r.value === g);
+      if (gRadio && !gRadio.checked) { gRadio.checked = true; fire(gRadio, "change"); }
+      const byRow = (size) => clean.filter((r) => r.size === size);
+      window.applyWvPanelQty?.({ 997: byRow(997)[0]?.qty || 0, 1497: byRow(1497)[0]?.qty || 0 });
+      for (const size of SIZES) {
+        const mine = byRow(size);
+        const sel = document.getElementById(`wvColor_${size}`);
+        const want = mine[0] && mine[0].color !== g ? mine[0].color : "";
+        if (sel && sel.value !== want) { sel.value = want; fire(sel, "change"); }
+        restoreExtras(document.getElementById(`wvExtraList${size}`), `wvColor_${size}`, mine.slice(1).map((r) => ({ qty: r.qty, color: r.color })));
+      }
+      if (typeof recomputeWVFlachenQty === "function") recomputeWVFlachenQty();
+      window.requestPricingRefresh?.({ delay: 120, reason: "wv-rows" });
+      window.updatePricing?.();
+    } finally {
+      pushing = false;
+      lastPush = Date.now();
+    }
+  }
+
+  listEl.addEventListener("change", (e) => {
+    const row = e.target.closest(".wv-row");
+    if (!row) return;
+    const r = rows[Number(row.dataset.i)];
+    if (!r) return;
+    if (e.target.classList.contains("wv-row__color")) r.color = e.target.value;
+    else if (e.target.classList.contains("wv-row__sizesel")) r.size = Number(e.target.value);
+    render();
+    push();
+  });
+  listEl.addEventListener("click", (e) => {
+    const row = e.target.closest(".wv-row");
+    if (!row) return;
+    const i = Number(row.dataset.i);
+    if (e.target.closest(".wv-row__del")) rows.splice(i, 1);
+    else if (e.target.closest("[data-d]")) rows[i].qty = Math.max(1, rows[i].qty + Number(e.target.closest("[data-d]").dataset.d));
+    else return;
+    render();
+    push();
+  });
+  listEl.addEventListener("pointerdown", (e) => {
+    const row = e.target.closest(".wv-row");
+    if (!row || Number(row.dataset.i) === activeIdx) return;
+    activeIdx = Number(row.dataset.i);
+    listEl.querySelectorAll(".wv-row").forEach((r) => r.classList.toggle("is-active", r === row));
+    colorRadios().forEach((r) => r.closest("label")?.classList.toggle("wv-active", rows[activeIdx]?.color === r.value));
+  });
+  // Colour overview: a tile sets the marked row's colour (or starts the first row).
+  document.getElementById("wvColors")?.addEventListener("click", (e) => {
+    const tile = e.target.closest("label.image-check");
+    const input = tile?.querySelector('input[name="wvColor"]');
+    if (!input) return;
+    e.preventDefault();
+    if (!rows.length) { rows.push({ size: 997, qty: 1, color: input.value }); activeIdx = 0; }
+    else rows[activeIdx < 0 ? rows.length - 1 : activeIdx].color = input.value;
+    render();
+    push();
+  });
+  addBtn.addEventListener("click", () => {
+    const last = rows[rows.length - 1];
+    rows.push({ size: last?.size || 997, qty: 1, color: last?.color || globalColor() });
+    activeIdx = rows.length - 1;
+    render();
+    push();
+  });
+
+  let t = 0;
+  const pullSoon = () => {
+    if (Date.now() - lastPush < 600) return; // echoes of our own push
+    clearTimeout(t);
+    t = setTimeout(pull, 120);
+  };
+  document.addEventListener("change", (e) => { if (e.target.matches?.("#wv997, #wv1497, #wvQty997, #wvQty1497")) pullSoon(); });
+  document.addEventListener("input", (e) => { if (e.target.matches?.("#wvQty997, #wvQty1497")) pullSoon(); });
+  window.pullWvRows = pull;
+  render();
+})();
 
 /* ========== Keramico-Bedarfsrechner (Wandverkleidung, Standard) ==========
    Same rule as „Bedarf berechnen" on cleverbad.de (Badolux's shop): the wall
@@ -17269,6 +17435,8 @@ setByNameOrId("wvFlachenSelected", !!flachenOn);
 setByNameOrId("wvEndProfileSelected", !!endProfileOn);
 setByNameOrId("wvSilikonSelected", !!silikonOn);
 setByNameOrId("wvV3VSelected", !!v3vOn);
+
+window.pullWvRows?.();
 
 // ------------------------------------------------------------
 // 4) Done restoring

@@ -254,6 +254,19 @@ export const RULES = [
       "Kein Abschlussprofil im Angebot — bitte Menge eintragen.",
   },
   {
+    // Sonderdruck (V3WVK999 / V3WV999): Vigour sends the Konfigurations-Nr. after
+    // the request, so the offer may be made without it — until it is entered.
+    id: "wandverkleidung-konfigurationsnr",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Vigour Konfigurations-Nr. eingetragen",
+    severity: "gelb",
+    applies: ({ materials }) => wvLine(materials, "V3WVK999") || wvLine(materials, "V3WV999"),
+    test: ({ sel }) =>
+      !String(sel.value("wvSonderConfigNr") || "").trim() &&
+      "Sonderdruck im Angebot, aber die Konfigurations-Nr. von Vigour fehlt noch.",
+  },
+  {
     // Same count pricing uses when the field is left empty:
     // panels − 1 − outside corners.
     id: "wandverkleidung-verbindungsprofil",
