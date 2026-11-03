@@ -1900,7 +1900,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
         optionIdx += 1;
         if (optionIdx === selectedPayIdx) out = text.replace(/^O\s/, "☒ ");
       }
-      return { Text: out, IsTitle: idx === 0 };
+      // "•" lines render as a real Word list item (IsBullet paragraph in the template).
+      const IsBullet = /^•\s/.test(out);
+      return { Text: IsBullet ? out.replace(/^•\s+/, "") : out, IsTitle: idx === 0, IsBullet };
     });
   };
 

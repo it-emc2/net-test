@@ -321,7 +321,7 @@ function parsePayLines(selfPayLines) {
     if (l?.IsTitle) title = t;
     else if (/^[O☒]\s/.test(t)) options.push(t.replace(/^[O☒]\s+/, "").replace(/\s+oder\s*$/i, ""));
     // "•" detail lines belong to the option above ("Flexibel:" + "• 50 % …" → one radio label)
-    else if (/^•\s/.test(t) && options.length) options[options.length - 1] += (/:$/.test(options[options.length - 1]) ? " " : ", ") + t.replace(/^•\s+/, "");
+    else if ((l?.IsBullet || /^•\s/.test(t)) && options.length) options[options.length - 1] += (/:$/.test(options[options.length - 1]) ? " " : ", ") + t.replace(/^•\s+/, "");
     else footer.push(t);
   }
   return { title, options, footer };
@@ -568,7 +568,7 @@ export function buildAngebotHtml(data, opts = {}) {
       ? `<h2>Zahlungsbedingungen</h2><div class="pay">${payLines
           .map(
             (l) =>
-              `<div class="opt${l.IsTitle ? " muted" : ""}">${esc(l.Text || "")}</div>`,
+              `<div class="opt${l.IsTitle ? " muted" : ""}">${l.IsBullet ? "• " : ""}${esc(l.Text || "")}</div>`,
           )
           .join("")}</div>`
       : "";
