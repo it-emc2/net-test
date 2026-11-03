@@ -64,3 +64,23 @@ test('signing page: extra Hinweise listed, fixed sentences follow the wording ru
   expect(html).toContain('um ein Pauschalangebot für die oben definierten Leistungen');
   expect(html).not.toContain('Festpreisangebot');
 });
+
+// Eigenanteil sentence: only the amount is bold, so the customer sees what they pay (also 0,00 €).
+test.each(['Angebot-10', 'Angebot-BU-KK-2', 'Angebot-BWT', 'Angebot-HL'])('%s: Eigenanteil amount is bold, its sentence is not', async (name) => {
+  const xml = new PizZip(await renderDocx(tpl(name), {
+    ...data(), hasSubsidyLine: true, IsKassenkunde: true, SelbstkostenanteilFmt: '0,00 €', Zuschusskrankenkasse: '4.180,00 €',
+  })).file('word/document.xml').asText();
+  const runs = xml.match(/<w:r>(?:(?!<\/w:r>).)*<\/w:r>/gs) || [];
+  const amount = runs.find((r) => r.replace(/<[^>]+>/g, '') === '0,00 €');
+  const label = runs.find((r) => r.replace(/<[^>]+>/g, '').startsWith('Ihr Eigenanteil beträgt'));
+  expect(amount).toMatch(/<w:b\/>/);
+  expect(label).not.toMatch(/<w:b\/>/);
+  expect(textOf(await renderDocx(tpl(name), { ...data(), hasSubsidyLine: true, SelbstkostenanteilFmt: '12,50 €', Zuschusskrankenkasse: '1 €' })))
+    .toContain('Ihr Eigenanteil beträgt 12,50 € unter Berücksichtigung');
+});
+
+test('signing page: Eigenanteil amount in <b>', async () => {
+  const { buildAngebotHtml } = await import('../../src/templates/signing-docs.js');
+  const html = buildAngebotHtml({ PayerKind: 'KK', hasSubsidyLine: true, SelbstkostenanteilFmt: '0,00 €', Zuschusskrankenkasse: '4.180,00 €', Totals: [] });
+  expect(html).toContain('Ihr Eigenanteil beträgt <b>0,00 €</b> unter');
+});

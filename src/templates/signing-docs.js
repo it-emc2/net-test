@@ -462,7 +462,7 @@ function festpreisBlock(d) {
   ];
   if (isKK && d.hasSubsidyLine) {
     out.push(
-      `Ihr Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.`,
+      `Ihr Eigenanteil beträgt <b>${esc(d.SelbstkostenanteilFmt || "")}</b> unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.`,
     );
   }
   // EbenerdigHinweis kommt aus docx-template.js (Toggle + Duschwanne im Angebot) — identisch zum PDF.
