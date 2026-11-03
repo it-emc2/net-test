@@ -11418,3 +11418,9 @@ details.az-group[open] > summary.az-group-title::before {
 .dealUploadBox[data-state="busy"] .du-ico { display: none; }
 @keyframes du-rot { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .dealUploadBox .du-spin { animation-duration: 2s; } }
+
+/* Wortlaut-Overrides (OfferOverrides.js) */
+.offer-overrides-card{margin:0 0 16px;padding:12px 14px;background:var(--panel,#fff);border:1px solid var(--border,#ddd);border-radius:10px}
+.offer-overrides-card .oo-badge{margin-left:8px;padding:2px 8px;border-radius:999px;background:#fff8e1;border:1px solid #f0c36d;font-size:.85em}
+.offer-overrides-card .oo-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:8px 0}
+.offer-overrides-card .oo-row input{min-width:0;box-sizing:border-box}

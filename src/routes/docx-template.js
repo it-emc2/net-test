@@ -162,6 +162,35 @@ function getAngebotTemplatePath(body) {
   return fallbackPath;
 }
 
+// Per-offer wording changes the user makes in OC (payload.offerOverrides.textReplacements
+// = [{ from, to }]), applied to every customer-facing string of the render data. Same
+// seam as the blocklist, so DOCX, PDF, mail PDF and the signing page all agree.
+function applyTextReplacements(value, replacements) {
+  const list = (Array.isArray(replacements) ? replacements : [])
+    .map((r) => ({ from: String(r?.from ?? "").trim(), to: String(r?.to ?? "") }))
+    .filter((r) => r.from);
+  if (!list.length) return value;
+  const walk = (v) => {
+    if (typeof v === "string") {
+      return list.reduce((s, r) => s.replace(new RegExp(escapeRegExpDocx(r.from), "gi"), () => r.to), v);
+    }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    }
+    return v;
+  };
+  return walk(value);
+}
+
+// Blocklist first, then the offer's own overrides.
+function sanitizeRenderData(dataRaw, body) {
+  return applyTextReplacements(
+    deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST),
+    body?.offerOverrides?.textReplacements,
+  );
+}
+
 const pricing = pricingFactory(ProductModel);
 
 // -------- Helpers --------
@@ -636,7 +665,7 @@ async function convertDocxToPdfUnqueued(docxBuffer) {
 async function getOfferRenderData(body) {
   const computed = await pricing.computePrices(body || {});
   const dataRaw = await mapData(body || {}, computed);
-  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  const data = sanitizeRenderData(dataRaw, body);
   return { data, computed };
 }
 
@@ -2487,7 +2516,7 @@ router.post("/", async (req, res) => {
     });
 
     const dataRaw = await mapData(req.body || {}, computed);
-    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+    const data = sanitizeRenderData(dataRaw, req.body);
 
     if (STATIC_DOCX_WORD_BLOCKLIST.length) {
       console.log(
@@ -2657,6 +2686,8 @@ export {
   generateOfferPdfBuffer,
   getOfferRenderData,
   deepSanitizeDocxPayload,
+  applyTextReplacements,
+  sanitizeRenderData,
   STATIC_DOCX_WORD_BLOCKLIST,
   buildAhData,
 };

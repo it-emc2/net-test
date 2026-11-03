@@ -9,8 +9,7 @@ import {
   mapData,
   renderDocx,
   convertDocxToPdf,
-  deepSanitizeDocxPayload,
-  STATIC_DOCX_WORD_BLOCKLIST,
+  sanitizeRenderData,
 } from "./docx-template.js";
 
 const router = express.Router();
@@ -21,7 +20,7 @@ router.post("/pdf-preview", async (req, res) => {
     const templatePath = getAngebotTemplatePath(req.body);
     const computed = await pricing.computePrices(req.body || {});
     const dataRaw = await mapData(req.body || {}, computed);
-    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+    const data = sanitizeRenderData(dataRaw, req.body);
 
     const docxBuffer = await renderDocx(templatePath, data);
     const pdfBuffer = await convertDocxToPdf(docxBuffer);

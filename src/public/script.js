@@ -5202,6 +5202,9 @@ if (anschlag) {
     checkAck: window.__zfCheckAck || {},
   };
 
+  const offerOverrides = window.getOfferOverrides?.();
+  if (offerOverrides) payload.offerOverrides = offerOverrides;
+
   payload.mail = {
     auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
     to: (document.getElementById("mailTo")?.value || "").trim(),

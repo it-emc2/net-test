@@ -8555,6 +8555,14 @@ button.dm-btn-danger:focus-visible {
           <!-- Email Versand (unter PDF Vorschau) -->
 <!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
      never into the mail body, PDF or post payload. -->
+<section class="offer-overrides-card" id="offerOverridesCard">
+  <strong>✏️ Wortlaut im Angebot anpassen</strong>
+  <span id="offerOverridesBadge" class="oo-badge" hidden></span>
+  <p class="internal-note-hint">Ersetzt Text in Angebot (DOCX/PDF), E-Mail-PDF und Online-Unterschrift – ohne Word. Gilt auch für „Neue Version“. Groß-/Kleinschreibung egal; ersetzt überall, wo der Text vorkommt.</p>
+  <div id="offerOverridesList"></div>
+  <button type="button" id="offerOverridesAdd">+ Ersetzung hinzufügen</button>
+</section>
+
 <section class="internal-note-card" id="internalNoteCard">
   <label for="internalNote" class="internal-note-label">🔒 Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)</label>
   <textarea id="internalNote" rows="3" maxlength="5000" placeholder="z. B. Besonderheiten, Absprachen, Hinweise für Innendienst/Montage …"></textarea>
@@ -11195,6 +11203,7 @@ button.dm-btn-danger:focus-visible {
   <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
   <script type="module" src="/angebotscheck.js"></script>
+  <script type="module" src="/OfferOverrides.js"></script>
   <script type="module" src="/arbeitenAuto.js"></script>
   <script type="module" src="/angebotsversand.js"></script>
   <script type="module" src="/checkliste.js"></script>
