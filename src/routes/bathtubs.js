@@ -7,6 +7,7 @@
 // once, server-side. The client only renders what this returns.
 import { Router } from "express";
 import { getVigorDb } from "../external/vigorDb.js";
+import { WANNE_SETS } from "../lib/wanneSets.js";
 
 const r = Router();
 
@@ -136,6 +137,7 @@ r.get("/catalog", async (_req, res) => {
 
     const items = [...best.values()]
       .map((v) => v.parsed)
+      .concat(WANNE_SETS)
       .sort(
         (a, b) =>
           a.type.localeCompare(b.type) ||
