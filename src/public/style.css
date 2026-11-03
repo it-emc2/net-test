@@ -11444,3 +11444,4 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card .oo-row.oo-single .oo-line{padding-right:44px}
 .offer-overrides-card .oo-locked{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:rgba(255,159,10,.12);color:#8a5200;font-size:.9rem}
 .offer-overrides-card .oo-locked button{border:0;border-radius:999px;padding:6px 14px;background:#ff9f0a;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.offer-overrides-card [hidden]{display:none !important}
