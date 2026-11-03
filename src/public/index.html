@@ -8555,11 +8555,12 @@ button.dm-btn-danger:focus-visible {
           <!-- Email Versand (unter PDF Vorschau) -->
 <!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
      never into the mail body, PDF or post payload. -->
-<section class="offer-overrides-card" id="offerOverridesCard">
-  <div class="oo-head">
+<details class="offer-overrides-card" id="offerOverridesCard">
+  <summary class="oo-head">
     <strong class="oo-title">Angebot anpassen</strong>
     <span id="offerOverridesBadge" class="oo-badge" hidden></span>
-  </div>
+    <span id="offerLockedMark" class="oo-badge oo-badge--lock" hidden title="Preis eingefroren – Neue Version nötig">🔒 Preis eingefroren</span>
+  </summary>
   <p class="oo-hint">Änderungen gelten für Angebot (DOCX/PDF), E-Mail-PDF und Online-Unterschrift – ohne Word – und werden in „Neue Version“ übernommen.</p>
 
   <div id="offerLockedNote" class="oo-locked" hidden>
@@ -8578,7 +8579,7 @@ button.dm-btn-danger:focus-visible {
   <div class="oo-group-title" id="offerHinweiseTitle">Zusätzliche Hinweise</div>
   <div id="offerHinweiseList"></div>
   <button type="button" id="offerHinweiseAdd" class="oo-add">+ Hinweis hinzufügen</button>
-</section>
+</details>
 
 <section class="internal-note-card" id="internalNoteCard">
   <label for="internalNote" class="internal-note-label">🔒 Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)</label>

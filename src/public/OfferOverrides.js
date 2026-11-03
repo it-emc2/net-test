@@ -180,7 +180,11 @@ function paintLocked(ev) {
   // Remember which number the server froze; a stale price response must not re-show the
   // note once "Neue Version" has given the offer a fresh number.
   if (ev?.detail) lockedNumber = ev.detail._locked ? currentNumber() : "";
-  if (el) el.hidden = locked() || !lockedNumber || lockedNumber !== currentNumber();
+  const show = !locked() && !!lockedNumber && lockedNumber === currentNumber();
+  if (el) el.hidden = !show;
+  // card is closed by default — keep the frozen price visible in its header
+  const mark = document.getElementById("offerLockedMark");
+  if (mark) mark.hidden = !show;
 }
 
 function badge() {

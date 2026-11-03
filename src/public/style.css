@@ -11445,3 +11445,9 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card .oo-locked{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:rgba(255,159,10,.12);color:#8a5200;font-size:.9rem}
 .offer-overrides-card .oo-locked button{border:0;border-radius:999px;padding:6px 14px;background:#ff9f0a;color:#fff;font:inherit;font-weight:600;cursor:pointer}
 .offer-overrides-card [hidden]{display:none !important}
+.offer-overrides-card > summary.oo-head{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative;padding-right:28px}
+.offer-overrides-card > summary.oo-head::-webkit-details-marker{display:none}
+.offer-overrides-card > summary.oo-head::after{content:"";position:absolute;right:6px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid var(--muted,#6b7280);border-bottom:2px solid var(--muted,#6b7280);transform:rotate(45deg);transition:transform .2s}
+.offer-overrides-card[open] > summary.oo-head::after{transform:rotate(-135deg);margin-top:-2px}
+.offer-overrides-card[open] > summary.oo-head{margin-bottom:2px}
+.offer-overrides-card .oo-badge--lock{background:rgba(255,159,10,.18);color:#8a5200}
