@@ -11836,6 +11836,10 @@ if (document.readyState === "loading") {
 (function initFussbodenTabSwitch() {
   const page = document.getElementById("page-Fussboden");
   if (!page) return;
+  const master = document.getElementById("fbMaster");
+  const wrap = document.getElementById("fbModeWrap");
+  const floorChk = document.getElementById("addFlooring");
+  const wallChk = document.getElementById("addWallCladding");
   const btns = {
     fbTabFloor: document.getElementById("fbTabBtnFloor"),
     fbTabWall: document.getElementById("fbTabBtnWall"),
@@ -11844,8 +11848,11 @@ if (document.readyState === "loading") {
     fbTabFloor: document.getElementById("fbTabFloor"),
     fbTabWall: document.getElementById("fbTabWall"),
   };
+  if (!master || !floorChk || !wallChk) return;
+  let current = "fbTabFloor";
 
-  function activate(target) {
+  function show(target) {
+    current = target;
     Object.keys(panels).forEach((key) => {
       const isActive = key === target;
       if (panels[key]) {
@@ -11859,9 +11866,38 @@ if (document.readyState === "loading") {
     });
   }
 
+  // Master + Segment → die zwei Datenfelder (genau eines an, wenn Master an).
+  function setData(chk, on) {
+    if (chk.checked === on) return;
+    chk.checked = on;
+    chk.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function push() {
+    wrap.hidden = !master.checked;
+    setData(floorChk, master.checked && current === "fbTabFloor");
+    setData(wallChk, master.checked && current === "fbTabWall");
+  }
+
+  // Datenfelder → Master + Segment (Wiederherstellen eines Angebots).
+  let pushing = false;
+  function pull() {
+    if (pushing) return;
+    const on = floorChk.checked || wallChk.checked;
+    master.checked = on;
+    wrap.hidden = !on;
+    if (on) show(floorChk.checked ? "fbTabFloor" : "fbTabWall");
+  }
+
+  master.addEventListener("change", () => { pushing = true; push(); pushing = false; });
   Object.entries(btns).forEach(([key, btn]) => {
-    btn?.addEventListener("click", () => activate(key));
+    btn?.addEventListener("click", () => {
+      show(key);
+      pushing = true; push(); pushing = false;
+    });
   });
+  floorChk.addEventListener("change", pull);
+  wallChk.addEventListener("change", pull);
+  pull();
 })();
 
 /* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
