@@ -172,10 +172,15 @@ function paint() {
 
 // A draft that still carries the number of a sent offer gets that offer's frozen price
 // (server flag _locked), so price edits would silently do nothing.
+let lockedNumber = "";
+const currentNumber = () => String(document.getElementById("offerNumber")?.value || "").trim();
+
 function paintLocked(ev) {
   const el = document.getElementById("offerLockedNote");
-  const pricing = ev?.detail || window.__pricing;
-  if (el) el.hidden = !(pricing?._locked && !locked());
+  // Remember which number the server froze; a stale price response must not re-show the
+  // note once "Neue Version" has given the offer a fresh number.
+  if (ev?.detail) lockedNumber = ev.detail._locked ? currentNumber() : "";
+  if (el) el.hidden = locked() || !lockedNumber || lockedNumber !== currentNumber();
 }
 
 function badge() {
@@ -210,7 +215,7 @@ if (typeof document !== "undefined") {
   });
   // Sent offers are read-only; the offer type decides whether price edits apply.
   new MutationObserver(paint).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  window.addEventListener("offerflow:changed", paint);
+  window.addEventListener("offerflow:changed", () => { paint(); paintLocked(); });
   window.addEventListener("pricing:updated", paintLocked);
   document.getElementById("offerLockedNew")?.addEventListener("click", async (e) => {
     e.target.disabled = true;
