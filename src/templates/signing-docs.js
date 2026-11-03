@@ -7,6 +7,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { replaceTextInHtml } from "../lib/docxTextReplace.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -480,6 +481,8 @@ function festpreisBlock(d) {
       `Dieser Auftrag setzt die schriftliche Zustimmung Ihres Vermieters voraus.${isKK ? " Bitte senden Sie uns diese spätestens mit der Zuschussbestätigung Ihrer Pflegekasse zu." : ""}`,
     );
   }
+  // Lines the user added in OC (offerOverrides.extraHinweise) — same as the DOCX loop.
+  for (const h of d.ExtraHinweise || []) out.push(esc(h.Text));
   return `<div class="hinweise"><p class="b">Wichtige Hinweise:</p><ul>${out.map((t) => `<li>${t}</li>`).join("")}</ul></div>`;
 }
 
@@ -667,7 +670,9 @@ export function buildAngebotHtml(data, opts = {}) {
       ${sigHtml}
     </div>`;
 
-  return mode === "pdf" ? wrap("Angebot", inner) : inner;
+  // Wording rules also cover this page's fixed sentences (data was replaced already).
+  const html = replaceTextInHtml(inner, d.TextReplacements);
+  return mode === "pdf" ? wrap("Angebot", html) : html;
 }
 
 // ---- AH (Alltagshilfe) Angebot — mirrors the AH offer PDF; no payment terms ----

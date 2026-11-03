@@ -17,6 +17,7 @@ import ProductModel from "../models/Product.js";
 import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
 import cfg from "../services/configService.js";
+import { replaceTextInDocx } from "../lib/docxTextReplace.js";
 
 
 // ============================
@@ -368,7 +369,8 @@ function getImageSizeFromBuffer(buf) {
 }
 
 // ✅ UPDATED: image-enabled docx render (supports {%SignatureImage})
-async function renderDocx(templatePath, data) {
+// replacements: offer wording rules, also applied to the template's fixed sentences.
+async function renderDocx(templatePath, data, replacements) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
 
@@ -439,7 +441,7 @@ async function renderDocx(templatePath, data) {
     throw new Error(`DOCX render failed: ${msg}`);
   }
 
-  return doc.getZip().generate({ type: "nodebuffer" });
+  return replaceTextInDocx(doc.getZip().generate({ type: "nodebuffer" }), replacements);
 }
 
 // Persistent LibreOffice profile: creating a fresh profile per conversion
@@ -666,6 +668,9 @@ async function getOfferRenderData(body) {
   const computed = await pricing.computePrices(body || {});
   const dataRaw = await mapData(body || {}, computed);
   const data = sanitizeRenderData(dataRaw, body);
+  // The raw rules (not run through the replacement above) — for pages that render
+  // their own fixed text, e.g. the signing page.
+  data.TextReplacements = body?.offerOverrides?.textReplacements || [];
   return { data, computed };
 }
 
@@ -678,7 +683,7 @@ async function generateOfferPdfBuffer(body) {
 
   console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
-  const docxBuffer = await renderDocx(templatePath, data);
+  const docxBuffer = await renderDocx(templatePath, data, body?.offerOverrides?.textReplacements);
 
   try {
     const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
@@ -2080,6 +2085,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
     SelfPayLines,
 
+    // Free-text lines the user added after "Wichtige Hinweise" (payload.offerOverrides.extraHinweise)
+    ExtraHinweise: (Array.isArray(body?.offerOverrides?.extraHinweise) ? body.offerOverrides.extraHinweise : [])
+      .map((t) => String(t ?? "").trim())
+      .filter(Boolean)
+      .map((Text) => ({ Text })),
+
     // for Regie-Stundensatz
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
@@ -2531,7 +2542,7 @@ router.post("/", async (req, res) => {
     console.log("[docx] SignatureImage present?", !!data.SignatureImage);
 
     // ✅ use shared image-enabled renderer
-    const out = await renderDocx(templatePath, data);
+    const out = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
 
     try {
       const verifyOut = path.join(process.cwd(), "out-Angebot.docx");

@@ -18,6 +18,7 @@ export function describeOfferChanges({ overrides, editedDocx, user } = {}) {
       `• Preis ${POSITION[r.target] || r.target}: ${eur(net)} netto (${eur(net * 1.19)} brutto)`,
     );
   }
+  for (const t of overrides?.extraHinweise || []) lines.push(`• Zusätzlicher Hinweis: ${t}`);
   if (editedDocx) {
     lines.push(
       `• ⚠️ Handbearbeitete DOCX hochgeladen: ${editedDocx.name} (SHA-256 ${String(editedDocx.sha256).slice(0, 12)})`,

@@ -22,7 +22,7 @@ router.post("/pdf-preview", async (req, res) => {
     const dataRaw = await mapData(req.body || {}, computed);
     const data = sanitizeRenderData(dataRaw, req.body);
 
-    const docxBuffer = await renderDocx(templatePath, data);
+    const docxBuffer = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
     const pdfBuffer = await convertDocxToPdf(docxBuffer);
 
     res.setHeader("Content-Type", "application/pdf");

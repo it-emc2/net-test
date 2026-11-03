@@ -11440,3 +11440,5 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card .oo-group-title{margin:14px 0 8px;font-size:.78rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280)}
 .offer-overrides-card .oo-line select{flex:1;min-width:0;border:0;background:transparent;font:inherit;color:inherit;padding:12px 0;outline:none;box-shadow:none}
 .offer-overrides-card .oo-gross{flex:0 0 auto;white-space:nowrap;margin-right:-30px;font-size:.82rem;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums}
+.offer-overrides-card .oo-line textarea{flex:1;min-width:0;border:0;background:transparent;box-shadow:none;padding:12px 0;font:inherit;color:inherit;outline:none;resize:vertical;min-height:46px}
+.offer-overrides-card .oo-row.oo-single .oo-line{padding-right:44px}

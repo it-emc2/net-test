@@ -13,6 +13,7 @@ test('wording, price and edited docx are all named, with the user', () => {
     overrides: {
       textReplacements: [{ from: 'Gleittür', to: 'Flexibles Duschsystem' }],
       priceAdjustments: [{ target: 'material', amountNet: 100 }],
+      extraHinweise: ['Montage nach Absprache'],
     },
     editedDocx: { name: 'ANG1.docx', sha256: sha256(Buffer.from('x')) },
   });
@@ -20,6 +21,7 @@ test('wording, price and edited docx are all named, with the user', () => {
   expect(lines[0]).toBe('✏️ Angebot angepasst (von a@emc2.de):');
   expect(text).toContain('„Gleittür“ → „Flexibles Duschsystem“');
   expect(text).toMatch(/Material \(Pos\. 002\): \+100,00\s€ netto \(\+119,00\s€ brutto\)/);
+  expect(text).toContain('Zusätzlicher Hinweis: Montage nach Absprache');
   expect(text).toContain('Handbearbeitete DOCX hochgeladen: ANG1.docx');
   expect(text).toContain(sha256(Buffer.from('x')).slice(0, 12));
 });

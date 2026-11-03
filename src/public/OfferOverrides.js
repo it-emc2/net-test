@@ -4,10 +4,11 @@
 // routes/docx-template.js (sanitizeRenderData), price in logic/pricing-core.js
 // (sumPriceAdjustments), so every total and the DOCX/PDF/mail/signing page agree.
 
-const state = { textReplacements: [], priceAdjustments: [] };
+const state = { textReplacements: [], priceAdjustments: [], extraHinweise: [] };
 const TAX = 0.19; // display hint only; the server uses its own TAX_RATE
 const TARGETS = [["services", "Arbeiten (Pos. 001)"], ["material", "Material (Pos. 002)"]];
-// AH/HMS/WD are priced client-side, outside computePrices.
+// AH/HMS/WD are priced client-side, outside computePrices, and their templates have no
+// "Wichtige Hinweise" block.
 const NO_PRICE_OFFERS = ["ah", "hms", "wd"];
 
 const cleanText = (rows) =>
@@ -19,20 +20,25 @@ const cleanPrice = (rows) =>
     .map((r) => ({ target: r?.target === "material" ? "material" : "services", amountNet: Number(r?.amountNet) }))
     .filter((r) => Number.isFinite(r.amountNet) && r.amountNet !== 0);
 
+const cleanHinweise = (rows) => (Array.isArray(rows) ? rows : []).map((t) => String(t ?? "").trim()).filter(Boolean);
+
 /** Payload fragment; undefined when nothing is edited (keeps old payloads/fingerprints unchanged). */
 export function getOfferOverrides() {
   const textReplacements = cleanText(state.textReplacements);
   const priceAdjustments = cleanPrice(state.priceAdjustments);
-  if (!textReplacements.length && !priceAdjustments.length) return undefined;
+  const extraHinweise = cleanHinweise(state.extraHinweise);
+  if (!textReplacements.length && !priceAdjustments.length && !extraHinweise.length) return undefined;
   return {
     ...(textReplacements.length ? { textReplacements } : {}),
     ...(priceAdjustments.length ? { priceAdjustments } : {}),
+    ...(extraHinweise.length ? { extraHinweise } : {}),
   };
 }
 
 export function setOfferOverrides(o) {
   state.textReplacements = cleanText(o?.textReplacements).map((r) => ({ ...r }));
   state.priceAdjustments = cleanPrice(o?.priceAdjustments).map((r) => ({ ...r }));
+  state.extraHinweise = cleanHinweise(o?.extraHinweise);
   paint();
   requestPricing();
 }
@@ -130,10 +136,34 @@ function paintPrice() {
   });
 }
 
+function paintHinweise() {
+  const list = document.getElementById("offerHinweiseList");
+  if (!list) return;
+  const hidden = NO_PRICE_OFFERS.includes(String(window.getCurrentOfferType?.() || "").toLowerCase());
+  for (const id of ["offerHinweiseTitle", "offerHinweiseList", "offerHinweiseAdd"]) {
+    const el = document.getElementById(id);
+    if (el) el.hidden = hidden;
+  }
+  list.innerHTML = "";
+  state.extraHinweise.forEach((t, i) => {
+    const row = document.createElement("div");
+    row.className = "oo-row oo-single";
+    const area = document.createElement("textarea");
+    area.rows = 2;
+    area.value = t;
+    area.placeholder = "z. B. Die Montage erfolgt nach Absprache an einem Werktag.";
+    area.disabled = locked();
+    area.addEventListener("input", () => { state.extraHinweise[i] = area.value; badge(); });
+    row.append(line("Hinweis", area), removeButton(() => { state.extraHinweise.splice(i, 1); paint(); }));
+    list.append(row);
+  });
+}
+
 function paint() {
   paintText();
   paintPrice();
-  for (const id of ["offerOverridesAdd", "offerPriceAdd"]) {
+  paintHinweise();
+  for (const id of ["offerOverridesAdd", "offerPriceAdd", "offerHinweiseAdd"]) {
     const el = document.getElementById(id);
     if (el) el.disabled = locked();
   }
@@ -145,7 +175,8 @@ function badge() {
   if (!el) return;
   const t = cleanText(state.textReplacements).length;
   const p = cleanPrice(state.priceAdjustments).length;
-  const parts = [t && `${t} Text`, p && `${p} Preis`].filter(Boolean);
+  const h = cleanHinweise(state.extraHinweise).length;
+  const parts = [t && `${t} Text`, p && `${p} Preis`, h && `${h} Hinweis${h > 1 ? "e" : ""}`].filter(Boolean);
   el.hidden = !parts.length;
   el.textContent = parts.length ? `${parts.join(" · ")} angepasst` : "";
 }
@@ -162,6 +193,11 @@ if (typeof document !== "undefined") {
       });
     add("offerOverridesAdd", "textReplacements", { from: "", to: "" }, "#offerOverridesList");
     add("offerPriceAdd", "priceAdjustments", { target: "services", amountNet: NaN }, "#offerPriceList");
+    document.getElementById("offerHinweiseAdd")?.addEventListener("click", () => {
+      state.extraHinweise.push("");
+      paint();
+      document.querySelector("#offerHinweiseList .oo-row:last-child textarea")?.focus();
+    });
     paint();
   });
   // Sent offers are read-only; the offer type decides whether price edits apply.
