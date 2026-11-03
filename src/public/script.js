@@ -2013,6 +2013,13 @@ function computeArbeitszeitSuggestion() {
       pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", azMinutes("flooring_flat", 25), 1);
     }
   }
+  // Wandverkleidung als Fußboden (incl. wall leftovers): laid like a floor, per m².
+  if (document.getElementById("addWallCladding")?.checked) {
+    const wcArea = parseArbeitszeitNumber(document.getElementById("wallCladdingArea")?.value || 0);
+    if (wcArea > 0) {
+      pushArbeitszeitRow(rows, "wallCladdingFloor", "Fußboden (Wandverkleidung)", azMinutes("flooring_m2", 8), Math.round(wcArea * 10) / 10);
+    }
+  }
 
   const grabConfigs = [
     ["opt_CLPESG30", "qty_CLPESG30", "Haltegriff CLPESG30"],
