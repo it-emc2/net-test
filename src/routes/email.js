@@ -20,6 +20,7 @@ import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
+import { describeOfferChanges, sha256 } from "../lib/offerChanges.js";
 
 // Offer PDF generation (your existing utilities)
 import {
@@ -165,7 +166,7 @@ function getBitrixTargetFromPayload(payload = {}) {
   return null;
 }
 
-function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames, bitrixOnly = false }) {
+function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames, bitrixOnly = false, changes = [] }) {
   const when = new Date();
   const dt = when.toLocaleString("de-DE", {
     timeZone: "Europe/Berlin",
@@ -194,6 +195,7 @@ function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNam
     bitrixOnly ? null : `Empfänger: ${safe(to).trim() || "-"}`,
     `Betreff: ${safe(subject).trim() || "-"}`,
     `Anhänge: ${Array.isArray(attachmentNames) && attachmentNames.length ? attachmentNames.join(", ") : "-"}`,
+    ...(changes.length ? ["", ...changes] : []),
     "",
     "Inhalt:",
     bodyOut || "-",
@@ -615,6 +617,17 @@ router.post(
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
 
+    // Audit: anything changed by hand on this offer (OC overrides, uploaded DOCX).
+    const sentBy = String(req.user?.email || req.user?.name || "");
+    const editedDocxInfo = editedDocxBuf
+      ? { name: editedDocxFile.originalname || "", sha256: sha256(editedDocxBuf), size: editedDocxBuf.length }
+      : null;
+    const offerChanges = describeOfferChanges({
+      overrides: payload?.offerOverrides,
+      editedDocx: editedDocxInfo,
+      user: sentBy,
+    });
+
     // ---- Product image PDF (optional, user-triggered) ----
     const includeProductImages = ["1", "true", "on", "yes"].includes(
       String(req.body.includeProductImages || "").toLowerCase(),
@@ -816,6 +829,9 @@ router.post(
         attachmentNames,
         offerNumber: payload?.offerNumber || offerNumber,
         offerType: payload?.activeOffer || offerType,
+        ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
+        ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
+        sentBy,
       });
     }
 
@@ -843,6 +859,7 @@ router.post(
             body,
             attachmentNames,
             bitrixOnly,
+            changes: offerChanges,
           }),
           attachments: bitrixAttachments,
         });
