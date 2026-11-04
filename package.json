@@ -111,8 +111,7 @@
       "src/**/*.js",
       "!src/public/**",
       "!src/templates/**",
-      "!src/app.js",
-      "!src/server.js"
+      "!src/app.js"
     ],
     "coverageDirectory": "coverage",
     "coverageReporters": [
