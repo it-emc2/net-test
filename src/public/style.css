@@ -12483,11 +12483,13 @@ body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row--switch:has(in
 body.ui-classic #page-Wandverkleidung .wv-sizes,
 body.ui-classic #page-Wandverkleidung .dw-acc-list > .sec-settings__group,
 body.ui-classic #page-Wandverkleidung #wvWwPanelsSection > .sec-settings__group,
-body.ui-classic #page-Wandverkleidung #wvRows { display: grid; gap: 8px; }
+body.ui-classic #page-Wandverkleidung #wvRows,
+body.ui-classic #page-Wandverkleidung #wvKRows { display: grid; gap: 8px; }
 body.ui-classic #page-Wandverkleidung .dw-acc,
 body.ui-classic #page-Wandverkleidung .wv-ww-fmt.sec-settings__row,
 body.ui-classic #page-Wandverkleidung .dw-acc-list .sec-settings__row,
-body.ui-classic #page-Wandverkleidung #wvRows > * {
+body.ui-classic #page-Wandverkleidung #wvRows > *,
+body.ui-classic #page-Wandverkleidung #wvKRows > * {
   border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px;
 }
 body.ui-classic #page-Wandverkleidung .dw-acc + .dw-acc,
@@ -12705,3 +12707,6 @@ body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColo
 #wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none; }
 .dw-acc[hidden] { display: none !important; }
 .wv-krow-fields--one { grid-template-columns: 1fr; }
+/* geöffnete Zeile: runde Ecken, Inhalt wird an der Rundung beschnitten */
+body.ui-classic #page-Wandverkleidung #wvRows > *,
+body.ui-classic #page-Wandverkleidung #wvKRows > * { overflow: hidden; }
