@@ -7,7 +7,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | 0 | Foundations | local replica, inventories, decisions, main watcher | ✅ 2026-11-04 |
 | 1 | Safety net on the **current** app | see below | ✅ v1 done 2026-11-04 (open v2 items listed) |
 | 2 | Skeleton TS monorepo | see below | ✅ 2026-11-04 |
-| 3 | Shared pricing package | see below | ⏳ stage 1 done 2026-11-04 |
+| 3 | Shared pricing package | see below | ✅ 2026-11-04 |
 | 4 | Backend port | see below | – |
 | 5 | Documents | see below | – |
 | 6 | Frontend port + deal URLs + one-draft-per-deal | see below | – |
@@ -34,7 +34,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (`v2/packages/pricing`, ADR 013) — 2026-11-04
 - [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
 - [x] Stage 2a: package strict except `core.ts` (own relaxed sub-project `tsconfig.core.json`); `tray-search.ts`, `ah.ts`, `index.ts` strict; tray search differential test (500 scenarios) — 2026-11-04
-- [ ] Stage 2b: tighten `core.ts` (152 strict errors left) function by function; golden + differential stay green
+- [x] Stage 2b: `core.ts` fully `strict` — 152 errors fixed with type-only changes; proof: transpiled JS byte-identical before/after (`v2/scripts/compare-emit.mjs`), golden + differential (11,500 comparisons) green — 2026-11-04
 - [x] AH client pricing extracted as pure function (`v2/packages/pricing/src/ah.ts`); golden master = 400 cases recorded from the REAL legacy `computeAHGesamt()` in the browser (`npx playwright test -c playwright.golden.config.cjs`) — 2026-11-04
 - [x] AH: payload → input adapter (`ahInputFromPayload`), 144/144 real offers/drafts identical to the legacy restore path — 2026-11-04; 2 legacy bugs documented in `FINDINGS-AH.md`
 

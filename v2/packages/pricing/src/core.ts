@@ -50,7 +50,7 @@ export interface PricingDeps {
 // 997x2550 and 1497x2550 Hassmann/VIGOUR article numbers for every color the
 // configurator offers. Keys are the UI color name, lower-cased (see
 // normalizeWvColorKey).
-const WV_COLOR_ARTICLE = {
+const WV_COLOR_ARTICLE: Record<string, any> = {
   "weiß": { "997x2550": "V3WVK07", "1497x2550": "V3WV07" }, // weiss RAL 9016
   "marmor weiß": { "997x2550": "V3WVK09", "1497x2550": "V3WV09" },
   "struktur weiß": { "997x2550": "V3WVK06", "1497x2550": "V3WV06" },
@@ -76,7 +76,7 @@ const WV_COLOR_ARTICLE = {
 // bills through the shared 997x2550-size default until it's added there too.
 const WV_PRICED_COLORS = new Set(["marmor weiß", "kalkstein natur", "aragon schwarz"]);
 
-function normalizeWvColorKey(color) {
+function normalizeWvColorKey(color: any) {
   return String(color || "")
     .trim()
     .toLowerCase()
@@ -86,7 +86,7 @@ function normalizeWvColorKey(color) {
 // Resolve the article number for a WV panel color.
 // Priority: explicit pid embedded in the value ("pid|color") > mapped article
 // number for (color, size) > provided fallback (the size default).
-function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
+function resolveWvArticle(size: any, colorDisplay: any, explicitPid: any, fallbackPid: any) {
   if (explicitPid) return explicitPid;
   let key = normalizeWvColorKey(colorDisplay);
   // "Sonderdekor 12345" / "sonderdekor <nr>" all map to the Sonderdekor entry.
@@ -100,7 +100,7 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
 // elsewhere are billed through at cost — list their article number here to
 // exempt them from the markup (and from the Zuschlag column in the Kalkulation).
 // Slate tray colour → vigor article suffix (Weiß is the base article).
-const SLATE_COLOR_SUFFIX = {
+const SLATE_COLOR_SUFFIX: Record<string, any> = {
   Weiss: "",
   Elfenbein: "EF",
   Steingrau: "ST",
@@ -118,7 +118,7 @@ export const NO_MARKUP_IDS = new Set([
 // JSON.stringify with object keys sorted at every level, so two payloads with
 // the same content but different key insertion order still fingerprint the
 // same (plain JSON.stringify does not guarantee that).
-function stableStringify(value) {
+function stableStringify(value: any): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
     const keys = Object.keys(value).sort();
@@ -130,7 +130,7 @@ function stableStringify(value) {
 // Stable fingerprint of the parts of a payload that affect price, so
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
-export function computeFingerprint(payload) {
+export function computeFingerprint(payload: any) {
   // zusammenfassung (Versandstatus, Checkliste) is workflow state, not a price
   // input — the same reasoning as duschwanne.trayEnabled below.
   const { pricing, forceRecompute, zusammenfassung, ...rest } = payload || {};
@@ -147,7 +147,7 @@ export function computeFingerprint(payload) {
 
 // Net price changes the user set by hand, per position: { services, material }.
 // Anything not a finite number within ±100 000 € is ignored.
-export function sumPriceAdjustments(payload) {
+export function sumPriceAdjustments(payload: any) {
   const out = { services: 0, material: 0 };
   const rows = payload?.offerOverrides?.priceAdjustments;
   for (const r of Array.isArray(rows) ? rows : []) {
@@ -157,6 +157,19 @@ export function sumPriceAdjustments(payload) {
     if (key) out[key] = Math.round((out[key] + amt) * 100) / 100;
   }
   return out;
+}
+
+/** One material line as built by computeMaterials (legacy shape, open for extra fields). */
+export interface MaterialLine {
+  id: string;
+  qty: number;
+  label?: string | null;
+  source?: string | null;
+  unitOverride?: number | null;
+  meta?: Record<string, any>;
+  perM2Base?: number;
+  category?: string | null;
+  [k: string]: any;
 }
 
 export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as PricingDeps) => {
@@ -183,14 +196,14 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   // separately (not just folded into lookupCachedPricing) because
   // computeMaterials() also needs the raw snapshot to detect drift on
   // plain DB-priced lines, not just to decide whether to serve it verbatim.
-  async function fetchPriorSnapshot(Model, query) {
+  async function fetchPriorSnapshot(Model: any, query: any) {
     if (!Model) return null;
     try {
       return await Model.findOne(query)
         .select("pricing pricingFingerprint locked")
         .sort({ updatedAt: -1 })
         .lean();
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] cache lookup failed, recomputing:", e?.message || e);
       return null;
     }
@@ -199,7 +212,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   // Decide what to do with a fetched snapshot: serve it verbatim (fingerprint
   // match), serve it stale (auto-recompute disabled), or null to mean "no
   // usable cache hit here, try the next source / recompute".
-  function cachedResponseFor(existing, payload) {
+  function cachedResponseFor(existing: any, payload: any) {
     if (!existing?.pricing) return null;
     if (existing.pricingFingerprint === computeFingerprint(payload)) {
       const { _locked, ...cached } = JSON.parse(JSON.stringify(existing.pricing));
@@ -221,9 +234,9 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   // Kosten-Details (internal ordering view) view of the Aktion-Haltegriff: the free
   // grab bar is still ordered and paid for by us, so the quantity must stay
   // truthful. Only annotate the line; never rewrite its qty.
-  function markGrabFreeInUI(list, freeId, partial = false) {
+  function markGrabFreeInUI(list: any, freeId: any, partial = false) {
     if (!freeId) return;
-    const row = list?.find((l) => (l.productId || l.id) === freeId);
+    const row = list?.find((l: any) => (l.productId || l.id) === freeId);
     if (!row) return;
 
     const base = (row.label || row.name || row.productId || "")
@@ -238,7 +251,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
 
   // --- helper: include selected tray as a material line ---
 
-  async function getProductsByIds(ids) {
+  async function getProductsByIds(ids: any) {
     const unique = [...new Set<string>((ids || []).filter(Boolean))];
     if (!unique.length) return new Map();
     const docs = await ProductModel.find({ productId: { $in: unique } }).lean();
@@ -262,10 +275,10 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   // Failure is always LOUD, never silent: a DB outage, a missing article or a
   // non-positive price logs and falls back to the snapshot price, so an offer can
   // still be produced offline — but the log says which articles were not verified.
-  async function getLiveVigourNetPrices(articleNumbers) {
+  async function getLiveVigourNetPrices(articleNumbers: any) {
     const ids = [
       ...new Set(
-        (articleNumbers || []).map((a) => String(a || "").trim()).filter(Boolean) as string[],
+        (articleNumbers || []).map((a: any) => String(a || "").trim()).filter(Boolean) as string[],
       ),
     ];
     if (!ids.length) return new Map();
@@ -283,11 +296,11 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
     return prices;
   }
 
-  const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-  const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
+  const round2 = (n: any) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const ceilSafe = (n: any) => Math.ceil((Number(n) || 0) - 1e-12);
 
   // --- active offer / Bereich helpers ---
-  function getActiveOffer(payload) {
+  function getActiveOffer(payload: any) {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
     if (k === "bu" || k === "bwt" || k === "hl" || k === "bl" || k === "ah" || k === "hms" || k === "wd") {
@@ -297,7 +310,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
     return "bu";
   }
 
-  function getMaterialsTitle(offerKey) {
+  function getMaterialsTitle(offerKey: any) {
     switch (offerKey) {
       case "bwt":
         return "Material für Badewannentür";
@@ -311,8 +324,8 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
     }
   }
 
-  function collectSelections(payload) {
-    const out = [];
+  function collectSelections(payload: any) {
+    const out: any[] = [];
     const opt = payload?.optional || {};
     // --- quantities for Haltegriffe (esp. CLPESG30) ---
      const cl30Qty =
@@ -325,8 +338,8 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
     const cl80Qty =
       Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
 
-    const aliasToId = { CL_BASIN: "CL" };
-    const push = (id, qtyRaw, checked) => {
+    const aliasToId: Record<string, string> = { CL_BASIN: "CL" };
+    const push = (id: any, qtyRaw: any, checked: any) => {
       const qtyNum =
         qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ""
           ? Number(qtyRaw)
@@ -366,13 +379,13 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   }
 
 //  Detect which selected items belong to REHA
-function extractRehaIdsFromOptional(opt) {
+function extractRehaIdsFromOptional(opt: any) {
   const out = new Set();
 
   // optReha[] is expected to exist because your checkboxes use name="optReha[]"
   const raw = opt?.["optReha[]"];
 
-  const addFromVal = (v) => {
+  const addFromVal = (v: any) => {
     const s = String(v ?? "").trim();
     if (!s) return;
 
@@ -392,7 +405,7 @@ function extractRehaIdsFromOptional(opt) {
 }
 
 // Convert REHA DB price (gross) → net
-function grossToNet(gross, taxRate) {
+function grossToNet(gross: any, taxRate: any) {
   const g = Number(gross);
   if (!Number.isFinite(g)) return 0;
 
@@ -404,7 +417,7 @@ function grossToNet(gross, taxRate) {
 }
 
   // Prefer numeric payload.pricing.markupPct; fallback to Kundendaten.aufschlag like "35%".
-  const extractMarkupPct = (payload) => {
+  const extractMarkupPct = (payload: any) => {
     const fromNumeric = payload?.pricing?.markupPct;
     if (typeof fromNumeric === "number" && Number.isFinite(fromNumeric)) {
       return fromNumeric;
@@ -415,14 +428,14 @@ function grossToNet(gross, taxRate) {
       .trim()
       .match(/^(\d+(?:[.,]\d+)?)\%$/);
     if (m) {
-      const n = Number(m[1].replace(",", "."));
+      const n = Number(m[1]!.replace(",", "."));
       if (Number.isFinite(n)) return n / 100;
     }
     return 0.35;
   };
 
   // Build zero-cost "work notes" for DOCX and UI
-  function computeWorkNotes(payload) {
+  function computeWorkNotes(payload: any) {
     const opt = payload?.optional || {};
     // wvEnabled === false = WV checkbox unticked; missing key = legacy offer (on).
     const wvOn = payload?.wandverkleidung?.wvEnabled !== false;
@@ -456,7 +469,7 @@ function grossToNet(gross, taxRate) {
     }
 
     // Generic detector: true if non-empty array/string, or qty > 0
-    const chosen = (flag, qty) => {
+    const chosen = (flag: any, qty: any) => {
       if (Array.isArray(flag) && flag.length > 0) return true;
       if (typeof flag === "string" && flag.trim() !== "") return true;
       if (flag === true) return true;
@@ -489,11 +502,11 @@ function grossToNet(gross, taxRate) {
     //if (seat)   picked.add('Einbau einer Duschhocker es');
 
     // >>> robust DW workTasks parse (handles odd literal keys like "duschwanne[workTasks][]")
-    function normalizeDWTasks(payload) {
+    function normalizeDWTasks(payload: any) {
       const dw = payload?.duschwanne ?? {};
-      const out = [];
+      const out: any[] = [];
 
-      const addVal = (v) => {
+      const addVal = (v: any) => {
         if (!v) return;
         if (Array.isArray(v)) {
           out.push(...v);
@@ -513,7 +526,7 @@ function grossToNet(gross, taxRate) {
           return;
         }
       };
-      const addExtraVal = (v) => {
+      const addExtraVal = (v: any) => {
         if (!v) return;
         if (Array.isArray(v)) {
           for (const x of v) {
@@ -556,7 +569,7 @@ function grossToNet(gross, taxRate) {
       return Array.from(new Set(out));
     }
 
-    const MAP_DW = {
+    const MAP_DW: Record<string, any> = {
       // Badewanne
       remove_tub: "Entfernen und Entsorgen der Badewanne inkl. Befliesung",
       install_bathtub: "Einbau der Badewanne",
@@ -651,7 +664,7 @@ function grossToNet(gross, taxRate) {
         });
       }
       const hlExtraTasks = (Array.isArray(hl.extraTasks) ? hl.extraTasks : [])
-        .map((t) => String(t || "").trim())
+        .map((t: any) => String(t || "").trim())
         .filter(Boolean);
       for (const t of hlExtraTasks) {
         notes.push({ key: "worknote", label: `- ${t}`, amount: 0 });
@@ -661,7 +674,7 @@ function grossToNet(gross, taxRate) {
     return notes;
   }
 
-  async function computeMaterials(payload, priorSnapshot, isLockedOffer = false) {
+  async function computeMaterials(payload: any, priorSnapshot: any, isLockedOffer = false) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
 
@@ -681,14 +694,14 @@ function grossToNet(gross, taxRate) {
     let grabTotalQty = 0;
     let cl30Qty = 0;
 
-    const lines = [];
+    const lines: MaterialLine[] = [];
     const idsNeeded = new Set();
 
-    const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-    const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
+    const round2 = (n: any) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+    const ceilSafe = (n: any) => Math.ceil((Number(n) || 0) - 1e-12);
 
     // normalize "1.234,56", "1234.56", "100", "1.234,56 €" → Number
-    const parseMoneyStrict = (v) => {
+    const parseMoneyStrict = (v: any) => {
       if (typeof v === "number" && Number.isFinite(v)) return v;
       let s = String(v ?? "").trim();
       if (!s) return 0;
@@ -706,11 +719,11 @@ function grossToNet(gross, taxRate) {
     // Wandverkleidung, Zubehör, Duschwanne, Duschabtrennung). Set via setCat()
     // before each block below; lines pushed without a category fall back to
     // "Weiteres" at render time.
-    let _cat = null;
-    const setCat = (c) => { _cat = c; };
+    let _cat: any = null;
+    const setCat = (c: any) => { _cat = c; };
 
     // helper to push unresolved lines; we resolve names/prices at the end
-   const add = (id, qty, labelOverride?, unitOverride?, source?, meta?) => {
+   const add = (id: any, qty: any, labelOverride?: any, unitOverride?: any, source?: any, meta?: any) => {
   const q = Number(qty) || 0;
   if (!id || q <= 0) return;
   idsNeeded.add(id);
@@ -776,7 +789,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       // Hassmann export article. V5FB02 is the billing id for all five colors;
       // the order needs the color-specific V5FB0x. AVP-W is billed per 0.3 m²
       // Paneele but physically a V3WVK07 WV panel (997×2550 mm) → order those.
-      const FLOOR_HASSMANN = {
+      const FLOOR_HASSMANN: Record<string, any> = {
         "Schiefer-Beige": "V5FB01", "Lava-Beige": "V5FB02", "Loft-Grau": "V5FB03",
         "Speckstein-Schwarz": "V5FB04", "Eiche-Natur": "V5FB05",
       };
@@ -885,7 +898,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     const color997 = String(cfg997.color || wvColor).trim();
     const color1497 = String(cfg1497.color || wvColor).trim();
     const sonderConfigNr = String(wv?.wvSonderConfigNr || "").trim();
-    const formatWvColor = (rawColor) => {
+    const formatWvColor = (rawColor: any) => {
       const raw = String(rawColor || "").trim();
       if (!raw) return "";
       if (/^Sonder\s*Dekor$/i.test(raw) || /^Sonderdekor$/i.test(raw)) {
@@ -897,7 +910,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     // Extras = additional panels of the same size in different colors. They
     // are read first because they count toward the totals used by every
     // derived calculation below (Flächenkleber, Verbindungsprofile, …).
-    const readExtras = (panelKey) => {
+    const readExtras = (panelKey: any) => {
       const fromTop = Array.isArray(wv?.extraColors?.[panelKey])
         ? wv.extraColors[panelKey]
         : null;
@@ -910,8 +923,8 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
 
     const extras997 = readExtras("997x2550");
     const extras1497 = readExtras("1497x2550");
-    const sumQty = (rows) =>
-      rows.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
+    const sumQty = (rows: any) =>
+      rows.reduce((acc: any, r: any) => acc + (Number(r?.qty) || 0), 0);
     const extrasQty997 = sumQty(extras997);
     const extrasQty1497 = sumQty(extras1497);
 
@@ -923,7 +936,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   if (qty997 > 0) {
   const raw = String(color997 || "").trim();
   const hasPid = raw.includes("|");
-  const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+  const pid = hasPid ? raw.split("|", 1)[0]!.trim() : "";
   const display = formatWvColor(hasPid ? raw.split("|").slice(1).join("|").trim() : raw);
 
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
@@ -940,7 +953,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
 if (qty1497 > 0) {
   const raw = String(color1497 || "").trim();
   const hasPid = raw.includes("|");
-  const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+  const pid = hasPid ? raw.split("|", 1)[0]!.trim() : "";
   const display = formatWvColor(hasPid ? raw.split("|").slice(1).join("|").trim() : raw);
 
   const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
@@ -955,14 +968,14 @@ if (qty1497 > 0) {
 
 // Each extra-color row gets its own materials line at its own qty so the
 // Angebot/DOCX lists every color the user added.
-const addExtras = (rows, panelLabel, size, defaultPid) => {
+const addExtras = (rows: any, panelLabel: any, size: any, defaultPid: any) => {
   for (const row of rows) {
     const q = Number(row?.qty) || 0;
     if (q <= 0) continue;
     const raw = String(row?.color || "").trim();
     if (!raw) continue;
     const hasPid = raw.includes("|");
-    const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+    const pid = hasPid ? raw.split("|", 1)[0]!.trim() : "";
     const display = formatWvColor(
       hasPid ? raw.split("|").slice(1).join("|").trim() : raw,
     );
@@ -1061,7 +1074,7 @@ for (const door of doors) {
     : [];
   if (door.pid === "1227" || door.pid === "1228") {
     infoLines = infoLines.filter(
-      (line) => !PLACEHOLDER_DOOR_LINE_RE.test(String(line || "").trim())
+      (line: any) => !PLACEHOLDER_DOOR_LINE_RE.test(String(line || "").trim())
     );
   }
 
@@ -1076,7 +1089,7 @@ for (const door of doors) {
       const aidsHg80Qty = Number(bwt?.bwtAidsHaltegriff80Qty || 0) || 0;
 
       // Helper so BWT Haltegriffe are included in grabTotalQty / cl40Qty
-      const addGrab = (pid, qty) => {
+      const addGrab = (pid: any, qty: any) => {
         const q = Number(qty) || 0;
         if (q <= 0) return;
 
@@ -1184,7 +1197,7 @@ if (offer === "hl") {
       ? String(meters)
       : String(meters).replace(".", ",");
 
-    const info = [];
+    const info: string[] = [];
     //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
     //if (quality) info.push(`Qualität: ${quality}`);
     //if (color) info.push(`Farbe: ${color}`);
@@ -1261,7 +1274,7 @@ if (offer === "hl") {
           });
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] hl quick-add failed:", e?.message || e);
     }
 
@@ -1290,7 +1303,7 @@ if (offer === "hl") {
           }
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] hl permanent Lieferkosten failed:", e?.message || e);
     }
 
@@ -1325,14 +1338,14 @@ if (offer === "hl") {
           add(rawPid, qty, label, null, "bl_quickadd");
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] bl quick-add failed:", e?.message || e);
     }
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
     try {
       const selections = collectSelections(payload); // [{productId, qty}]
-      const isGrabId = (id) =>
+      const isGrabId = (id: any) =>
   id === "CLPESG30" || id === "CLPESG40" || id === "CLPESG60" || id === "CLPESG80";
 
 
@@ -1377,7 +1390,7 @@ if (offer === "hl") {
 }
 
 
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] optional->materials failed:", e?.message || e);
     }
 
@@ -1385,7 +1398,7 @@ if (offer === "hl") {
     // ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
     setCat("Duschabtrennung");
     try {
-      const KIND_TO_LABEL = {
+      const KIND_TO_LABEL: Record<string, any> = {
         PANDELTUER: "Pendeltür Hassmann",
         GLEITUR: "Gleittür Hassmann",
         FLATPANELTUER: "Falt-Pendeltür Hassmann",
@@ -1434,7 +1447,7 @@ if (offer === "hl") {
             console.info(
               `[pricing] vigor live price: resolved ${liveNet.size}/${new Set(configIds).size} article(s)`,
             );
-          } catch (e) {
+          } catch (e: any) {
             console.error(
               "[pricing] vigor live price lookup FAILED (vigor DB unreachable?) — " +
                 `pricing ${new Set(configIds).size} configurator article(s) from the ` +
@@ -1521,7 +1534,7 @@ if (offer === "hl") {
           );
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn(
         "[pricing] quickAdd (Hassmann) merge failed:",
         e?.message || e,
@@ -1545,7 +1558,7 @@ if (offer === "hl") {
           add(pid, qty, label, price, "optional");
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] optional quick-add failed:", e);
     }
 
@@ -1564,7 +1577,7 @@ if (offer === "hl") {
           add(pid, qty, `- ${qty} Stk ${base}`, price);
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] Duschwanne quickAdd (Freier Posten) failed:", e?.message || e);
     }
     setCat(null);
@@ -1590,7 +1603,7 @@ if (offer === "hl") {
           );
         });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn(
         "[pricing] Aluprofil für Trockenbau (Duschabtrennung) failed:",
         e?.message || e,
@@ -1613,9 +1626,9 @@ if (offer === "hl") {
     // silently altered an already-quoted total with no warning at all.
     const priorMaterialLines = priorSnapshot?.pricing?.materials?.lines || [];
     const priorUnitById = new Map<string, number>(
-      priorMaterialLines.map((pl) => [pl.productId, Number(pl.unitPrice) || 0]),
+      priorMaterialLines.map((pl: any) => [pl.productId, Number(pl.unitPrice) || 0]),
     );
-    const productDriftLines = [];
+    const productDriftLines: any[] = [];
 
     const resolved: any[] = lines.map((l) => {
       const prod = productMap.get(l.id) || { price: 0, name: "" };
@@ -1679,7 +1692,7 @@ if (offer === "bwt" && String(l.id || "").trim() === "1226") {
 
 
 // helper: remove any leading bullets/dashes/spaces from incoming lines
-const cleanInfoLine = (t) =>
+const cleanInfoLine = (t: any) =>
   String(t ?? "")
     .replace(/^[\s•·\-–—]+/g, "")   // ✅ removes "• ", "-", "–", etc
     .trim();
@@ -1789,7 +1802,7 @@ color: metaColor || null,
       ? payload.pricingRules.grabBonusIds
       : ["CLPESG30"];
     const freeId =
-      grabBonusIds.find((id) =>
+      grabBonusIds.find((id: any) =>
         resolved.some((l) => (l.productId || l.id) === id && Number(l.qty) > 0),
       ) || null;
     // Offers with pricingRules.grabBonusRefId only get that article's value
@@ -1842,7 +1855,7 @@ color: metaColor || null,
   }
 
   // Services (zones removed)
-  function computeServiceCosts(payload) {
+  function computeServiceCosts(payload: any) {
     const offer = getActiveOffer(payload);
     const b = payload?.Kundendaten || {};
     const arbeits = payload?.Arbeitszeit || {};
@@ -1894,7 +1907,7 @@ color: metaColor || null,
       ? bwtLaborRate
       : payer === "KK" ? laborRateKK : payer === "SZ" ? laborRateSZ : 0;
 
-    const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+    const formatQty = (n: any) => Number(n || 0).toFixed(2).replace(".", ",");
 
     const lines = [];
     lines.push({
@@ -1989,7 +2002,7 @@ color: metaColor || null,
     try {
       const notes = computeWorkNotes(payload);
       for (const n of notes) lines.push(n);
-    } catch (e) {
+    } catch (e: any) {
       console.warn("[pricing] computeWorkNotes failed:", e?.message || e);
     }
 
@@ -2064,7 +2077,7 @@ color: metaColor || null,
   }
 
   // --- BWT: "Enthält je Einheit" rows, with real prices from DB ---
-  async function computeBwtIncludedLines(payload) {
+  async function computeBwtIncludedLines(payload: any) {
     const offer = getActiveOffer(payload);
     if (offer !== "bwt") return [];
 
@@ -2111,7 +2124,7 @@ color: metaColor || null,
     // priced per Arbeitstag — same config keys computeServiceCosts() uses),
     // plus BWT's own Kilometerpauschale/Facharbeiter/Reisezeit math below.
     const workDays = Number(b.workDays ?? 0) || 0;
-    const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+    const formatQty = (n: any) => Number(n || 0).toFixed(2).replace(".", ",");
     if (workDays > 0) {
       const fahrzeugbereitstellung = cfg.get('FAHRZEUGBEREITSTELLUNG', 80.0);
       const werkzeug = cfg.get('WERKZEUG', 7.5);
@@ -2160,7 +2173,7 @@ color: metaColor || null,
   // Lieferkosten Badewannentür (140322) + Kleinmaterial (KM02) as priced
   // material-line objects — same shape computeMaterials produces, so callers
   // can push them straight into materials.lines / materials.sum.
-  async function computeBwtMaterialExtras(payload) {
+  async function computeBwtMaterialExtras(payload: any) {
     const offer = getActiveOffer(payload);
     if (offer !== "bwt") return [];
 
@@ -2218,7 +2231,7 @@ color: metaColor || null,
   }
 
   return {
-    computePrices: async (payload) => {
+    computePrices: async (payload: any) => {
       const savedOfferNumber = String(payload?.offerNumber || "").trim();
 
       // 1) A saved Offer marked `locked` is a finalized, sent document — its
@@ -2293,7 +2306,7 @@ color: metaColor || null,
       let materials: any = { title: "", lines: [], sum: 0 };
       try {
         materials = await computeMaterials(payload, priorSnapshot, !!existingOfferSnapshot?.locked);
-      } catch (e) {
+      } catch (e: any) {
         console.error("[pricing] computeMaterials failed:", e);
       }
 
@@ -2309,7 +2322,7 @@ color: metaColor || null,
       };
       try {
         services = computeServiceCosts(payload) || services;
-      } catch (e) {
+      } catch (e: any) {
         console.error("[pricing] computeServiceCosts failed:", e);
       }
       const originalServicesSum = Number(services?.sum || 0);
@@ -2322,14 +2335,14 @@ color: metaColor || null,
 
       // --- BWT: Enthält-je-Einheit rows with real prices (labor only — the
       // "Auszuführende Arbeiten" position) ---
-      let bwtIncludedDisplayUI = [];
+      let bwtIncludedDisplayUI: any[] = [];
       // --- BWT: Lieferkosten + Kleinmaterial as priced material lines (the
       // "Material für Badewannentür" position) ---
       let bwtMaterialExtrasTotal = 0;
       if (offer === "bwt") {
         try {
           bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
-        } catch (e) {
+        } catch (e: any) {
           console.error("[pricing] computeBwtIncludedLines failed:", e);
         }
 
@@ -2340,7 +2353,7 @@ color: metaColor || null,
             materials.sum = round2((materials.sum || 0) + line.lineTotal);
             bwtMaterialExtrasTotal = round2(bwtMaterialExtrasTotal + line.lineTotal);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("[pricing] computeBwtMaterialExtras failed:", e);
         }
 
@@ -2351,8 +2364,8 @@ color: metaColor || null,
         // computeServiceCosts already marks these docxHide:true, and the docx
         // builder skips any line with that flag.
         (services.lines || [])
-          .filter((l) => l?.key === "facharbeiter" || l?.key === "reisezeit")
-          .forEach((l) => {
+          .filter((l: any) => l?.key === "facharbeiter" || l?.key === "reisezeit")
+          .forEach((l: any) => {
             bwtIncludedDisplayUI.push({
               productId: l.key,
               label: l.label,
@@ -2411,17 +2424,17 @@ try {
   let live = new Map();
   try {
     live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
-  } catch (e) {
+  } catch (e: any) {
     console.error(
       "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
       e?.message || e,
     );
   }
 
-  const addWanneLine = async (pid, snapName, snapPrice, label) => {
+  const addWanneLine = async (pid: any, snapName: any, snapPrice: any, label: any) => {
     if (!pid) return;
     const already = (materials?.lines || []).some(
-      (l) => l?.productId === pid || l?.id === pid,
+      (l: any) => l?.productId === pid || l?.id === pid,
     );
     if (already) return;
 
@@ -2453,7 +2466,7 @@ try {
     dw.chosenScreenPrice,
     "Wannenaufsatz",
   );
-} catch (e) {
+} catch (e: any) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
 }
       let selectedTray = null;
@@ -2464,7 +2477,7 @@ try {
 
         if (pid) {
           const already = (materials?.lines || []).some(
-            (l) => l?.productId === pid || l?.id === pid,
+            (l: any) => l?.productId === pid || l?.id === pid,
           );
 
           if (!already) {
@@ -2502,7 +2515,7 @@ try {
                 let live = new Map();
                 try {
                   live = await getLiveVigourNetPrices([p.productId + sfx]);
-                } catch (e) {
+                } catch (e: any) {
                   console.error("[pricing] vigor live price lookup failed for Slate tray:", e?.message || e);
                 }
                 if (live.has(p.productId + sfx)) {
@@ -2535,7 +2548,7 @@ try {
             }
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("[pricing] addSelectedTrayLine failed:", e?.message || e);
       }
 
@@ -2555,37 +2568,37 @@ try {
 
       // Split materials into non-optional (for UI) and all (for DOCX)
       const allMatLines = Array.isArray(materials?.lines)
-        ? materials.lines.map((x) => ({ ...x }))
+        ? materials.lines.map((x: any) => ({ ...x }))
         : [];
-      const isOptionalSource = (src) =>
+      const isOptionalSource = (src: any) =>
       src === "optional" || src === "optional_reha";
 
-      const optLines = allMatLines.filter((l) => isOptionalSource(l.source));
-      const nonOptLines = allMatLines.filter((l) => !isOptionalSource(l.source));
+      const optLines = allMatLines.filter((l: any) => isOptionalSource(l.source));
+      const nonOptLines = allMatLines.filter((l: any) => !isOptionalSource(l.source));
 
 
       // Sums
       const optSum = optLines.reduce(
-        (a, x) => a + (Number(x.lineTotal) || 0),
+        (a: any, x: any) => a + (Number(x.lineTotal) || 0),
         0,
       );
       const nonOptSum = (materials?.sum || 0) - optSum;
 
       // --- UI MATERIALS: show ONLY non-optional under “Material für Badumbau”
-      const uiMaterials = nonOptLines.map((x) => ({ ...x }));
+      const uiMaterials = nonOptLines.map((x: any) => ({ ...x }));
       // --- UI OPTIONALS: show ONLY optional under “Additional gewählte Produkte”
-      const uiOptionals = optLines.map((x) => ({ ...x }));
+      const uiOptionals = optLines.map((x: any) => ({ ...x }));
 
       // --- DOCX MATERIALS: include everything (business rule)
     
      const docxMaterials = allMatLines
-  .filter((l) => !l.docxHide)
-  .map((x) => ({ ...x }));
+  .filter((l: any) => !l.docxHide)
+  .map((x: any) => ({ ...x }));
 
 
       // --- SERVICES display copies
-      const uiServices = (services?.lines || []).map((x) => ({ ...x }));
-      const docxServices = (services?.lines || []).map((x) => ({ ...x }));
+      const uiServices = (services?.lines || []).map((x: any) => ({ ...x }));
+      const docxServices = (services?.lines || []).map((x: any) => ({ ...x }));
 
       // ===== Apply bonus presentation rules =====
       const freeId = grabCounts?.freeId || null;
@@ -2736,7 +2749,7 @@ try {
         const freeId = materials?.grabCounts?.freeId;
         if (freeId) {
           const freeLine = (materials?.lines || []).find(
-            (l) => (l.productId || l.id) === freeId,
+            (l: any) => (l.productId || l.id) === freeId,
           );
           const qty = Number(freeLine?.qty) || 0;
           // per-unit price as billed (BWT grabs carry their Aufschlag in lineTotal)
