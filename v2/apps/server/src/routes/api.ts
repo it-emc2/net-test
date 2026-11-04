@@ -11,6 +11,7 @@ import { BusinessConfig, CONFIG_SCHEMA } from "../business-config.js";
 import { AppConfig, Draft, Offer, Product, Service, User } from "../models.js";
 import { vigorPriceFetcher } from "../vigor.js";
 import { registerOffersRead } from "./offers-read.js";
+import { registerOffersWrite } from "./offers-write.js";
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -117,6 +118,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
 
   await registerOffersRead(app);
+  await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
 
   // ---------------- pricing ----------------
   app.post("/api/price", async (req) => {

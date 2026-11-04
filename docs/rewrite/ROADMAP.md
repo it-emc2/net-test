@@ -42,7 +42,8 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Models with identical collections/fields (Product, Service, User, AppConfig, Offer, Draft); business config (CONFIG_SCHEMA copy, parity-checked); Vigor access; legacy-compatible sessions — 2026-11-04
 - [x] Group 1 ported + contract-tested: auth (login/logout/me/confirm-password), catalog (products, services, sla), pricing (/api/price, /api/price/inputs)
 - [x] Group 2a (read): offers search-all / by-deal / :offerNumber / list, drafts search / :id — identical to legacy on 60 offers + 80 drafts (anonymised) — 2026-11-04. Contract test also caught a real gap: pricing must get the Offer/Draft models (frozen price of locked offers) — fixed
-- [ ] Group 2b (write): POST offers, POST drafts, recompute; ADR 007 deal drafts + revisions
+- [x] Group 2b (write, legacy parity): POST offers, POST offers/:n/recompute, POST drafts (fresh number for sent offers, Ansprechpartner resolution, replay/duplicate rules), POST drafts/recompute — responses AND stored documents identical to legacy — 2026-11-04
+- [ ] Group 2c: ADR 007 deal drafts + revisions (new collections)
 - [ ] Group 3: customers, users, admin config
 - [ ] Group 4: integrations behind interfaces (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, signing)
 - [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)

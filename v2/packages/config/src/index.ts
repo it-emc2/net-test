@@ -45,6 +45,8 @@ const EnvSchema = z.object({
   BUILD_ID: z.string().default("dev"),
   /** HMAC secret for session tokens — same value as the legacy app keeps sessions valid across cut-over. */
   AUTH_SECRET: z.string().min(16).default("dev-only-auth-secret-change-me"),
+  /** Fallback Ansprechpartner (legacy AP_DEFAULT_EMAIL). */
+  AP_DEFAULT_EMAIL: z.string().optional(),
   /** Legacy-compatible session cookie flags. */
   COOKIE_SECURE: z.enum(["0", "1", "true", "false"]).optional().transform((v) => v === undefined ? undefined : v === "1" || v === "true"),
 });

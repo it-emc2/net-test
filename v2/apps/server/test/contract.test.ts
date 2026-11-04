@@ -225,3 +225,97 @@ describe("contract: offers + drafts (read)", () => {
     expect(r.v2.body.error.message).toBe(r.legacy.body.error);
   });
 });
+
+// ---------------------------------------------------------------------------------------
+// Writes: both apps get IDENTICAL payloads (different numbers/names so they don't collide in
+// the shared DB). Responses and the stored documents must match after normalising ids,
+// timestamps and the per-app number/name.
+const VOLATILE = new Set(["_id", "id", "__v", "createdAt", "updatedAt", "savedAt"]);
+function norm(v: any, swap: [string, string][]): any {
+  if (Array.isArray(v)) return v.map((x) => norm(x, swap));
+  if (v && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).filter(([k]) => !VOLATILE.has(k)).map(([k, x]) => [k, norm(x, swap)]));
+  }
+  if (typeof v === "string") { let s = v; for (const [a, b] of swap) s = s.split(a).join(b); return s; }
+  return v;
+}
+async function post(app: "legacy" | "v2", url: string, body: unknown) {
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  if (app === "legacy") {
+    const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method: "POST", headers, body: JSON.stringify(body) });
+    return { status: r.status, body: await r.json() };
+  }
+  const r = await v2.inject({ method: "POST", url, headers, payload: body as any });
+  return { status: r.statusCode, body: r.json() };
+}
+const rawDb = () => mongoose.connection.db!;
+
+describe("contract: offers + drafts (write)", () => {
+  const payloads = () => fx("pricing/cases.json").filter((_: unknown, i: number) => i % 7 === 0).slice(0, 12);
+
+  it("POST /api/offers — same response + same stored document (12 real payloads)", async () => {
+    let i = 0;
+    for (const c of payloads()) {
+      const nL = `ANG-CT-L-${i}`, nV = `ANG-CT-V-${i}`; i++;
+      const l = await post("legacy", "/api/offers", { offerNumber: nL, offerType: c.offerType, payload: structuredClone(c.payload), status: "sent" });
+      const v = await post("v2", "/api/offers", { offerNumber: nV, offerType: c.offerType, payload: structuredClone(c.payload), status: "sent" });
+      expect(v.status, c.id).toBe(l.status);
+      expect(norm(v.body, [[nV, "N"]]), c.id).toEqual(norm(l.body, [[nL, "N"]]));
+      const [dl, dv] = await Promise.all([rawDb().collection("offers").findOne({ offerNumber: nL }), rawDb().collection("offers").findOne({ offerNumber: nV })]);
+      expect(norm(JSON.parse(JSON.stringify(dv)), [[nV, "N"]]), c.id).toEqual(norm(JSON.parse(JSON.stringify(dl)), [[nL, "N"]]));
+    }
+  }, 120000);
+
+  it("POST /api/offers — validation errors identical", async () => {
+    for (const body of [{}, { offerNumber: "X" }]) {
+      const [l, v] = [await post("legacy", "/api/offers", body), await post("v2", "/api/offers", body)];
+      expect(v.status).toBe(l.status);
+      expect(v.body.error.message).toBe(l.body.error);
+    }
+  });
+
+  it("POST /api/offers/:n/recompute — locked offer → 409, unknown → 404 (same messages)", async () => {
+    for (const url of ["/api/offers/ANG-CT-L-0/recompute", "/api/offers/ANG-NOPE/recompute"]) {
+      const [l, v] = [await post("legacy", url, {}), await post("v2", url, {})];
+      expect(v.status).toBe(l.status);
+      expect(v.body.error.message).toBe(l.body.error);
+    }
+  });
+
+  it("POST /api/drafts — same response + stored document; replay/duplicate rules identical", async () => {
+    let i = 0;
+    for (const c of payloads()) {
+      const nL = `CT-L-${i}`, nV = `CT-V-${i}`; i++;
+      const body = (n: string) => ({ name: n, offerType: c.offerType, payload: structuredClone(c.payload), clientSaveId: `cs-${n}` });
+      const l = await post("legacy", "/api/drafts", body(nL));
+      const v = await post("v2", "/api/drafts", body(nV));
+      expect(v.status, c.id).toBe(l.status);
+      const swapL: [string, string][] = [[nL, "N"]], swapV: [string, string][] = [[nV, "N"]];
+      // a sent offer number is replaced by a fresh, time-based one in both apps → normalise it
+      if (l.body.offerNumber && l.body.offerNumber !== c.payload.offerNumber) swapL.push([l.body.offerNumber, "FRESH"]);
+      if (v.body.offerNumber && v.body.offerNumber !== c.payload.offerNumber) swapV.push([v.body.offerNumber, "FRESH"]);
+      expect(norm(v.body, swapV), c.id).toEqual(norm(l.body, swapL));
+      const [dl, dv] = await Promise.all([rawDb().collection("drafts").findOne({ name: nL }), rawDb().collection("drafts").findOne({ name: nV })]);
+      expect(norm(JSON.parse(JSON.stringify(dv)), swapV), c.id).toEqual(norm(JSON.parse(JSON.stringify(dl)), swapL));
+      // replay with the same clientSaveId → 200; another save under the same name → 409
+      const [rl, rv] = [await post("legacy", "/api/drafts", body(nL)), await post("v2", "/api/drafts", body(nV))];
+      expect(rv.status).toBe(rl.status);
+      const dup = (n: string) => ({ ...body(n), clientSaveId: "other" });
+      const [xl, xv] = [await post("legacy", "/api/drafts", dup(nL)), await post("v2", "/api/drafts", dup(nV))];
+      expect(xv.status).toBe(xl.status);
+      expect(xv.body.error.message).toBe(xl.body.error);
+    }
+  }, 180000);
+
+  it("POST /api/drafts/recompute — same pricing for the drafts just saved", async () => {
+    const a = await rawDb().collection("drafts").find({ name: { $regex: "^CT-(L|V)-" }, offerNumber: { $exists: true, $ne: null } }).toArray();
+    const pairs = a.filter((d) => d.name.startsWith("CT-L-")).map((d) => [d, a.find((x) => x.name === d.name.replace("CT-L-", "CT-V-"))]).filter(([, x]) => x);
+    expect(pairs.length).toBeGreaterThan(0);
+    for (const [dl, dv] of pairs) {
+      const l = await post("legacy", "/api/drafts/recompute", { offerNumber: dl!.offerNumber });
+      const v = await post("v2", "/api/drafts/recompute", { offerNumber: dv!.offerNumber });
+      expect(v.status).toBe(l.status);
+      expect(norm(v.body.pricing, [])).toEqual(norm(l.body.pricing, []));
+    }
+  }, 120000);
+});

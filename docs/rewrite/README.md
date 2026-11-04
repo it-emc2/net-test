@@ -40,3 +40,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 3 done | Pricing package fully strict (JS byte-identical proof), AH extracted + 2 bugs fixed, tray differential; v2 1,093 tests | Phase 4: backend port |
 | 2026-11-04 | phase 4 (group 1) | Models, business config, sessions compatible, secure gate; auth/catalog/pricing endpoints identical to legacy (contract test spawns legacy app); v2 1,117 tests | Group 2: offers + drafts |
 | 2026-11-04 | phase 4 (group 2a) | Offers/drafts read endpoints identical to legacy (contract test on anonymised real docs); pricing now uses Offer/Draft snapshots | Group 2b: writes + deal drafts |
+| 2026-11-04 | phase 4 (group 2b) | Offer/draft writes identical to legacy incl. stored documents (contract test) | Group 2c: deal drafts (ADR 007) |
