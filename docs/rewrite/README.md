@@ -11,6 +11,7 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | `HOTSPOTS.md` | Pricing, documents, data shapes, tests, top risks |
 | `DATA-SHAPES.md` | Real payload shapes per type × era (+ generated report) |
 | `TESTING.md` | Test commands, baseline, golden masters |
+| `UX-CHANGES.md` | Approved deviations from today's UI |
 | `../../v2/README.md` | The TypeScript rewrite workspace |
 
 **Main sync rule for pricing:** a change to `src/logic/pricing-core.js` on main must be re-ported into `v2/packages/pricing/src/core.ts` (header records the source commit); the differential test enforces it.
@@ -32,3 +33,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 1 (b) | DOCX golden 51/51, UI parity 9/9, offline 23/23, CI workflow | Phase 1 v2 items or Phase 2 skeleton |
 | 2026-11-04 | phase 2 | v2 workspace: config guard, domain schemas vs real data, Fastify server (logs/errors/DB safety), React shell with deal URLs, CI job; 163 tests | Phase 3: pricing package (TS port vs golden master) |
 | 2026-11-04 | phase 3 (stage 1) | Pricing 1:1 TS port, golden 117/117, differential 2,300 comparisons, mutation check; v2 total 395 tests | Phase 3: extract AH client pricing; stage 2 typing |
+| 2026-11-04 | decisions | Owner: ADR 007 accepted, ADR 011 = drop HMS/WD; UX-CHANGES.md started | AH pricing extraction |

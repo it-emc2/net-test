@@ -18,7 +18,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Run existing suites; fix runners (`test:e2e` → Playwright, `test:node`, `test:golden`, `test:ci`) — 2026-11-04, see `TESTING.md`. Open: `run-scenarios` (missing `base.json`), 15+1 stale tests.
 - [x] CI workflow `ci.yml` (PRs + non-main pushes, no deploy) — 2026-11-04. Lint/unit/integration reporting-only until pre-existing failures are cleaned.
 - [x] Schema inference over replica → `DATA-SHAPES.md` (+ generated report) — 2026-11-04
-- [x] Pricing golden master: 115 anonymised real cases, 117 tests green — 2026-11-04. HMS/WD: no pricing exists (ADR 011).
+- [x] Pricing golden master: 115 anonymised real cases, 117 tests green — 2026-11-04. HMS/WD: no pricing exists → dropped (ADR 011).
 - [x] DOCX golden master: offer DOCX + Materialübersicht, 50 snapshots, in-process harness — 2026-11-04. Open: PDF, Arbeitsbericht, Kalkulation, signing docs.
 - [x] Playwright parity suite v1: navigation for all 7 types + draft save/load, own stack, outbound blocked — 2026-11-04. Open (v2): load by ANG, load by deal (Bitrix stub), export, email/post/signing with stubs.
 
@@ -34,7 +34,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (`v2/packages/pricing`, ADR 013) — 2026-11-04
 - [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
 - [ ] Stage 2: tighten `core.ts` to `strict:true` function by function (golden + differential stay green)
-- [ ] Extract AH/HMS/WD client pricing into the package (server can now price them too).
+- [ ] Extract AH client pricing (`computeAHGesamt`, script.js) into the package with its own golden master (HMS/WD dropped, ADR 011).
 
 ## Phase 4 — Backend port
 - [ ] Same Mongoose schemas/collection names; every endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR).
@@ -49,7 +49,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 6 — Frontend port + new flows
 - [ ] Every page/feature in `FRONTEND-INVENTORY.md`; Playwright parity suite green on new app.
 - [ ] Real router: `/deal/:dealId`, `/offer/:offerNumber`, `/deal/:dealId/:step`; no data loss on navigation.
-- [ ] One draft per deal + revision history (ADR 007, needs OK) with autosave and "restore version".
+- [ ] One draft per deal + revision history (ADR 007 accepted) with autosave and "restore version"; read-only legacy view per deal with "copy into draft".
 - [ ] Offline: Workbox shell, IndexedDB queue, local pricing — parity with today.
 
 ## Phase 7 — UX simplification (owner sign-off per item, `UX-CHANGES.md`)

@@ -10,7 +10,7 @@ SP = `src/public/script.js` (30.6k LOC), IX = `src/public/index.html` (11.2k LOC
 | hl Handlauf | Kundendaten, Arbeitszeit, hlArbeiten, hlk (Flexofit wizard), hl, Rabatt, Kosten, Zusammenfassung |
 | bl Badelift | Kundendaten, Arbeitszeit, bl, Kosten, Zusammenfassung |
 | ah Alltagshilfe | Kundendaten, Arbeitszeit, ah, Finanzierung, Kosten, Zusammenfassung |
-| hms Hausmeister / wd Winterdienst | Kundendaten, Arbeitszeit, hms\|wd, Kosten, Zusammenfassung |
+| hms Hausmeister / wd Winterdienst | Kundendaten, Arbeitszeit, hms\|wd, Kosten, Zusammenfassung — **not in v2 (ADR 011)** |
 
 Navigation: sidebar with progress dots (`updateSidebarForOffer` SP:2929), grouped I/II/III for bu/bwt/hl; Next/Back with per-page validation (SP:~6545).
 

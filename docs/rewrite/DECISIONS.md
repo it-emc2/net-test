@@ -11,11 +11,11 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 004 | UI behaviour parity with current OC | ACCEPTED | 2026-11-04 |
 | 005 | Nothing reaches `main` without owner approval | ACCEPTED | 2026-11-04 |
 | 006 | Deal URLs `/deal/:dealId` | ACCEPTED (requirement) | 2026-11-04 |
-| 007 | One draft per deal + revision history in NEW collections | PROPOSED | 2026-11-04 |
+| 007 | One draft per deal + revision history in NEW collections | ACCEPTED (owner) | 2026-11-04 |
 | 008 | Documents via Gotenberg | PROPOSED | 2026-11-04 |
 | 009 | Self-hosting target | PROPOSED | 2026-11-04 |
 | 010 | App DB user least-privilege (replace `atlasAdmin`) | PROPOSED | 2026-11-04 |
-| 011 | HMS / WD offer types: keep unpriced, drop, or implement | OPEN | 2026-11-04 |
+| 011 | HMS / WD offer types: drop from the new app | ACCEPTED (owner) | 2026-11-04 |
 | 012 | Concrete v2 toolchain (React, versions, layout) | ACCEPTED | 2026-11-04 |
 | 013 | Pricing port strategy: 1:1 mechanical port, then tighten | ACCEPTED | 2026-11-04 |
 
@@ -59,10 +59,12 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - `/deal/:dealId` opens (or creates) the deal's draft directly; deep-linkable from Bitrix24.
 - Additional: `/offer/:offerNumber` (read-only view of a sent offer).
 
-## 007 — One draft per deal + revision history (PROPOSED)
-- New collections: `deal_drafts` (current state, unique `dealId`) and `deal_draft_revisions` (append-only: who, when, diff/patch, full snapshot every N revisions, restore pointer).
-- Old `drafts` / `offers` stay as they are and remain readable; an import view lists legacy drafts per deal without modifying them.
-- **Needs owner OK** before any write to these new collections in production.
+## 007 — One draft per deal + revision history (ACCEPTED by owner, 2026-11-04)
+- New collections: `deal_drafts` (current state, unique `dealId`) and `deal_draft_revisions` (append-only: who (initials/user id), when, changed fields as JSON patch, full snapshot every N revisions, restore pointer).
+- Old `drafts` / `offers` stay exactly as they are and remain readable; a read-only view lists legacy drafts/offers per deal (link via `payload.auftragId` and the existing `by-deal` lookup) and can **copy** one into the new deal draft — the legacy document is never modified.
+- Saving = autosave into the deal draft (+ revision); "Schnellspeichern"/"Speichern unter" go away in v2 (UX-CHANGES U-002).
+- Offer numbers/locked offers keep today's semantics: sending still writes an immutable `offers` document (unchanged collection and fields).
+- Production writes to the new collections happen only through v2 after cut-over (phase 8). Until then they exist only in the local replica / test DBs.
 
 ## 008 — Documents via Gotenberg (PROPOSED)
 - Replace Puppeteer + LibreOffice + LaTeX (+ Adobe where possible) by one Gotenberg container (HTML→PDF, DOCX→PDF).
@@ -76,10 +78,11 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Live app currently connects as `atlasAdmin` (full cluster admin). Replace with `readWrite@KonfiguratorDB` + `read@vigor`.
 - Owner action in Atlas; no code change needed except env.
 
-## 011 — HMS / WD (OPEN)
+## 011 — HMS / WD dropped from the new app (ACCEPTED by owner, 2026-11-04)
 - Facts: pages reuse AH field ids, no pricing logic anywhere, zero HMS/WD offers/drafts in production (`DATA-SHAPES.md`).
-- Options: (a) keep as-is (unpriced pages, parity), (b) remove from the new app, (c) implement real pricing.
-- Default until decided: (a) parity.
+- v2 has no HMS/WD tiles, pages or pricing. The current app on `main` is not changed by this decision.
+- Reading stays tolerant: legacy resolvers in `@oc/domain` still recognise `hms`/`wd` so any old document would load (none exist).
+- Parity: HMS/WD navigation snapshots remain as documentation of the current app but are not a v2 requirement (UX-CHANGES U-001).
 
 ## 012 — Concrete v2 toolchain (ACCEPTED, technical — owner may override)
 | Choice | Decision | Why |
