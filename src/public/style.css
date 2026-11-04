@@ -11973,7 +11973,13 @@ details.az-group[open] > summary.az-group-title::before {
 .wv-row__del { border: 0; background: transparent; color: #ff3b30; font-size: 1.3rem; cursor: pointer; padding: 4px 8px; }
 .wv-row-add { margin: 10px 4px 0; border: 0; background: transparent; color: #0a84ff; font: inherit; font-weight: 600; cursor: pointer; padding: 6px 0; }
 .wv-rows-empty { padding: 14px 16px; color: var(--muted, #6b7280); }
-.wv-row.is-active { background: rgba(10, 132, 255, 0.06); }
+.wv-row { position: relative; }
+.wv-row.is-active { background: rgba(10, 132, 255, 0.1); box-shadow: inset 3px 0 0 #0a84ff; }
+.wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+.wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: -9px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active { background: var(--cl-weak); border-color: var(--cl-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active::after { background: var(--cl-accent); }
 /* Colour overview as a picker: ring = colour is in a row, blue = the marked row. */
 #wvColors label.image-check:has(input:checked) { border-color: transparent; box-shadow: none; }
 #wvColors label.image-check:has(input:checked) .caption { color: var(--muted, #6b7280); }
