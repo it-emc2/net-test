@@ -34,3 +34,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 2 | v2 workspace: config guard, domain schemas vs real data, Fastify server (logs/errors/DB safety), React shell with deal URLs, CI job; 163 tests | Phase 3: pricing package (TS port vs golden master) |
 | 2026-11-04 | phase 3 (stage 1) | Pricing 1:1 TS port, golden 117/117, differential 2,300 comparisons, mutation check; v2 total 395 tests | Phase 3: extract AH client pricing; stage 2 typing |
 | 2026-11-04 | decisions | Owner: ADR 007 accepted, ADR 011 = drop HMS/WD; UX-CHANGES.md started | AH pricing extraction |
+| 2026-11-04 | phase 3 (AH) | AH pricing pure TS function, 400-case golden master from legacy UI; v2 806 tests | AH payload adapter; stage 2 typing |

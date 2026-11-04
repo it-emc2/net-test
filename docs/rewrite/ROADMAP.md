@@ -34,7 +34,8 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (`v2/packages/pricing`, ADR 013) — 2026-11-04
 - [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
 - [ ] Stage 2: tighten `core.ts` to `strict:true` function by function (golden + differential stay green)
-- [ ] Extract AH client pricing (`computeAHGesamt`, script.js) into the package with its own golden master (HMS/WD dropped, ADR 011).
+- [x] AH client pricing extracted as pure function (`v2/packages/pricing/src/ah.ts`); golden master = 400 cases recorded from the REAL legacy `computeAHGesamt()` in the browser (`npx playwright test -c playwright.golden.config.cjs`) — 2026-11-04
+- [ ] AH: payload → input adapter, verified via the legacy restore path (real AH offers)
 
 ## Phase 4 — Backend port
 - [ ] Same Mongoose schemas/collection names; every endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR).
