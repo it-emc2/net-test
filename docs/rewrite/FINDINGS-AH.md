@@ -12,4 +12,4 @@ Also noted (not bugs, but rules to know):
 - No `Finanzierung` block → Entlastungsbetrag is **not** applied, even though the empty form has the box ticked.
 - AH rates (7.96 €/Anfahrt, 40.56 €/h HnD, 53.04 €/h AB, 1.20 € Servicepauschale) are hard-coded in the browser — not admin-configurable, unlike the other offer types.
 
-**Proposed fixes for v2 (need OK):** #1 fall back to the saved zone; #2 read the nested format. Both = golden-master rebuild + UX-CHANGES entry.
+**Status: both fixed in v2 (owner OK 2026-11-04, ADR 014, UX-CHANGES U-004).** Real sample: 3 cases 298.13 € → 386.01 €, 1 draft 0 € → 184.92 €; the other 140 unchanged (tested). Legacy behaviour remains available as `ahInputFromPayloadLegacy` for parity tests. The current app on `main` still has both bugs.

@@ -183,10 +183,32 @@ export type AhPricingResult = ReturnType<typeof computeAhPricing>;
 type Loose = Record<string, any> | null | undefined;
 const isOn = (v: unknown) => v === true || v === "on" || v === "true" || v === 1 || v === "1";
 
+export interface AhAdapterOptions {
+  /**
+   * true = reproduce the legacy restore bugs exactly (FINDINGS-AH.md #1, #2) — used only to
+   * prove parity against the old UI. Default false: v2 behaviour with both bugs fixed (ADR 014).
+   */
+  legacyBugs?: boolean;
+}
+
+/** Older stored format: schedules nested inside task objects → flatten to service level. */
+function liftNestedSchedules(s: AhService): AhService {
+  if (s?.schedules || s?.schedule || !Array.isArray(s?.tasks)) return s;
+  const nested = (s.tasks as any[]).filter((t) => t && typeof t === "object" && Array.isArray(t.schedules));
+  if (!nested.length) return s;
+  return {
+    ...s,
+    schedules: nested.flatMap((t) => t.schedules as AhSchedule[]),
+    tasks: (s.tasks as any[]).map((t) => (t && typeof t === "object" ? t.id : t)).filter((t) => typeof t === "string"),
+  };
+}
+
 export function ahInputFromPayload(
   payload: Loose,
   config: AhPricingInput["config"],
+  options: AhAdapterOptions = {},
 ): AhPricingInput {
+  const legacyBugs = options.legacyBugs === true;
   const ah = (payload?.ah ?? {}) as Loose;
   const az = (payload?.Arbeitszeit ?? {}) as Loose;
   const kd = (payload?.Kundendaten ?? {}) as Loose;
@@ -208,8 +230,8 @@ export function ahInputFromPayload(
   // restoreAhServices rebuilds each service as a UI card: empty type → "Alltagsbegleitung";
   // only task ids (strings) survive — the older format with schedules nested inside task
   // objects cannot be read by the card, so such a service restores EMPTY (0 €).
-  // LEGACY BUG kept for parity (docs/rewrite/FINDINGS-AH.md #2).
-  const svcs = (Array.isArray(services) ? services : []).map((s) => ({
+  // LEGACY BUG — reproduced only with { legacyBugs: true }; fixed by default (ADR 014).
+  const svcs = (Array.isArray(services) ? services : []).map((raw) => (legacyBugs ? raw : liftNestedSchedules(raw))).map((s) => ({
     ...s,
     type: s?.type || "Alltagsbegleitung",
     tasks: (Array.isArray(s?.tasks) ? s.tasks : []).filter((t: unknown) => typeof t === "string"),
@@ -217,9 +239,11 @@ export function ahInputFromPayload(
 
   // zone: restoring the travel time re-computes it (with the Hof PLZ rule). Without a
   // stored travel time the page has NO zone — the saved Arbeitszeit.ahTravelZone is not
-  // restored, so travel is not billed. LEGACY BUG kept for parity (FINDINGS-AH.md #1).
+  // restored, so travel is not billed. LEGACY BUG — reproduced only with { legacyBugs: true }.
   const mins = parseDurationMinutes(az?.travelTimeHHMM ?? az?.travelTime ?? "");
-  const zone = mins > 0 ? computeAhZoneFromMinutes(mins, String(kd?.postalCode ?? "")) : null;
+  const zone = mins > 0
+    ? computeAhZoneFromMinutes(mins, String(kd?.postalCode ?? ""))
+    : legacyBugs ? null : ahZoneFromNumber(Number(az?.ahTravelZone ?? 0)); // fix #1: keep saved zone
 
   return {
     services: svcs,
@@ -233,3 +257,7 @@ export function ahInputFromPayload(
     config,
   };
 }
+
+/** Legacy-exact adapter (both restore bugs reproduced) — for parity tests only. */
+export const ahInputFromPayloadLegacy = (payload: Loose, config: AhPricingInput["config"]) =>
+  ahInputFromPayload(payload, config, { legacyBugs: true });

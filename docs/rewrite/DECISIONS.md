@@ -18,6 +18,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 011 | HMS / WD offer types: drop from the new app | ACCEPTED (owner) | 2026-11-04 |
 | 012 | Concrete v2 toolchain (React, versions, layout) | ACCEPTED | 2026-11-04 |
 | 013 | Pricing port strategy: 1:1 mechanical port, then tighten | ACCEPTED | 2026-11-04 |
+| 014 | Fix both AH restore bugs in v2 | ACCEPTED (owner) | 2026-11-04 |
 
 ---
 
@@ -103,3 +104,11 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - **Legacy quirks kept:** input payload is mutated; three offer-type resolvers; hard-coded fallbacks next to `CONFIG_SCHEMA`. Changing any of them = rule change → golden rebuild + ADR.
 - **Stage 2 (open):** tighten to `strict:true` function by function; every step must keep golden + differential green. No logic edits mixed into typing commits.
 - **Sync with main:** when `oc-main-watcher` reports a change to `src/logic/pricing-core.js`, re-port the diff into `core.ts` and update the source commit in the header; the differential test fails until both match.
+
+## 014 — Fix both AH restore bugs in v2 (ACCEPTED by owner, 2026-11-04)
+- #1 Saved travel zone is used when no travel time is stored → travel/Anfahrt billed again.
+- #2 Older AH format (schedules nested in task objects) is read: schedules lifted to service level, task ids kept.
+- Implementation: `ahInputFromPayload(payload, config)` = fixed (v2 default); `ahInputFromPayloadLegacy` keeps the old behaviour and is still tested against all 144 real restores, so the fixes provably change only the affected cases.
+- Effect in the real sample: 1 offer + 2 drafts 298.13 € → 386.01 € (zone 3); 1 draft 0 € → 184.92 €. All other 140 cases unchanged.
+- Sent (locked) offers keep their stored documents/prices; this only affects what the app computes when an AH offer is re-opened. The current app on `main` is unchanged.
+- Assumption for #2: each nested task schedule counts as its own visit (same as top-level schedules). Only 1 draft affected.
