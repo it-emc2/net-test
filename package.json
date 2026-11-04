@@ -19,7 +19,7 @@
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration",
     "test:e2e": "playwright test -c playwright.config.cjs",
-    "test:node": "node --test test/",
+    "test:node": "node --test test/*.test.mjs",
     "test:golden": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/golden",
     "golden:pricing": "node scripts/golden/build-pricing-golden.mjs",
     "golden:docs": "node scripts/golden/build-docs-golden.mjs",

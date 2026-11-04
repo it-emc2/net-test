@@ -15,7 +15,7 @@ module.exports = defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     headless: true,
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 1280, height: 1000 },
     screenshot: "only-on-failure",
     serviceWorkers: "block",
   },

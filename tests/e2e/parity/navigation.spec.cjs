@@ -39,7 +39,9 @@ for (const [key, tile] of TILES) {
     const rendered = [];
     for (const step of steps) {
       const before = dialogs.length;
-      await page.locator(`#sidebar a.side-link[data-step="${step}"]`).click();
+      const link = page.locator(`#sidebar a.side-link[data-step="${step}"]`);
+      await link.scrollIntoViewIfNeeded(); // bottom links can sit below the fold (Linux font metrics)
+      await link.click();
       await page.waitForTimeout(150);
       if (dialogs.length > before) {
         rendered.push(`${step}: dialog(${dialogs.slice(before).join(" / ").slice(0, 120)})`);
