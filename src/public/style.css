@@ -11976,7 +11976,7 @@ details.az-group[open] > summary.az-group-title::before {
 .wv-row { position: relative; }
 .wv-row.is-active { background: rgba(10, 132, 255, 0.1); box-shadow: inset 3px 0 0 #0a84ff; }
 .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
-.wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: -9px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
+.wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: 2px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
 body.ui-classic #page-Wandverkleidung .wv-row.is-active { background: var(--cl-weak); border-color: var(--cl-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
 body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--cl-accent); }
 body.ui-classic #page-Wandverkleidung .wv-row.is-active::after { background: var(--cl-accent); }
