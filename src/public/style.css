@@ -12663,3 +12663,11 @@ body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow
 .wv-row__body { background: rgba(10, 132, 255, 0.1); }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 4px; }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
+/* Nur EINE Kachel markiert: die Farbe der offenen Zeile. Das gecheckte Radio (= Farbe der 1. Zeile) bleibt neutral. */
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check { border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check .caption { color: var(--muted, #6b7280); font-weight: 500; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+body.ui-classic #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
