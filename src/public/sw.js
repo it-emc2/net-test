@@ -45,6 +45,7 @@ const DA_CONFIG_MODEL_PATHS = new Set([
 const PRECACHE = [
   "/logic/pricing-core.js",
   "/logic/tray-search-core.js",
+  "/logic/aufschlag-rules.js",
   // Every module script.js pulls in with import(). They are fetched at the
   // moment they are needed, which offline is exactly when they cannot be.
   "/OfflineSaveQueue.js",

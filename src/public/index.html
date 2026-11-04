@@ -3228,6 +3228,7 @@ button.dm-btn-danger:focus-visible {
                         aria-label="Aufschlag in Prozent" />
                       <span class="sonderaufschlag-unit">%</span>
                     </div>
+                    <span id="aufschlagMinLabel" class="aufschlag-min" hidden></span>
                     <button type="button" id="toggleAufschlag" class="btn-secondary"
                       style="margin-left:8px; padding:4px 10px; font-size:0.8rem;">
                       Ausblenden
@@ -3244,12 +3245,22 @@ button.dm-btn-danger:focus-visible {
                       <button type="button" class="aufschlag-chip" data-value="60">60%</button>
                     </div>
 
-                    <input id="sonderaufschlagSlider" type="range" min="0" max="200" step="0.5" value="50"
-                      class="sonderaufschlag-slider" aria-label="Aufschlag Schieberegler" />
+                    <!-- Regler: Zonenfarben + Marke beim Mindestwert (CSS-Variablen aus render()) -->
+                    <div class="aufschlag-track">
+                      <span id="aufschlagMinMark" class="aufschlag-minmark" hidden></span>
+                      <input id="sonderaufschlagSlider" type="range" min="0" max="200" step="0.5" value="50"
+                        class="sonderaufschlag-slider" aria-label="Aufschlag Schieberegler" />
+                    </div>
 
-                    <!-- Warning shown (but not blocking) when the value is below 35% -->
+                    <!-- Unter dem Mindestwert der Kundenart: Hinweis + Pflicht-Begründung (intern, nur OC) -->
                     <div id="aufschlagWarn" class="aufschlag-warn" hidden aria-live="polite">
-                      Aufschlag liegt unter 35% – bitte prüfen.
+                      <div class="aufschlag-warn__t"><span aria-hidden="true">⚠</span><span id="aufschlagWarnText"></span></div>
+                      <div class="aufschlag-reason">
+                        <label for="aufschlagBegruendung" id="aufschlagReasonLabel">Warum liegt der Aufschlag unter 35 %? <span aria-hidden="true">*</span></label>
+                        <textarea id="aufschlagBegruendung" rows="3" placeholder="z. B. Sonderkonditionen mit der Geschäftsleitung abgestimmt …"></textarea>
+                        <div id="aufschlagReasonError" class="aufschlag-reason__err" hidden>Bitte eine Begründung eintragen, um fortzufahren.</div>
+                        <div class="aufschlag-reason__hint">Wird mit dem Angebot gespeichert (intern, nicht im Kundendokument).</div>
+                      </div>
                     </div>
                     <div id="sonderaufschlagError" class="sonderaufschlag-error" hidden aria-live="polite"></div>
 

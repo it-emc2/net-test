@@ -4445,6 +4445,9 @@ function buildPayload() {
 
   const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
   if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+  // Interne Begründung für einen Aufschlag unter dem Mindestwert (additiv; nur OC — nicht in Bitrix/Dokumente).
+  const aufschlagReason = window.getAufschlagReason?.();
+  if (aufschlagReason) payload.Kundendaten.aufschlagBegruendung = aufschlagReason;
 
   // Pricing-rules marker. New offers include Kleinmaterial in the Aufschlag;
   // legacy drafts restore this as false (set in the restore path) so their
@@ -6680,7 +6683,8 @@ function requireBereichValid() {
       const sec = document.getElementById("aufschlagSection");
       const step = sec?.closest(".page")?.id?.replace(/^page-/, "");
       if (step && typeof window.setStep === "function") window.setStep(step);
-      flashInvalid(document.getElementById("sonderaufschlagValue"));
+      const reasonBad = document.getElementById("aufschlagBegruendung")?.validity?.customError;
+      flashInvalid(document.getElementById(reasonBad ? "aufschlagBegruendung" : "sonderaufschlagValue"));
       window.toast?.error(
         "Angaben unvollständig",
         "Bitte prüfen Sie die rot markierten Pflichtfelder."
@@ -9146,7 +9150,14 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 };
 
 (function initAufschlag() {
-  const AUFSCHLAG_MIN = 35;
+  // Mindestwerte je Kundenart + Zonenfarben: src/logic/aufschlag-rules.js (rein, getestet).
+  let rules = null;
+  import("/logic/aufschlag-rules.js").then((m) => { rules = m; render(); validateAufschlagSelection(); }).catch(() => {});
+  const payerName = () => document.querySelector('input[name="payer"]:checked')?.value || "";
+  const reasonEl = document.getElementById("aufschlagBegruendung");
+  const reasonErr = document.getElementById("aufschlagReasonError");
+  const trackEl = document.querySelector(".aufschlag-track");
+  const belowMin = () => !!rules && rules.isBelowAufschlagMin(currentPct(), payerName());
 
   const payerRadios = Array.from(
     document.querySelectorAll('input[name="payer"]'),
@@ -9189,7 +9200,44 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     chips.forEach((c) =>
       c.classList.toggle("active", has && Number(c.dataset.value) === pct),
     );
-    if (warnEl) warnEl.hidden = !(has && pct < AUFSCHLAG_MIN);
+    if (!rules) return;
+    const payer = payerName();
+    const min = rules.aufschlagMin(payer);
+    const below = rules.isBelowAufschlagMin(pct, payer);
+    const label = payer === "Kassenkunde" ? "Kassenkunde" : payer === "Selbstzahler" ? "Selbstzahler" : "";
+    const minLabel = document.getElementById("aufschlagMinLabel");
+    if (minLabel) {
+      minLabel.hidden = false;
+      minLabel.innerHTML = `Mindestwert${label ? " " + label : ""}: <b>${min} %</b>`;
+    }
+    chips.forEach((c) => c.classList.toggle("is-low", Number(c.dataset.value) < min));
+    input.closest(".aufschlag-value-box")?.classList.toggle("is-low", below);
+    if (trackEl) {
+      trackEl.style.setProperty("--amin-n", String(min / 2)); // Regler 0–200 %: Anteil der Breite in %
+      trackEl.style.setProperty("--aknob", rules.AUFSCHLAG_ZONE_COLOR[rules.aufschlagZone(pct, payer)]);
+    }
+    const mark = document.getElementById("aufschlagMinMark");
+    if (mark) { mark.hidden = false; mark.dataset.l = `Min. ${min} %`; }
+    if (warnEl) {
+      warnEl.hidden = !below;
+      const kk = payer === "Kassenkunde";
+      document.getElementById("aufschlagWarnText").textContent =
+        `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte prüfen.`;
+      const lbl = document.getElementById("aufschlagReasonLabel");
+      if (lbl) lbl.firstChild.textContent = `Warum liegt der Aufschlag unter ${min} %? `;
+    }
+    syncReason();
+  }
+
+  // Begründung: Pflicht nur unter dem Mindestwert. Ein ausgeblendetes Feld blockiert nichts,
+  // sein Text bleibt aber stehen (nichts still löschen).
+  function syncReason() {
+    if (!reasonEl) return true;
+    const missing = !!rules && rules.aufschlagReasonMissing(currentPct(), payerName(), reasonEl.value);
+    reasonEl.setCustomValidity(missing ? "Bitte eine Begründung eintragen, um fortzufahren." : "");
+    reasonEl.classList.toggle("empty", missing);
+    if (reasonErr) reasonErr.hidden = !missing;
+    return !missing;
   }
 
   function validateAufschlagSelection({ report = false } = {}) {
@@ -9208,8 +9256,12 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       if (report) input.reportValidity?.();
       return false;
     }
-    // Sub-35% is allowed (warning only) — never blocks submission.
     setError("");
+    // Unter dem Mindestwert: nur mit Begründung weiter (gleiches Muster wie die übrigen Pflichtfelder).
+    if (!syncReason()) {
+      if (report) { reasonEl.reportValidity?.(); flashInvalid(reasonEl); }
+      return false;
+    }
     return true;
   }
 
@@ -9256,6 +9308,16 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   input?.addEventListener("input", onFieldChanged);
   input?.addEventListener("change", onFieldChanged);
+  // Kundenart gewechselt → anderer Mindestwert, neu bewerten.
+  payerRadios.forEach((r) => r.addEventListener("change", () => { render(); validateAufschlagSelection(); }));
+  reasonEl?.addEventListener("input", syncReason);
+  // Für den Angebotscheck: nur wenn unter Mindestwert UND Begründung vorhanden.
+  window.getAufschlagBelowMin = () => {
+    const reason = String(reasonEl?.value || "").trim();
+    return belowMin() && reason ? { min: rules.aufschlagMin(payerName()), reason } : null;
+  };
+  window.getAufschlagReason = () => String(reasonEl?.value || "").trim();
+  window.setAufschlagReason = (v) => { if (reasonEl) { reasonEl.value = String(v ?? ""); syncReason(); } };
 
   slider?.addEventListener("input", () => setAufschlag(slider.value));
 
@@ -18183,6 +18245,7 @@ function restoreKundendaten(k, offer) {
   applySelbstzahlerVisibility();
 
   setRadio("aufschlag", k.aufschlag);
+  window.setAufschlagReason?.(k.aufschlagBegruendung ?? ""); // fehlt in Altangeboten = leer
 
   // IMPORTANT:
   // restore Pflegegrad flow first so dependent budget controls become visible/active

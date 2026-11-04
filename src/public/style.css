@@ -12581,3 +12581,60 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color
   outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* ===== Aufschlag: Mindestwert je Kundenart, Begründung, Zonenregler (Neu + Klassisch) ===== */
+.aufschlag-min { font-size: 0.85rem; color: var(--muted-foreground, #6b7280); white-space: nowrap; }
+.aufschlag-min b { color: var(--foreground, #1f2937); }
+.aufschlag-value-box.is-low input[type="text"] { border-color: #f5c26b; background: #fff7e6; }
+.aufschlag-chip.is-low { color: #b45309; border-color: #f5c26b; background: #fffdf7; }
+.aufschlag-chip.is-low.active { background: #fff1d6; border-color: #f59e0b; }
+
+/* Regler: Spurverlauf rot | orange | gelb | grün; Griff in der Zonenfarbe (--aknob aus render()).
+   --amin-n = Mindestwert in % der Reglerbreite (Skala 0–200 %); 60 % → 30, 70 % → 35. */
+.aufschlag-track {
+  --amin-n: 25; --aknob: #f97316; --thumb: 24px;
+  --p-min: calc(var(--amin-n) * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  --p-60: calc(30 * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  --p-70: calc(35 * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  position: relative; margin: 30px 0 6px;
+}
+.aufschlag-track .sonderaufschlag-slider {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer;
+}
+.aufschlag-track .sonderaufschlag-slider::-webkit-slider-runnable-track {
+  height: 10px; border-radius: 99px;
+  background: linear-gradient(90deg, #ef4444 0 var(--p-min), #f97316 var(--p-min) var(--p-60), #facc15 var(--p-60) var(--p-70), #22c55e var(--p-70) 100%);
+}
+.aufschlag-track .sonderaufschlag-slider::-moz-range-track {
+  height: 10px; border-radius: 99px;
+  background: linear-gradient(90deg, #ef4444 0 var(--p-min), #f97316 var(--p-min) var(--p-60), #facc15 var(--p-60) var(--p-70), #22c55e var(--p-70) 100%);
+}
+.aufschlag-track .sonderaufschlag-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: var(--thumb); height: var(--thumb); margin-top: -7px; border-radius: 50%;
+  background: var(--aknob); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.aufschlag-track .sonderaufschlag-slider::-moz-range-thumb {
+  width: calc(var(--thumb) - 6px); height: calc(var(--thumb) - 6px); border-radius: 50%;
+  background: var(--aknob); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.aufschlag-minmark {
+  position: absolute; left: var(--p-min); top: 5px; width: 2px; height: 24px; margin-left: -1px; background: #334155; pointer-events: none;
+}
+.aufschlag-minmark::after {
+  content: attr(data-l); position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: #334155; white-space: nowrap;
+}
+.aufschlag-minmark[hidden] { display: none; }
+
+/* Hinweis + Pflicht-Begründung */
+.aufschlag-warn { flex-direction: column; align-items: stretch; gap: 10px; background: #fff7e6; border-color: #f5c26b; color: #b45309; }
+.aufschlag-warn__t { display: flex; gap: 10px; font-weight: 600; }
+.aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--foreground, #1f2937); }
+.aufschlag-reason label span { color: #b91c1c; }
+.aufschlag-reason textarea {
+  width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; resize: vertical; background: #fff; box-sizing: border-box;
+}
+.aufschlag-reason textarea.empty { border-color: #ef4444; }
+.aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
+.aufschlag-reason__err[hidden] { display: none; }
+.aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted-foreground, #6b7280); }

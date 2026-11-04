@@ -81,6 +81,18 @@ const BASIN_ACC = [
  */
 export const RULES = [
   {
+    // Intern: Aufschlag unter dem Mindestwert der Kundenart, mit der eingetragenen Begründung.
+    id: "aufschlag-unter-min",
+    group: "arbeiten",
+    target: "rabatt",
+    title: "Aufschlag",
+    severity: "gelb",
+    test: () => {
+      const info = typeof window !== "undefined" ? window.getAufschlagBelowMin?.() : null;
+      return !!info && `Aufschlag unter Mindestwert (${info.min} %): ${info.reason}`;
+    },
+  },
+  {
     id: "arbeiten-leer",
     group: "arbeiten",
     title: "Arbeitspositionen erfasst",
