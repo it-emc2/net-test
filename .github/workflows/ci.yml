@@ -1,0 +1,72 @@
+# CI — tests on every PR and every push except main. Never deploys anything.
+# (Deploy stays in fly-deploy.yml, which only runs on pushes to main.)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+  # Tests must never reach a real service; nothing here has secrets.
+  MONGODB_URI: ""
+  BITRIX_WEBHOOK_BASE: "http://127.0.0.1:9/rest/0/blocked/"
+
+jobs:
+  tests:
+    name: Golden + unit + integration + node:test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Lint (reporting only — 12 pre-existing errors on main, see docs/rewrite/TESTING.md)
+        run: npm run lint
+        continue-on-error: true
+      - name: Golden masters (pricing + DOCX) — must stay green
+        run: npm run test:golden
+      - name: Unit (15 pre-existing failures, tracked)
+        run: npm run test:unit
+        continue-on-error: true
+      - name: Integration (1 pre-existing failure, tracked)
+        run: npm run test:integration
+        continue-on-error: true
+      - name: node:test
+        run: npm run test:node
+
+  parity:
+    name: UI parity (Playwright, own in-memory DB, outbound blocked)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:parity
+      - name: Offline suite
+        run: npm run test:e2e:offline
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: |
+            test-results/
+            test-results-parity-app.log
+          retention-days: 7

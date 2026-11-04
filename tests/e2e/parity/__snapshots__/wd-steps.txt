@@ -1,0 +1,6 @@
+home
+Kundendaten
+Arbeitszeit
+wd
+Kosten
+Zusammenfassung

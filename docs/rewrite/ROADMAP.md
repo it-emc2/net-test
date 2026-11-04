@@ -5,7 +5,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | Phase | Goal | Done when | Status |
 |---|---|---|---|
 | 0 | Foundations | local replica, inventories, decisions, main watcher | ✅ 2026-11-04 |
-| 1 | Safety net on the **current** app | see below | ⏳ in progress (4/6) |
+| 1 | Safety net on the **current** app | see below | ✅ v1 done 2026-11-04 (open v2 items listed) |
 | 2 | Skeleton TS monorepo | see below | – |
 | 3 | Shared pricing package | see below | – |
 | 4 | Backend port | see below | – |
@@ -16,11 +16,11 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 
 ## Phase 1 — Safety net on the current app (no behaviour change)
 - [x] Run existing suites; fix runners (`test:e2e` → Playwright, `test:node`, `test:golden`, `test:ci`) — 2026-11-04, see `TESTING.md`. Open: `run-scenarios` (missing `base.json`), 15+1 stale tests.
-- [ ] CI workflow: lint + unit + integration on every PR (does not touch deploy).
+- [x] CI workflow `ci.yml` (PRs + non-main pushes, no deploy) — 2026-11-04. Lint/unit/integration reporting-only until pre-existing failures are cleaned.
 - [x] Schema inference over replica → `DATA-SHAPES.md` (+ generated report) — 2026-11-04
 - [x] Pricing golden master: 115 anonymised real cases, 117 tests green — 2026-11-04. HMS/WD: no pricing exists (ADR 011).
 - [x] DOCX golden master: offer DOCX + Materialübersicht, 50 snapshots, in-process harness — 2026-11-04. Open: PDF, Arbeitsbericht, Kalkulation, signing docs.
-- [ ] Playwright parity suite against current app on replica: one happy path per offer type, draft save/load, load by ANG, load by deal (Bitrix mocked), export, email/post/signing (SMTP/Bitrix/OB24 mocked).
+- [x] Playwright parity suite v1: navigation for all 7 types + draft save/load, own stack, outbound blocked — 2026-11-04. Open (v2): load by ANG, load by deal (Bitrix stub), export, email/post/signing with stubs.
 
 ## Phase 2 — Skeleton
 - [ ] npm workspaces: `apps/server` (Fastify), `apps/web` (Vite), `packages/pricing`, `packages/domain` (Zod schemas from phase 1), `packages/docs`.

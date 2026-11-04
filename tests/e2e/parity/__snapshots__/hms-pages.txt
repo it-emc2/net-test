@@ -1,0 +1,6 @@
+home: visible=[page-Kundendaten] modal=[homeConfirmTitle] hash=#Kundendaten
+Kundendaten: visible=[page-Kundendaten] modal=[] hash=#Kundendaten
+Arbeitszeit: visible=[page-Arbeitszeit] modal=[] hash=#Arbeitszeit
+hms: visible=[page-hms] modal=[] hash=#hms
+Kosten: visible=[page-Kosten] modal=[] hash=#Kosten
+Zusammenfassung: visible=[page-Zusammenfassung] modal=[] hash=#Zusammenfassung

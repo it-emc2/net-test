@@ -149,3 +149,6 @@ ios/**/xcuserdata/
 
 # local prod replica dumps (never commit)
 scripts/replica/dumps/
+
+# parity suite app log
+test-results-parity-app.log

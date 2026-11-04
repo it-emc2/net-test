@@ -8,7 +8,8 @@
 | `npm run test:unit` / `test:integration` | Jest |
 | `npm run test:node` | `test/*.mjs` (node:test; previously never run) |
 | `npm run test:e2e` | Playwright against a running app on :3000 (was: Jest → 0 tests) |
-| `npm run test:e2e:offline` | Playwright offline suite (own Mongo + app) |
+| `npm run test:e2e:offline` | Playwright offline suite (own Mongo + app) — 23/23 |
+| `npm run test:parity` | **UI parity suite** (own in-memory Mongo + real app, outbound blocked) — 9/9 |
 | `npm run golden:pricing` | rebuild pricing golden master from **local replica** |
 | `npm run golden:docs` | rebuild DOCX golden master (run after `golden:pricing`) |
 
@@ -19,7 +20,9 @@
 | unit | 411 / 426 — 15 failing (pre-existing) |
 | integration | 53 / 54 — 1 failing (pre-existing) |
 | node:test | 4 / 4 |
-| e2e | 12 tests now discovered (need running app — phase 1 step 5) |
+| e2e (stubbed specs) | 12 discovered; need a manually started dev server (not in CI) |
+| e2e offline | 23 / 23 |
+| UI parity (new) | 9 / 9 |
 
 ### Pre-existing unit failures (not fixed — decide per item)
 | Suite | Cause | Verdict |
@@ -44,3 +47,14 @@
 - Normalised: today's date → `<TODAY>`, `ANG-<ts>`, letterhead personal names → `<OWNER>` (initials-only rule). PII scan: 0 customer tokens.
 - Not yet covered: PDF output (needs LibreOffice; Gotenberg phase), Arbeitsbericht, Kalkulation, signing HTML/PDFs.
 - Finding: `/docx-template/material-overview` writes a debug copy `out-Materialuebersicht.docx` into the process cwd on every call (gitignored; on Fly ephemeral disk).
+
+## UI parity suite (`tests/e2e/parity`)
+- Stack: `global-setup.cjs` boots in-memory MongoDB (catalog + config from golden fixtures, one admin user), starts the real app on :5173 with **every integration pointed at a dead port** (Bitrix, SMTP/IMAP, onlinebrief24, planning, Magic API, ORS, Adobe).
+- `navigation.spec.cjs`: per offer tile → sidebar step list + what each step click shows (visible page, modal, hash) as Playwright text snapshots in `__snapshots__/`. Main-menu tiles snapshot.
+- `drafts.spec.cjs`: today's draft behaviour — every quick save inserts a new draft `ANG-BU-{First}-{Last}-{DDMMYYYY}-{HHMMSS}`; clicking a search row loads it and restores the form. Will change with ADR 007.
+- Update snapshots only for intended changes: `npx playwright test -c playwright.parity.config.cjs --update-snapshots`.
+- Findings: the existing offline suite's app calls **real Bitrix** via the hard-coded webhook fallback (currently rejected: "Invalid request credentials"); draft search + draft load requests are each sent **twice** by the UI.
+
+## CI (`.github/workflows/ci.yml`)
+- Triggers: every PR and every push except `main`; no secrets, no deploy.
+- Blocking: golden masters, node:test, UI parity, offline suite. Reporting only (pre-existing failures): lint (12 errors), unit (15), integration (1) — flip to blocking once fixed/removed.

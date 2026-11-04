@@ -26,3 +26,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 |---|---|---|---|
 | 2026-11-04 | stack options | Stack decided (B), replica 36/36 collections identical, inventories, ADRs, roadmap, main watcher | Phase 1 |
 | 2026-11-04 | phase 1 (a) | Test runners fixed, baseline, schema inference, pricing golden master 117/117, HMS/WD finding | Phase 1: document golden master, Playwright parity, CI |
+| 2026-11-04 | phase 1 (b) | DOCX golden 51/51, UI parity 9/9, offline 23/23, CI workflow | Phase 1 v2 items or Phase 2 skeleton |
