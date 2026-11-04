@@ -572,6 +572,16 @@ export function computeFingerprint(payload) {
     const { wvSupplier, ...wv } = rest.wandverkleidung;
     rest.wandverkleidung = wv;
   }
+  // Dekor rows (wvKRows / wvWwRows, 2026-11): an empty field is "no rows" — what a
+  // missing field already means — so reopening an old offer must not change its fingerprint.
+  if (rest.wandverkleidung && (rest.wandverkleidung.wvKRows === "" || rest.wandverkleidung.wvWwRows === "")) {
+    const { wvKRows, wvWwRows, ...wv } = rest.wandverkleidung;
+    rest.wandverkleidung = {
+      ...wv,
+      ...(wvKRows ? { wvKRows } : {}),
+      ...(wvWwRows ? { wvWwRows } : {}),
+    };
+  }
   return stableStringify(rest);
 }
 
@@ -1548,20 +1558,47 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     // ------- winwall panels + accessories
     let winwallPanels = 0;
     if (isWinwall) {
-      const decor = winwallDecor(wv);
-      const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
-      const qtyByFormat = {};
-      for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
+      // One group per decor: rows (wvWwRows, since 2026-11) or the single decor + the
+      // four quantity fields of older offers. Per decor two equal plates become a set.
+      const groups = new Map();
+      let rowsMode = false;
+      const rowsRaw = String(wv?.wvWwRows ?? "").trim();
+      if (rowsRaw.startsWith("[")) {
+        try {
+          const arr = JSON.parse(rowsRaw);
+          if (Array.isArray(arr)) {
+            rowsMode = true;
+            for (const r of arr) {
+              const code = winwallDecorCode(r?.code);
+              const fmt = String(r?.fmt ?? "");
+              const qty = Math.max(0, Math.round(Number(r?.qty) || 0));
+              if (!code || !WINWALL_SINGLE_FORMATS.includes(fmt) || qty <= 0) continue;
+              const g = groups.get(code) || {};
+              g[fmt] = (Number(g[fmt]) || 0) + qty;
+              groups.set(code, g);
+            }
+          }
+        } catch { /* not JSON → single decor */ }
+      }
+      if (!rowsMode) {
+        const qtyByFormat = {};
+        for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
+        groups.set(winwallDecor(wv).code, qtyByFormat);
+      }
       let coverM2 = 0;
-      for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
-        const f = l.format;
-        winwallPanels += l.panels;
-        coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
-        const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
-        // Price from the price list: any decor (also a typed one) costs the same per format.
-        // name for a typed decor that has no product in the DB
-        add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
-          { name: `winwall Duschrückwand ${decorText} ${what}` });
+      for (const [code, qtyByFormat] of groups) {
+        const decor = { code, name: WINWALL_CATALOG[code] || null };
+        const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
+        for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
+          const f = l.format;
+          winwallPanels += l.panels;
+          coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
+          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
+          // Price from the price list: any decor (also a typed one) costs the same per format.
+          // name for a typed decor that has no product in the DB
+          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
+            { name: `winwall Duschrückwand ${decorText} ${what}` });
+        }
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
       const wwQty = (sku) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);

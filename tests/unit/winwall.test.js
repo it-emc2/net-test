@@ -137,6 +137,27 @@ describe("winwall pricing", () => {
   });
 });
 
+describe("winwall rows (wvWwRows): several decors and formats", () => {
+  const rows = (r) => JSON.stringify(r);
+  const ww = { wvEnabled: true, wvSupplier: "ww" };
+  test("one order line per decor and format; equal pairs of one decor become a set", async () => {
+    const ls = await lines({
+      ...ww, wvWwRows: rows([
+        { code: "WS203", fmt: "15", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 },
+        { code: "NW220", fmt: "16", qty: 1 }, { code: "WS203", fmt: "17", qty: 1 },
+      ]),
+    });
+    const q = ids(ls);
+    expect(q).toEqual({ WS20325: 1, NW22016: 1, WS20317: 1 });
+    expect(ls.find((l) => l.productId === "NW22016").label).toContain("NW 220");
+  });
+  test("rows win over the old quantity fields; empty field and no rows leave old offers alone", async () => {
+    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2", wvWwRows: rows([{ code: "WS203", fmt: "13", qty: 1 }]) }))).toEqual({ WS20313: 1 });
+    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2" }))).toEqual({ WS20325: 1 });
+    expect(computeFingerprint({ wandverkleidung: { wvWwRows: "", a: 1 } })).toBe(computeFingerprint({ wandverkleidung: { a: 1 } }));
+  });
+});
+
 describe("supplier codes (Kürzel)", () => {
   const L = (...cats) => cats.map((category) => ({ category }));
   test("Wandverkleidung: winwall / VIGOUR / Badolux, only with WV lines", () => {

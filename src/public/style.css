@@ -12710,3 +12710,21 @@ body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColo
 /* geöffnete Zeile: runde Ecken, Inhalt wird an der Rundung beschnitten */
 body.ui-classic #page-Wandverkleidung #wvRows > *,
 body.ui-classic #page-Wandverkleidung #wvKRows > * { overflow: hidden; }
+
+/* ===== Wandverkleidung winwall: Platten-Zeilen, Dekor-Kacheln in der Zeile ===== */
+#wvWwPanelsSection { display: none !important; } /* Datenfelder (wvWwQty_*) bleiben, die Zeilen ersetzen die Anzeige */
+.wv-ww-fmtsel { flex: 0 0 auto !important; width: auto !important; }
+#wvWwDecorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvWwDecorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvWwDecorSection:not(.in-row) { display: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 4px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check { min-width: 0; width: auto; border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+body.ui-classic #page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+#wvWwDecors .image-check .caption { color: var(--muted, #6b7280); }
+#wvWwDecors .image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+body.ui-classic #page-Wandverkleidung #wvWwRows { display: grid; gap: 8px; }
+body.ui-classic #page-Wandverkleidung #wvWwRows > * { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; overflow: hidden; }

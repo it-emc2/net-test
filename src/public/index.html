@@ -5135,6 +5135,16 @@ button.dm-btn-danger:focus-visible {
 
             <!-- winwall (wvSupplier = ww): Plattenwahl je Format + Dekor. Zwei gleiche
                  Platten bestellt pricing-core automatisch als Set (winwallOrderLines). -->
+            <!-- winwall: Dekor + Format + Menge als Zeilen (initWvWwRows). Die alten Felder (wvWwQty_*, wvWwDecor)
+                 bleiben Datenbasis/Anzeige; wvWwRows (JSON) ist die Quelle der Preise. -->
+            <div id="wvWwRowsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Platten — winwall</div>
+              <div id="wvWwRows" class="sec-settings__group"></div>
+              <input type="hidden" id="wvWwRowsData" name="wvWwRows" value="" />
+              <button type="button" id="wvWwRowAdd" class="wv-row-add">+ Zeile hinzufügen (Dekor und Format)</button>
+              <p class="wv-ww-hint muted" id="wvWwRowsHint" style="margin:8px 4px 0">Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).</p>
+            </div>
+
             <div id="wvWwPanelsSection" class="sec-settings" hidden aria-hidden="true">
               <div class="sec-settings__label">Plattenwahl winwall</div>
               <div class="sec-settings__group">
