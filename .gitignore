@@ -152,3 +152,6 @@ scripts/replica/dumps/
 
 # parity suite app log
 test-results-parity-app.log
+
+# personal Claude Code settings
+.claude/settings.local.json
