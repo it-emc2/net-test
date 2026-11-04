@@ -8,8 +8,9 @@ import {
   clearSessionCookie, createToken, sessionCookie, shouldRefresh, tokenFromHeaders, verifyPassword, verifyToken,
 } from "../auth.js";
 import { BusinessConfig, CONFIG_SCHEMA } from "../business-config.js";
-import { AppConfig, Product, Service, User } from "../models.js";
+import { AppConfig, Draft, Offer, Product, Service, User } from "../models.js";
 import { vigorPriceFetcher } from "../vigor.js";
+import { registerOffersRead } from "./offers-read.js";
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -31,6 +32,9 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const pricing = createPricingEngine(Product as any, {
     cfg: businessConfig,
     fetchVigourNetPrices: vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI),
+    // locked (sent) offers return their stored price; drafts/offers feed the snapshot cache (legacy pricing.js)
+    OfferModel: Offer as any,
+    DraftModel: Draft as any,
   });
 
   // ---------------- auth ----------------
@@ -111,6 +115,8 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     const p = await Product.findOne({ productId: (req.params as { id: string }).id }).lean();
     return p ?? fail(req, reply, 404, "NOT_FOUND", "Not found");
   });
+
+  await registerOffersRead(app);
 
   // ---------------- pricing ----------------
   app.post("/api/price", async (req) => {

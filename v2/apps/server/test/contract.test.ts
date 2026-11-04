@@ -6,6 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { EJSON } from "bson";
 import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
@@ -45,6 +46,9 @@ beforeAll(async () => {
   await db.collection("Products").insertMany(fx("docs/products.json"));
   await db.collection("Services").insertMany(fx("catalog/services.json").map((s: any) => ({ ...s, createdAt: new Date(s.createdAt), updatedAt: new Date(s.updatedAt) })));
   await db.collection("appconfigs").insertMany(Object.entries(fx("pricing/config.json")).map(([key, value]) => ({ key, value })));
+  const ejson = (p: string) => EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/" + p, "utf8")) as any[];
+  await db.collection("offers").insertMany(ejson("docs-db/offers.json"));
+  await db.collection("drafts").insertMany(ejson("docs-db/drafts.json"));
   await db.collection("users").insertOne({ email: USER.email, name: "Contract", passwordHash: hashPassword(USER.password), role: "admin", active: true });
   const vigor = fx("docs/vigor-products.json");
   if (vigor.length) await client.db("vigor").collection("products").insertMany(vigor);
@@ -163,5 +167,61 @@ describe("v2 security by design (intentional differences to legacy)", () => {
     expect(r.statusCode).toBe(200);
     const s = await v2.inject({ url: "/api/products?q=" + encodeURIComponent("SLA.*"), headers: { authorization: `Bearer ${token}` } });
     expect(s.json()).toEqual([]); // literal "SLA.*", not a pattern
+  });
+});
+
+describe("contract: offers + drafts (read)", () => {
+  const offers = () => EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+  const drafts = () => EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/drafts.json", "utf8")) as any[];
+
+  it.each([
+    "/api/offers/search-all?q=Kunde0001", "/api/offers/search-all?q=kunde00", "/api/offers/search-all?q=Ort1&limit=5",
+    "/api/offers/search-all?q=ANG2026", "/api/offers/search-all?q=", "/api/offers/search-all?q=Vorname0003%20Kunde0003",
+    "/api/offers", "/api/offers?limit=5", "/api/offers?offerType=bwt", "/api/offers?q=Kunde0002", "/api/offers?q=ANG",
+    "/api/drafts/search?offerType=bu", "/api/drafts/search?offerType=bu&q=Kunde", "/api/drafts/search?offerType=bwt&q=ANG",
+  ])("GET %s", async (url) => {
+    const r = await both("GET", url);
+    expect(r.v2.status).toBe(r.legacy.status);
+    expect(r.v2.body).toEqual(r.legacy.body);
+  });
+
+  it("GET /api/offers/:offerNumber — 10 real offers + 404", async () => {
+    for (const o of offers().slice(0, 10)) {
+      const r = await both("GET", `/api/offers/${encodeURIComponent(o.offerNumber)}`);
+      expect(r.v2.status, o.offerNumber).toBe(200);
+      expect(r.v2.body, o.offerNumber).toEqual(r.legacy.body);
+    }
+    const nf = await both("GET", "/api/offers/ANG-NOPE");
+    expect(nf.v2.status).toBe(404);
+    expect(nf.v2.body.error.message).toBe(nf.legacy.body.error);
+  });
+
+  it("GET /api/drafts/:id — 10 real drafts + 404", async () => {
+    for (const d of drafts().slice(0, 10)) {
+      const r = await both("GET", `/api/drafts/${d._id}`);
+      expect(r.v2.status).toBe(200);
+      expect(r.v2.body).toEqual(r.legacy.body);
+    }
+    const nf = await both("GET", "/api/drafts/0123456789abcdef01234567");
+    expect(nf.v2.status).toBe(404);
+    expect(nf.v2.body.error.message).toBe(nf.legacy.body.error);
+  });
+
+  it("GET /api/offers/by-deal/:dealId — every deal id present in the fixtures", async () => {
+    const ids = new Set<string>();
+    for (const d of [...offers(), ...drafts()]) {
+      for (const v of [d.dealId, d.payload?.auftragId, d.payload?.dealId, d.payload?.Kundendaten?.dealId]) if (v && String(v) !== "0") ids.add(String(v));
+    }
+    expect(ids.size).toBeGreaterThan(0);
+    for (const id of [...ids].slice(0, 15)) {
+      const r = await both("GET", `/api/offers/by-deal/${encodeURIComponent(id)}`);
+      expect(r.v2.body, id).toEqual(r.legacy.body);
+    }
+  });
+
+  it("drafts/search without offerType → 400 same message", async () => {
+    const r = await both("GET", "/api/drafts/search");
+    expect(r.v2.status).toBe(400);
+    expect(r.v2.body.error.message).toBe(r.legacy.body.error);
   });
 });

@@ -98,7 +98,7 @@ function eachPerson(o, fn) {
 }
 
 function anonDoc(d) {
-  let doc = unpackJson(scrub(structuredClone(d)));
+  let doc = unpackJson(scrub(EJSON.parse(EJSON.stringify(d, { relaxed: false }), { relaxed: false })));
   doc = scrub(doc); // free-text keys inside unpacked JSON
   delete doc.payload?.mail; delete doc.payload?.postal; delete doc.payload?.zusammenfassung;
   // 1) collect every string from every person-like object (any depth) + top-level contact fields

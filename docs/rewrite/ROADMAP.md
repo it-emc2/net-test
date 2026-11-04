@@ -41,7 +41,8 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 4 — Backend port
 - [x] Models with identical collections/fields (Product, Service, User, AppConfig, Offer, Draft); business config (CONFIG_SCHEMA copy, parity-checked); Vigor access; legacy-compatible sessions — 2026-11-04
 - [x] Group 1 ported + contract-tested: auth (login/logout/me/confirm-password), catalog (products, services, sla), pricing (/api/price, /api/price/inputs)
-- [ ] Group 2: offers + drafts (read, search, by-deal, save, recompute) incl. ADR 007 deal drafts
+- [x] Group 2a (read): offers search-all / by-deal / :offerNumber / list, drafts search / :id — identical to legacy on 60 offers + 80 drafts (anonymised) — 2026-11-04. Contract test also caught a real gap: pricing must get the Offer/Draft models (frozen price of locked offers) — fixed
+- [ ] Group 2b (write): POST offers, POST drafts, recompute; ADR 007 deal drafts + revisions
 - [ ] Group 3: customers, users, admin config
 - [ ] Group 4: integrations behind interfaces (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, signing)
 - [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
