@@ -4,6 +4,7 @@
 // the legacy login must be accepted by v2 (cut-over keeps everybody logged in).
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { EJSON } from "bson";
@@ -18,7 +19,14 @@ import { registerApi } from "../src/routes/api.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const fx = (p: string) => JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/" + p, "utf8"));
-const LEGACY_PORT = 3001;
+// Random free port: a fixed port can be taken by an orphaned server from an earlier, crashed
+// run (which then answers with a different database).
+let LEGACY_PORT = 0;
+const freePort = () => new Promise<number>((resolve, reject) => {
+  const srv = createServer();
+  srv.once("error", reject);
+  srv.listen(0, "127.0.0.1", () => { const p = (srv.address() as any).port; srv.close(() => resolve(p)); });
+});
 const SECRET = "contract-test-secret-0123456789abcdef";
 const USER = { email: "contract@test.local", password: "contract-pass" };
 const DEAD = "http://127.0.0.1:9";
@@ -40,6 +48,7 @@ async function waitFor(url: string, ms = 60000) {
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();
+  LEGACY_PORT = await freePort();
   const client = new mongoose.mongo.MongoClient(uri);
   await client.connect();
   const db = client.db("KonfiguratorDB");
@@ -63,6 +72,8 @@ beforeAll(async () => {
     },
     stdio: "ignore",
   });
+  // never leave the legacy server running if this worker dies
+  process.once("exit", () => { try { legacy.kill("SIGKILL"); } catch { /* already gone */ } });
   await waitFor(`http://127.0.0.1:${LEGACY_PORT}/api/health`);
 
   const cfg = loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET });
