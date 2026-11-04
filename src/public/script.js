@@ -14497,14 +14497,8 @@ function renderDwSummary() {
 
   body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic${badolux && !isSlateTrayProductId(pid) ? " is-photo" : ""}"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
     items.length ? `<div class="dw-summary__items">${items.join("")}</div>` : ""
-  }<div class="dw-summary__total"><span>Gesamt</span><span data-sw-total>${escapeHtml(document.getElementById("swTotalValue")?.textContent || "–")}</span></div>`;
+  }`;
 }
-// Klassische Ansicht: Summe in "Ihre Auswahl" folgt dem Summary-Widget (nur Anzeige).
-(function syncDwSummaryTotal() {
-  const src = document.getElementById("swTotalValue");
-  if (!src) return;
-  new MutationObserver(() => document.querySelectorAll("[data-sw-total]").forEach((el) => (el.textContent = src.textContent))).observe(src, { childList: true, characterData: true, subtree: true });
-})();
 // Kundenbäder: a tap on a pair opens it large; tap outside, × or Esc closes.
 (function initDwRefs() {
   const dlg = document.getElementById("dwRefDialog");
