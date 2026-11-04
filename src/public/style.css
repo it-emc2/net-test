@@ -12704,7 +12704,7 @@ body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColo
 #wvBadoluxAccSection.is-foldable > .sec-settings__label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
 #wvBadoluxAccSection.is-foldable > .sec-settings__label::after { content: "›"; margin-left: auto; transition: transform .15s; font-size: 1.2rem; }
 #wvBadoluxAccSection.is-foldable.is-open > .sec-settings__label::after { transform: rotate(90deg); }
-#wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none; }
+#wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none !important; }
 .dw-acc[hidden] { display: none !important; }
 .wv-krow-fields--one { grid-template-columns: 1fr; }
 /* geöffnete Zeile: runde Ecken, Inhalt wird an der Rundung beschnitten */
