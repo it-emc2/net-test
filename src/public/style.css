@@ -7819,38 +7819,7 @@ button.pad-clear {
   gap: 8px;
 }
 
-.today-calendar-done {
-  border: 1px solid color-mix(in srgb, #16a34a 30%, var(--border));
-  background: color-mix(in srgb, #16a34a 12%, var(--panel));
-  color: #15803d;
-  border-radius: 12px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
-}
-
-.today-calendar-done:hover,
-.today-calendar-done:focus-visible {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #fff;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
-}
-
-.today-calendar-done:disabled {
-  cursor: default;
-  opacity: .75;
-  box-shadow: none;
-}
-
-/* "Nicht erreicht" — same shape as .today-calendar-done, amber instead of green */
+/* "Nicht erreicht" — amber */
 .today-calendar-noshow {
   border: 1px solid color-mix(in srgb, #d97706 32%, var(--border));
   background: color-mix(in srgb, #d97706 12%, var(--panel));
@@ -8062,7 +8031,6 @@ button.pad-clear {
      grid row. */
   .today-calendar-call,
   .today-calendar-navigate,
-  .today-calendar-done,
   .today-calendar-noshow,
   .today-calendar-open {
     min-height: 68px;
