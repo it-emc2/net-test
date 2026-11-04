@@ -8,6 +8,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 
 import ProductModel from "../models/Product.js";
+import { buildBadoluxCart, cartCsv } from "../logic/badolux-cart.js";
 import pricingFactory from "../logic/pricing.js";
 import { WANNE_SET_ORDER } from "../lib/wanneSets.js";
 import {
@@ -18,6 +19,10 @@ import {
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
+
+const cleverbadCatalog = JSON.parse(
+  fsSync.readFileSync(new URL("../logic/cleverbad-catalog.json", import.meta.url), "utf8"),
+);
 
 // Article codes that are internal cost lines or belong to other suppliers and
 // must never end up in the Hassmann Warenkorb CSV. Hassmann either rejects them
@@ -50,6 +55,10 @@ function isHassmannProduct(id, manufacturer) {
   if (s === "OPT_CUSTOM") return false;
   if (s === "REHA_DELIVERY") return false;
   if (INTERNAL_NON_HASSMANN.has(s)) return false;
+  // Badolux articles from the Duschabtrennung (neu) configurator (cleverbad.de
+  // numbers, e.g. PRI80DK19-Z) aren't in Products, so no manufacturer to check —
+  // they belong in the Badolux cart only.
+  if (cleverbadCatalog.variants[s]) return false;
   if (WANNE_SET_ORDER.has(s)) return false; // online-retail door-tub sets
   if (!isHassmannManufacturer(manufacturer)) return false;
 
@@ -253,6 +262,105 @@ router.post("/pdf", async (req, res) => {
   }
 });
 
+
+// Badolux cart for cleverbad.de (Badolux's shop): ?format=csv (Hassmann-style
+// ART;<Artikelnummer>;<Menge>) or ?format=json (links, variants, manual items) for
+// the n8n cart automation. 204 when the offer has no Badolux item at all — the
+// client then attaches nothing.
+router.post("/badolux-cart", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const lines = computed?.materials?.lines || [];
+    const ids = [...new Set(lines.map((l) => String(l.productId || "").trim()).filter(Boolean))];
+    const badolux = ids.length
+      ? await ProductModel.find({
+          productId: { $in: ids },
+          $or: [{ source: /badolux/i }, { manufacturer: /badolux/i }],
+        })
+          .select("productId")
+          .lean()
+      : [];
+    const cart = buildBadoluxCart({
+      lines,
+      payload: body,
+      badoluxIds: new Set(badolux.map((d) => d.productId)),
+      catalog: cleverbadCatalog,
+    });
+    if (!cart.items.length && !cart.manual.length) return res.status(204).end();
+
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    if (req.query.format === "json") {
+      const json = {
+        format: "badolux-warenkorb/1",
+        offerNumber: angebotNummer,
+        dealId: String(body.auftragId || "").trim() || null,
+        createdAt: new Date().toISOString(),
+        shop: cleverbadCatalog.shop,
+        ...cart,
+      };
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="Badolux_Warenkorb_${safeOffer}.json"`);
+      return res.send(JSON.stringify(json, null, 2));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="Badolux_Warenkorb_${safeOffer}.csv"`);
+    res.send(cartCsv(cart));
+  } catch (e) {
+    console.error("Badolux cart generation failed:", e);
+    res.status(500).json({ error: "Badolux cart generation failed", detail: e.message || String(e) });
+  }
+});
+
+// winwall cart (order@winwall.com / future cart automation): ?format=csv
+// (ART;<Artikelnummer>;<Menge>, orderable articles only) or ?format=json (plus
+// Zuschnitt/Fracht as services, the Kürzel and the deal). 204 without winwall items.
+router.post("/winwall-cart", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const lines = (computed?.materials?.lines || []).filter((l) => /^(WS|NW)/i.test(String(l.productId || "")));
+    if (!lines.length) return res.status(204).end();
+    const items = new Map();
+    const services = [];
+    for (const l of lines) {
+      const id = String(l.productId).trim();
+      const qty = Math.round(Number(l.qty) || 0);
+      if (qty <= 0) continue;
+      if (/^WS-/i.test(id)) {
+        services.push({ id, qty, name: l.name || id, netEach: Number(l.unitPrice) || 0 });
+        continue;
+      }
+      const prev = items.get(id);
+      if (prev) prev.qty += qty;
+      else items.set(id, { sku: id, qty, name: l.name || id, section: l.category || null, ourNetEach: Number(l.unitPrice) || 0 });
+    }
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    if (req.query.format === "json") {
+      const json = {
+        format: "winwall-warenkorb/1",
+        offerNumber: angebotNummer,
+        dealId: String(body.auftragId || "").trim() || null,
+        createdAt: new Date().toISOString(),
+        supplier: { name: "winwall GmbH", order: "order@winwall.com", shop: "https://www.winwall.com" },
+        codes: computed?.supplierCodes || null,
+        items: [...items.values()],
+        services,
+      };
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="winwall_Warenkorb_${safeOffer}.json"`);
+      return res.send(JSON.stringify(json, null, 2));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="winwall_Warenkorb_${safeOffer}.csv"`);
+    res.send("\ufeff" + [...items.values()].map((i) => `ART;${i.sku};${i.qty}`).join("\r\n"));
+  } catch (e) {
+    console.error("winwall cart generation failed:", e);
+    res.status(500).json({ error: "winwall cart generation failed", detail: e.message || String(e) });
+  }
+});
 
 router.post("/hassmann-cart", async (req, res) => {
   try {

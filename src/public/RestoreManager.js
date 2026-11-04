@@ -232,6 +232,14 @@ export function initRestoreManager({
         console.warn("[vorhang] restore failed:", e?.message || e);
       }
 
+      // Section switches (Duschabtrennung neu / Duschvorhang) and whether the old
+      // Hassmann Duschabtrennung page shows for this offer.
+      try {
+        window.restoreSectionSwitches?.(payload);
+      } catch (e) {
+        console.warn("[sectionSwitches] restore failed:", e?.message || e);
+      }
+
       // Rehydrate the Handläufe Konfigurator from its saved state
       try {
         const hlCfgState = payload?.hl?.hlConfigurator?.state || null;
@@ -322,12 +330,15 @@ export function initRestoreManager({
       restoreOne("da", payload?.duschabtrennung || {});
       restoreOne("bwt", payload?.bwt || {});
       restoreOne("hl", payload?.hl || {});
+      // Wandverkleidung sketch was only restored by the retired legacy path.
+      restoreOne("wv", payload?.wandverkleidung || {});
 
       setTimeout(() => {
         console.log("[SKETCH][late-retry]");
         restoreOne("da", payload?.duschabtrennung || {});
         restoreOne("bwt", payload?.bwt || {});
         restoreOne("hl", payload?.hl || {});
+        restoreOne("wv", payload?.wandverkleidung || {});
       }, 350);
     } catch (e) {
       console.warn("[SKETCH][restore-call-site] failed:", e);

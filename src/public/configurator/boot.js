@@ -12,7 +12,14 @@ if (configsEl && template && addBtn) {
   const MODELS = {
     vigour: "/api/da-config/model/vigour",
     badolux: "/configurator/badolux-model.json",
+    // The one-step Badolux model ("Produkt") used until 2026-10. Only for reopening a
+    // saved card that still has that step — new cards always get the model above.
+    "badolux-v1": "/configurator/badolux-model-v1.json",
   };
+  // Which model file reopens a saved card: same supplier, but an old Badolux state
+  // must go back to the model it was made with or it can't resolve.
+  const modelKeyFor = (supplier, state) =>
+    supplier === "badolux" && state?.selections?.Produkt != null ? "badolux-v1" : supplier;
 
   const models = {}; // supplier -> parsed model (cached across all cards)
   const entries = []; // { id, supplier, instance, resolved, cardEl, mountEl }
@@ -45,7 +52,7 @@ if (configsEl && template && addBtn) {
   };
 
   const mountInto = (entry, initialState) => {
-    const model = models[entry.supplier];
+    const model = models[entry.modelKey];
     entry.instance = mountConfigurator(entry.mountEl, model, {
       initialState: initialState || undefined,
       // resolved() reflects the engine truth (null until every component is sized);
@@ -62,6 +69,7 @@ if (configsEl && template && addBtn) {
   const switchSupplier = async (entry, key) => {
     if (!MODELS[key] || key === entry.supplier) return;
     entry.supplier = key;
+    entry.modelKey = key;
     entry.resolved = null;
     entry.mountEl.innerHTML = '<div class="dac-loading">Konfigurator wird geladen …</div>';
     try {
@@ -97,6 +105,7 @@ if (configsEl && template && addBtn) {
     const supplierInputs = cardEl.querySelectorAll("[data-dac-supplier-input]");
 
     const entry = { id, supplier: supplier || "vigour", instance: null, resolved: null, cardEl, mountEl };
+    entry.modelKey = modelKeyFor(entry.supplier, state);
     entries.push(entry);
     configsEl.appendChild(cardEl);
 
@@ -115,7 +124,7 @@ if (configsEl && template && addBtn) {
     updateTitles();
 
     try {
-      await loadModel(entry.supplier);
+      await loadModel(entry.modelKey);
       mountInto(entry, state);
     } catch (err) {
       console.error("[daConfigurator] failed to load model:", err);

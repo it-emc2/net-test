@@ -495,6 +495,10 @@ export function initEmailManager(options = {}) {
       if (offerExtra.offerType === "ah" && offerExtra.payload) {
         payload.payload = JSON.stringify(offerExtra.payload);
       }
+      // Material Kürzel for the deal (WV-WW · DW-SL …), from the live pricing.
+      const codes = window.__pricing?.supplierCodes;
+      const materialCodes = [...new Set([codes?.wv, codes?.fb, codes?.dw].filter(Boolean))].join(" · ");
+      if (materialCodes) payload.materialCodes = materialCodes;
     }
 
     try {
@@ -1535,7 +1539,7 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       const txt = await resp.text().catch(() => "");
       throw new Error(`${endpoint} (${resp.status}): ${txt}`);
     }
-    if (resp.status === 204) return null; // nothing to attach for this offer
+    if (resp.status === 204) return null; // nothing to attach (e.g. no Badolux item)
     const cd = resp.headers.get("content-disposition") || "";
     let filename = fallbackName;
     const match = cd.match(/filename="?([^"]+)"?/i);
@@ -1565,6 +1569,13 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
       { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
+      // Badolux cart for the cleverbad.de automation (n8n). Optional: only when the
+      // offer has Badolux items, and a failure never blocks sending the offer.
+      { endpoint: "/material-overview/badolux-cart?format=csv", name: `Badolux_Warenkorb_${safeNo}.csv`, label: "Badolux-Warenkorb (CSV)", optional: true },
+      { endpoint: "/material-overview/badolux-cart?format=json", name: `Badolux_Warenkorb_${safeNo}.json`, label: "Badolux-Warenkorb (JSON)", optional: true },
+      // winwall cart (WV-WW), same rules: only with winwall items, never blocks sending.
+      { endpoint: "/material-overview/winwall-cart?format=csv", name: `winwall_Warenkorb_${safeNo}.csv`, label: "winwall-Warenkorb (CSV)", optional: true },
+      { endpoint: "/material-overview/winwall-cart?format=json", name: `winwall_Warenkorb_${safeNo}.json`, label: "winwall-Warenkorb (JSON)", optional: true },
       // Only produced when the offer has articles bought outside Hassmann.
       { endpoint: "/material-overview/online-orders", name: `Bestellhinweise_Online-Handel_${safeNo}.txt`, label: "Bestellhinweise Online-Handel" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
@@ -1580,6 +1591,10 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
         const doc = await fetchBitrixExtraDoc(job.endpoint, payload, job.name);
         if (doc) docs.push(doc);
       } catch (e) {
+        if (job.optional) {
+          console.warn("[EmailManager] optionales Bitrix-Dokument übersprungen:", job.endpoint, e);
+          continue;
+        }
         console.error("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
         const message = `${job.label} konnte nicht erzeugt werden: ${e.message || e}`;
         if (!onError) throw new Error(message);

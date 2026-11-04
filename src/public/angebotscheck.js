@@ -40,9 +40,11 @@ const lineQty = (materials, pid, cat) =>
 const wvLine = (materials, pid) => lineQty(materials, pid, "Wandverkleidung") > 0;
 
 /** Wandverkleidung panels in the offer (V3WV… / V3WVK…, colour variants included). */
+// Vigour Alu panels (V3WV*) and Standard Keramico panels (WP*, counted from the
+// wall widths) — both are the offer's Wandverkleidung panels.
 const wvPanels = (materials) =>
   lines(materials)
-    .filter((l) => /^V3WV/i.test(idOf(l)) && inCategory(l, "Wandverkleidung"))
+    .filter((l) => /^(V3WV|WP\d)/i.test(idOf(l)) && inCategory(l, "Wandverkleidung"))
     .reduce((n, l) => n + (Number(l?.qty) || 0), 0);
 
 /**
@@ -78,6 +80,18 @@ const BASIN_ACC = [
  * string, or one per offending line). ctx = { services, materials, optionals }.
  */
 export const RULES = [
+  {
+    // Intern: Aufschlag unter dem Mindestwert der Kundenart, mit der eingetragenen Begründung.
+    id: "aufschlag-unter-min",
+    group: "arbeiten",
+    target: "rabatt",
+    title: "Aufschlag",
+    severity: "gelb",
+    test: () => {
+      const info = typeof window !== "undefined" ? window.getAufschlagBelowMin?.() : null;
+      return !!info && `Aufschlag unter Mindestwert (${info.min} %): ${info.reason}`;
+    },
+  },
   {
     id: "arbeiten-leer",
     group: "arbeiten",
@@ -210,7 +224,7 @@ export const RULES = [
       if (!kind || kind === "Keine") missing.push("Art der Wandverkleidung fehlt.");
       if (!sel.checkedValue("wvColor")) missing.push("Dekor / Farbe fehlt.");
       if (wvPanels(materials) === 0) {
-        missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt.");
+        missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner).");
       }
       return missing;
     },
@@ -250,6 +264,19 @@ export const RULES = [
     test: ({ materials }) =>
       !wvLine(materials, "V3A") &&
       "Kein Abschlussprofil im Angebot — bitte Menge eintragen.",
+  },
+  {
+    // Sonderdruck (V3WVK999 / V3WV999): Vigour sends the Konfigurations-Nr. after
+    // the request, so the offer may be made without it — until it is entered.
+    id: "wandverkleidung-konfigurationsnr",
+    group: "material",
+    target: "Wandverkleidung",
+    title: "Vigour Konfigurations-Nr. eingetragen",
+    severity: "gelb",
+    applies: ({ materials }) => wvLine(materials, "V3WVK999") || wvLine(materials, "V3WV999"),
+    test: ({ sel }) =>
+      !String(sel.value("wvSonderConfigNr") || "").trim() &&
+      "Sonderdruck im Angebot, aber die Konfigurations-Nr. von Vigour fehlt noch.",
   },
   {
     // Same count pricing uses when the field is left empty:
@@ -606,6 +633,8 @@ export function readSelection(pricing, doc = document) {
     // Duschabtrennung (neu) configurator.
     daLines: () => {
       try {
+        // Switched off = not in the offer.
+        if (window.isSectionOn?.("daNeu") === false) return [];
         return window.__daConfigurator?.getLines?.() || [];
       } catch {
         return [];
@@ -898,8 +927,9 @@ export function sendEnv(payload, win = window) {
       return [];
     }
   };
-  const daLines = safe(() => win.__daConfigurator?.getLines?.());
-  const curtain = safe(() => win.__vorhangConfigurator?.getLines?.());
+  // A switched-off section is not in the offer, whatever is configured.
+  const daLines = win.isSectionOn?.("daNeu") === false ? [] : safe(() => win.__daConfigurator?.getLines?.());
+  const curtain = win.isSectionOn?.("curtain") === false ? [] : safe(() => win.__vorhangConfigurator?.getLines?.());
   const curtainIds = new Set(curtain.map((l) => String(l?.articleNumber || "")));
   const daIds = new Set(daLines.map((l) => String(l?.articleNumber || "")));
   // Old Duschabtrennung page picks also land in duschabtrennung.quickAdd —

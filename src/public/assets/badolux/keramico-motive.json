@@ -1,0 +1,299 @@
+{
+ "source": "cleverbad.de (Badolux-Shop), Stand 2026-10-07. Bilder werden direkt von dort geladen, nicht gespeichert.",
+ "imgBase": "https://lojjuyeivvvykspkfaxl.supabase.co/storage/v1/object/public/product-images/products/",
+ "kollektionen": [
+  "Essential Line",
+  "Young Living",
+  "Soft Modern",
+  "Vintage Soul"
+ ],
+ "motive": [
+  {
+   "sku": "PRE97WP01",
+   "name": "Soufle Botanica Sage Mist",
+   "kollektion": "Essential Line",
+   "dekor": "SLP-ART131-003",
+   "img": "wandpaneel-soufle-botanica-sage-mist/e97wp01-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP02",
+   "name": "Silberweide",
+   "kollektion": "Essential Line",
+   "dekor": "LP-HANG-009",
+   "img": "wandpaneel-silberweide/e97wp02-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP03",
+   "name": "Vintage Salbei",
+   "kollektion": "Essential Line",
+   "dekor": "LP-FB-008",
+   "img": "wandpaneel-vintage-salbei/e97wp03-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP04",
+   "name": "Korallenrauschen",
+   "kollektion": "Essential Line",
+   "dekor": "LP-YABIJI-005",
+   "img": "wandpaneel-korallenrauschen/e97wp04-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP05",
+   "name": "Octopus Flow",
+   "kollektion": "Essential Line",
+   "dekor": "SBS280-193",
+   "img": "wandpaneel-octopus-flow/e97wp05-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP06",
+   "name": "Lichtzweige",
+   "kollektion": "Essential Line",
+   "dekor": "LP-LYMPH-010",
+   "img": "wandpaneel-lichtzweige/e97wp06-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP07",
+   "name": "Protea Blüte",
+   "kollektion": "Essential Line",
+   "dekor": "LP-ART153-006",
+   "img": "wandpaneel-protea-bluete/e97wp07-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP08",
+   "name": "Pebble",
+   "kollektion": "Essential Line",
+   "dekor": "LP-VINALES-011",
+   "img": "wandpaneel-pebble/e97wp08-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP09",
+   "name": "Mauve Atelier",
+   "kollektion": "Essential Line",
+   "dekor": "LP-ART19-007",
+   "img": "wandpaneel-mauve-atelier/e97wp09-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP10",
+   "name": "Fernscape",
+   "kollektion": "Essential Line",
+   "dekor": "LP-DEEP-012",
+   "img": "wandpaneel-fernscape/e97wp10-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP11",
+   "name": "Koi Luxe Serenity",
+   "kollektion": "Young Living",
+   "dekor": "LP-ART-041",
+   "img": "wandpaneel-koi-luxe-serenity/e97wp11-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP12",
+   "name": "Botanical Noir Harmony",
+   "kollektion": "Young Living",
+   "dekor": "BOT-301",
+   "img": "wandpaneel-botanical-noir-harmony/e97wp12-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP13",
+   "name": "Midnight Abstract Gold",
+   "kollektion": "Young Living",
+   "dekor": "HW-ABS-240524",
+   "img": "wandpaneel-midnight-abstract-gold/e97wp13-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP14",
+   "name": "Soft Nature Essence",
+   "kollektion": "Young Living",
+   "dekor": "HW-BOT-240517",
+   "img": "wandpaneel-soft-nature-essence/e97wp14-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP15",
+   "name": "Golden Blush Elegance",
+   "kollektion": "Young Living",
+   "dekor": "LP-ART-042",
+   "img": "wandpaneel-golden-blush-elegance/e97wp15-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP16",
+   "name": "Sage Bloom Retreat",
+   "kollektion": "Young Living",
+   "dekor": "HW-BOT-240521",
+   "img": "wandpaneel-sage-bloom-retreat/e97wp16-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP17",
+   "name": "Crimson Velvet Spa",
+   "kollektion": "Young Living",
+   "dekor": "HW-ABS-240519",
+   "img": "wandpaneel-crimson-velvet-spa/e97wp17-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP18",
+   "name": "Azure Floral Reflection",
+   "kollektion": "Young Living",
+   "dekor": "HW-SAV-240523",
+   "img": "wandpaneel-azure-floral-reflection/e97wp18-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP19",
+   "name": "Safari Chic Stone",
+   "kollektion": "Young Living",
+   "dekor": "HW-SAV-240520",
+   "img": "wandpaneel-safari-chic-stone/e97wp19-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP20",
+   "name": "Blush Petal Luxury",
+   "kollektion": "Young Living",
+   "dekor": "HW-GIN-240522",
+   "img": "wandpaneel-blush-petal-luxury/e97wp20-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP21",
+   "name": "Stone Circle Harmony",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-MIN-240525",
+   "img": "wandpaneel-stone-circle-harmony/u1788103172004-12439165.jpg"
+  },
+  {
+   "sku": "PRE97WP22",
+   "name": "Arcadia",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-GEO-240526",
+   "img": "wandpaneel-arcadia/e97wp22-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP23",
+   "name": "Ivory Marble Flow",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-MRB-240527",
+   "img": "wandpaneel-ivory-marble-flow/e97wp23-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP24",
+   "name": "Berlin Retro Shapes",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-RET-240529",
+   "img": "wandpaneel-berlin-retro-shapes/e97wp24-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP25",
+   "name": "Mono Fragment Grid",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-GEO-240528",
+   "img": "wandpaneel-mono-fragment-grid/e97wp25-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP26",
+   "name": "Soft Glyph Harmony",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-GLY-240530",
+   "img": "wandpaneel-soft-glyph-harmony/e97wp26-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP27",
+   "name": "Sage Leaf Whisper",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-BOT-240531",
+   "img": "wandpaneel-sage-leaf-whisper/e97wp27-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP28",
+   "name": "Fragmented Sequence",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-IND-240532",
+   "img": "wandpaneel-fragmented-sequence/e97wp28-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP29",
+   "name": "Dark Stone Matrix",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-IND-240533",
+   "img": "wandpaneel-dark-stone-matrix/e97wp29-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP30",
+   "name": "Silver Concrete Horizon",
+   "kollektion": "Soft Modern",
+   "dekor": "HW-CON-240534",
+   "img": "wandpaneel-silver-concrete-horizon/e97wp30-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP31",
+   "name": "Retro Mosaik",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-GRID2-013",
+   "img": "wandpaneel-retro-mosaik/e97wp31-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP32",
+   "name": "Frozen Bloom",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-TIEDYE-019",
+   "img": "wandpaneel-frozen-bloom/e97wp32-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP33",
+   "name": "Golden Mosaic",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-PLOT-014",
+   "img": "wandpaneel-golden-mosaic/e97wp33-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP34",
+   "name": "Ivory Motion",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-BLONDIE-020",
+   "img": "wandpaneel-ivory-motion/e97wp34-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP35",
+   "name": "Nordic Patina",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-MURI-015",
+   "img": "wandpaneel-nordic-patina/e97wp35-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP36",
+   "name": "Sage Composition",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-CARTA-021",
+   "img": "wandpaneel-sage-composition/e97wp36-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP37",
+   "name": "Desert Relic",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-CANTICO-016",
+   "img": "wandpaneel-desert-relic/e97wp37-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP38",
+   "name": "Golden Petal Harmony",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-TRANQ-022",
+   "img": "wandpaneel-golden-petal-harmony/e97wp38-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP39",
+   "name": "Golden Flow",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-BANG-017",
+   "img": "wandpaneel-golden-flow/e97wp39-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP40",
+   "name": "Faded Heritage",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-VINT-031",
+   "img": "wandpaneel-faded-heritage/e97wp40-paneel.webp"
+  },
+  {
+   "sku": "PRE97WP41",
+   "name": "Patina",
+   "kollektion": "Vintage Soul",
+   "dekor": "LP-AEON-018",
+   "img": "wandpaneel-patina/e97wp41-paneel.webp"
+  }
+ ]
+}

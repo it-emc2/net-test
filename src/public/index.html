@@ -21,6 +21,7 @@
 
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./styles/opt_section.css" />
+  <link rel="stylesheet" href="/configurator/badolux-sketch.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
     /* Fußboden prices hidden per request — delete/comment this rule to re-enable */
@@ -340,7 +341,8 @@
 
     /* ---------------- Hauptmenü confirm modal ---------------- */
 
-    #homeConfirmOverlay {
+    #homeConfirmOverlay,
+    #appConfirmOverlay {
       position: fixed;
       inset: 0;
       display: none;
@@ -350,11 +352,13 @@
       z-index: 9990;
     }
 
-    #homeConfirmOverlay.visible {
+    #homeConfirmOverlay.visible,
+    #appConfirmOverlay.visible {
       display: flex;
     }
 
-    .home-confirm-dialog {
+    .home-confirm-dialog,
+    .app-confirm-dialog {
       background: var(--panel);
       color: var(--text);
       border-radius: 16px;
@@ -364,21 +368,35 @@
       width: calc(100% - 32px);
     }
 
-    .home-confirm-dialog h3 {
+    .home-confirm-dialog h3,
+    .app-confirm-dialog h3 {
       margin: 0 0 8px;
       font-size: 1.05rem;
     }
 
-    .home-confirm-dialog p {
+    .home-confirm-dialog p,
+    .app-confirm-dialog p {
       margin: 0 0 16px;
       font-size: 0.95rem;
       color: var(--muted);
     }
 
-    .home-confirm-actions {
+    .home-confirm-actions,
+    .app-confirm-actions {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Touch targets for the tablet this is used on. */
+    .app-confirm-actions button {
+      min-height: 46px;
+      padding: 0 18px;
+    }
+
+    .app-confirm-dialog p {
+      white-space: pre-line;
     }
 
     /* ---------------- Layout ---------------- */
@@ -728,34 +746,6 @@
     #flooringPanel .field,
     #flooringPanel .row {
       max-width: none;
-    }
-
-    #flooringColors {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    @media (min-width: 1024px) {
-      #flooringPanel .image-check {
-        max-width: none;
-        flex: 0 0 calc((100% - (2 * 14px)) / 3);
-      }
-
-      #flooringPanel .img-wrap {
-        display: block;
-        width: 100%;
-        aspect-ratio: 3 / 4;
-        overflow: hidden;
-        border-radius: 8px;
-      }
-
-      #flooringPanel .img-wrap img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
     }
 
     /* Duschabtrennung form should not use the generic 2-column form grid */
@@ -2633,6 +2623,12 @@ button.dm-btn-danger:focus-visible {
         </label>
       </div>
 
+      <!-- Ansicht Klassisch/Neu: setzt body.ui-classic (initUiViewToggle in script.js). -->
+      <div class="ui-view-seg" role="group" aria-label="Ansicht wählen">
+        <button type="button" class="ui-view-seg__btn" data-ui-view="classic" aria-pressed="false">Klassisch</button>
+        <button type="button" class="ui-view-seg__btn" data-ui-view="new" aria-pressed="true">Neu</button>
+      </div>
+
       <!-- Connection/sync status, updated by OfflineSaveQueue.js -->
       <span id="connStatus" class="conn-status" data-state="synced" title="Synchronisiert" aria-hidden="true"></span>
 
@@ -3232,6 +3228,7 @@ button.dm-btn-danger:focus-visible {
                         aria-label="Aufschlag in Prozent" />
                       <span class="sonderaufschlag-unit">%</span>
                     </div>
+                    <span id="aufschlagMinLabel" class="aufschlag-min" hidden></span>
                     <button type="button" id="toggleAufschlag" class="btn-secondary"
                       style="margin-left:8px; padding:4px 10px; font-size:0.8rem;">
                       Ausblenden
@@ -3248,12 +3245,22 @@ button.dm-btn-danger:focus-visible {
                       <button type="button" class="aufschlag-chip" data-value="60">60%</button>
                     </div>
 
-                    <input id="sonderaufschlagSlider" type="range" min="0" max="200" step="0.5" value="50"
-                      class="sonderaufschlag-slider" aria-label="Aufschlag Schieberegler" />
+                    <!-- Regler: Zonenfarben + Marke beim Mindestwert (CSS-Variablen aus render()) -->
+                    <div class="aufschlag-track">
+                      <span id="aufschlagMinMark" class="aufschlag-minmark" hidden></span>
+                      <input id="sonderaufschlagSlider" type="range" min="0" max="200" step="0.5" value="50"
+                        class="sonderaufschlag-slider" aria-label="Aufschlag Schieberegler" />
+                    </div>
 
-                    <!-- Warning shown (but not blocking) when the value is below 35% -->
+                    <!-- Unter dem Mindestwert der Kundenart: Hinweis + Pflicht-Begründung (intern, nur OC) -->
                     <div id="aufschlagWarn" class="aufschlag-warn" hidden aria-live="polite">
-                      Aufschlag liegt unter 35% – bitte prüfen.
+                      <div class="aufschlag-warn__t"><span aria-hidden="true">⚠</span><span id="aufschlagWarnText"></span></div>
+                      <div class="aufschlag-reason">
+                        <label for="aufschlagBegruendung" id="aufschlagReasonLabel">Warum liegt der Aufschlag unter 35 %? <span aria-hidden="true">*</span></label>
+                        <textarea id="aufschlagBegruendung" rows="3" placeholder="z. B. Sonderkonditionen mit der Geschäftsleitung abgestimmt …"></textarea>
+                        <div id="aufschlagReasonError" class="aufschlag-reason__err" hidden>Bitte eine Begründung eintragen, um fortzufahren.</div>
+                        <div class="aufschlag-reason__hint">Wird mit dem Angebot gespeichert (intern, nicht im Kundendokument).</div>
+                      </div>
                     </div>
                     <div id="sonderaufschlagError" class="sonderaufschlag-error" hidden aria-live="polite"></div>
 
@@ -4391,53 +4398,57 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Duschwanne -->
       <section class="card page" id="page-Duschwanne" hidden>
-        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-          <h2 style="margin:0">Duschwanne</h2>
-
-          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
-
-          <!-- Toggle: ebenerdige Montage (default ON) -->
-          <label for="ebenerdigeToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-            <input id="ebenerdigeToggle" type="checkbox" name="ebenerdigeMontage" checked
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
-          </label>
-
-          <!-- Checkbox: Low Budget Variante priorisieren (additive) -->
-          <label for="budgetToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-            <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Low Budget Variante priorisieren</span>
-          </label>
-
-          </div>
-        </div>
+        <h2 style="margin:0 0 14px">Duschwanne</h2>
 
         <form id="form-duschwanne" autocomplete="on" data-tray-off>
 
-          <!-- Duschwanne an/aus. Aus = Wanne + Abdichtband, Ablaufgarnitur und
-               Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
-               Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
-               buildPayload() schreibt duschwanne.trayEnabled selbst. -->
-          <div class="field full">
-            <label class="check-pill"><input type="checkbox" id="dwTrayToggle" /><span
-                class="box"></span><span class="dw-tray-switch__text">Möchten Sie eine Duschwanne hinzufügen?
-                <small>Ohne Duschwanne werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small></span></label>
+          <!-- Duschwanne an/aus (2026-10-27): aus = nur der Schalter ist sichtbar und
+               nichts aus diesem Bereich wird berechnet, auch kein Kleinmaterial — die
+               Auswahl bleibt erhalten. Kein name-Attribut: buildPayload() schreibt
+               duschwanne.trayEnabled selbst. -->
+          <div class="field full sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="dwTrayToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschwanne</strong><small>Wanne, Zubehör und Kleinmaterial im Angebot. Aus: nichts berechnet, die Auswahl bleibt erhalten.</small></span></label>
+          </div>
+
+          <!-- Einstellungen (nur bei an): Produktlinie + Hinweis. Die Produktlinie-
+               Checkbox bleibt die einzige Quelle der Wahrheit und behaelt id/name/value
+               (Payload, dusch.budgetMode, BadoluxManager); die Buttons schalten sie nur um. -->
+          <div class="full sec-settings dw-tray-only">
+            <div class="sec-settings__label">Einstellungen</div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                    <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                    <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                  </button>
+                </div>
+                <input id="budgetToggle" type="checkbox" name="budgetMode" value="1" form="form-duschwanne" hidden />
+              </div>
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Hinweis Zusatzkosten</strong><small>Ebenerdige Montage — Hinweis im Angebot einblenden</small></div>
+                <label class="sec-mini-switch"><input id="ebenerdigeToggle" type="checkbox" role="switch" checked
+                    aria-label="Hinweis zu möglichen Zusatzkosten einblenden" /><span class="sec-switch__track" aria-hidden="true"></span></label>
+              </div>
+            </div>
           </div>
 
           <!-- Put this above the radio group -->
           <div id="traySmartSearch" class="field dw-tray-only">
 
-  <!-- <label>Maße (B × L × H in cm)</label> -->
-            <label>Maße (B × L in cm)</label>
-            <div class="d-flex gap-2" style="display:flex; gap:12px;">
-              <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
-              <input type="number" min="2" step="1" placeholder="Länge" name="tray_l_cm">
-              <input type="hidden" name="tray_h_cm" value="">
-              <!--  <input type="number" min="1"  step="1" placeholder="Höhe"   name="tray_h_cm"> -->
+            <!-- Maße als gruppierte Liste (iOS); Namen/Werte unverändert. -->
+            <div class="sec-settings__label">Maße</div>
+            <div class="sec-settings__group dw-dims">
+              <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Breite</span><span class="dw-dim-input"><input
+                    type="number" inputmode="numeric" min="20" step="1" placeholder="z. B. 90" name="tray_w_cm"><span>cm</span></span></label>
+              <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Länge</span><span class="dw-dim-input"><input
+                    type="number" inputmode="numeric" min="2" step="1" placeholder="z. B. 120" name="tray_l_cm"><span>cm</span></span></label>
             </div>
+            <input type="hidden" name="tray_h_cm" value="">
             <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
 
             <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>
@@ -4445,11 +4456,52 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="traySize" name="traySize">
           </div>
 
-          <div class="dw-tray-only"><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
+          <!-- Farbe (nur Slate): runde Farbfelder; Radios/Namen unverändert. -->
+          <div class="full sec-settings dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
+            <div class="sec-settings__label">Farbe der Duschwanne Slate</div>
+            <div class="sec-settings__group dw-color-grid">
+              <label class="image-check"><input type="radio" name="trayColor" value="Weiss" checked /><span class="img-wrap"><img src="./assets/slate-color-weiss.jpg" alt="" /></span><span class="caption">Weiß</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Elfenbein" /><span class="img-wrap"><img src="./assets/slate-color-elfenbein.jpg" alt="" /></span><span class="caption">Elfenbein</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Steingrau" /><span class="img-wrap"><img src="./assets/slate-color-steingrau.jpg" alt="" /></span><span class="caption">Steingrau</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Beton" /><span class="img-wrap"><img src="./assets/slate-color-beton.jpg" alt="" /></span><span class="caption">Beton</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Anthrazit" /><span class="img-wrap"><img src="./assets/slate-color-anthrazit.jpg" alt="" /></span><span class="caption">Anthrazit</span></label>
+              <label class="image-check"><input type="radio" name="trayColor" value="Schwarz" /><span class="img-wrap"><img src="./assets/slate-color-schwarz.jpg" alt="" /></span><span class="caption">Schwarz</span></label>
+            </div>
+          </div>
+
+          <!-- Zubehör als Liste: jede Zeile bleibt ein label.image-check (BadoluxManager
+               tauscht Bild/Caption, highlightTileForInput) — nur anders gezeichnet. -->
+          <div class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Zubehör</div>
+            <div class="sec-settings__group">
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/4ab307d6db904aac6d543a80540e67ec.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Wannenabdichtband-Set TRWDB</span><small>3,4 m · Nass-/Trockenanbindung, DIN 18534</small></span></label>
+              </div>
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="AGD9060"><input type="checkbox" name="drainSet" value="Ablaufgarnitur TRAGD9060" data-product-id="AGD9060" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Ablaufgarnitur TRAGD9060</span><small id="dwDrainHeading">Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf</small></span></label>
+              </div>
+              <div class="dw-acc dw-tray-only">
+                <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Stelzlager-Set PLA5282</span><small>Plattenlager Pro, justierbar 64–110 mm</small></span></label>
+                <div id="stelzlagerQtyRow" class="stelzlager-qty-row">
+                  <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyMinus" aria-label="Weniger">−</button>
+                  <input type="number" id="stelzlagerQtyInput" name="stelzlagerQty" value="8" min="1" max="99" aria-label="Anzahl Stelzlager" />
+                  <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyPlus" aria-label="Mehr">+</button>
+                </div>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check" data-product-id="KM02"><input type="checkbox" id="smallMaterial" name="smallMaterial" value="Kleinmaterial" checked data-product-id="KM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Kleinmaterial</span><small>KM02</small></span></label>
+              </div>
+            </div>
+          </div>
 
           <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
+          <details class="dw-custom-details full dw-tray-only" id="dw-custom-details">
+            <summary>
+              <span aria-hidden="true">&#9998;</span>
+              <span id="dw-custom-summary-text">Duschwanne nicht gefunden? Freien Posten anlegen</span>
+              <span class="dw-custom-caret" aria-hidden="true">&rsaquo;</span>
+            </summary>
           <fieldset class="da-row full dw-tray-only" id="dw-custom" aria-describedby="dw-custom-help">
-            <legend class="da-legend">Duschwanne nicht gefunden? Freier Posten</legend>
             <div class="da-items">
               <div class="da-item" data-kind="dw-custom">
                 <div class="da-grid-4">
@@ -4481,117 +4533,32 @@ button.dm-btn-danger:focus-visible {
               Erscheint in Kosten &amp; Angebot unter „Duschwanne".
             </small>
           </fieldset>
+          </details>
 
-          <!-- Badewanne + Wannenaufsatz now live on the Optional tab (menu_WANNE). -->
+          <!-- Ihre Auswahl: gewählte Wanne (Slate in der gewählten Farbe, Badolux
+               Riviera) + Zubehör; gefüllt von renderDwSummary(). Darunter echte
+               Kundenbäder vorher/nachher. -->
+          <div class="full sec-settings dw-tray-only" id="dwSummary" hidden>
+            <div class="sec-divider"><span>Ihre Auswahl</span></div>
+            <div class="sec-settings__group dw-summary" id="dwSummaryBody"></div>
+          </div>
 
-          <div class="field dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
-            <label class="req">Farbe der Duschwanne Slate</label>
-            <div style="display:flex; gap:14px; flex-wrap:wrap;">
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Weiss" checked />
-                <span class="img-wrap"><img src="./assets/slate-color-weiss.jpg" alt="Weiss" /></span>
-                <span class="caption">Weiß</span>
-              </label>
-
-               <label class="image-check">
-                <input type="radio" name="trayColor" value="Elfenbein" />
-                <span class="img-wrap"><img src="./assets/slate-color-elfenbein.jpg" alt="Elfenbein" /></span>
-                <span class="caption">Elfenbein</span>
-              </label>
-
-                <label class="image-check">
-                <input type="radio" name="trayColor" value="Steingrau" />
-                <span class="img-wrap"><img src="./assets/slate-color-steingrau.jpg" alt="Steingrau" /></span>
-                <span class="caption">Steingrau</span>
-              </label>
-              
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Beton" />
-                <span class="img-wrap"><img src="./assets/slate-color-beton.jpg" alt="Beton" /></span>
-                <span class="caption">Beton</span>
-              </label>
-
-             
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Anthrazit" />
-                <span class="img-wrap"><img src="./assets/slate-color-anthrazit.jpg" alt="Anthrazit" /></span>
-                <span class="caption">Anthrazit</span>
-              </label>
-
-
-             
-
-              <label class="image-check">
-                <input type="radio" name="trayColor" value="Schwarz" />
-                <span class="img-wrap"><img src="./assets/slate-color-schwarz.jpg" alt="Schwarz" /></span>
-                <span class="caption">Schwarz</span>
-              </label>
-
-             
+          <div class="full sec-settings dw-tray-only dw-refs">
+            <div class="sec-settings__label">Aus unseren Kundenbädern</div>
+            <div class="dw-refs__list">
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/07-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/07-nachher.jpg" alt="Nachher: bodenebene Dusche" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/27-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/27-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
+              <figure class="dw-ref" role="button" tabindex="0" aria-label="Vorher / Nachher groß anzeigen"><div class="dw-ref__pair"><img src="./assets/kunden/28-vorher.jpg" alt="Vorher: Badewanne" loading="lazy" /><img src="./assets/kunden/28-nachher.jpg" alt="Nachher: Duschwanne" loading="lazy" /></div><figcaption><span>Vorher</span><span>Nachher</span></figcaption></figure>
             </div>
+            <!-- Großansicht: ein Tipp auf ein Paar öffnet es hier (initDwRefs). -->
+            <dialog class="dw-ref-dialog" id="dwRefDialog" aria-label="Vorher / Nachher">
+              <button type="button" class="dw-ref-dialog__close" aria-label="Schließen">×</button>
+              <div class="dw-ref-dialog__pair">
+                <figure><img alt="" /><figcaption>Vorher</figcaption></figure>
+                <figure><img alt="" /><figcaption>Nachher</figcaption></figure>
+              </div>
+            </dialog>
           </div>
-
-          <div class="field full dw-tray-extras-grid">
-
-          <div class="field dw-tray-only">
-            <label class="req">Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
-              entspr. DIN 18534</label>
-            <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
-                checked /><span class="img-wrap"><img src="./assets/4ab307d6db904aac6d543a80540e67ec.jpg"
-                  alt="Wannenabdichtband-Set" /></span><span class="caption">Wannenabdichtband-Set TRWDB</span></label>
-          </div>
-
-          <div class="field dw-tray-only">
-  <label class="req">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
-    90mm Ablauf</label>
-
-  <label class="image-check" data-product-id="AGD9060">
-    <input
-      type="checkbox"
-      name="drainSet"
-      value="Ablaufgarnitur TRAGD9060"
-      data-product-id="AGD9060"
-      checked
-    />
-    <span class="img-wrap">
-      <img
-        src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg"
-        alt="Ablaufgarnitur"
-      />
-    </span>
-    <span class="caption">Ablaufgarnitur TRAGD9060</span>
-  </label>
-          </div>
-
-          <div class="field">
-            <label class="req">Kleinmaterial</label>
-            <label class="image-check" data-product-id="KM02">
-  <input type="checkbox" id="smallMaterial" name="smallMaterial" value="Kleinmaterial" checked data-product-id="KM02" />
-  <span class="img-wrap">
-    <img src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="Kleinmaterial" />
-  </span>
-  <span class="caption">Kleinmaterial</span>
-</label>
-          </div>
-
-          <div class="field dw-tray-only">
-            <label>Stelzlager höhenverstellbar Set</label>
-            <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span
-                class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg"
-                  alt="Stelzlager höhenverstellbar Set" /></span><span class="caption">Plattenlager Pro justierbar
-                64–110 mm Set</span></label>
-            <div id="stelzlagerQtyRow" class="stelzlager-qty-row">
-              <span class="stelzlager-qty-label">Anzahl Stück:</span>
-              <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyMinus">−</button>
-              <input type="number" id="stelzlagerQtyInput" name="stelzlagerQty" value="8" min="1" max="99" />
-              <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyPlus">+</button>
-            </div>
-          </div>
-
-          </div>
-
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
@@ -4604,85 +4571,89 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Fußboden -->
       <section class="card page" id="page-Fussboden" hidden>
-        <div style="margin:0 0 12px;">
-          <h2 style="margin:0">Fußboden</h2>
+        <h2 style="margin:0 0 12px">Fußboden</h2>
+        <form id="form-fussboden" autocomplete="on">
+        <!-- Ein Schalter fuer beides; addFlooring / addWallCladding bleiben als versteckte Datenfelder (script.js initFussbodenTabSwitch). -->
+        <div class="field sec-switch-field full">
+          <label class="sec-switch"><input type="checkbox" role="switch" id="fbMaster" /><span class="sec-switch__track" aria-hidden="true"></span><span
+              class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag oder Wandverkleidung als Fußboden im Angebot. Aus: nichts berechnet.</small></span></label>
         </div>
-
+        <div id="fbModeWrap" class="full" hidden>
         <div class="fb-tab-switch" role="tablist" aria-label="Fußboden oder Wandverkleidung">
           <button type="button" class="fb-tab-switch-btn active" id="fbTabBtnFloor" data-target="fbTabFloor"
             role="tab" aria-selected="true">Fußboden</button>
           <button type="button" class="fb-tab-switch-btn" id="fbTabBtnWall" data-target="fbTabWall" role="tab"
-            aria-selected="false">Wandverkleidung</button>
+            aria-selected="false">Wandverkleidung als Fußboden</button>
         </div>
-
-        <form id="form-fussboden" autocomplete="on">
-
+        </div>
         <div id="fbTabFloor" class="fb-tabpanel full">
-
-          <div class="field">
-            <label class="check-pill"><input type="checkbox" id="addFlooring" name="addFlooring" /><span
-                class="box"></span><span>Möchten Sie Fußboden hinzufügen?</span></label>
+          <div class="field sec-switch-field" hidden>
+            <label class="sec-switch"><input type="checkbox" role="switch" id="addFlooring" name="addFlooring" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Fußboden</strong><small>Bodenbelag und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
-
+          <!-- Nur bei an sichtbar (initFlooringSection → apply()). -->
           <div id="flooringPanel" class="field" aria-hidden="true" hidden>
-            <div class="flooring-panel-head">
-              <h3 style="margin: 0">Fußboden</h3>
-              <button type="button" id="floorCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
-                aria-controls="floorCalcPanel">
-                Flächenrechner öffnen
-              </button>
-            </div>
-
-            <div class="flooring-top-grid">
-              <div class="field flooring-area-field" style="margin:0;">
-                <label for="floorArea" class="req">gewünschte Fläche m²</label>
-                <input id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" />
-                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
-
-                <div class="field" style="margin-top: 14px;">
-                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
-                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
-                    <label class="radio-pill"><input type="radio" name="floorKind" value="Fehlstellen" /><span
-                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-                    <label class="radio-pill"><input type="radio" name="floorKind" value="Gesamtes-Bad" /><span
-                        class="circle"></span><span>Gesamter Badboden</span></label>
+            <!-- Einstellungen: Produktlinie (eigene Linie fuer den Fussboden; fehlt das
+                 Feld — jedes Altangebot — gilt Premium) + Umfang. -->
+            <div class="sec-settings">
+              <div class="sec-settings__label">Einstellungen</div>
+              <div class="sec-settings__group">
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                  <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+                    <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                      <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+                    </button>
+                    <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                      <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+                    </button>
+                  </div>
+                  <input id="floorLineToggle" type="checkbox" name="floorBudgetMode" value="1" hidden />
+                </div>
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Umfang</strong></div>
+                  <div class="ios-seg" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label><input type="radio" name="floorKind" value="Fehlstellen" /><span>Nur Fehlstellen</span></label>
+                    <label><input type="radio" name="floorKind" value="Gesamtes-Bad" /><span>Gesamter Badboden</span></label>
                   </div>
                 </div>
               </div>
-
-              <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                <div class="floor-calc-card__title-row">
-                  <div>
-                    <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
-                  </div>
-                </div>
-
-                <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-                <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
-
-                <div class="floor-calc-result-row">
-                  <div>
-                    <div class="floor-calc-result-label">Gesamtfläche</div>
-                    <div id="floorCalcResult" class="floor-calc-result-value">0,00 m²</div>
-                  </div>
-                  <button type="button" id="floorCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
-                </div>
-              </aside>
             </div>
 
-            <!-- Label + the five tiles directly after it -->
-            <div class="field">
-              <label class="req">Fußboden individ.5.0 V5FB02 für Fehlstellen-Ausgleich</label>
+            <div class="sec-settings">
+              <div class="sec-settings__label">Fläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Fläche</span><span class="dw-dim-input"><input
+                      id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" /><span>m²</span></span></label>
+                <button type="button" id="floorCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
+                  aria-controls="floorCalcPanel">Flächenrechner öffnen</button>
+                <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="floorCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="floorCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
 
-              <div id="flooringColors">
+            <!-- Premium-Linie (Vigour). Sichtbarkeit haengt an der Produktlinie —
+                 siehe syncProduktlinieGroups() in script.js. -->
+            <div class="sec-settings" id="flooringPremiumGroup">
+              <div class="sec-settings__label">Belag — Fußboden individ. 5.0 V5FB02</div>
+              <div id="flooringColors" class="sec-settings__group dw-color-grid is-square">
                 <!-- 1) Aluverbundplatte weiß -->
                 <label class="image-check" data-product-id="AVP-W">
                   <input type="checkbox" name="flooringProduct[]" value="AVP-W|Weiß" data-product-id="AVP-W"
                     data-color="Weiß" />
                   <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg"
                       alt="Aluverbundplatte weiß" /></span>
-                  <span class="caption">Aluverbundplatte weiß</span>
+                  <span class="caption">Alu-Platte weiß</span>
                 </label>
 
                 <!-- 2) Lava-Beige -->
@@ -4691,7 +4662,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Lava-Beige" />
                   <span class="img-wrap"><img src="./assets/V5_Lava_Beige.jpg"
                       alt="Fußboden V5FB02 — Lava-Beige" /></span>
-                  <span class="caption">Fußboden Lava_Beige</span>
+                  <span class="caption">Lava-Beige</span>
                 </label>
 
                 <!-- 3) Schiefer-Beige -->
@@ -4700,7 +4671,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Schiefer-Beige" />
                   <span class="img-wrap"><img src="./assets/V5_Schiefer_beige.jpg"
                       alt="Fußboden V5FB02 — Schiefer-Beige" /></span>
-                  <span class="caption">Fußboden Schiefer_Beige</span>
+                  <span class="caption">Schiefer-Beige</span>
                 </label>
 
                 <!-- 3) Loft-Grau -->
@@ -4709,7 +4680,7 @@ button.dm-btn-danger:focus-visible {
                     data-color="Loft-Grau" />
                   <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg"
                       alt="Fußboden V5FB02 — Loft-Grau" /></span>
-                  <span class="caption">Fußboden loft_Grau</span>
+                  <span class="caption">Loft-Grau</span>
                 </label>
 
                 <!-- 4) Speckstein-Schwarz -->
@@ -4718,7 +4689,7 @@ button.dm-btn-danger:focus-visible {
                     data-product-id="V5FB02" data-color="Speckstein-Schwarz" />
                   <span class="img-wrap"><img src="./assets/V5_Speckstein_schwarz.jpg"
                       alt="Fußboden V5FB02 — Speckstein-Schwarz" /></span>
-                  <span class="caption">Fußboden Speckstein_Schwarz</span>
+                  <span class="caption">Speckstein-Schwarz</span>
                 </label>
 
                 <!-- 5) Eiche-Natur -->
@@ -4727,154 +4698,150 @@ button.dm-btn-danger:focus-visible {
                     data-color="Eiche-Natur" />
                   <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg"
                       alt="Fußboden V5FB02 — Eiche-Natur" /></span>
-                  <span class="caption">Fußboden Eiche_Natur</span>
+                  <span class="caption">Eiche-Natur</span>
                 </label>
               </div>
             </div>
-            
-            <!-- Budget alternatives (Badolux) — shown only in Low Budget mode -->
-            <div id="flooringBudgetGroup" class="field" aria-hidden="true" hidden>
-              <label>Budget-Fußboden (Badolux)</label>
-              <div id="flooringBudgetOptions" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
+
+            <!-- Standard-Linie (Badolux) — Kacheln kommen aus BadoluxManager. -->
+            <div id="flooringBudgetGroup" class="sec-settings" aria-hidden="true" hidden>
+              <div class="sec-settings__label">Belag — Hydroträgerplatte (Badolux)</div>
+              <div id="flooringBudgetOptions" class="sec-settings__group dw-color-grid is-square"></div>
               <div id="flooringBudgetEmpty" class="hint" style="margin-top:8px;" hidden>
-                Keine Budget-Fußbodenoptionen verfügbar.
+                Keine Standard-Fußbodenoptionen verfügbar.
               </div>
             </div>
 
-<!-- …rest of your panel stays the same -->
-
-
-
-
-
-
-            <!-- Preis for the “Fußboden individ.5.0 V5FB02” line 
-<div class="row" style="gap:8px; align-items:center;">
-  <label style="min-width:180px;">Preis (individ. 5.0 V5FB02):</label>
-  <span id="floorIndividPrice">0</span> €
-</div>-->
-
-            <!-- A compact info row for the “Fußboden Paneele” details -->
-            <div class="row" style="gap:8px; align-items:center;">
-              <label style="min-width:180px;">Fußboden Paneele:</label>
-              <span>Menge:</span> <span id="floorPanelsQty">0</span>
-              <span class="floor-price-hidden"><span>× Einheit:</span> <span id="floorPanelsUnit">0</span> €</span>
-              <span class="floor-price-hidden"><span>=</span> <span id="flooringPanelsPrice">0</span> €</span>
+            <!-- Zubehör: Paneele (automatisch), Kleber + Abdichtung als Schalterzeilen.
+                 Die Preis-Spans bleiben (initFlooringSection befüllt sie), sind aber versteckt. -->
+            <div class="sec-settings dw-acc-list">
+              <div class="sec-settings__label">Zubehör (automatisch berechnet)</div>
+              <div class="sec-settings__group">
+                <div class="dw-acc">
+                  <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg" alt="" id="floorPanelsThumb" /></span>
+                  <span class="dw-acc__text"><span class="caption">Fußboden-Paneele</span><small><span id="floorPanelsQty">0</span> Stück
+                    <span class="floor-price-hidden">× <span id="floorPanelsUnit">0</span> € = <span id="flooringPanelsPrice">0</span> €</span></small></span>
+                  <span class="dw-acc__auto">automatisch</span>
+                </div>
+                <div class="dw-acc">
+                  <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602"><input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="" /></span><span class="dw-acc__text"><span class="caption">Flächenkleber 600 ml</span><small id="floorAdhesiveHint">R_4260602 · 1 Pkg je 0,60 m² <span id="adhesiveLivePreview"></span></small></span></label>
+                  <span class="floor-price-hidden"><span id="floorAdhesivePrice">0</span></span>
+                </div>
+                <div class="dw-acc">
+                  <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7"><input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/TRBDSET7.jpg" alt="" /></span><span class="dw-acc__text"><span class="caption">Bodenabdichtung</span><small id="floorSealingHint">TRBDSET7 · 1 Set pauschal <span id="sealingLivePreview"></span></small></span></label>
+                  <span class="floor-price-hidden"><span id="floorSealingPrice">0</span></span>
+                </div>
+              </div>
             </div>
 
-            <div class="field full product-tile-grid">
-
-              <div class="field">
-                <div class="subheader">+ Klebstoff für Fußboden:</div>
-                <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
-                  Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
-                  Berechnung)
-                  <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
-                </p>
-                <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
-                  <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
-                  <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
-                  <span class="caption">Flächenkleber</span>
-                </label>
-                <div></div>
-                <div class="floor-price-hidden">
-                  <strong>Preis:</strong>
-                  <span id="floorAdhesivePrice">0</span>
-                  <span class="muted">EUR</span>
-                </div>
-              </div>
-
-              <div class="field">
-                <label class="req">Bodenabdichtung für Fußboden</label>
-                <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
-                  1 Set pauschal (automatische Berechnung)
-                  <span id="sealingLivePreview" style="margin-left: 6px"></span>
-                </p>
-                <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
-                  <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
-                  <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
-                      alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
-                  <span class="caption">Bodenabdichtung für Fußboden</span>
-                </label>
-                <div></div>
-                <div class="floor-price-hidden">
-                  <strong>Preis:</strong>
-                  <span id="floorSealingPrice">0</span>
-                  <span class="muted">EUR</span>
-                </div>
-              </div>
-
+            <div class="sec-settings" id="floorSummary" hidden>
+              <div class="sec-divider"><span>Ihre Auswahl</span></div>
+              <div class="sec-settings__group dw-summary" id="floorSummaryBody"></div>
             </div>
           </div>
-
         </div>
-
         <div id="fbTabWall" class="fb-tabpanel full" hidden aria-hidden="true">
-
-          <div class="field">
-            <label class="check-pill"><input type="checkbox" id="addWallCladding" name="addWallCladding" /><span
-                class="box"></span><span>Möchten Sie Wandverkleidung als Fußboden hinzufügen?</span></label>
+          <div class="field sec-switch-field" hidden>
+            <label class="sec-switch"><input type="checkbox" role="switch" id="addWallCladding" name="addWallCladding" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Wandverkleidung als Fußboden</strong><small>Wandpaneele als Bodenbelag im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
-
           <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
-            <div class="flooring-panel-head">
-              <h3 style="margin: 0">Wandverkleidung</h3>
-              <button type="button" id="wvcCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
-                aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
-            </div>
-
-            <div class="flooring-top-grid">
-              <div class="field flooring-area-field" style="margin:0;">
-                <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
-                <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
-                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
-
-                <div class="field" style="margin-top: 14px;">
-                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
-                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
-                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
-                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
-                        class="circle"></span><span>Gesamter Badboden</span></label>
+            <div class="sec-settings">
+              <div class="sec-settings__label">Einstellungen</div>
+              <div class="sec-settings__group">
+                <!-- Produktlinie nur für diesen Tab (additiv): wallCladdingSupplier = ww | hm;
+                     fehlt das Feld (jedes Altangebot), gilt VIGOUR. -->
+                <div class="sec-settings__row" id="wcSupplierRow">
+                  <div class="sec-settings__text"><strong>Produktlinie</strong><small>Eigene Linie für Wandverkleidung als Fußboden</small></div>
+                  <div class="tier-seg" role="group" aria-label="Produktlinie wählen">
+                    <button type="button" class="wc-sup-btn" data-sup="ww" aria-pressed="true"><strong>winwall</strong><span>WV-WW</span></button>
+                    <button type="button" class="wc-sup-btn" data-sup="hm" aria-pressed="false"><strong>VIGOUR</strong><span>Haßmann &middot; WV-HM</span></button>
                   </div>
+                  <input type="hidden" id="wallCladdingSupplier" name="wallCladdingSupplier" value="ww" />
+                </div>
+                <div class="sec-settings__row">
+                  <div class="sec-settings__text"><strong>Umfang</strong></div>
+                  <div class="ios-seg" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span>Nur Fehlstellen</span></label>
+                    <label><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span>Gesamter Badboden</span></label>
+                  </div>
+                </div>
+                <div class="sec-settings__row" id="wvcLeftoverRow" hidden>
+                  <div class="sec-settings__text"><strong>Reste aus Wandverkleidung anrechnen</strong><small id="wvcLeftoverHint"></small></div>
+                  <label class="sec-switch"><input type="checkbox" role="switch" id="wallCladdingUseLeftover" name="wallCladdingUseLeftover" aria-label="Reste aus Wandverkleidung anrechnen" /><span class="sec-switch__track" aria-hidden="true"></span></label>
                 </div>
               </div>
-
-              <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                <div class="floor-calc-card__title-row">
-                  <div>
-                    <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
-                  </div>
-                </div>
-                <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-                <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
-                <div class="floor-calc-result-row">
-                  <div>
-                    <div class="floor-calc-result-label">Gesamtfläche</div>
-                    <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
-                  </div>
-                  <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
-                </div>
-              </aside>
             </div>
 
-            <div id="wallCladdingSuggestion" hidden style="margin-top:16px;">
-              <div id="wallCladdingCards" class="wvc-cards"></div>
-              <div id="wallCladdingQtyRow" class="field" hidden style="margin-top:12px;">
-                <label for="wallCladdingQtyInput">Anzahl Paneele (anpassbar)</label>
-                <input type="number" id="wallCladdingQtyInput" min="1" step="1" style="max-width:140px;" />
+            <div class="sec-settings">
+              <div class="sec-settings__label">Fläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Fläche</span><span class="dw-dim-input"><input
+                      id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" /><span>m²</span></span></label>
+                <button type="button" id="wvcCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
+                  aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
+                <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                  </div>
+                </aside>
               </div>
             </div>
 
+            <!-- winwall (wallCladdingSupplier = ww): Dekor wie auf der Wandverkleidungs-Seite. -->
+            <div id="wcWwDecorSection" class="sec-settings">
+              <div class="sec-settings__label">Dekor — winwall</div>
+              <div id="wcWwDecors" class="sec-settings__group dw-color-grid is-square">
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS000" /><span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" loading="lazy" /></span><span class="caption">weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS243" /><span class="img-wrap"><img src="./assets/winwall/WS243.jpg" alt="" loading="lazy" /></span><span class="caption">Beton weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS503" /><span class="img-wrap"><img src="./assets/winwall/WS503.jpg" alt="" loading="lazy" /></span><span class="caption">Beton gespachtelt light</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS228" /><span class="img-wrap"><img src="./assets/winwall/WS228.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur hellgrau</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS229" /><span class="img-wrap"><img src="./assets/winwall/WS229.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur steingrau</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS227" /><span class="img-wrap"><img src="./assets/winwall/WS227.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur anthrazit</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS203" checked /><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="caption">Marmor weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS219" /><span class="img-wrap"><img src="./assets/winwall/WS219.jpg" alt="" loading="lazy" /></span><span class="caption">Sandstein geschliffen</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW220" /><span class="img-wrap"><img src="./assets/winwall/NW220.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone ivory</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW222" /><span class="img-wrap"><img src="./assets/winwall/NW222.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone pearl</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS225" /><span class="img-wrap"><img src="./assets/winwall/WS225.jpg" alt="" loading="lazy" /></span><span class="caption">Kalkstein beige</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW215" /><span class="img-wrap"><img src="./assets/winwall/NW215.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Pur</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW216" /><span class="img-wrap"><img src="./assets/winwall/NW216.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Alabaster</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS210" /><span class="img-wrap"><img src="./assets/winwall/WS210.jpg" alt="" loading="lazy" /></span><span class="caption">Feinsteinzeug</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS290" /><span class="img-wrap"><img src="./assets/winwall/WS290.jpg" alt="" loading="lazy" /></span><span class="caption">Eiche hell</span></label>
+                <label class="image-check ww-decor-custom"><input type="radio" name="wallCladdingWwDecor" value="custom" /><span class="img-wrap" aria-hidden="true"><img id="wcWwCustomImg" src="" alt="" hidden /><span class="ww-decor-custom__plus">+</span></span><span class="caption">Anderes Dekor</span></label>
+              </div>
+              <!-- "Anderes Dekor": any WS/NW number from the winwall catalogue. -->
+              <div id="wcWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
+                <label class="sec-settings__row" for="wallCladdingWwDecorCustom">
+                  <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wcWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
+                  <input type="text" id="wallCladdingWwDecorCustom" name="wallCladdingWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
+                </label>
+              </div>
+            </div>
+
+            <!-- Plattenformat: die Karten kommen aus initWallCladdingSection (renderCards). -->
+            <div id="wallCladdingSuggestion" class="sec-settings" hidden>
+              <div class="sec-settings__label">Plattenformat</div>
+              <div id="wallCladdingCards" class="sec-settings__group wvc-cards"></div>
+              <div id="wallCladdingQtyRow" class="sec-settings__group" hidden style="margin-top:10px;">
+                <label class="sec-settings__row dw-dim-row" for="wallCladdingQtyInput"><span class="dw-dim-name">Anzahl Paneele</span><span class="dw-dim-input"><input
+                      type="number" id="wallCladdingQtyInput" min="1" step="1" inputmode="numeric" /><span>Stück</span></span></label>
+              </div>
+            </div>
+            <div id="wvcLeftoverNote" class="wvc-leftover-note" hidden></div>
+            <input type="hidden" id="wallCladdingLeftoverM2" name="wallCladdingLeftoverM2" value="" />
             <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
             <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
 
-            <!-- Label + color tiles, same pattern as the Fußboden color grid above -->
-            <div class="field">
-              <label class="req">Wandverkleidung 3.0 — Farbe</label>
-
-              <div id="wallCladdingColors">
+            <div class="sec-settings" id="wcHmColors">
+              <div class="sec-settings__label">Farbe — Wandverkleidung 3.0</div>
+              <div id="wallCladdingColors" class="sec-settings__group dw-color-grid is-square">
                 <label class="image-check">
                   <input type="radio" name="wallCladdingColor" value="Weiß" />
                   <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
@@ -4947,12 +4914,15 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Stein anthrazit</span>
                 </label>
               </div>
-              <div id="wvcProductCard" hidden></div>
+            </div>
+
+            <!-- Ihre Auswahl: Produktkarte der gewählten Farbe/Größe (renderWvcProductCard). -->
+            <div class="sec-settings wvc-summary">
+              <div class="sec-divider"><span>Ihre Auswahl</span></div>
+              <div id="wvcProductCard" class="sec-settings__group" hidden></div>
             </div>
           </div>
-
         </div>
-
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
               Zurück
@@ -4964,126 +4934,159 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Wandverkleidung -->
       <section class="card page" id="page-Wandverkleidung" hidden>
-        <h2 style="margin: 0 0 12px">Wandverkleidungsplatten</h2>
-
+        <h2 style="margin:0 0 12px">Wandverkleidung</h2>
         <form id="form-wandverkleidung">
-          <div class="field full wv-toggle">
-            <label class="check-pill"><input type="checkbox" id="wvEnabled" name="wvEnabled" /><span
-                class="box"></span><span>Möchten Sie Wandverkleidung hinzufügen?</span></label>
+          <div class="field full wv-toggle sec-switch-field">
+            <label class="sec-switch"><input type="checkbox" role="switch" id="wvEnabled" name="wvEnabled" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
 
-          <div style="align-self: center">
-            <img src="./assets/c27108714a00d1e9ed265a5b07876a85.jpg" alt="Wandverkleidung Beispiel"
-              style="max-width: 100%; border-radius: 12px" />
+          <!-- Einstellungen: Produktlinie (eigene Linie, additiv) + Ausführung. -->
+          <div class="full sec-settings">
+            <div class="sec-settings__label">Einstellungen</div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Produktlinie</strong><small class="tier-line" data-tier-line></small></div>
+                <!-- Drei Linien: winwall (Standard für neue Angebote), VIGOUR/Haßmann, Badolux.
+                     winwall = Premium-Linie mit wvSupplier=ww; fehlt wvSupplier (alle älteren
+                     Angebote), gilt VIGOUR (RestoreManager setzt dann "hm"). -->
+                <div class="tier-seg tier-seg--3" role="group" aria-label="Produktlinie waehlen">
+                  <button type="button" class="tier-seg__btn" data-tier="ww" aria-pressed="true">
+                    <strong>winwall</strong><span>WV-WW</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="false">
+                    <strong>VIGOUR</strong><span>Haßmann &middot; WV-HM</span>
+                  </button>
+                  <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                    <strong>Badolux</strong><span>Keramico &middot; WV-BX</span>
+                  </button>
+                </div>
+                <input id="wvLineToggle" type="checkbox" name="wvBudgetMode" value="1" hidden />
+                <input id="wvSupplier" type="hidden" name="wvSupplier" value="ww" />
+              </div>
+            </div>
           </div>
 
-          <div class="field" style="align-self: center">
-            <div class="section-title">Ausführung</div>
-            <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
-            <div class="radio-group vertical" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" required /><span
-                  class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" required /><span
-                  class="circle"></span><span>Deckenhoch im Dusch/Wannenbereich</span></label>
-
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" required /><span
-                  class="circle"></span><span>Fliesenspiegel</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span
-                  class="circle"></span><span>Innenraum der Kabine</span></label>
-
-              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span
-                  class="circle"></span><span>alle Bad-Wände</span></label>
-
+          <div class="full sec-settings">
+            <div class="sec-settings__label">Ausführung</div>
+            <div class="sec-settings__group ios-checklist" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Fehlstellen" required /><span>Nur schließende Fehlstellen</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Deckenhoch" required /><span>Deckenhoch im Dusch-/Wannenbereich</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Fliesenspiegel" required /><span>Fliesenspiegel</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span>Innenraum der Kabine</span></label>
+              <label class="ios-check-row"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span>Alle Bad-Wände</span></label>
               <!-- Legacy only: replaced by #wvEnabled, kept so old offers restore. -->
-              <label class="radio-pill" hidden><input type="radio" name="wvKind" value="Keine" required /><span
-                  class="circle"></span><span>Keine Wandverkleidung</span></label>
-
-              <label class="radio-pill">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
-                  form="form-Arbeiten" />
-                <span class="circle"></span>
-                <span>
-                  Wandverkleidung in Duschbereich bis in einer Höhe von
-                  <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
-                    inputmode="numeric" placeholder="___" style="width:5em" form="form-Arbeiten"
-                    onclick="event.preventDefault();event.stopPropagation();" /> cm
-                </span>
-              </label>
+              <label class="ios-check-row" hidden><input type="radio" name="wvKind" value="Keine" required /><span>Keine Wandverkleidung</span></label>
+              <!-- Arbeiten-Aufgabe (form-Arbeiten): Höhe im Duschbereich. -->
+              <label class="ios-check-row ios-check-row--switch"><input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
+                  form="form-Arbeiten" /><span class="sec-switch__track" aria-hidden="true"></span><span>Im Duschbereich bis Höhe <small>(Arbeiten)</small></span><span class="wv-height"><input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
+                    inputmode="numeric" placeholder="___" form="form-Arbeiten" aria-label="Höhe in cm"
+                    onclick="event.preventDefault();event.stopPropagation();" /> cm</span></label>
             </div>
           </div>
 
-          <div class="field full">
-            <div class="section-title">Skizze &amp; Notiz</div>
-            <div class="project-sketch" data-sketch-key="wv">
-              <div class="project-sketch__head">
-                <div>
-                  <div class="project-sketch__title">Projekt-Skizze</div>
-                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
-                </div>
-
-                <div class="project-sketch__controls">
-                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
-                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
-                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
-                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
-                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
-                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+          <div id="wvPanelsSection" class="full">
+            <!-- Wandfläche + Flächenrechner (makeFloorCalc). Nur Premium: schlägt 997/1497 vor.
+                 wvArea ist additiv — fehlt in jedem Altangebot. -->
+            <div id="wvAreaBlock" class="sec-settings">
+              <div class="sec-settings__label">Wandfläche</div>
+              <div class="sec-settings__group">
+                <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Wandfläche</span><span class="dw-dim-input"><input
+                      id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" /><span>m²</span></span></label>
+                <button type="button" id="wvaCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
+                  aria-controls="wvaCalcPanel">Flächenrechner öffnen</button>
+                <aside id="wvaCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
+                  <div id="wvaCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="wvaCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="wvaCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="wvaCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
                   </div>
-
-                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
-                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
-                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
-                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
-                  </div>
-
-                  <div class="project-sketch__colors" role="group" aria-label="Farben">
-                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
-                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
-                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
-                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
-                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
-                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
-                  </div>
-
-                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
-                </div>
+                </aside>
               </div>
-
-              <div class="project-sketch__canvas-wrap">
-                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              <div id="wvAreaSuggestion" hidden style="margin-top: 14px;">
+                <div class="sec-settings__label">Vorschlag für diese Fläche — antippen übernimmt die Menge</div>
+                <div id="wvAreaCards" class="sec-settings__group wvc-cards"></div>
               </div>
-
-              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
-              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
-              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
             </div>
 
-            <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
-            <textarea id="wvNote" name="wvNote" rows="4"
-              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
-          </div>
-
-          <div id="wvPanelsSection" class="full field">
-            <div class="section-title">Plattenwahl</div>
-            <label class="req">Wandverkleidung</label>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" style="min-width: 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="wv997" name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" />
-                  <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 997x2550" loading="lazy" /></span>
-                  <span class="caption">Wandverkleidung 3.0 Alu 997×2550 mm</span>
-                </label>
-                <div id="wvQty997Wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="wvQty997" class="req">Menge 997×2550mm</label>
-                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" aria-required="true" />
+            <!-- Bedarf nach Wandbreiten (Keramico / Vigour, initKeramicoCalc) — unverändert,
+                 nur im iOS-Stil gezeichnet. -->
+            <div class="sec-settings">
+              <div class="sec-settings__label">Bedarf nach Wandbreiten</div>
+              <div id="wvKeramicoCalc" class="kc">
+              <div class="kc-head">
+                <h3>Bedarf berechnen</h3>
+                <p class="kc-note" data-only="standard">Ein Keramico-Paneel ist 95 cm breit und 255 cm hoch. Wandsituation wählen und die Breiten eintragen — die Paneele laufen von links über jede Wand.</p>
+                <p class="kc-note" data-only="premium">Vigour-Paneele gibt es 99,7 und 149,7 cm breit, 255 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.</p>
+              </div>
+              <div class="kc-toolbar">
+              <div class="kc-sits" role="group" aria-label="Wandsituation">
+                <button type="button" class="kc-chip" data-sit="wand" aria-pressed="true">Eine Wand</button>
+                <button type="button" class="kc-chip" data-sit="ecke" aria-pressed="false">Ecke</button>
+                <button type="button" class="kc-chip" data-sit="u" aria-pressed="false">U-Form</button>
+              </div>
+              <div class="kc-sits kc-views" role="group" aria-label="Ansicht">
+                  <button type="button" class="kc-view-chip" data-view="room" aria-pressed="true" aria-label="Raumansicht" title="Raumansicht"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M12 12v9M3 8l9 4 9-4"/></svg></button>
+                  <button type="button" class="kc-view-chip" data-view="panels" aria-pressed="false" aria-label="Nur Paneele" title="Nur Paneele"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9.5 3v18M14.5 3v18"/></svg></button>
                 </div>
-                <div class="field" style="margin-top: 8px">
-                  <label for="wvColor_997">Farbe nur für 997×2550 (optional)</label>
-                  <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
+              </div>
+              <input type="hidden" id="wvKSituation" name="wvKSituation" value="wand" />
+              <div class="kc-stage">
+                <svg id="kcSvg" class="kc-svg" viewBox="0 0 560 320" role="img" aria-label="Aufteilung der Paneele"></svg>
+              </div>
+              <p class="kc-legend kc-note">Jede Marke zeigt die Plattennummer und die Breite des Stücks in cm. Gestrichelte Stücke werden vor Ort zugeschnitten.</p>
+              <div class="kc-rows">
+                <label class="kc-row" data-wall="links"><span class="kc-dot"></span><span class="kc-name">Linke Wand</span><input id="wvKLinks" name="wvKLinks" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row" data-wall="back"><span class="kc-dot"></span><span class="kc-name">Rückwand</span><input id="wvKBack" name="wvKBack" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="180" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row" data-wall="rechts"><span class="kc-dot"></span><span class="kc-name">Rechte Wand</span><input id="wvKRechts" name="wvKRechts" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row kc-row--height"><span class="kc-dot kc-dot--h">H</span><span class="kc-name">Höhe der Verkleidung</span><input id="wvKHoehe" name="wvKHoehe" type="number" inputmode="decimal" min="0" max="1000" step="1" placeholder="255" /><span class="kc-unit">cm</span></label>
+              </div>
+              <div id="kcHeightWarn" class="kc-warn" role="status" hidden></div>
+              <div class="kc-stats">
+                <div class="kc-stat"><span class="kc-stat-label">Paneele</span><span><b id="kcCount">0</b> Stück</span></div>
+                <div class="kc-stat"><span class="kc-stat-label">Empfohlene Schnitte</span><span><b id="kcCuts">0</b> <span id="kcCutsUnit">Schnitte</span></span></div>
+                <div class="kc-stat"><span class="kc-stat-label">Materialpreis</span><span><b id="kcPrice">–</b></span></div>
+              </div>
+              <div id="kcCutList" class="kc-cutlist" hidden></div>
+              <!-- Manuelle Menge: überschreibt die berechnete Anzahl im Angebot (wvKQty). -->
+              <!-- Premium: günstigste 997/1497-Kombination, per Knopf in die Plattenwahl unten. -->
+              <div id="kcVigour" class="kc-vigour" data-only="premium">
+                <span id="kcVigourMix" class="kc-vigour-mix">Wandbreiten eintragen</span>
+                <button type="button" id="kcVigourApply" class="secondary" disabled>In Plattenwahl übernehmen</button>
+              </div>
+              <div class="kc-manual" data-only="standard">
+                <label for="wvKQty">Anzahl Paneele manuell</label>
+                <input id="wvKQty" name="wvKQty" type="number" inputmode="numeric" min="0" max="200" step="1" placeholder="berechnet" />
+                <button type="button" id="kcQtyReset" class="secondary" hidden>Berechnete Menge verwenden</button>
+                <span id="kcQtyNote" class="kc-qty-note" hidden></span>
+              </div>
+            </div>
+            </div>
+
+            <div class="sec-settings">
+              <label id="wvPanelsLabel" class="sec-settings__label">Plattenwahl</label>
+              <div class="sec-settings__group wv-sizes">
+                <div class="field wv-size" id="wvPanelField997">
+                  <div class="dw-acc">
+                    <label class="image-check"><input type="checkbox" id="wv997" name="wvPanels[]"
+                        value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                        src="./assets/wv-alu-marmor-weiss.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Alu 997 × 2550 mm</span><small>Wandverkleidung 3.0 · Vigour</small></span></label>
+                    <span id="wvQty997Wrap" class="ios-stepper" hidden aria-hidden="true"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvQty997" name="wvQty997" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge 997×2550mm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                  </div>
+                  <!-- Eigene Farbe + zusätzliche Farben nur für diese Größe (ensureExtrasUI hängt
+                       die Liste hinter das .field mit dem select). Öffnet sich bei gespeicherten Werten. -->
+                  <details class="wv-size-more">
+                    <summary>Andere Farbe für 997 mm</summary>
+                    <div class="field">
+                      <label for="wvColor_997">Farbe nur für 997×2550</label>
+                      <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
                     <option value="">Wie unten gewählt</option>
+                    <option value="Sonderdekor">Sonderdruck (Vigour)</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Struktur weiß">Struktur weiß</option>
@@ -5098,27 +5101,25 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein grau">Stein grau</option>
                     <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
+                    </div>
+                  </details>
                 </div>
-                
-              </div>
-
-              <div class="field" style="min-width: 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="wv1497" name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" />
-                  <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 1497x2550" loading="lazy" /></span>
-                  <span class="caption">Wandverkleidung 3.0 Alu 1497×2550 mm</span>
-                </label>
-                <div id="wvQty1497Wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
-                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" aria-required="true" />
-                </div>
-                <div class="field" style="margin-top: 8px">
-                  <label for="wvColor_1497">Farbe nur für 1497×2550 (optional)</label>
-                  <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
+                <div class="field wv-size" id="wvPanelField1497">
+                  <div class="dw-acc">
+                    <label class="image-check"><input type="checkbox" id="wv1497" name="wvPanels[]"
+                        value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                        src="./assets/wv-alu-marmor-weiss.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Alu 1497 × 2550 mm</span><small>Wandverkleidung 3.0 · Vigour</small></span></label>
+                    <span id="wvQty1497Wrap" class="ios-stepper" hidden aria-hidden="true"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvQty1497" name="wvQty1497" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge 1497×2550mm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                  </div>
+                  <!-- Eigene Farbe + zusätzliche Farben nur für diese Größe (ensureExtrasUI hängt
+                       die Liste hinter das .field mit dem select). Öffnet sich bei gespeicherten Werten. -->
+                  <details class="wv-size-more">
+                    <summary>Andere Farbe für 1497 mm</summary>
+                    <div class="field">
+                      <label for="wvColor_1497">Farbe nur für 1497×2550</label>
+                      <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
                     <option value="">Wie unten gewählt</option>
+                    <option value="Sonderdekor">Sonderdruck (Vigour)</option>
                     <option value="Weiß">Weiß</option>
                                         <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Struktur weiß">Struktur weiß</option>
@@ -5133,14 +5134,96 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein grau">Stein grau</option>
                     <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
+                    </div>
+                  </details>
                 </div>
-
               </div>
+            </div>
 
-              <!-- Farbwahl -->
-              <div id="wvColorSection" class="full field">
-                <label class="req">Dekor / Farbe der Wandverkleidung</label>
-                <div id="wvColors" style="display: flex; gap: 14px; flex-wrap: wrap">
+            <!-- winwall (wvSupplier = ww): Plattenwahl je Format + Dekor. Zwei gleiche
+                 Platten bestellt pricing-core automatisch als Set (winwallOrderLines). -->
+            <!-- winwall: Dekor + Format + Menge als Zeilen (initWvWwRows). Die alten Felder (wvWwQty_*, wvWwDecor)
+                 bleiben Datenbasis/Anzeige; wvWwRows (JSON) ist die Quelle der Preise. -->
+            <div id="wvWwRowsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Platten — winwall</div>
+              <div id="wvWwRows" class="sec-settings__group"></div>
+              <input type="hidden" id="wvWwRowsData" name="wvWwRows" value="" />
+              <button type="button" id="wvWwRowAdd" class="wv-row-add">+ Zeile hinzufügen (Dekor und Format)</button>
+              <p class="wv-ww-hint muted" id="wvWwRowsHint" style="margin:8px 4px 0">Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).</p>
+            </div>
+
+            <div id="wvWwPanelsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Plattenwahl winwall</div>
+              <div class="sec-settings__group">
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>100 × 205 cm</strong><small>WS&lt;Dekor&gt;13 · bis 205 cm Höhe</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_13" name="wvWwQty_13" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 100 × 205 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>100 × 250 cm</strong><small>WS&lt;Dekor&gt;15</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_15" name="wvWwQty_15" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 100 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>125 × 250 cm</strong><small>WS&lt;Dekor&gt;16</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_16" name="wvWwQty_16" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 125 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row wv-ww-fmt">
+                  <div class="sec-settings__text"><strong>150 × 250 cm</strong><small>WS&lt;Dekor&gt;17 · Großplatte</small></div>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_17" name="wvWwQty_17" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 150 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="sec-settings__row"><small class="wv-ww-hint" id="wvWwPanelsHint">Zwei gleiche Platten werden als Set bestellt (günstiger).</small></div>
+              </div>
+            </div>
+
+            <div id="wvWwDecorSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Dekor — winwall</div>
+              <div id="wvWwDecors" class="sec-settings__group dw-color-grid is-square">
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS000" /><span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" loading="lazy" /></span><span class="caption">weiß</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS243" /><span class="img-wrap"><img src="./assets/winwall/WS243.jpg" alt="" loading="lazy" /></span><span class="caption">Beton weiß</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS503" /><span class="img-wrap"><img src="./assets/winwall/WS503.jpg" alt="" loading="lazy" /></span><span class="caption">Beton gespachtelt light</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS228" /><span class="img-wrap"><img src="./assets/winwall/WS228.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur hellgrau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS229" /><span class="img-wrap"><img src="./assets/winwall/WS229.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur steingrau</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS227" /><span class="img-wrap"><img src="./assets/winwall/WS227.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur anthrazit</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS203" checked /><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="caption">Marmor weiß</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS219" /><span class="img-wrap"><img src="./assets/winwall/WS219.jpg" alt="" loading="lazy" /></span><span class="caption">Sandstein geschliffen</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="NW220" /><span class="img-wrap"><img src="./assets/winwall/NW220.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone ivory</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="NW222" /><span class="img-wrap"><img src="./assets/winwall/NW222.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone pearl</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS225" /><span class="img-wrap"><img src="./assets/winwall/WS225.jpg" alt="" loading="lazy" /></span><span class="caption">Kalkstein beige</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="NW215" /><span class="img-wrap"><img src="./assets/winwall/NW215.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Pur</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="NW216" /><span class="img-wrap"><img src="./assets/winwall/NW216.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Alabaster</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS210" /><span class="img-wrap"><img src="./assets/winwall/WS210.jpg" alt="" loading="lazy" /></span><span class="caption">Feinsteinzeug</span></label>
+                <label class="image-check"><input type="radio" name="wvWwDecor" value="WS290" /><span class="img-wrap"><img src="./assets/winwall/WS290.jpg" alt="" loading="lazy" /></span><span class="caption">Eiche hell</span></label>
+                <label class="image-check ww-decor-custom"><input type="radio" name="wvWwDecor" value="custom" /><span class="img-wrap" aria-hidden="true"><img id="wvWwCustomImg" src="" alt="" hidden /><span class="ww-decor-custom__plus">+</span></span><span class="caption">Anderes Dekor</span></label>
+              </div>
+              <!-- "Anderes Dekor": any WS/NW number from the winwall catalogue. -->
+              <div id="wvWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
+                <label class="sec-settings__row" for="wvWwDecorCustom">
+                  <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wvWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
+                  <input type="text" id="wvWwDecorCustom" name="wvWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
+                </label>
+              </div>
+            </div>
+
+            <!-- Paneele (VIGOUR): eine Liste statt 997/1497-Schalter, Farbwahl und "Andere Farbe".
+                 Die alten Felder bleiben die Datenbasis (Preis, Speichern, Laden) — initWvRows
+                 schreibt in sie und liest aus ihnen; sie sind nur ausgeblendet. -->
+            <div id="wvRowsSection" class="sec-settings">
+              <div class="sec-settings__label">Paneele — Premium</div>
+              <div id="wvRows" class="sec-settings__group"></div>
+              <button type="button" id="wvRowAdd" class="wv-row-add">+ Zeile hinzufügen (Farbe oder Sonderdruck)</button>
+              <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
+                <label for="wvSonderConfigNr">Konfigurations-Nr. von Vigour</label>
+                <input id="wvSonderConfigNr" name="wvSonderConfigNr" type="text" placeholder="z. B. VI-00002468" autocomplete="off" />
+                <p class="muted" style="margin: 8px 0 0;">
+                  Noch keine Nummer? Feld frei lassen — der Angebotscheck erinnert, bis sie eingetragen ist.
+                  Sonderdruck im <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">Vigour Wall Configurator</a> gestalten.
+                </p>
+              </div>
+            </div>
+
+            <div id="wvColorSection" class="sec-settings">
+              <div class="sec-settings__label">Dekor-Übersicht — Tippen ändert die markierte Zeile</div>
+              <div id="wvColors" class="sec-settings__group dw-color-grid is-square">
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Weiß" required />
                     <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" loading="lazy" /></span>
@@ -5232,152 +5315,229 @@ button.dm-btn-danger:focus-visible {
                   </label>
 
                 </div>
-                <div id="wvProductCard" hidden></div>
+            </div>
 
-                <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
-                  <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
-                  <input
-                    id="wvSonderConfigNr"
-                    name="wvSonderConfigNr"
-                    type="text"
-                    placeholder="z. B. WC-123456"
-                    autocomplete="off"
-                  />
-                  <p class="muted" style="margin: 8px 0 0;">
-                    Sonderdekor im Vigour Wall Configurator auswählen:
-                    <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">
-                      https://vigour.wallconfigurator.com/
-                    </a>
-                  </p>
+            <!-- Standard (Badolux · Keramico): eine Liste statt Einzelfarbe. initWvKRows schreibt
+                 die Zeilen als JSON nach wvKRows und setzt die Farbe der 1. Zeile in die Radios (wvColor). -->
+            <div id="wvKRowsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Paneele — Standard (Keramico)</div>
+              <div id="wvKRows" class="sec-settings__group"></div>
+              <input type="hidden" id="wvKRowsData" name="wvKRows" value="" />
+              <button type="button" id="wvKRowAdd" class="wv-row-add">+ Zeile hinzufügen (Farbe oder Sonder-Dekor)</button>
+            </div>
+
+            <div id="wvBudgetColorSection" class="sec-settings" hidden aria-hidden="true">
+                <div class="sec-settings__label">Dekor — Standard (Badolux)</div>
+                <div id="wvBudgetColors" class="sec-settings__group dw-color-grid is-square"></div>
+                <div id="wvBudgetEmpty" class="hint" style="margin-top:8px" hidden>
+                  Keine Standard-Wandpaneele verfügbar.
                 </div>
-                <!-- Budget alternatives (Badolux) — shown only in Low Budget mode -->
-<div id="wvBudgetColorSection" class="full field" hidden aria-hidden="true">
-  <label>Budget-Wandpaneele (Badolux)</label>
-  <div id="wvBudgetColors" style="display: flex; gap: 14px; flex-wrap: wrap"></div>
-  <div id="wvBudgetEmpty" class="hint" style="margin-top:8px" hidden>
-    Keine Budget-Wandpaneele verfügbar.
-  </div>
-</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="full">
-            <div class="section-title">Zubehör</div>
-          </div>
-          <div class="full product-tile-grid">
-
-            <div id="wvSealingSection" class="field">
-              <label class="req">Wandabdichtung BASIS-Set</label>
-              <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="img-wrap"><img
-                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" loading="lazy" /></span><span
-                  class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
-              <div></div>
-              <div></div>
-            </div>
-
-            <div id="flechenSection" class="field">
-              <label class="req">Flächenkleber</label>
-              <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                  value="Flächenkleber R_4260602" checked aria-required="true" /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                    alt="Flachen" loading="lazy" /></span><span class="caption">Flächenkleber</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvFlachenQty">Menge Flächenkleber</label>
-                <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
-                <div id="wvAdhesiveSuggestion" style="
-                    margin-top: 6px;
-                    font-size: 0.9rem;
-                    color: var(--muted, #8a8a8a);
-                  "></div>
-              </div>
-            </div>
-
-            <div id="wvProfileAdhesiveSection" class="field">
-              <label class="req">Silikon</label>
-              <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                  checked aria-required="true" /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" loading="lazy" /></span><span
-                  class="caption">Silikon</span></label>
-              <div></div>
-              <div class="field" style="max-width: 240px">
-                <label for="wvSilikonQty">Menge Silikon</label>
-                <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
-               so the image/footer sections line up even though V3V has more fields. -->
-          <div class="full">
-            <div class="section-title">Abschluss- &amp; Verbindungsprofile</div>
-          </div>
-          <div class="full wv-profile-row">
-
-            <div id="wvEndProfileSection" class="wv-profile-card">
-              <div class="card-head">
-                <div class="card-title req">Abschlussprofil 3.0 255 cm silber eloxiert</div>
-                <div class="card-sub">Schließt offene, sichtbare Kanten der Wandverkleidung ab (z. B. an Decke, Boden oder freien Enden).</div>
-              </div>
-              <div class="card-body">
-                <label class="image-check">
-                  <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                    checked aria-required="true" />
-                  <span class="img-wrap">
-                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" loading="lazy" />
-                  </span>
-                  <span class="caption">Abschlussprofil V3A</span>
-                </label>
-                <div class="qty-area">
-                  <div class="field">
-                    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" aria-required="true" />
+                <!-- Sonder-Dekor: Motiv aus dem cleverbad.de-Sortiment. Bilder werden direkt
+                     von dort geladen (assets/badolux/keramico-motive.json). wvMotif ist additiv. -->
+                <div id="wvMotifPicker" class="kmp" hidden>
+                  <div class="kmp-head">
+                    <b>Motiv für Sonder-Dekor</b>
+                    <span id="kmpChosen" class="kmp-chosen">Noch kein Motiv gewählt</span>
                   </div>
+                  <div id="kmpFilters" class="kmp-filters" role="group" aria-label="Kollektion"></div>
+                  <div id="kmpTrack" class="kmp-track" role="listbox" aria-label="Motive"></div>
+                  <input type="hidden" id="wvMotif" name="wvMotif" value="" />
                 </div>
               </div>
-              <div class="card-foot tone-info">
-                <span class="ic" aria-hidden="true">ℹ️</span>
-                <span>Diese Menge wird <strong>nicht automatisch berechnet</strong>. Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen.</span>
+          </div>
+
+          <div id="wvHmAccSection" class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Zubehör</div>
+            <div class="sec-settings__group">
+              <div id="wvSealingSection" class="dw-acc">
+                <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
+                    value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Wandabdichtung BASIS-Set</span><small>TRINNITY · TRWDSET5</small></span></label>
+              </div>
+              <div id="flechenSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
+                    value="Flächenkleber R_4260602" checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/Flächen-Kleber.PNG" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Flächenkleber</span><small>R_4260602 <span id="wvAdhesiveSuggestion"></span></small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvFlachenQty" name="wvFlachenQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label="Menge Flächenkleber" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div id="wvProfileAdhesiveSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
+                    checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/silikon_ransauer.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Silikon</span><small>Kartuschen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvSilikonQty" name="wvSilikonQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label="Menge Silikon" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
             </div>
+          </div>
 
-            <div id="wvV3VDiv" class="wv-profile-card">
-              <div class="card-head">
-                <div class="card-title req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</div>
-                <div class="card-sub">Verbindet zwei Wandplatten an einer geraden Stoßkante. An Außenecken wird stattdessen ein Eckstück verwendet – dort braucht es kein V3V.</div>
+          <!-- winwall-Zubehör (wvSupplier = ww): ersetzt Abdichtung, Kleber, Silikon und
+               V3A/V3V von Haßmann. Profile/Kleber: Schalter + Menge (wvWw_* / wvWwQty_*),
+               Abdichtungsset nach Fläche, Zuschnitt je Platte. Fracht nicht je Angebot
+               (Sammelbestellung für mehrere Kunden). -->
+          <div id="wvWwAccSection" class="full sec-settings dw-acc-list" hidden aria-hidden="true">
+            <div class="sec-settings__label">Zubehör winwall</div>
+            <div class="sec-settings__group">
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80110" name="wvWw_WS80110" data-product-id="WS80110" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil</span><small>WS80110 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80110" name="wvWwQty_WS80110" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Abschlussprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
-              <div class="card-body">
-                <label class="image-check">
-                  <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
-                  <span class="img-wrap">
-                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" loading="lazy" />
-                  </span>
-                  <span class="caption">Verbindungsprofil V3V</span>
-                </label>
-                <div class="qty-area">
-                  <div class="field">
-                    <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" aria-required="true" />
-                  </div>
-                  <div class="field">
-                    <!-- Wandverkleidung: Ecke(n) vorhanden -->
-                    <label for="wvCornersCount">Außenecke(n) vorhanden</label>
-                    <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0" />
-                  </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80111" name="wvWw_WS80111" data-product-id="WS80111" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Inneneckprofil</span><small>WS80111 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80111" name="wvWwQty_WS80111" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Inneneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80112" name="wvWw_WS80112" data-product-id="WS80112" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Außeneckprofil</span><small>WS80112 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80112" name="wvWwQty_WS80112" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Außeneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80113" name="wvWw_WS80113" data-product-id="WS80113" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/V3V.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil</span><small>WS80113 · 2550 mm, Alu eloxiert · Vorschlag: Stöße auf gerader Wand (nicht in Ecken)</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80113" name="wvWwQty_WS80113" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Verbindungsprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWw_R_4260602" name="wvWw_R_4260602" data-product-id="R_4260602" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Flächenkleber Ramsauer 645</span><small>R_4260602 · Beutel 600 ml · aus dem Lager, wie VIGOUR · Vorschlag: 2 je Platte</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_R_4260602" name="wvWwQty_R_4260602" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Flächenkleber" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWwSealing" name="wvWwSealing" checked /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtungsset DIN 18534-1</span><small id="wvWwSealingHint">WS80301 (5 m²) / WS80302 (6,25 m²) · nach Wandfläche</small></span></label>
+              </div>
+              <div class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvWwCut" name="wvWwCut" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Zuschnitt durch winwall</span><small>10 € je Platte, gerade Schnitte · aus: wir schneiden selbst</small></span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Standard (Keramico): Badolux-Zubehör aus dem cleverbad.de-Shop, Mengen von Hand
+               (wvBx_*/wvBxQty_*, additiv — fehlen in jedem Altangebot). -->
+          <div id="wvBadoluxAccSection" class="full sec-settings dw-acc-list" hidden aria-hidden="true">
+            <div class="sec-settings__label">Badolux-Zubehör (Keramico)</div>
+            <div class="sec-settings__group">
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR101VBM3" name="wvBx_PR101VBM3" data-product-id="PR101VBM3" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR101VBM3.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Polymer Kleber Weiß</span><small>Polymer Kleber Weiß 290 ml · PR101VBM3 · Kartuschen</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR101VBM3" name="wvBxQty_PR101VBM3" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR47VBM02" name="wvBx_PR47VBM02" data-product-id="PR47VBM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR47VBM02.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Dichtband Blau</span><small>Dichtband Blau · PR47VBM02 · lfm</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR47VBM02" name="wvBxQty_PR47VBM02" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM03" name="wvBx_PR59VBM03" data-product-id="PR59VBM03" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM03.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtung Innenecke</span><small>Abdichtung DIN 18534 Innenecke · PR59VBM03 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM03" name="wvBxQty_PR59VBM03" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM05" name="wvBx_PR59VBM05" data-product-id="PR59VBM05" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM05.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abdichtung Außenecke</span><small>Abdichtung DIN 18534 Außenecke · PR59VBM05 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM05" name="wvBxQty_PR59VBM05" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PR59VBM07" name="wvBx_PR59VBM07" data-product-id="PR59VBM07" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PR59VBM07.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Wandmanschette</span><small>Wandmanschette Rohrdurchführung · PR59VBM07 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PR59VBM07" name="wvBxQty_PR59VBM07" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM01" name="wvBx_PRI130VBM01" data-product-id="PRI130VBM01" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PRI130VBM01.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Fliesenabschlussleiste</span><small>Fliesenabschlussleiste Edelstahl 2550 mm · PRI130VBM01 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PRI130VBM01" name="wvBxQty_PRI130VBM01" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+                <div class="dw-acc wv-bx">
+                  <label class="image-check"><input type="checkbox" id="wvBx_PRI130VBM02" name="wvBx_PRI130VBM02" data-product-id="PRI130VBM02" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/badolux/zubehoer/PRI130VBM02.webp" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschluss-Würfel</span><small>Abschluss-Würfel Edelstahl poliert · PRI130VBM02 · Stück</small></span></label>
+                  <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvBxQty_PRI130VBM02" name="wvBxQty_PRI130VBM02" type="number" inputmode="numeric" min="0" step="1" placeholder="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                </div>
+            </div>
+          </div>
+
+          <div id="wvHmProfileSection" class="full sec-settings dw-acc-list">
+            <div class="sec-settings__label">Abschluss- und Verbindungsprofile</div>
+            <div class="sec-settings__group">
+              <div id="wvEndProfileSection" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
+                    checked aria-required="true" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil V3A</span><small>255 cm silber eloxiert · nicht automatisch berechnet, bitte prüfen</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvEndProfileQty" name="wvEndProfileQty" type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-required="true" aria-label="Menge Abschlussprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+              </div>
+              <div id="wvV3VDiv" class="dw-acc">
+                <label class="image-check"><input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img
+                    src="./assets/V3V.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil V3V</span><small>255 cm silber eloxiert · an Außenecken nicht nötig</small></span></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvV3VQty" name="wvV3VQty" type="number" inputmode="numeric" min="0" step="1" value="0" aria-required="true" aria-label="Menge Verbindungsprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
+                <div class="card-foot tone-info wv-v3v-hint" id="wvV3VFoot">
+                  <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
+                  <div id="wvV3VRuleText"></div>
                 </div>
               </div>
-              <div class="card-foot tone-info" id="wvV3VFoot">
-                <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
-                <div id="wvV3VRuleText"></div>
+              <div class="sec-settings__row">
+                <label for="wvCornersCount" class="sec-settings__text"><strong>Außenecken</strong><small>Jede Außenecke spart ein V3V</small></label>
+                <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input type="number" name="wvCornersCount" id="wvCornersCount" inputmode="numeric" min="0" step="1" value="0" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
-
               <div id="wvCornersWrap" hidden aria-hidden="true" style="display:none">
                 <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
                 <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
               </div>
             </div>
+          </div>
 
+          <!-- Skizze & Notiz: standardmäßig zu; öffnet sich bei gespeicherter Skizze/Notiz
+               (syncWvDisclosures) und zeichnet die Skizze beim Öffnen in voller Größe. -->
+          <details class="full sec-settings wv-sketch" id="wvSketchDetails">
+            <summary class="sec-settings__group ios-disclosure-summary">Skizze und Notiz</summary>
+            <div class="wv-sketch__body">
+              <div class="project-sketch" data-sketch-key="wv">
+              <div class="project-sketch__head">
+                <div>
+                  <div class="project-sketch__title">Projekt-Skizze</div>
+                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+                </div>
+
+                <div class="project-sketch__controls">
+                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+
+                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                  </div>
+
+                  <div class="project-sketch__colors" role="group" aria-label="Farben">
+                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                  </div>
+
+                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+                </div>
+              </div>
+
+              <div class="project-sketch__canvas-wrap">
+                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              </div>
+
+              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
+              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
+            </div>
+              <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
+            <textarea id="wvNote" name="wvNote" rows="4"
+              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
+            </div>
+          </details>
+
+          <div class="full sec-settings wv-summary">
+            <div class="sec-divider"><span>Ihre Auswahl</span></div>
+            <div id="wvProductCard" class="sec-settings__group" hidden></div>
+          </div>
+
+          <!-- Reste: Verschnitt der Alu-Paneele als Fußboden verwenden (initWvLeftover). Nur sichtbar, wenn Reste da sind. -->
+          <div class="full sec-settings" id="wvLeftoverBox" hidden>
+            <div class="sec-divider"><span>Reste verwenden</span></div>
+            <div class="sec-settings__group">
+              <div class="sec-settings__row">
+                <div class="sec-settings__text"><strong>Aus dieser Wand bleibt Material übrig</strong><small id="wvLeftoverText"></small></div>
+                <button type="button" id="wvLeftoverBtn" class="wv-leftover-btn">Als Fußboden verwenden</button>
+              </div>
+            </div>
           </div>
 
           <div class="actions full">
@@ -5392,229 +5552,148 @@ button.dm-btn-danger:focus-visible {
    
 <!-- Duschabtrennung (neu) — ported GC/Hassmann Konfigurator -->
 <style>
-  /* Scoped to the new Duschabtrennung configurator. Uses project design tokens. */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-wizard {
-    display: block;
-  }
+  /* Duschabtrennung (neu) — iOS grouped lists like Duschwanne / Wandverkleidung.
+     The markup comes from configurator/configurator-ui.js. */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-wizard { display: block; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main { min-width: 0; }
 
-  /* back bar */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-backbar { margin-bottom: 14px; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border); background: var(--panel);
-    border-radius: 8px; padding: 7px 14px; font-size: 0.9rem;
-    color: var(--text); cursor: pointer; font-family: inherit;
+  /* card per Duschabtrennung: title, Hersteller segment, Entfernen */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card { margin: 0 0 28px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card + .dac-config-card { padding-top: 24px; border-top: 1px solid var(--input-border, #e5e7eb); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-title { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove { border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 0.95rem; color: #ff3b30; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 14px 18px;
+    border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff);
+    font: inherit; font-size: 1rem; font-weight: 500; color: #0a84ff; cursor: pointer; text-align: left;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back:hover { border-color: var(--accent); color: var(--accent-strong); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config::before { content: "+"; font-size: 1.3rem; line-height: 1; }
 
-  /* per-component size group */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-component {
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 18px; margin-bottom: 16px; background: var(--panel);
+  /* inset grouped list */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-group-label { margin: 18px 4px 6px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted, #6b7280); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-group { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; margin: 0 0 16px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row {
+    display: flex; align-items: center; gap: 14px; width: 100%; box-sizing: border-box; min-height: 48px; padding: 10px 18px;
+    border: 0; border-radius: 0; background: none; font: inherit; font-size: 1rem; color: var(--text, #1f2937); text-align: left;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-comp-title {
-    margin: 0; font-size: 1rem; color: var(--text);
-  }
-  /* collapsible optional-extras group (Verbreiterungsprofil) */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras > summary {
-    cursor: pointer; font-weight: 700;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras[open] > summary {
-    margin-bottom: 16px;
-  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row + .dac-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row--nav, .dac-row[role="button"]) { cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row--nav, .dac-row[role="button"]):active { background: rgba(118, 118, 128, 0.12); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__k { flex: none; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__v { flex: 1 1 auto; min-width: 0; text-align: right; color: var(--muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--nav::after { content: "›"; flex: none; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__img { flex: none; width: 52px; height: 52px; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; overflow: hidden; display: grid; place-items: center; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__img img { width: 100%; height: 100%; object-fit: contain; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text strong { font-size: 1rem; font-weight: 500; line-height: 1.3; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row__text small { font-size: 0.82rem; color: var(--muted, #6b7280); line-height: 1.35; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row[aria-pressed="false"] .dac-row__img { opacity: 0.55; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row .ios-stepper { flex: none; }
+  /* page prefix beats the generic form-input width/border */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row .ios-stepper input { width: 44px; min-width: 0; height: 34px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 
-  /* breadcrumb of answered steps */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-breadcrumb {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border); background: var(--panel);
-    border-radius: 999px; padding: 5px 12px; font-size: 12px;
-    cursor: pointer; color: var(--text); font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip:hover { border-color: var(--accent); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-k { color: var(--muted); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-v { font-weight: 600; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-chip-x { color: var(--accent); }
+  /* switch + checkmark (pure display; the row is the control) */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch { position: relative; flex: none; width: 51px; height: 31px; border-radius: 999px; background: #e5e5ea; transition: background-color 0.2s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22); transition: transform 0.2s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on { background: #34c759; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on::after { transform: translateX(20px); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-check { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--input-border, #c7c7cc); box-sizing: border-box; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-check.is-on { border-color: #0a84ff; background: #0a84ff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 18px no-repeat; }
 
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title {
-    margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
-  }
-
-  /* leaf preview — the resolved product's image, shown mid-wizard + in the summary */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview {
-    display: flex; align-items: center; gap: 12px;
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 10px 14px; margin-bottom: 16px; background: var(--panel);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
-    width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
-    background: #fff; flex: 0 0 auto; cursor: pointer;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs {
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img {
-    width: 40px; height: 40px; border: 1px solid var(--border);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
-    font-size: 0.85rem; color: var(--text); font-weight: 600;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview {
-    margin: 0; flex-direction: column; align-items: stretch;
-    border: none; padding: 0; background: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
-    width: 100%; height: 260px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 8px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-thumbs img {
-    width: 56px; height: 56px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
-    text-align: center;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sizelabel {
-    font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--muted); margin: 16px 0 8px;
-  }
-
-  /* option grid — proper, larger image tiles */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid {
-    display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px;
-  }
+  /* open step: title, Zurück, picture tiles */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 4px 10px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-back { flex: none; border: 0; background: none; padding: 4px 0; font: inherit; font-size: 1rem; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin: 0 0 16px; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
-    display: flex; flex-direction: column; gap: 10px;
-    flex: 1 1 calc((100% - (3 * 14px)) / 4);
-    max-width: calc((100% - (3 * 14px)) / 4);
-    min-width: 200px;
-    padding: 12px; border: 1px solid var(--border); border-radius: 12px;
-    background: var(--panel); cursor: pointer; font-family: inherit;
-    text-align: center; transition: border-color .12s, box-shadow .12s;
+    display: flex; flex-direction: column; gap: 8px; padding: 10px; box-sizing: border-box;
+    border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff);
+    font-family: inherit; text-align: center; cursor: pointer; transition: box-shadow 0.12s, border-color 0.12s;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:hover {
-    border-color: var(--accent); box-shadow: var(--shadow);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt[data-selected="true"] {
-    border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img {
-    display: block; width: 100%; aspect-ratio: 1 / 1;
-    overflow: hidden; border-radius: 8px; background: #fff;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img {
-    width: 100%; height: 100%; object-fit: contain; display: block;
-  }
-  /* selected Verbreiterungsprofil tile + its Menge input; the cell takes the tile's flex slot */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell {
-    display: flex; flex-direction: column; gap: 6px;
-    flex: 1 1 calc((100% - (3 * 14px)) / 4);
-    max-width: calc((100% - (3 * 14px)) / 4);
-    min-width: 200px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell > .dac-opt {
-    flex: 1 1 auto; max-width: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty {
-    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
-    font-size: 0.85rem; margin: 0; text-align: left;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty input {
-    width: 100%; box-sizing: border-box;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label {
-    font-size: 0.9rem; color: var(--text); line-height: 1.25;
-  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:hover { border-color: #0a84ff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt:active { transform: scale(0.98); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt[data-selected="true"] { border-color: #0a84ff; box-shadow: 0 0 0 2px #0a84ff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img { display: block; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 10px; background: #fff; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label { font-size: 0.92rem; font-weight: 500; line-height: 1.25; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-title { display: block; font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sub { display: block; margin-top: 2px; font-size: 0.8rem; font-weight: 400; color: var(--muted, #6b7280); }
 
-  /* size pills — compact, no image */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-grid-sizes { gap: 10px; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-size {
-    flex: 0 0 auto; min-width: 84px; max-width: none;
-    padding: 12px 16px; font-size: 0.95rem; font-weight: 600;
-    align-items: center; justify-content: center;
-    color: var(--text);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sondermass {
-    background: var(--accent-weak); border-color: var(--accent);
-    color: var(--accent-strong);
-  }
+  /* Badolux drawings (badolux-sketch.js) */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-sketch { display: block; width: 100%; margin: 0 auto; background: #fafaf9; border-radius: 10px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: #fafaf9; margin: 0 0 12px; padding: 6px; cursor: pointer; touch-action: manipulation; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch .bs { max-width: 480px; max-height: 210px; margin: 0 auto; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sketch-hint { text-align: center; font-size: 0.78rem; color: #6b7280; margin-top: 2px; }
 
-  /* summary card — full-width, at the bottom */
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary {
-    margin-top: 24px;
-    border: 1px solid var(--border); border-radius: 12px;
-    padding: 18px; background: var(--panel); box-shadow: var(--shadow);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary h3 { margin: 0 0 14px; font-size: 1rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
-    display: flex; gap: 20px; align-items: flex-start;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-products {
-    flex: 1 1 auto; min-width: 0;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
-    flex: 0 0 300px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-lines {
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-    font-size: 0.8rem; padding: 14px; border: 1px solid var(--border);
-    border-radius: 12px; background: var(--bg, #fff);
-  }
-  @media (max-width: 700px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
-      flex-direction: column;
-    }
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
-      flex-basis: auto; width: 100%;
-    }
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; font-size: 0.9rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-art { color: var(--muted); font-family: monospace; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-finish { color: var(--muted); font-size: 0.75rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-einbau {
-    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-size: 0.7rem; font-weight: 600;
-    border-radius: 999px; padding: 6px 14px 6px 6px; line-height: 1.5;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #fff; background: #0a7d33; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: #fff; background: #c81e3a; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-qty {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
-    font-variant-numeric: tabular-nums;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in .dac-stock-qty { background: #05541f; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out .dac-stock-qty { background: #7a0e21; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price {
-    margin-top: auto; padding-top: 6px; align-self: stretch;
-    font-size: 0.95rem; font-weight: 700; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc {
-    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong); text-decoration: none;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc:hover { text-decoration: underline; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total {
-    display: flex; justify-content: space-between; align-items: baseline;
-    margin-top: 14px; font-size: 1.15rem; font-weight: 700; color: var(--accent-strong);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hint,
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-done-hint { color: var(--muted); font-size: 0.88rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset {
-    margin-top: 14px; padding: 8px 16px; font-size: 0.9rem; font-family: inherit;
-    border: 1px solid var(--accent); border-radius: 8px;
-    background: var(--accent); color: #fff; cursor: pointer;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset:hover { background: var(--accent-strong); }
+  /* product photos: compact strip above the step, big in "Ihre Auswahl" */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img { width: 72px; height: 72px; object-fit: contain; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; flex: none; cursor: zoom-in; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main > .dac-leaf-preview .dac-leaf-thumbs img:nth-child(n+6) { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-more { width: 48px; height: 48px; border: 1px solid var(--input-border, #e5e7eb); border-radius: 10px; background: var(--panel, #fff); font: inherit; font-size: 0.85rem; font-weight: 600; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-more { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img { width: 48px; height: 48px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label { font-size: 0.9rem; font-weight: 600; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-main > .dac-leaf-preview .dac-leaf-preview-label { order: -1; flex: 0 1 auto; margin-right: auto; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero { padding: 16px 18px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview { display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 10px 18px; margin: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview > img { grid-row: 1 / 3; width: 220px; height: 220px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview-label { grid-column: 2; grid-row: 1; font-size: 1.1rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-thumbs { grid-column: 2; grid-row: 2; flex-wrap: wrap; align-content: start; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-thumbs img { width: 56px; height: 56px; }
 
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted); padding: 24px 0; }
+  /* Badolux product info, collapsed */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; padding: 0 18px; margin: 0 0 12px; background: var(--panel, #fff); font-size: 0.9rem; color: var(--text, #1f2937); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary { cursor: pointer; min-height: 46px; display: flex; align-items: center; font-weight: 500; list-style: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary::-webkit-details-marker { display: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info summary::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); transition: transform 0.15s ease; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info[open] summary::after { transform: rotate(90deg); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info[open] { padding-bottom: 12px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info h5 { margin: 10px 0 4px; font-size: 0.9rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info p { margin: 6px 0; line-height: 1.45; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-info ul { margin: 6px 0 0; padding-left: 18px; }
+
+  /* Maße: wrapping segmented pills per component */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--size { flex-wrap: wrap; align-items: center; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-row--size .dac-row__k { min-width: 110px; color: var(--muted, #6b7280); font-size: 0.92rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); flex: 1 1 auto; min-width: 0; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt { flex: 1 0 auto; min-width: 64px; padding: 8px 12px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 0.95rem; font-weight: 500; color: var(--text, #1f2937); cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt[data-selected="true"] { background: var(--panel, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt.is-sonder { color: #0a84ff; }
+
+  /* Ihre Auswahl */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary { margin-top: 8px; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line .dac-row__text strong { font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price { flex: none; min-width: 92px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-gc { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(10, 132, 255, 0.1); color: #0a84ff; font-weight: 700; text-decoration: none; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 3px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; font-size: 0.72rem; color: #fff; font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in .dac-stock-qty { background: #34c759; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out .dac-stock-qty { background: #ff3b30; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total { justify-content: space-between; font-weight: 700; font-size: 1.05rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total span:last-child { font-variant-numeric: tabular-nums; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hint { color: var(--muted, #6b7280); font-size: 0.92rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset { display: block; margin: 4px 0 0 auto; border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 0.95rem; color: #0a84ff; cursor: pointer; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted, #6b7280); padding: 24px 0; }
+
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch { background: #3a3a3c; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-switch.is-on { background: #30d158; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-seg, .dac-row .ios-stepper) { background: rgba(118, 118, 128, 0.24); }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-seg__opt[data-selected="true"] { background: #636366; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+  [data-mode="dark"] :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-row__img, .dac-leaf-preview img) { border-color: rgba(255, 255, 255, 0.12); }
+
+  @media (max-width: 600px) {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview { grid-template-columns: 1fr; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero .dac-leaf-preview > img { grid-row: auto; width: 100%; height: 220px; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-hero :is(.dac-leaf-preview-label, .dac-leaf-thumbs) { grid-column: 1; grid-row: auto; }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line { flex-wrap: wrap; }
+  }
 
   .dac-lightbox-overlay {
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
@@ -5646,74 +5725,32 @@ button.dm-btn-danger:focus-visible {
     position: absolute; bottom: 16px; left: 0; right: 0;
     text-align: center; color: #fff; font-size: 14px; padding: 0 16px;
   }
-
-  @media (max-width: 760px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-opt, .dac-extra-cell) {
-      flex-basis: calc((100% - 14px) / 2);
-      max-width: calc((100% - 14px) / 2);
-    }
-  }
-  .dac-supplier label { margin: 0; padding: 6px 22px; text-align: center; transition: background .12s, color .12s; color: var(--muted,#667085); }
-  .dac-supplier input:checked + span { color: #fff; }
-  .dac-supplier label:has(input:checked) { background: var(--accent,#2563eb); }
-
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-card {
-    border: 1px solid var(--border,#d0d5dd); border-radius: 12px;
-    padding: 18px; margin-bottom: 18px; background: var(--panel);
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin: 0 0 14px; flex-wrap: wrap;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-title {
-    margin: 0; font-size: 1rem; color: var(--muted); font-weight: 600;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: 1px solid var(--border,#d0d5dd); background: var(--panel);
-    border-radius: 8px; padding: 6px 12px; font-size: 13px;
-    color: var(--text); cursor: pointer; font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-config-remove:hover {
-    border-color: #d92d20; color: #d92d20;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config {
-    display: inline-flex; align-items: center; gap: 8px;
-    border: 1px dashed var(--accent,#2563eb); background: var(--panel);
-    border-radius: 8px; padding: 10px 18px; font-size: 0.95rem; font-weight: 600;
-    color: var(--accent,#2563eb); cursor: pointer; font-family: inherit;
-  }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-add-config:hover {
-    background: var(--accent-weak,#eff4ff);
-  }
 </style>
-<section class="card page" id="page-DuschabtrennungNeu" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
+<section class="card page" id="page-DuschabtrennungNeu" hidden data-section-off>
+  <div class="sec-keep" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschabtrennung (neu)</h2>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
     Duschabtrennung konfigurieren. Die abgeschlossene Konfiguration wird mit
     Netto-Preisen automatisch dem Angebot hinzugefügt.
   </p>
+  <!-- An/aus wie Duschwanne: aus = Konfiguration bleibt gespeichert, wird aber nicht
+       berechnet (duschabtrennung.configEnabled, kein name-Attribut). -->
+  <div class="sec-switch-field sec-keep">
+    <label class="sec-switch"><input type="checkbox" role="switch" id="daNeuToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschabtrennung (neu)</strong><small>Konfigurierte Duschabtrennungen im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
+  </div>
 
   <template id="dac-config-template">
     <div class="dac-config-card" data-dac-card>
       <div class="dac-config-head">
         <h3 class="dac-config-title" data-dac-config-title>Duschabtrennung</h3>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div class="dac-supplier" role="radiogroup" aria-label="Hersteller" style="display:inline-flex; align-items:center; border:1px solid var(--border,#d0d5dd); border-radius:8px; overflow:hidden;">
-            <label style="cursor:pointer; font-size:14px;">
-              <input type="radio" data-dac-supplier-input value="vigour" checked style="position:absolute; opacity:0; pointer-events:none;">
-              <span>VIGOUR</span>
-            </label>
-            <label style="cursor:pointer; font-size:14px; border-left:1px solid var(--border,#d0d5dd);">
-              <input type="radio" data-dac-supplier-input value="badolux" style="position:absolute; opacity:0; pointer-events:none;">
-              <span>BADOLUX</span>
-            </label>
+        <div class="dac-config-tools">
+          <div class="ios-seg dac-supplier" role="radiogroup" aria-label="Hersteller">
+            <label><input type="radio" data-dac-supplier-input value="vigour" checked><span>VIGOUR</span></label>
+            <label><input type="radio" data-dac-supplier-input value="badolux"><span>Badolux</span></label>
           </div>
-          <button type="button" class="dac-config-remove" data-dac-remove hidden aria-label="Diese Duschabtrennung entfernen">
-            ✕ Entfernen
-          </button>
+          <button type="button" class="dac-config-remove" data-dac-remove hidden aria-label="Diese Duschabtrennung entfernen">Entfernen</button>
         </div>
       </div>
       <div class="dac-mount" data-dac-mount><div class="dac-loading">Konfigurator wird geladen …</div></div>
@@ -5722,87 +5759,73 @@ button.dm-btn-danger:focus-visible {
 
   <div id="dac-configs"></div>
 
-  <button type="button" id="dac-add-config" class="dac-add-config">+ Weitere Duschabtrennung hinzufügen</button>
+  <button type="button" id="dac-add-config" class="dac-add-config">Weitere Duschabtrennung hinzufügen</button>
 </section>
 
 <script type="module" src="/configurator/boot.js"></script>
 
 <!-- Duschvorhang — curtain + rail system from the vigor catalog -->
 <style>
-  #page-Duschvorhang .vh-enable {
-    display: inline-flex; align-items: center; gap: 10px;
-    margin: 0 0 16px; padding: 12px 16px; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
-    font-weight: 700; color: var(--text);
-  }
-  #page-Duschvorhang .vh-enable input { width: 18px; height: 18px; accent-color: var(--accent-strong); }
+  /* Duschvorhang — iOS grouped lists like Duschwanne / Wandverkleidung (markup: configurator/vorhang.js) */
   #page-Duschvorhang .vh-body.is-disabled { display: none; }
-  #page-Duschvorhang .vh-widthbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-    padding: 14px; margin-bottom: 18px;
-    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
-  }
-  #page-Duschvorhang .vh-width-label { font-weight: 600; color: var(--text); }
-  #page-Duschvorhang .vh-width-input {
-    width: 120px; padding: 8px 10px; border: 1px solid var(--border);
-    border-radius: 8px; font: inherit;
-  }
-  #page-Duschvorhang .vh-hint { flex: 1 1 240px; color: var(--muted); font-size: 0.85rem; }
-  #page-Duschvorhang .vh-section { margin-bottom: 22px; }
-  #page-Duschvorhang .vh-step-title { font-weight: 700; margin-bottom: 10px; color: var(--text); }
-  #page-Duschvorhang .vh-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-  /* Duschvorhang + Vorhangstange side by side */
-  #page-Duschvorhang .vh-tworow { display: flex; flex-wrap: wrap; gap: 28px; }
-  #page-Duschvorhang .vh-col { flex: 1 1 300px; min-width: 260px; }
-  /* accessory cards: narrower so more fit per row */
-  #page-Duschvorhang .vh-acc { width: auto; }
-  #page-Duschvorhang .vh-acc-grid .image-check {
-    width: 168px; padding: 10px; box-sizing: border-box; min-width: 0;
-  }
-  /* let the caption wrap so the inline-grid column can shrink to 168px
-     (otherwise the long word forces the column — and img-wrap — wider than the card) */
-  #page-Duschvorhang .vh-acc-grid .image-check .caption { min-width: 0; overflow-wrap: anywhere; }
-  #page-Duschvorhang .vh-acc-grid .img-wrap {
-    aspect-ratio: 1 / 1; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;
-  }
-  #page-Duschvorhang .vh-acc-grid .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
-  #page-Duschvorhang .vh-acc .vh-qty-field { max-width: 168px; }
-  /* cards reuse the Optional tab's .image-check / .field look */
-  #page-Duschvorhang .vh-price-row { text-align: center; }
-  #page-Duschvorhang .vh-price { font-weight: 700; color: var(--text); }
-  #page-Duschvorhang .vh-muted { color: var(--muted); font-weight: 500; }
-  #page-Duschvorhang .vh-pickcard { cursor: default; }
-  #page-Duschvorhang .vh-pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 2px; }
-  #page-Duschvorhang .vh-pill {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--panel); color: var(--text); font: inherit; font-size: 0.82rem;
-    cursor: pointer; transition: border-color .12s, background .12s;
-  }
-  #page-Duschvorhang .vh-pill:hover { border-color: var(--accent); }
-  #page-Duschvorhang .vh-pill[data-selected="true"] {
-    border-color: var(--accent); background: var(--accent-weak, var(--ring)); font-weight: 700;
-  }
-  #page-Duschvorhang .vh-qty-field { max-width: 220px; margin-top: 4px; }
-  /* Vorhang-Situation (Nische / Ecke / U-Form) — same language as the WV Bedarfsrechner */
-  #page-Duschvorhang .vhc { margin: 4px 0 24px; padding: 18px 18px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
-  #page-Duschvorhang .vhc-head h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
-  #page-Duschvorhang .vhc-note { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
-  #page-Duschvorhang .vhc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  #page-Duschvorhang button.vhc-chip {
-    display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
-    min-height: 44px; height: auto; margin: 0; padding: 0 18px; line-height: 1.2; text-align: center; white-space: nowrap;
-    border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text);
-    font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: background .2s, color .2s, border-color .2s;
-  }
-  #page-Duschvorhang button.vhc-chip > span,
-  #page-Duschvorhang button.vhc-chip > small { display: inline; margin: 0; padding: 0; line-height: 1.2; }
-  #page-Duschvorhang button.vhc-chip > small { font-weight: 500; font-size: 0.78rem; opacity: .7; }
-  #page-Duschvorhang button.vhc-chip:hover { border-color: var(--accent); }
-  #page-Duschvorhang button.vhc-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
-  #page-Duschvorhang .vhc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #page-Duschvorhang .vhc-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 20px; align-items: center; }
-  #page-Duschvorhang .vhc-stage { border-radius: 12px; background: #f7f6f4; border: 1px solid var(--border); padding: 6px; }
-  #page-Duschvorhang .vhc-svg { display: block; width: 100%; height: auto; }
+  #page-Duschvorhang .vh-label { margin: 18px 4px 6px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted, #6b7280); }
+  #page-Duschvorhang .vh-group { border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; margin: 0 0 16px; }
+  #page-Duschvorhang .vh-group > * + * { border-top: 1px solid var(--input-border, #e5e7eb); }
+  #page-Duschvorhang .vh-row { display: flex; align-items: center; gap: 12px; margin: 0; padding: 10px 18px; min-height: 48px; box-sizing: border-box; font-weight: 400; }
+  #page-Duschvorhang .vh-row__k { flex: 1 1 auto; color: var(--text, #1f2937); font-size: 1rem; }
+  #page-Duschvorhang .vh-hint { padding: 14px 18px; color: var(--muted, #6b7280); font-size: 0.92rem; }
+
+  /* segmented controls (Form, Deckenstütze) */
+  #page-Duschvorhang .vh-seg { display: inline-flex; align-items: center; flex: none; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+  #page-Duschvorhang .vh-seg button { margin: 0; min-height: 0; height: auto; padding: 6px 14px; border: 0; border-radius: 7px; background: none; box-shadow: none; font: inherit; font-size: 0.92rem; font-weight: 500; color: var(--text, #1f2937); cursor: pointer; }
+  #page-Duschvorhang .vh-seg button[aria-pressed="true"] { background: var(--panel, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+  #page-Duschvorhang .vh-seg__unit { padding: 0 8px 0 4px; font-size: 0.85rem; color: var(--muted, #6b7280); }
+
+  /* side lengths */
+  #page-Duschvorhang .vhc-row input { width: 90px; height: 38px; margin: 0; padding: 0 10px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 10px; font: inherit; font-size: 1rem; text-align: right; background: var(--panel, #fff); color: var(--text, #1f2937); }
+  #page-Duschvorhang .vhc-row input:focus { outline: none; border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2); }
+  #page-Duschvorhang .vhc-dot { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 0.75rem; font-weight: 700; }
+  #page-Duschvorhang .vhc-unit { color: var(--muted, #6b7280); font-size: 0.9rem; }
+  #page-Duschvorhang .vh-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 18px; color: var(--muted, #6b7280); font-size: 0.8rem; }
+  #page-Duschvorhang .vh-legend span { display: inline-flex; align-items: center; gap: 8px; }
+
+  /* product rows */
+  #page-Duschvorhang .vh-item { display: flex; align-items: center; gap: 14px; padding: 10px 18px; min-height: 56px; box-sizing: border-box; cursor: pointer; position: relative; }
+  #page-Duschvorhang .vh-item:active { background: rgba(118, 118, 128, 0.1); }
+  #page-Duschvorhang .vh-item__img { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; overflow: hidden; display: grid; place-items: center; }
+  #page-Duschvorhang .vh-item__img img { width: 100%; height: 100%; object-fit: contain; }
+  #page-Duschvorhang .vh-item[aria-pressed="false"] .vh-item__img { opacity: 0.5; }
+  #page-Duschvorhang .vh-item__text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+  #page-Duschvorhang .vh-item__text strong { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+  #page-Duschvorhang .vh-item__text small { font-size: 0.82rem; color: var(--muted, #6b7280); }
+  #page-Duschvorhang .vh-item .ios-stepper input { width: 44px; height: 34px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  #page-Duschvorhang .vh-switch { position: relative; flex: none; width: 51px; height: 31px; border-radius: 999px; background: #e5e5ea; transition: background-color 0.2s ease; }
+  #page-Duschvorhang .vh-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22); transition: transform 0.2s ease; }
+  #page-Duschvorhang .vh-switch.is-on { background: #34c759; }
+  #page-Duschvorhang .vh-switch.is-on::after { transform: translateX(20px); }
+  #page-Duschvorhang button.vh-more { display: flex; align-items: center; width: 100%; margin: 0; min-height: 46px; padding: 10px 18px; border: 0; border-radius: 0; background: none; box-shadow: none; font: inherit; font-size: 1rem; color: #0a84ff; text-align: left; cursor: pointer; }
+  #page-Duschvorhang button.vh-more::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #9ca3af); transition: transform 0.15s ease; }
+  #page-Duschvorhang button.vh-more[aria-expanded="true"]::after { transform: rotate(90deg); }
+
+  /* Ihre Auswahl */
+  #page-Duschvorhang .vh-sum-head { display: grid; gap: 2px; padding: 12px 18px; }
+  #page-Duschvorhang .vh-sum-head strong { font-size: 1.05rem; font-weight: 600; }
+  #page-Duschvorhang .vh-sum-head small { color: var(--muted, #6b7280); font-size: 0.85rem; }
+  #page-Duschvorhang .vh-line { display: flex; align-items: center; gap: 12px; padding: 10px 18px; min-height: 46px; box-sizing: border-box; }
+  #page-Duschvorhang .vh-line__name { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; font-size: 0.95rem; }
+  #page-Duschvorhang .vh-line__name small { color: var(--muted, #6b7280); font-size: 0.8rem; }
+  #page-Duschvorhang .vh-line__price { flex: none; min-width: 84px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #page-Duschvorhang .vh-total { font-weight: 700; font-size: 1.05rem; justify-content: space-between; }
+  #page-Duschvorhang .dac-line-stock { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 3px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  #page-Duschvorhang .dac-stock-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; font-size: 0.72rem; color: #fff; }
+  #page-Duschvorhang .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+  #page-Duschvorhang .dac-stock-in .dac-stock-qty { background: #34c759; }
+  #page-Duschvorhang .dac-stock-out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+  #page-Duschvorhang .dac-stock-out .dac-stock-qty { background: #ff3b30; }
+
+  /* 3D drawing (unchanged look, sits inside the Situation group) */
+  #page-Duschvorhang .vhc-stage { background: #f7f6f4; padding: 6px 18px; }
+  #page-Duschvorhang .vhc-svg { display: block; width: 100%; max-width: 520px; max-height: 300px; height: auto; margin: 0 auto; }
   #page-Duschvorhang .vhc-svg * { transition: opacity .2s ease; }
   #page-Duschvorhang .vhc-floor { fill: rgba(10,10,10,0.07); stroke: rgba(10,10,10,0.18); stroke-width: 1; }
   #page-Duschvorhang .vhc-wallp { fill: rgba(255,255,255,0.75); stroke: rgba(10,10,10,0.28); stroke-width: 1.2; }
@@ -5818,31 +5841,33 @@ button.dm-btn-danger:focus-visible {
   #page-Duschvorhang .vhc-badge-t { fill: #1c1917; font-size: 13px; font-weight: 600; text-anchor: middle; }
   #page-Duschvorhang .vhc-svg--empty .vhc-badge-t { fill: #9ca3af; }
   #page-Duschvorhang .vhc-has-focus [data-leg]:not(.vhc-on) { opacity: .28; }
-  #page-Duschvorhang .vhc-rows { display: grid; gap: 10px; }
-  #page-Duschvorhang .vhc-row { display: grid; grid-template-columns: 26px minmax(100px, 1fr) 100px auto; align-items: center; gap: 10px; margin: 0; font-weight: 500; }
-  #page-Duschvorhang .vhc-row input { height: 46px; font-size: 1rem; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
-  #page-Duschvorhang .vhc-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
-  #page-Duschvorhang .vhc-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #44403c; color: #fff; font-size: 0.78rem; font-weight: 700; }
-  #page-Duschvorhang .vhc-unit { color: var(--muted); font-size: 0.85rem; }
-  #page-Duschvorhang .vhc-legend { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 6px; color: var(--muted); font-size: 0.8rem; }
-  #page-Duschvorhang .vhc-legend li { display: flex; align-items: center; gap: 8px; }
   #page-Duschvorhang .vhc-lg { display: inline-block; flex: none; }
   #page-Duschvorhang .vhc-lg--rod { width: 20px; height: 4px; border-radius: 2px; background: #3f3a36; }
   #page-Duschvorhang .vhc-lg--corner { width: 12px; height: 12px; border-radius: 50%; background: #3f3a36; }
   #page-Duschvorhang .vhc-lg--joint { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid #3f3a36; box-sizing: border-box; }
   #page-Duschvorhang .vhc-lg--ros { width: 10px; height: 10px; border-radius: 2px; border: 2px solid #44403c; }
-  #page-Duschvorhang .vhc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
-  #page-Duschvorhang .vhc-stat { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--muted); }
-  #page-Duschvorhang .vhc-stat b { font-size: 1.3rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-  #page-Duschvorhang .vhc-stat-label { font-size: 0.78rem; }
-  @media (max-width: 760px) {
-    #page-Duschvorhang .vhc-main { grid-template-columns: 1fr; }
-    #page-Duschvorhang .vhc-stats { grid-template-columns: 1fr 1fr; }
+
+  [data-mode="dark"] #page-Duschvorhang :is(.vh-seg, .vh-item .ios-stepper) { background: rgba(118, 118, 128, 0.24); }
+  [data-mode="dark"] #page-Duschvorhang .vh-seg button[aria-pressed="true"] { background: #636366; }
+  [data-mode="dark"] #page-Duschvorhang .vh-switch { background: #3a3a3c; }
+  [data-mode="dark"] #page-Duschvorhang .vh-switch.is-on { background: #30d158; }
+  [data-mode="dark"] #page-Duschvorhang .vh-legend .vhc-lg--rod, [data-mode="dark"] #page-Duschvorhang .vh-legend .vhc-lg--corner { background: #d6d3d1; }
+  [data-mode="dark"] #page-Duschvorhang .vh-legend :is(.vhc-lg--joint, .vhc-lg--ros) { border-color: #d6d3d1; }
+  [data-mode="dark"] #page-Duschvorhang .dac-stock-in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+  [data-mode="dark"] #page-Duschvorhang .dac-stock-out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+  @media (max-width: 600px) {
+    #page-Duschvorhang .vh-item { flex-wrap: wrap; }
+    #page-Duschvorhang .vh-line { flex-wrap: wrap; }
   }
 </style>
-<section class="card page" id="page-Duschvorhang" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
+<section class="card page" id="page-Duschvorhang" hidden data-section-off>
+  <div class="sec-keep" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschvorhang</h2>
+  </div>
+  <!-- An/aus wie Duschwanne (duschabtrennung.curtainEnabled, kein name-Attribut). -->
+  <div class="sec-switch-field sec-keep">
+    <label class="sec-switch"><input type="checkbox" role="switch" id="vorhangToggle" /><span class="sec-switch__track" aria-hidden="true"></span><span
+                class="sec-switch__text"><strong>Duschvorhang</strong><small>Vorhang, Stangen und Befestigung im Angebot. Aus: nicht berechnet, die Auswahl bleibt erhalten.</small></span></label>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
     Nische, Ecke oder U-Form wählen und die Seitenlängen eingeben — Duschvorhang, Stangen und Befestigung werden
@@ -11181,6 +11206,19 @@ button.dm-btn-danger:focus-visible {
       <footer class="hl-import-modal__foot">
         <button type="button" class="secondary" data-deal-action-close>Abbrechen</button>
       </footer>
+    </div>
+  </div>
+
+  <!-- Generic confirmation dialog (appConfirm() in script.js). Same look as the
+       Hauptmenü dialog below; used wherever an action would discard user input. -->
+  <div id="appConfirmOverlay" class="app-confirm-overlay" aria-hidden="true">
+    <div class="app-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
+      <h3 id="appConfirmTitle"></h3>
+      <p id="appConfirmMessage"></p>
+      <div class="app-confirm-actions">
+        <button type="button" class="secondary" id="appConfirmCancel">Abbrechen</button>
+        <button type="button" class="primary" id="appConfirmOk">Fortfahren</button>
+      </div>
     </div>
   </div>
 
