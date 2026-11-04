@@ -13005,12 +13005,11 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   let activeIdx = -1; // row the colour overview writes to
   let lastPush = 0;
   let pushing = false;
-  // Neu view: the Dekor tiles (#wvColorSection, moved — never rebuilt, so all
-  // handlers/IDs stay) open inside the marked row. Classic keeps them below the list.
+  // The Dekor tiles (#wvColorSection, moved — never rebuilt, so all
+  // handlers/IDs stay) open inside the marked row. Both views.
   const colorSection = document.getElementById("wvColorSection");
   const colorLabel = colorSection?.querySelector(".sec-settings__label");
   const colorLabelText = colorLabel?.textContent || "";
-  const isClassic = () => document.body.classList.contains("ui-classic");
   let collapsed = false;
 
   const colorRadios = () => [...document.querySelectorAll('#wvColors input[name="wvColor"]')];
@@ -13047,7 +13046,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     if (activeIdx >= rows.length || activeIdx < 0) activeIdx = rows.length - 1;
     const activeRow = listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`);
     activeRow?.classList.add("is-active");
-    const inRow = !!(colorSection && activeRow && !collapsed && !isClassic());
+    const inRow = !!(colorSection && activeRow && !collapsed);
     if (colorSection) {
       colorSection.classList.toggle("in-row", inRow);
       if (colorLabel) colorLabel.textContent = inRow ? "Dekor für diese Zeile" : colorLabelText;
@@ -13132,8 +13131,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const i = Number(row.dataset.i);
     if (e.target.closest(".wv-row__del")) rows.splice(i, 1);
     else if (e.target.closest("[data-d]")) rows[i].qty = Math.max(1, rows[i].qty + Number(e.target.closest("[data-d]").dataset.d));
-    else if (!isClassic() && !e.target.closest("select")) {
-      // Neu: tap the head = open this row; tap the open row = close it.
+    else if (!e.target.closest("select")) {
+      // Tap the head = open this row; tap the open row = close it.
       collapsed = i === activeIdx ? !collapsed : false;
       activeIdx = i;
       render();
@@ -13144,7 +13143,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   });
   listEl.addEventListener("pointerdown", (e) => {
     const row = e.target.closest(".wv-row");
-    if (isClassic() || !row || Number(row.dataset.i) === activeIdx) return;
+    if (!row || Number(row.dataset.i) === activeIdx) return;
     activeIdx = Number(row.dataset.i);
     listEl.querySelectorAll(".wv-row").forEach((r) => r.classList.toggle("is-active", r === row));
     colorRadios().forEach((r) => r.closest("label")?.classList.toggle("wv-active", rows[activeIdx]?.color === r.value));
@@ -13168,7 +13167,6 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     render();
     push();
   });
-  new MutationObserver(render).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
   let t = 0;
   const pullSoon = () => {

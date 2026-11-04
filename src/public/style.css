@@ -12639,17 +12639,23 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color
 .aufschlag-reason__err[hidden] { display: none; }
 .aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted-foreground, #6b7280); }
 
-/* ===== Wandverkleidung Neu: Dekor-Kacheln klappen in der markierten Zeile auf ===== */
+/* ===== Wandverkleidung (Neu + Klassisch): Dekor-Kacheln klappen in der markierten Zeile auf ===== */
 .wv-row__name { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
 .wv-row__name small { color: var(--muted, #6b7280); font-size: 0.75rem; }
-body.ui-classic .wv-row__name { display: none; }
-body:not(.ui-classic) .wv-row__color { display: none; }
-body:not(.ui-classic) .wv-row { cursor: pointer; }
-body:not(.ui-classic) .wv-row.is-active::after { display: none; }
-body:not(.ui-classic) .wv-row__body { flex: 0 0 100%; order: 99; margin: 8px -14px -10px; padding: 14px; border-top: 1px solid rgba(10, 132, 255, 0.25); cursor: default; }
-body:not(.ui-classic) #wvColorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
-body:not(.ui-classic) #wvColorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
-body:not(.ui-classic) #wvColorSection:not(.in-row) { display: none; }
+.wv-row__color { display: none; }
+.wv-row { cursor: pointer; }
+.wv-row.is-active::after { display: none; }
+.wv-row__body { flex: 0 0 calc(100% + 28px); width: calc(100% + 28px); box-sizing: border-box; order: 99; margin: 0 -14px -10px; padding: 14px; border-top: 1px solid rgba(10, 132, 255, 0.25); cursor: default; }
+#wvColorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvColorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvColorSection:not(.in-row) { display: none; }
+body.ui-classic #page-Wandverkleidung .wv-row__body { margin: 0 -14px -12px; border-radius: 0 0 12px 12px; background: var(--cl-weak); border-top-color: var(--cl-border); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: none; }
+/* Hochformat-Kacheln, größer – Farbe gut zeigbar */
+#page-Wandverkleidung #wvColorSection.in-row #wvColors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 0; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .image-check { min-width: 0; width: auto; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .caption { font-size: 0.78rem; }
 /* "+ Zeile hinzufügen" als Button (Klassisch hat unten seinen eigenen Stil) */
 .wv-row-add { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px 18px; border: 0; border-radius: 12px; background: #0a84ff; color: #fff; font: inherit; font-weight: 700; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3); }
 .wv-row-add:active { transform: translateY(1px); }
