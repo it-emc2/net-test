@@ -415,6 +415,7 @@ export const SUPPLIER_QUALITY = {
 /**
  * { wv, dw } codes for the materials actually in the offer (null = none).
  * WV: WV-WW winwall · WV-BX Badolux/Keramico · WV-HM Haßmann/VIGOUR.
+ * fb (only winwall on the Fußboden tab): WV-WW.
  * DW: DW-SL Slate · DW-BX Badolux · DW-HM Haßmann · DW-FP Freier Posten.
  */
 export function supplierCodes(payload, lines = []) {
@@ -423,8 +424,11 @@ export function supplierCodes(payload, lines = []) {
   const decor = String(wv.wvColor || "").split("|", 1)[0].trim();
   const keramico = /^WP/i.test(decor);
   const badoluxLine = wv.wvBudgetMode === "1" || wv.wvBudgetMode === 1 || wv.wvBudgetMode === true;
+  // winwall on the Fußboden tab (Wandverkleidung als Fußboden): its own Kürzel for the Fußboden heading.
+  const dd = payload?.duschwanne || {};
+  const floorWw = !!dd.addWallCladding && dd.wallCladdingSupplier === "ww" && has("Fußboden");
   const wvCode = !has("Wandverkleidung")
-    ? null
+    ? floorWw ? "WV-WW" : null
     : keramico || badoluxLine ? "WV-BX"
     : wv.wvSupplier === "ww" ? "WV-WW"
     : "WV-HM";
@@ -435,7 +439,7 @@ export function supplierCodes(payload, lines = []) {
     : /^SLA/i.test(tray) ? "DW-SL"
     : /^DW/i.test(tray) ? "DW-BX" // same rule pricing uses for the Badolux discount
     : "DW-HM";
-  return { wv: wvCode, dw: dwCode };
+  return { wv: wvCode, dw: dwCode, ...(floorWw ? { fb: "WV-WW" } : {}) };
 }
 
 /** Panels per single format → order lines: two of a kind become a set (cheaper). */
@@ -451,6 +455,24 @@ export function winwallOrderLines(decor, qtyByFormat = {}) {
     if (n - sets * 2) lines.push({ productId: `${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
   }
   return lines;
+}
+
+/**
+ * Usable winwall leftover for the Fußboden: what the ordered wall panels deliver
+ * (Σ qty × width × height) minus the wall area, times the usable share. null below
+ * the minimum, without a wall area or without panels.
+ */
+export function winwallLeftoverM2(qtyByFormat = {}, wallAreaM2 = 0, usable = 0.8, min = 0.5) {
+  const area = Number(wallAreaM2) || 0;
+  if (!(area > 0)) return null;
+  let delivered = 0;
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
+    const f = wwFormat(code);
+    delivered += (n * f.widthCm * f.heightCm) / 10000;
+  }
+  const m2 = Math.round(Math.max(0, delivered - area) * usable * 100) / 100;
+  return m2 >= min && m2 > 0 ? m2 : null;
 }
 
 /**
@@ -1269,9 +1291,20 @@ function grossToNet(gross, taxRate) {
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
       const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
       const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      // winwall floor (only when the offer says so; a missing supplier = VIGOUR as before)
+      const wcWinwall = dusch.wallCladdingSupplier === "ww";
       // hassmannArticle = color-specific article (for Hassmann CSV)
-      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
-      if (wallCladdingQty > 0)
+      const wallCladdingHassmannPid = wcWinwall ? null : resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      if (wcWinwall) {
+        const decor = winwallDecor({ wvWwDecor: dusch.wallCladdingWwDecor, wvWwDecorCustom: dusch.wallCladdingWwDecorCustom });
+        const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
+        for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
+          const f = l.format;
+          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
+          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f.price, null,
+            { name: `winwall Wandverkleidung ${decorText} ${what}` });
+        }
+      } else if (wallCladdingQty > 0)
         add(
           wallCladdingHassmannPid,
           wallCladdingQty,
@@ -1282,9 +1315,12 @@ function grossToNet(gross, taxRate) {
         );
 
       // Flächenkleber — same rule as the regular Fußboden; no area entered → panel coverage.
+      const wwFmt = wcWinwall ? WINWALL_FORMATS.find((f) => f.code === wallCladdingSize) : null;
       const wcArea =
         Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
-        wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55;
+        (wwFmt
+          ? (wallCladdingQty * wwFmt.widthCm * wwFmt.heightCm) / 10000
+          : wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55);
       const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
       const wcPacks = ceilSafe(wcArea / wcCoverage);
       if (wcPacks > 0)

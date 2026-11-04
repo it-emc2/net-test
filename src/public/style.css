@@ -12526,3 +12526,48 @@ body.ui-classic #page-Wandverkleidung #wvProductCard { border: 1px solid var(--c
 body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__group { border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe; }
 body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__row { padding: 12px 14px; }
 body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color: var(--cl-accent); border: 1px solid var(--cl-accent); border-radius: 10px; padding: 11px 16px; }
+
+/* Produktlinie im Tab Wandverkleidung als Fußboden (wie .tier-seg__btn, aber ohne die globale Linien-Umschaltung) */
+/* Touch targets sized for the tablet this is used on. */
+.wc-sup-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  min-height: 52px;
+  min-width: 168px;
+  padding: 8px 20px;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted-foreground);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wc-sup-btn strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.wc-sup-btn span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.wc-sup-btn[aria-pressed="true"] {
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111827);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16);
+}
+
+
+
+.wc-sup-btn:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}

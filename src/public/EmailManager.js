@@ -497,7 +497,7 @@ export function initEmailManager(options = {}) {
       }
       // Material Kürzel for the deal (WV-WW · DW-SL …), from the live pricing.
       const codes = window.__pricing?.supplierCodes;
-      const materialCodes = [codes?.wv, codes?.dw].filter(Boolean).join(" · ");
+      const materialCodes = [...new Set([codes?.wv, codes?.fb, codes?.dw].filter(Boolean))].join(" · ");
       if (materialCodes) payload.materialCodes = materialCodes;
     }
 

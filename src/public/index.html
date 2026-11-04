@@ -4731,6 +4731,16 @@ button.dm-btn-danger:focus-visible {
             <div class="sec-settings">
               <div class="sec-settings__label">Einstellungen</div>
               <div class="sec-settings__group">
+                <!-- Produktlinie nur für diesen Tab (additiv): wallCladdingSupplier = ww | hm;
+                     fehlt das Feld (jedes Altangebot), gilt VIGOUR. -->
+                <div class="sec-settings__row" id="wcSupplierRow">
+                  <div class="sec-settings__text"><strong>Produktlinie</strong><small>Eigene Linie für Wandverkleidung als Fußboden</small></div>
+                  <div class="tier-seg" role="group" aria-label="Produktlinie wählen">
+                    <button type="button" class="wc-sup-btn" data-sup="ww" aria-pressed="true"><strong>winwall</strong><span>WV-WW</span></button>
+                    <button type="button" class="wc-sup-btn" data-sup="hm" aria-pressed="false"><strong>VIGOUR</strong><span>Haßmann &middot; WV-HM</span></button>
+                  </div>
+                  <input type="hidden" id="wallCladdingSupplier" name="wallCladdingSupplier" value="ww" />
+                </div>
                 <div class="sec-settings__row">
                   <div class="sec-settings__text"><strong>Umfang</strong></div>
                   <div class="ios-seg" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
@@ -4767,6 +4777,36 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
+            <!-- winwall (wallCladdingSupplier = ww): Dekor wie auf der Wandverkleidungs-Seite. -->
+            <div id="wcWwDecorSection" class="sec-settings">
+              <div class="sec-settings__label">Dekor — winwall</div>
+              <div id="wcWwDecors" class="sec-settings__group dw-color-grid is-square">
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS000" /><span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" loading="lazy" /></span><span class="caption">weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS243" /><span class="img-wrap"><img src="./assets/winwall/WS243.jpg" alt="" loading="lazy" /></span><span class="caption">Beton weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS503" /><span class="img-wrap"><img src="./assets/winwall/WS503.jpg" alt="" loading="lazy" /></span><span class="caption">Beton gespachtelt light</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS228" /><span class="img-wrap"><img src="./assets/winwall/WS228.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur hellgrau</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS229" /><span class="img-wrap"><img src="./assets/winwall/WS229.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur steingrau</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS227" /><span class="img-wrap"><img src="./assets/winwall/WS227.jpg" alt="" loading="lazy" /></span><span class="caption">Struktur anthrazit</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS203" checked /><span class="img-wrap"><img src="./assets/winwall/WS203.jpg" alt="" loading="lazy" /></span><span class="caption">Marmor weiß</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS219" /><span class="img-wrap"><img src="./assets/winwall/WS219.jpg" alt="" loading="lazy" /></span><span class="caption">Sandstein geschliffen</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW220" /><span class="img-wrap"><img src="./assets/winwall/NW220.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone ivory</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW222" /><span class="img-wrap"><img src="./assets/winwall/NW222.jpg" alt="" loading="lazy" /></span><span class="caption">Limestone pearl</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS225" /><span class="img-wrap"><img src="./assets/winwall/WS225.jpg" alt="" loading="lazy" /></span><span class="caption">Kalkstein beige</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW215" /><span class="img-wrap"><img src="./assets/winwall/NW215.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Pur</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="NW216" /><span class="img-wrap"><img src="./assets/winwall/NW216.jpg" alt="" loading="lazy" /></span><span class="caption">Marble Alabaster</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS210" /><span class="img-wrap"><img src="./assets/winwall/WS210.jpg" alt="" loading="lazy" /></span><span class="caption">Feinsteinzeug</span></label>
+                <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS290" /><span class="img-wrap"><img src="./assets/winwall/WS290.jpg" alt="" loading="lazy" /></span><span class="caption">Eiche hell</span></label>
+                <label class="image-check ww-decor-custom"><input type="radio" name="wallCladdingWwDecor" value="custom" /><span class="img-wrap" aria-hidden="true"><img id="wcWwCustomImg" src="" alt="" hidden /><span class="ww-decor-custom__plus">+</span></span><span class="caption">Anderes Dekor</span></label>
+              </div>
+              <!-- "Anderes Dekor": any WS/NW number from the winwall catalogue. -->
+              <div id="wcWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
+                <label class="sec-settings__row" for="wallCladdingWwDecorCustom">
+                  <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wcWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
+                  <input type="text" id="wallCladdingWwDecorCustom" name="wallCladdingWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
+                </label>
+              </div>
+            </div>
+
             <!-- Plattenformat: die Karten kommen aus initWallCladdingSection (renderCards). -->
             <div id="wallCladdingSuggestion" class="sec-settings" hidden>
               <div class="sec-settings__label">Plattenformat</div>
@@ -4781,7 +4821,7 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
             <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
 
-            <div class="sec-settings">
+            <div class="sec-settings" id="wcHmColors">
               <div class="sec-settings__label">Farbe — Wandverkleidung 3.0</div>
               <div id="wallCladdingColors" class="sec-settings__group dw-color-grid is-square">
                 <label class="image-check">

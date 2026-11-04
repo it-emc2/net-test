@@ -1407,7 +1407,7 @@ async function mapData(body = {}, computed = {}) {
       // Supplier Kürzel next to the heading, "Qualität und Normen" under the
       // category (BU: Wandverkleidung → WV-xx, Duschwanne → DW-xx).
       const code = isBuOffer
-        ? { Wandverkleidung: supplierCodesForDoc.wv, Duschwanne: supplierCodesForDoc.dw }[cat] || null
+        ? { Wandverkleidung: supplierCodesForDoc.wv, Duschwanne: supplierCodesForDoc.dw, Fußboden: supplierCodesForDoc.fb }[cat] || null
         : null;
       MaterialsLines.push({ MaterialLine: code ? `${cat.toUpperCase()} · ${code}` : cat.toUpperCase(), IsSub: true });
       for (const row of rows)
