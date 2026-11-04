@@ -9,6 +9,8 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | `BACKEND-INVENTORY.md` | Every endpoint/collection/integration — parity checklist |
 | `FRONTEND-INVENTORY.md` | Every page/feature/flow — parity checklist |
 | `HOTSPOTS.md` | Pricing, documents, data shapes, tests, top risks |
+| `DATA-SHAPES.md` | Real payload shapes per type × era (+ generated report) |
+| `TESTING.md` | Test commands, baseline, golden masters |
 | `../../scripts/replica/README.md` | Local prod replica (read-only dump) |
 
 ## Hard rules
@@ -23,3 +25,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | Date | Session | Done | Next |
 |---|---|---|---|
 | 2026-11-04 | stack options | Stack decided (B), replica 36/36 collections identical, inventories, ADRs, roadmap, main watcher | Phase 1 |
+| 2026-11-04 | phase 1 (a) | Test runners fixed, baseline, schema inference, pricing golden master 117/117, HMS/WD finding | Phase 1: document golden master, Playwright parity, CI |

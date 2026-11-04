@@ -5,7 +5,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | Phase | Goal | Done when | Status |
 |---|---|---|---|
 | 0 | Foundations | local replica, inventories, decisions, main watcher | ✅ 2026-11-04 |
-| 1 | Safety net on the **current** app | see below | ⏳ next |
+| 1 | Safety net on the **current** app | see below | ⏳ in progress (3/6) |
 | 2 | Skeleton TS monorepo | see below | – |
 | 3 | Shared pricing package | see below | – |
 | 4 | Backend port | see below | – |
@@ -15,10 +15,10 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | 8 | Self-hosting + cut-over | see below | – |
 
 ## Phase 1 — Safety net on the current app (no behaviour change)
-- [ ] Run existing suites locally against replica; fix runners (`test:e2e` → Playwright, wire `test/*.mjs`, fix/remove `run-scenarios`).
+- [x] Run existing suites; fix runners (`test:e2e` → Playwright, `test:node`, `test:golden`, `test:ci`) — 2026-11-04, see `TESTING.md`. Open: `run-scenarios` (missing `base.json`), 15+1 stale tests.
 - [ ] CI workflow: lint + unit + integration on every PR (does not touch deploy).
-- [ ] Schema inference over replica: `offers`, `drafts`, `Kundendaten`, `signingrequests` payload shapes per offerType × era → `docs/rewrite/DATA-SHAPES.md` + JSON samples (anonymised).
-- [ ] Pricing golden master: N real offers per type × payer × subsidy from replica; freeze Products + vigor snapshot; expected = current `computePrices` output. Locate HMS/WD client pricing.
+- [x] Schema inference over replica → `DATA-SHAPES.md` (+ generated report) — 2026-11-04
+- [x] Pricing golden master: 115 anonymised real cases, 117 tests green — 2026-11-04. HMS/WD: no pricing exists (ADR 011).
 - [ ] Document golden master: text + structure snapshot of every DOCX output (unzipped XML normalised) per type; PDF page count + text extraction.
 - [ ] Playwright parity suite against current app on replica: one happy path per offer type, draft save/load, load by ANG, load by deal (Bitrix mocked), export, email/post/signing (SMTP/Bitrix/OB24 mocked).
 

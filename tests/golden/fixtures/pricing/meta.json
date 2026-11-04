@@ -1,0 +1,32 @@
+{
+ "builtAt": "2026-11-04T10:08:30.544Z",
+ "source": "local replica 127.0.0.1:27018",
+ "stats": {
+  "total": 115,
+  "sameTotalAsStored": 9,
+  "storedComparable": 96
+ },
+ "groups": {
+  "offers|bu|KK": 10,
+  "offers|bu|SZ": 10,
+  "offers|bwt|KK": 10,
+  "offers|ah|KK": 2,
+  "offers|bwt|SZ": 10,
+  "offers|hl|KK": 10,
+  "offers|ah|SZ": 2,
+  "offers|bl|KK": 3,
+  "offers|bl|SZ": 1,
+  "drafts|bu|KK": 6,
+  "drafts|bu|SZ": 6,
+  "drafts|bwt|KK": 6,
+  "drafts|ah|KK": 2,
+  "drafts|bwt|SZ": 6,
+  "drafts|hl|KK": 6,
+  "drafts|ah|SZ": 2,
+  "drafts|bl|KK": 6,
+  "drafts|bu|?": 6,
+  "drafts|ah|?": 2,
+  "drafts|hl|?": 3,
+  "drafts|bwt|?": 6
+ }
+}

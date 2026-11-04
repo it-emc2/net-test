@@ -15,6 +15,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 008 | Documents via Gotenberg | PROPOSED | 2026-11-04 |
 | 009 | Self-hosting target | PROPOSED | 2026-11-04 |
 | 010 | App DB user least-privilege (replace `atlasAdmin`) | PROPOSED | 2026-11-04 |
+| 011 | HMS / WD offer types: keep unpriced, drop, or implement | OPEN | 2026-11-04 |
 
 ---
 
@@ -72,3 +73,8 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 ## 010 — Least-privilege app user (PROPOSED)
 - Live app currently connects as `atlasAdmin` (full cluster admin). Replace with `readWrite@KonfiguratorDB` + `read@vigor`.
 - Owner action in Atlas; no code change needed except env.
+
+## 011 — HMS / WD (OPEN)
+- Facts: pages reuse AH field ids, no pricing logic anywhere, zero HMS/WD offers/drafts in production (`DATA-SHAPES.md`).
+- Options: (a) keep as-is (unpriced pages, parity), (b) remove from the new app, (c) implement real pricing.
+- Default until decided: (a) parity.
