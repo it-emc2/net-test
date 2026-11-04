@@ -15906,6 +15906,7 @@ function restoreOptionalPage(opt) {
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
+      cat_HEBE: ["opt_HEBEFIXMINI"],
       cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
@@ -19347,6 +19348,7 @@ cat_SHOWER: "menu_SHOWER",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
     cat_DUSCHZUB: "menu_DUSCHZUB",
+    cat_HEBE: "menu_HEBE",
   };
 
   // ---- helpers ----
@@ -19460,6 +19462,7 @@ cat_SHOWER: "menu_SHOWER",
 
   // ---- SHOWER ----
   wireTileQty("opt_DUSCHKORB01", "qty_DUSCHKORB01_wrap");
+  wireTileQty("opt_HEBEFIXMINI", "qty_HEBEFIXMINI_wrap");
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
@@ -20283,6 +20286,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   // ---- LIVE: when any kid is checked, auto-check its parent category ----
   const parentToKids = {
     cat_DUSCHZUB: ["opt_DUSCHKORB01"],
+    cat_HEBE: ["opt_HEBEFIXMINI"],
     cat_SHOWER: [
       "opt_V22WS1R",
       "opt_TEMPDSU250",
@@ -22436,6 +22440,7 @@ function initOptionalUX() {
     cat_WESGH: "menu_WESGH",
     cat_SONDER: "menu_SONDER",
     cat_DUSCHZUB: "menu_DUSCHZUB",
+    cat_HEBE: "menu_HEBE",
   };
   const SEARCH_MIN_ITEMS = 8;
 

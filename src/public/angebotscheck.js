@@ -447,6 +447,15 @@ export const WORK_RULES = [
     has: (sel) => sel.opt("optDuschzub[]"),
   },
   {
+    task: "install_lifting_unit",
+    label: "Einbau einer Schmutzwasserhebeanlage",
+    needs: "Produkt aus „Hebeanlage“",
+    group: "optional",
+    target: "Optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optHebe[]"),
+  },
+  {
     task: "install_bathtub",
     label: "Einbau der Badewanne",
     needs: "Produkt aus „Wanne“",

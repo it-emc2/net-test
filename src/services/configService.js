@@ -223,6 +223,7 @@ export const CONFIG_SCHEMA = [
     ['close_valve', 'Armatur stilllegen', 45],
     ['relocate_faucet', 'Armatur versetzen', 90],
     ['relocate_drain', 'Abfluss verlegen', 30],
+    ['install_lifting_unit', 'Hebeanlage einbauen', 0],
     ['convert_faucet', 'Armatur umbauen', 90],
     ['replace_thermostat', 'Thermostat auswechseln', 30],
     ['replace_shower_no_thermo', 'Duschsystem auswechseln', 30],
