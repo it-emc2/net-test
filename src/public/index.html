@@ -4188,6 +4188,13 @@ button.dm-btn-danger:focus-visible {
                     </span>
                   </label>
                   <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_lifting_unit" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau einer Schmutzwasserhebeanlage</span>
+                      <span class="task-card__hint">Montage, Abwasseranschluss & elektrischer Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="convert_faucet" />
                     <span class="task-card__body">
                       <span class="task-card__title">Umbau einer Unterputz-Armatur in eine Aufputz-Armatur</span>
@@ -6652,6 +6659,13 @@ button.dm-btn-danger:focus-visible {
                 </span>
                 <span class="caption">Duschzubehör</span>
               </label>
+              <label class="image-check">
+                <input type="checkbox" id="cat_HEBE" />
+                <span class="img-wrap">
+                  <img src="./assets/HEBEFIXMINI.jpg" alt="Hebeanlage" />
+                </span>
+                <span class="caption">Hebeanlage</span>
+              </label>
 
             </div>
           </div>
@@ -7863,6 +7877,21 @@ button.dm-btn-danger:focus-visible {
                   <label for="qty_DUSCHKORB01" class="req">Menge DUSCHKORB01</label><input id="qty_DUSCHKORB01"
                     name="qty_DUSCHKORB01" type="number" min="0" step="1" placeholder="0" />
                 </div>
+              </div>
+            </div>
+          </div>
+          <div id="menu_HEBE" class="full field" hidden aria-hidden="true">
+            <div class="opt-tile-grid">
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"><input type="checkbox" id="opt_HEBEFIXMINI" name="optHebe[]"
+                    value="Schmutzwasserhebeanlage Hebefix Mini Jung Pumpen (TÜV-geprüft nach DIN EN 12050, für Handwaschbecken, Dusche, Bidet, steckerfertig, Q max 4,3 m³/h, H max 5 m) HEBEFIXMINI" /><span
+                    class="img-wrap"><img src="./assets/HEBEFIXMINI.jpg" alt="HEBEFIXMINI" /></span><span
+                    class="caption">Schmutzwasserhebeanlage Hebefix Mini Jung Pumpen HEBEFIXMINI</span></label>
+                <div id="qty_HEBEFIXMINI_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_HEBEFIXMINI" class="req">Menge HEBEFIXMINI</label><input id="qty_HEBEFIXMINI"
+                    name="qty_HEBEFIXMINI" type="number" min="0" step="1" placeholder="0" />
+                </div>
+                <p class="muted" style="max-width: 260px">Bei Vorwandsystemen Wartungsöffnung 300×400 mm (H×B) vorsehen. Nur fäkalienfreies Abwasser.</p>
               </div>
             </div>
           </div>

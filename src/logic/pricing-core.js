@@ -571,6 +571,7 @@ function grossToNet(gross, taxRate) {
       install_toilet: "Einbau einer Toilette",
       install_shower_wc: "Einbau eines Dusch-WCs",
       trockenbau_wc: "Trockenbau für das WC",
+      install_lifting_unit: "Einbau einer Schmutzwasserhebeanlage",
     };
 
     const dwTasks = normalizeDWTasks(payload);
