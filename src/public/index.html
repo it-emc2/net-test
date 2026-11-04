@@ -2623,6 +2623,12 @@ button.dm-btn-danger:focus-visible {
         </label>
       </div>
 
+      <!-- Ansicht Klassisch/Neu: setzt body.ui-classic (initUiViewToggle in script.js). -->
+      <div class="ui-view-seg" role="group" aria-label="Ansicht wählen">
+        <button type="button" class="ui-view-seg__btn" data-ui-view="classic" aria-pressed="false">Klassisch</button>
+        <button type="button" class="ui-view-seg__btn" data-ui-view="new" aria-pressed="true">Neu</button>
+      </div>
+
       <!-- Connection/sync status, updated by OfflineSaveQueue.js -->
       <span id="connStatus" class="conn-status" data-state="synced" title="Synchronisiert" aria-hidden="true"></span>
 

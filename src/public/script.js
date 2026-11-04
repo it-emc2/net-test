@@ -14497,8 +14497,14 @@ function renderDwSummary() {
 
   body.innerHTML = `<div class="dw-summary__hero"><span class="dw-summary__pic${badolux && !isSlateTrayProductId(pid) ? " is-photo" : ""}"><img src="${escapeHtml(img)}" alt="" /></span><div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)} · Art.-Nr. ${escapeHtml(art)}${price ? ` · ${escapeHtml(price)}` : ""}</small></div></div>${
     items.length ? `<div class="dw-summary__items">${items.join("")}</div>` : ""
-  }`;
+  }<div class="dw-summary__total"><span>Gesamt</span><span data-sw-total>${escapeHtml(document.getElementById("swTotalValue")?.textContent || "–")}</span></div>`;
 }
+// Klassische Ansicht: Summe in "Ihre Auswahl" folgt dem Summary-Widget (nur Anzeige).
+(function syncDwSummaryTotal() {
+  const src = document.getElementById("swTotalValue");
+  if (!src) return;
+  new MutationObserver(() => document.querySelectorAll("[data-sw-total]").forEach((el) => (el.textContent = src.textContent))).observe(src, { childList: true, characterData: true, subtree: true });
+})();
 // Kundenbäder: a tap on a pair opens it large; tap outside, × or Esc closes.
 (function initDwRefs() {
   const dlg = document.getElementById("dwRefDialog");
@@ -18590,6 +18596,26 @@ const RESTORE_HANDLERS = {
 // =================================================================
 // #region Decoupled Manager Bootstraps (startup helpers + single init order)
 // =================================================================
+// Ansicht Klassisch/Neu: nur body.ui-classic + CSS-Skin (style.css), gleiche Logik/IDs.
+(function initUiViewToggle() {
+  const KEY = "ui-view";
+  let classic = false;
+  try { classic = localStorage.getItem(KEY) === "classic"; } catch {}
+  const apply = () => {
+    document.body.classList.toggle("ui-classic", classic);
+    document.querySelectorAll(".ui-view-seg__btn").forEach((b) =>
+      b.setAttribute("aria-pressed", String((b.dataset.uiView === "classic") === classic)));
+  };
+  apply();
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".ui-view-seg__btn");
+    if (!b) return;
+    classic = b.dataset.uiView === "classic";
+    try { localStorage.setItem(KEY, classic ? "classic" : "new"); } catch {}
+    apply();
+  });
+})();
+
 (function bootThemeManager(){
   window.__themeReady = window.__themeReady || (async () => {
     try {

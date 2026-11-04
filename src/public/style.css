@@ -12013,3 +12013,168 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card[open] > summary.oo-head::after{transform:rotate(-135deg);margin-top:-2px}
 .offer-overrides-card[open] > summary.oo-head{margin-bottom:2px}
 .offer-overrides-card .oo-badge--lock{background:rgba(255,159,10,.18);color:#8a5200}
+
+/* ===== Ansicht Klassisch / Neu =====
+   Header-Schalter setzt body.ui-classic (initUiViewToggle, script.js). Der klassische
+   Look ist nur CSS, je Seite gescoped; Markup, IDs und JS sind in beiden Ansichten gleich. */
+.ui-view-seg { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); }
+.ui-view-seg__btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 0.82rem;
+  font-weight: 600; padding: 5px 12px; border-radius: 999px; color: var(--muted, #6b7280);
+}
+.ui-view-seg__btn[aria-pressed="true"] { background: var(--accent, #7c3aed); color: #fff; }
+
+/* -- Duschwanne (klassisch) -- */
+body.ui-classic #page-Duschwanne {
+  --cl-border: var(--border, #e5e7eb);
+  --cl-accent: var(--accent, #7c3aed);
+  --cl-weak: color-mix(in srgb, var(--accent, #7c3aed) 12%, var(--panel, #fff));
+}
+/* Überschriften: schlicht statt Versalien */
+body.ui-classic #page-Duschwanne .sec-settings__label {
+  margin: 22px 0 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text, #1f2937);
+}
+body.ui-classic #page-Duschwanne .sec-settings__group {
+  border: 0; border-radius: 0; background: none; overflow: visible;
+}
+body.ui-classic #page-Duschwanne .sec-divider { display: block; margin: 22px 0 8px; }
+body.ui-classic #page-Duschwanne .sec-divider::before,
+body.ui-classic #page-Duschwanne .sec-divider::after,
+body.ui-classic #page-Duschwanne .sec-divider > span::before { display: none; }
+body.ui-classic #page-Duschwanne .sec-divider > span { padding: 0; background: none; color: var(--text, #1f2937); font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Check-Pillen: Hauptschalter, Hinweis, Produktlinie */
+body.ui-classic #page-Duschwanne .sec-switch,
+body.ui-classic #page-Duschwanne .tier-seg__btn {
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; min-height: 66px;
+}
+body.ui-classic #page-Duschwanne .sec-switch { gap: 10px; align-items: center; }
+body.ui-classic #page-Duschwanne .sec-switch:has(input:checked),
+body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"] { border-color: var(--cl-accent); background: var(--cl-weak); }
+/* Schalter-Spur wird zur Checkbox */
+body.ui-classic #page-Duschwanne .sec-switch__track {
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box;
+  display: grid; place-items: center; order: -1;
+}
+body.ui-classic #page-Duschwanne .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Duschwanne input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Duschwanne input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Einstellungen: Produktlinie | Hinweis nebeneinander, gleiche Kartenhöhe */
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) > .sec-settings__group {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row {
+  display: block; padding: 0; border: 0; position: relative;
+}
+body.ui-classic #page-Duschwanne .sec-settings__text strong { display: block; font-size: 0.95rem; line-height: 20px; margin-bottom: 8px; }
+body.ui-classic #page-Duschwanne .tier-line { display: none; }
+body.ui-classic #page-Duschwanne .tier-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; background: none; width: 100%; }
+body.ui-classic #page-Duschwanne .tier-seg__btn { min-width: 0; align-items: flex-start; position: relative; padding-left: 42px; box-shadow: none !important; color: var(--text, #1f2937); }
+body.ui-classic #page-Duschwanne .tier-seg__btn[data-tier="premium"] { order: -1; }
+body.ui-classic #page-Duschwanne .tier-seg__btn::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+}
+body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"]::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+body.ui-classic #page-Duschwanne .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
+/* Hinweis-Karte: Überschrift über der Karte, Karte so hoch wie die Produktlinien-Karten */
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child { margin-top: 28px; }
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child::before {
+  content: "Hinweis im Angebot"; position: absolute; top: -28px; left: 0; font-size: 0.95rem; font-weight: 600; line-height: 20px;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child {
+  display: flex; align-items: center; gap: 10px; flex-direction: row-reverse; justify-content: flex-end;
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; min-height: 66px; cursor: pointer;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child .sec-settings__text strong { margin: 0; font-size: 1rem; }
+body.ui-classic #page-Duschwanne .sec-mini-switch { position: static; }
+body.ui-classic #page-Duschwanne .sec-mini-switch .sec-switch__track { position: static; }
+body.ui-classic #page-Duschwanne .sec-mini-switch .sec-switch__track::before { content: ""; position: absolute; inset: 0; }
+@media (max-width: 700px) {
+  body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) > .sec-settings__group { grid-template-columns: 1fr; }
+}
+
+/* Maße: zwei beschriftete Felder mit "cm" */
+body.ui-classic #page-Duschwanne .dw-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-dim-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; border: 0; }
+body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-name { font-weight: 500; }
+body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-input { display: flex; align-items: center; gap: 8px; }
+body.ui-classic #page-Duschwanne #form-duschwanne .dw-dim-row input[type="number"],
+body.ui-classic #page-Duschwanne .dw-dim-row input[type="number"] {
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne .dw-dim-row:focus-within { background: none; }
+
+/* Wannen-Vorschläge: Kacheln statt Liste */
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; border: 0; border-radius: 0; background: none; overflow: visible;
+}
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-heading { text-transform: none; letter-spacing: 0; font-size: 0.9rem; color: var(--muted, #6b7280); margin: 14px 0 8px; }
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card {
+  align-items: flex-start; border: 2px solid var(--cl-border); border-radius: 12px; padding: 10px 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card + .suggestion-card { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card.is-selected { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+body.ui-classic #page-Duschwanne #tray-suggestions .sc-price { color: var(--cl-accent); font-weight: 700; }
+
+/* Farbe: rechteckige Farbfelder */
+body.ui-classic #page-Duschwanne .dw-color-grid { padding: 0; }
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { width: 96px; height: 64px; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+
+/* Zubehör: Bildkacheln mit Haken */
+body.ui-classic #page-Duschwanne .dw-acc-list .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-acc {
+  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Duschwanne .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
+body.ui-classic #page-Duschwanne .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
+body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; }
+body.ui-classic #page-Duschwanne .dw-acc > .img-wrap img { object-fit: contain; }
+body.ui-classic #page-Duschwanne .dw-acc__text { grid-column: 1; grid-row: 2; }
+body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
+body.ui-classic #page-Duschwanne .dw-acc .sec-switch__track {
+  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
+  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
+}
+body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
+body.ui-classic #page-Duschwanne .stelzlager-qty-row {
+  grid-column: 1; grid-row: 3; position: relative; z-index: 1; background: none; gap: 6px; justify-self: start;
+}
+body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+
+/* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
+body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
+body.ui-classic #page-Duschwanne #dw-custom-details[open] { border-style: solid; border-color: var(--cl-border); }
+body.ui-classic #page-Duschwanne #dw-custom-details > summary { font-weight: 600; padding: 14px 16px; }
+body.ui-classic #page-Duschwanne #dw-custom-details fieldset.da-row { display: flex; flex-direction: column; padding: 0 16px 16px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-help { order: -1; border: 0; padding: 0 0 14px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 { display: grid; grid-template-columns: 2fr 1fr 90px 1.2fr; gap: 12px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 6px; padding: 0; border: 0;
+  font-size: 0.82rem; font-weight: 500; color: var(--muted, #6b7280);
+}
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label input {
+  flex: none; max-width: none; width: 100%; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff); font-size: 1rem;
+}
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label:focus-within { background: none; }
+@media (max-width: 700px) {
+  body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 { grid-template-columns: 1fr 1fr; }
+  body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 > :first-child { grid-column: 1 / -1; }
+}
+
+/* Ihre Auswahl: Karte mit Live-Summe (nur klassisch sichtbar) */
+.dw-summary__total { display: none; }
+body.ui-classic #page-Duschwanne #dwSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); }
+body.ui-classic #page-Duschwanne .dw-summary__total {
+  display: flex; justify-content: space-between; padding: 10px 18px; border-top: 1px solid var(--cl-border); font-weight: 700;
+}
