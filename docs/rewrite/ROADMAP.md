@@ -33,7 +33,8 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 3 — Pricing package
 - [x] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (`v2/packages/pricing`, ADR 013) — 2026-11-04
 - [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
-- [ ] Stage 2: tighten `core.ts` to `strict:true` function by function (golden + differential stay green)
+- [x] Stage 2a: package strict except `core.ts` (own relaxed sub-project `tsconfig.core.json`); `tray-search.ts`, `ah.ts`, `index.ts` strict; tray search differential test (500 scenarios) — 2026-11-04
+- [ ] Stage 2b: tighten `core.ts` (152 strict errors left) function by function; golden + differential stay green
 - [x] AH client pricing extracted as pure function (`v2/packages/pricing/src/ah.ts`); golden master = 400 cases recorded from the REAL legacy `computeAHGesamt()` in the browser (`npx playwright test -c playwright.golden.config.cjs`) — 2026-11-04
 - [x] AH: payload → input adapter (`ahInputFromPayload`), 144/144 real offers/drafts identical to the legacy restore path — 2026-11-04; 2 legacy bugs documented in `FINDINGS-AH.md`
 

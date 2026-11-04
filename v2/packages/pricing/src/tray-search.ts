@@ -11,7 +11,13 @@
 // footprint by its sorted sides (max/min) and NEVER locks to
 // widthCm/lengthCm — otherwise a single typed axis (e.g. width 120) starves
 // whichever category is rotated.
-export function buildTrayDimFilter({ w, l, h }) {
+
+/** Requested tray size in cm; legacy callers pass null for "not given". */
+export interface TrayDims { w: number | null; l: number | null; h: number | null }
+/** A Products document (or cached snapshot entry) — only a few fields are read. */
+export type TrayDoc = { productId?: unknown; source?: unknown; widthCm?: unknown; lengthCm?: unknown; heightCm?: unknown; price?: unknown; [k: string]: unknown };
+
+export function buildTrayDimFilter({ w, l, h }: TrayDims) {
   const filter: any = {};
   if (w !== null && l !== null) {
     const needMax = Math.max(w, l);
@@ -33,7 +39,7 @@ export function buildTrayDimFilter({ w, l, h }) {
 // In-memory equivalent of buildTrayDimFilter's $expr, for filtering a plain
 // array of cached product objects instead of querying Mongo. Same rule,
 // expressed as a predicate so the two can never drift silently.
-export function matchesTrayDims(p, { w, l, h }) {
+export function matchesTrayDims(p: TrayDoc, { w, l, h }: TrayDims) {
   const wc = Number(p.widthCm) || 0;
   const lc = Number(p.lengthCm) || 0;
   const hc = Number(p.heightCm) || 0;
@@ -41,14 +47,14 @@ export function matchesTrayDims(p, { w, l, h }) {
     if (Math.max(wc, lc) < Math.max(w, l)) return false;
     if (Math.min(wc, lc) < Math.min(w, l)) return false;
   } else if (w !== null || l !== null) {
-    if (Math.max(wc, lc) < (w !== null ? w : l)) return false;
+    if (Math.max(wc, lc) < (w !== null ? w : (l as number))) return false;
   }
   if (h !== null && hc < h) return false;
   return true;
 }
 
 // In-memory equivalent of the route's productId/series/source filter.
-export function matchesTraySeriesAndSource(p, { series, source }) {
+export function matchesTraySeriesAndSource(p: TrayDoc, { series, source }: { series?: string | null; source?: string | null }) {
   const pid = String(p.productId || "");
   if (series === "SLA") { if (!/^SLA/i.test(pid)) return false; }
   else if (series === "DW") { if (!/^DW/i.test(pid)) return false; }
@@ -58,16 +64,16 @@ export function matchesTraySeriesAndSource(p, { series, source }) {
 }
 
 // Rank by closeness using ONLY provided axes, orientation-independently.
-export function scoreTray(p, { w, l, h }) {
+export function scoreTray(p: TrayDoc, { w, l, h }: TrayDims) {
   let sum = 0;
   const wc = Number(p.widthCm) || 0;
   const lc = Number(p.lengthCm) || 0;
   if (w !== null && l !== null) {
     const td = [wc, lc].sort((a, b) => a - b);
     const qd = [Math.min(w, l), Math.max(w, l)];
-    sum += (td[0] - qd[0]) ** 2 + (td[1] - qd[1]) ** 2;
+    sum += (td[0]! - qd[0]!) ** 2 + (td[1]! - qd[1]!) ** 2;
   } else if (w !== null || l !== null) {
-    const need = w !== null ? w : l;
+    const need = (w !== null ? w : l) as number;
     const d = Math.min(Math.abs(wc - need), Math.abs(lc - need));
     sum += d * d;
   }
@@ -76,7 +82,7 @@ export function scoreTray(p, { w, l, h }) {
 }
 
 // Same rule as pricing.js: Badolux by source, or DW* productId.
-export function isBadoluxTray(p) {
+export function isBadoluxTray(p: TrayDoc) {
   return (
     String(p.source || "").toLowerCase() === "badolux" ||
     /^DW/i.test(String(p.productId || ""))
@@ -86,7 +92,7 @@ export function isBadoluxTray(p) {
 // Price to display in the suggestion cards — must match the Kosten tab, which
 // shows the tray line's unitPrice (net after the Badolux discount). Hassmann/SLA
 // trays are shown at list price; Badolux trays at list × (1 − discount).
-export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
+export function trayDisplayPrice(p: TrayDoc, badoluxDiscount = 0.20) {
   const base = Number(p.price) || 0;
   if (!isBadoluxTray(p)) return base;
   return Math.round(base * (1 - badoluxDiscount) * 100) / 100;
@@ -96,7 +102,7 @@ export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
 // top 3 — the part of the route that has nothing to do with how the
 // candidates were fetched, so both the live route and the offline fallback
 // call it on whatever array they built.
-export function scoreAndRank(docs, { w, l, h, budget }, badoluxDiscount = 0.20) {
+export function scoreAndRank(docs: TrayDoc[], { w, l, h, budget }: TrayDims & { budget?: unknown }, badoluxDiscount = 0.20) {
   const mapped = docs.map((p) => {
     const pid = String(p.productId || "");
     const isDW = /^DW/i.test(pid);

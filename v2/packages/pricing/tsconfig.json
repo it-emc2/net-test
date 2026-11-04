@@ -1,14 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    // Stage 1 of the 1:1 port (ADR 013): the legacy core compiles without strict mode.
-    // Tightening is tracked file-by-file in docs/rewrite/ROADMAP.md (phase 3b).
-    "strict": false,
-    "noImplicitAny": false,
-    "noUncheckedIndexedAccess": false,
-    "verbatimModuleSyntax": true
-  },
-  "include": ["src"]
+  "compilerOptions": { "rootDir": "src", "outDir": "dist" },
+  "include": ["src"],
+  "exclude": ["src/core.ts"],
+  "references": [{ "path": "./tsconfig.core.json" }]
 }

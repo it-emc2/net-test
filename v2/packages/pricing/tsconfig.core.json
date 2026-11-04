@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.core.tsbuildinfo",
+    // Stage 1 of the 1:1 port (ADR 013): ONLY the legacy core compiles without strict mode.
+    // Every other file in this package is strict (tsconfig.json). Shrinks to zero in stage 2.
+    "strict": false,
+    "noImplicitAny": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/core.ts"]
+}
