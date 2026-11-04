@@ -12728,3 +12728,7 @@ body.ui-classic #page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .imag
 #wvWwDecors .image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
 body.ui-classic #page-Wandverkleidung #wvWwRows { display: grid; gap: 8px; }
 body.ui-classic #page-Wandverkleidung #wvWwRows > * { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; overflow: hidden; }
+
+/* Klassisch: Zubehör-Häkchen zeigen "an" deutlich (gefülltes Feld + Haken) */
+body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
