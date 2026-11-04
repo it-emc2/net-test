@@ -136,6 +136,9 @@ test("the snapshot survives with no connection", async ({ page, context }) => {
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, {
     timeout: 30000,
   });
+  // The reload the comment above describes was missing: without it the worker's module
+  // cache stayed cold and the offline reload below intermittently could not boot (CI flake).
+  await page.reload();
   await bootedWithRecovery(page);
   await fillSurvey(page);
 

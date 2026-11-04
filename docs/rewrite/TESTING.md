@@ -62,4 +62,4 @@
 ### Known flaky (CI only)
 | Test | Symptom | Handling |
 |---|---|---|
-| `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | restore banner not visible within 5 s on GitHub runners (passes locally and in most CI runs) | `retries: 1` in CI for the offline suite; Playwright marks it "flaky" — investigate if it starts failing twice |
+| `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | restore banner not visible on GitHub runners — **root cause found 2026-11-04**: the test's own comment requires a reload to warm the service-worker cache, but the `page.reload()` was missing → cold cache, offline boot failed intermittently | Missing reload added (test-only fix); `retries: 1` stays as a safety net |
