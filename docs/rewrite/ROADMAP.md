@@ -6,7 +6,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 |---|---|---|---|
 | 0 | Foundations | local replica, inventories, decisions, main watcher | ✅ 2026-11-04 |
 | 1 | Safety net on the **current** app | see below | ✅ v1 done 2026-11-04 (open v2 items listed) |
-| 2 | Skeleton TS monorepo | see below | – |
+| 2 | Skeleton TS monorepo | see below | ✅ 2026-11-04 |
 | 3 | Shared pricing package | see below | – |
 | 4 | Backend port | see below | – |
 | 5 | Documents | see below | – |
@@ -23,10 +23,12 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Playwright parity suite v1: navigation for all 7 types + draft save/load, own stack, outbound blocked — 2026-11-04. Open (v2): load by ANG, load by deal (Bitrix stub), export, email/post/signing with stubs.
 
 ## Phase 2 — Skeleton
-- [ ] npm workspaces: `apps/server` (Fastify), `apps/web` (Vite), `packages/pricing`, `packages/domain` (Zod schemas from phase 1), `packages/docs`.
-- [ ] Config guard: refuses non-localhost DB in dev/test; `autoIndex:false` everywhere.
-- [ ] pino logging + request IDs; GlitchTip SDK wiring; health/version.
-- [ ] Frontend framework spike (Vue 3 vs React) on one page (Kundendaten) → decide, ADR.
+- [x] npm workspace `v2/`: `packages/config`, `packages/domain`, `apps/server`, `apps/web` — 2026-11-04 (`packages/pricing` in phase 3, `packages/docs` in phase 5)
+- [x] Config guard (non-production refuses remote DB), `autoIndex`/`autoCreate` off, `DB_READONLY` write lock — tested
+- [x] pino JSON logs with redaction, request ids, unified error format, error-reporter hook, health/version — tested; GlitchTip SDK deferred to ADR 009
+- [x] Framework decided: React (ADR 012). Web shell with URL routes `/deal/:dealId[/:step]`, `/offer/:offerNumber`, legacy `/?offer=` redirect
+- [x] Domain basics: lenient payload schema parses all 115 real fixture payloads losslessly; legacy offer-type/payer rules reproduced
+- [x] CI job `v2`: typecheck, 163 tests, web build
 
 ## Phase 3 — Pricing package
 - [ ] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (no "improvements").

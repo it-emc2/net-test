@@ -1,0 +1,19 @@
+{
+  "name": "@oc/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "node --watch --experimental-strip-types src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "mongoose": "^8.24.8",
+    "pino": "^10.4.0",
+    "@oc/config": "*",
+    "@oc/domain": "*"
+  }
+}

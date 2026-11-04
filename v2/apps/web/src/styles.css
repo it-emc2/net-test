@@ -1,0 +1,51 @@
+/* Base styles for users who are older and not technical:
+   large readable type (≥18px), high contrast, touch targets ≥48px, visible focus. */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --text: #1b1f1d;
+  --muted: #4a524e;
+  --accent: #2f6f4f;
+  --accent-text: #ffffff;
+  --border: #c9d1cc;
+  --focus: #1a56db;
+  --radius: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121514;
+    --surface: #1c201e;
+    --text: #eef2ef;
+    --muted: #b7c0bb;
+    --accent: #5fb38a;
+    --accent-text: #0d1310;
+    --border: #39413d;
+    --focus: #8ab4ff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+.page { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+.lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 24px; }
+.card {
+  display: grid; gap: 12px; padding: 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+label { font-weight: 600; }
+input, button, .button-secondary { font: inherit; min-height: 48px; border-radius: 10px; }
+input { padding: 0 14px; border: 2px solid var(--border); background: var(--surface); color: var(--text); }
+button {
+  padding: 0 20px; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-text); font-weight: 700;
+}
+.button-secondary {
+  display: inline-flex; align-items: center; padding: 0 20px;
+  border: 2px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600;
+}
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

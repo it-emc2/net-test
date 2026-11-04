@@ -160,3 +160,6 @@ docs1
 
 # iOS only for tablet installation
 ios
+
+# TypeScript rewrite (own workspace, not part of the current app image)
+v2/

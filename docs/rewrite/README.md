@@ -11,6 +11,7 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | `HOTSPOTS.md` | Pricing, documents, data shapes, tests, top risks |
 | `DATA-SHAPES.md` | Real payload shapes per type × era (+ generated report) |
 | `TESTING.md` | Test commands, baseline, golden masters |
+| `../../v2/README.md` | The TypeScript rewrite workspace |
 | `../../scripts/replica/README.md` | Local prod replica (read-only dump) |
 
 ## Hard rules
@@ -27,3 +28,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | stack options | Stack decided (B), replica 36/36 collections identical, inventories, ADRs, roadmap, main watcher | Phase 1 |
 | 2026-11-04 | phase 1 (a) | Test runners fixed, baseline, schema inference, pricing golden master 117/117, HMS/WD finding | Phase 1: document golden master, Playwright parity, CI |
 | 2026-11-04 | phase 1 (b) | DOCX golden 51/51, UI parity 9/9, offline 23/23, CI workflow | Phase 1 v2 items or Phase 2 skeleton |
+| 2026-11-04 | phase 2 | v2 workspace: config guard, domain schemas vs real data, Fastify server (logs/errors/DB safety), React shell with deal URLs, CI job; 163 tests | Phase 3: pricing package (TS port vs golden master) |

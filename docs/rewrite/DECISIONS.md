@@ -16,6 +16,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 009 | Self-hosting target | PROPOSED | 2026-11-04 |
 | 010 | App DB user least-privilege (replace `atlasAdmin`) | PROPOSED | 2026-11-04 |
 | 011 | HMS / WD offer types: keep unpriced, drop, or implement | OPEN | 2026-11-04 |
+| 012 | Concrete v2 toolchain (React, versions, layout) | ACCEPTED | 2026-11-04 |
 
 ---
 
@@ -78,3 +79,16 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Facts: pages reuse AH field ids, no pricing logic anywhere, zero HMS/WD offers/drafts in production (`DATA-SHAPES.md`).
 - Options: (a) keep as-is (unpriced pages, parity), (b) remove from the new app, (c) implement real pricing.
 - Default until decided: (a) parity.
+
+## 012 — Concrete v2 toolchain (ACCEPTED, technical — owner may override)
+| Choice | Decision | Why |
+|---|---|---|
+| Location | `v2/` = own npm workspace (own lockfile) | Current app, its Dockerfile and deploy stay untouched; no lockfile churn on `main` |
+| Frontend framework | **React 19 + React Router 8 + Vite 8** | Largest ecosystem and hiring/AI-tooling pool; data router fits URL-first navigation (ADR 006); Vue would also work — no hard blocker either way |
+| Backend | Fastify 5, pino 10, Mongoose 8 | ADR 003 |
+| Validation | zod 4 (`looseObject` for reads, strict for new writes) | ADR 002: reads never reject old docs |
+| TypeScript | 5.9 (not 7 yet) | TS 7 (native compiler) is new; adopt once lint/editor tooling caught up — mechanical upgrade |
+| Tests | Vitest 5 (all packages), Testing Library, mongodb-memory-server; Playwright parity suite stays at repo root | One runner for v2 |
+| Node | ≥ 24 LTS | CI uses 24 |
+| Error tracking | reporter hook in `buildApp`; GlitchTip SDK wired with self-hosting (ADR 009) | No external service before hosting is decided |
+| Legacy rule duplicates | Kept as separately named functions (e.g. three offer-type resolvers) | Parity first; consolidation = explicit future ADR |
