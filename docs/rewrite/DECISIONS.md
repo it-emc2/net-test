@@ -1,0 +1,74 @@
+# OC Rewrite — Decision Log (ADR)
+
+Status: `ACCEPTED` = decided · `PROPOSED` = needs owner OK before it goes live · `OPEN` = not decided.
+Every rewrite session reads this first. Never silently change an ACCEPTED decision.
+
+| # | Decision | Status | Date |
+|---|---|---|---|
+| 001 | Production DB is never written by rewrite work | ACCEPTED | 2026-11-04 |
+| 002 | Keep MongoDB; existing collections/fields/documents untouched | ACCEPTED | 2026-11-04 |
+| 003 | Stack: TypeScript end-to-end (Option B) | ACCEPTED | 2026-11-04 |
+| 004 | UI behaviour parity with current OC | ACCEPTED | 2026-11-04 |
+| 005 | Nothing reaches `main` without owner approval | ACCEPTED | 2026-11-04 |
+| 006 | Deal URLs `/deal/:dealId` | ACCEPTED (requirement) | 2026-11-04 |
+| 007 | One draft per deal + revision history in NEW collections | PROPOSED | 2026-11-04 |
+| 008 | Documents via Gotenberg | PROPOSED | 2026-11-04 |
+| 009 | Self-hosting target | PROPOSED | 2026-11-04 |
+| 010 | App DB user least-privilege (replace `atlasAdmin`) | PROPOSED | 2026-11-04 |
+
+---
+
+## 001 — Production DB is never written
+- Dev/test only against the local replica (`scripts/replica/`, `127.0.0.1:27018`).
+- Prod access only via read-only Atlas user (`rewriteUser`, role `readAnyDatabase`), guarded by `guard-readonly.mjs` before every use.
+- Mongoose `autoIndex` is a hidden write → must be `false` for any connection that could ever reach prod.
+- Config refuses to start in dev/test if the DB URI is not localhost.
+
+## 002 — Keep MongoDB, data untouched
+- `Offer.payload`, `Draft.payload`, `Customer.kundendaten` etc. are `Mixed`; old documents must load unchanged.
+- New code *describes* old shapes (TS types + Zod with `.passthrough()`); it never rewrites old docs.
+- Collection names are kept exactly (incl. custom ones like `ProductsHassman`, `net_signing_requests`).
+- New features may add **new** collections only (see 007).
+
+## 003 — Stack
+| Layer | Choice | Why |
+|---|---|---|
+| Language | TypeScript (strict) | One language browser+server; pricing must run offline in browser |
+| Runtime | Node 24 LTS | Current LTS |
+| Backend | Fastify | Simple, fast, schema-first, easy to self-host |
+| DB | Mongoose 8 (same schemas) + Zod | Zero data migration |
+| Frontend | Vite SPA (Vue 3 or React — decided in phase 2 spike) + Workbox PWA | Offline/iPad shell stays |
+| Shared | `packages/pricing` (pure TS) used by server + browser | Single source of truth |
+| Tests | Vitest (unit), Playwright (E2E parity), golden-master (pricing + PDFs) | Parity proof |
+| Logging | pino (JSON) + self-hosted GlitchTip (Sentry-compatible) | Every error logged with context |
+| Monorepo | npm workspaces: `apps/server`, `apps/web`, `packages/*` | |
+
+## 004 — UI parity
+- Feature inventory (`FEATURE-INVENTORY.md`) is the checklist.
+- Playwright tests are written against the **current** app first, then must pass on the new app.
+- UX simplifications for elderly users (larger controls, autosave, fewer steps) are allowed only where the function stays the same; each one is listed in `UX-CHANGES.md` for owner sign-off.
+
+## 005 — Release gate
+- Push to `main` auto-deploys to Fly.io today. Rewrite lives on its own branch; merge only with explicit owner OK.
+- `main` is watched daily (`oc-main-watcher` → `~/emc2-local/main-sync/`); every HIGH/MED change goes into the parity list.
+
+## 006 — Deal URLs
+- `/deal/:dealId` opens (or creates) the deal's draft directly; deep-linkable from Bitrix24.
+- Additional: `/offer/:offerNumber` (read-only view of a sent offer).
+
+## 007 — One draft per deal + revision history (PROPOSED)
+- New collections: `deal_drafts` (current state, unique `dealId`) and `deal_draft_revisions` (append-only: who, when, diff/patch, full snapshot every N revisions, restore pointer).
+- Old `drafts` / `offers` stay as they are and remain readable; an import view lists legacy drafts per deal without modifying them.
+- **Needs owner OK** before any write to these new collections in production.
+
+## 008 — Documents via Gotenberg (PROPOSED)
+- Replace Puppeteer + LibreOffice + LaTeX (+ Adobe where possible) by one Gotenberg container (HTML→PDF, DOCX→PDF).
+- Keep docxtemplater for DOCX templates. Gate: golden-master PDF comparison per document type.
+
+## 009 — Self-hosting (PROPOSED)
+- Docker Compose; Coolify or Dokploy as PaaS; Caddy for TLS; German VPS (Hetzner) or on-prem.
+- Phase 1: app self-hosted, DB stays on Atlas. Phase 2 (optional): MongoDB 8 replica set self-hosted + nightly off-site `mongodump`.
+
+## 010 — Least-privilege app user (PROPOSED)
+- Live app currently connects as `atlasAdmin` (full cluster admin). Replace with `readWrite@KonfiguratorDB` + `read@vigor`.
+- Owner action in Atlas; no code change needed except env.

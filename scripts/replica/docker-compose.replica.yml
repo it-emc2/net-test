@@ -1,0 +1,13 @@
+# LOCAL replica of production MongoDB. Bound to 127.0.0.1 only. Never points at prod.
+name: emc2-replica
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: emc2-mongo-replica
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - emc2_replica_data:/data/db
+    restart: unless-stopped
+volumes:
+  emc2_replica_data:
