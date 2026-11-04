@@ -12177,3 +12177,179 @@ body.ui-classic #page-Duschwanne #dwSummaryBody { border: 1px solid var(--cl-bor
 /* Kundenbäder klassisch: alle drei Paare sichtbar statt abgeschnittenem Scroller */
 body.ui-classic #page-Duschwanne .dw-refs__list { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); grid-auto-columns: auto; overflow: visible; }
 @media (max-width: 600px) { body.ui-classic #page-Duschwanne .dw-refs__list { grid-template-columns: 1fr; } }
+
+/* -- Fußboden-Tab (klassisch); Wandverkleidung bleibt unberührt -- */
+body.ui-classic #page-Fussboden {
+  --cl-border: var(--border, #e5e7eb);
+  --cl-accent: var(--accent, #7c3aed);
+  --cl-weak: color-mix(in srgb, var(--accent, #7c3aed) 12%, var(--panel, #fff));
+}
+/* Hauptschalter als Check-Pille */
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch {
+  gap: 10px; padding: 12px 14px; min-height: 66px; border: 1px solid var(--cl-border); border-radius: 12px;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track {
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box; display: grid; place-items: center; order: -1;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track::after,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Tabs mit Unterstrich */
+body.ui-classic #page-Fussboden .fb-tab-switch {
+  display: flex; gap: 6px; padding: 0; margin: 18px 0 0; border-radius: 0; background: none; border-bottom: 1px solid var(--cl-border);
+}
+body.ui-classic #page-Fussboden .fb-tab-switch-btn { padding: 10px 18px; border-radius: 10px 10px 0 0; font-weight: 600; color: var(--muted, #6b7280); box-shadow: none; }
+body.ui-classic #page-Fussboden .fb-tab-switch-btn.active { background: var(--cl-weak); color: var(--cl-accent); box-shadow: inset 0 -3px 0 var(--cl-accent); }
+
+/* Überschriften */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__label {
+  margin: 22px 0 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text, #1f2937);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__group { border: 0; border-radius: 0; background: none; overflow: visible; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider { display: block; margin: 22px 0 8px; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider::after,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider > span::before { display: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider > span { padding: 0; background: none; color: var(--text, #1f2937); font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Einstellungen: zwei gleich hohe Vollbreiten-Zeilen, links Titel, rechts zwei Optionskarten */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) > .sec-settings__group { display: flex; flex-direction: column; gap: 12px; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 14px;
+  border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row + .sec-settings__row { border-top: 1px solid var(--cl-border); }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__text strong { font-size: 0.95rem; }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; background: none; width: 100%;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span {
+  position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px;
+  background: #fff; box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  font-weight: 600; white-space: nowrap;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[data-tier="premium"] { order: -1; }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"],
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"]::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+@media (max-width: 700px) {
+  body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row { grid-template-columns: 1fr; }
+}
+
+/* Fläche: m²-Feld neben dem Rechner-Button */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) > .sec-settings__group { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; border: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-name { font-weight: 500; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-input { display: flex; align-items: center; gap: 8px; }
+body.ui-classic #page-Fussboden #fbTabFloor #floorArea {
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-dim-row:focus-within { background: none; }
+body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
+}
+body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle::after { display: none; }
+
+/* Flächenrechner: Kopfzeile, gleich breite Felder, +/− Tag, rechtsbündige Ergebnisse */
+body.ui-classic #page-Fussboden #floorCalcPanel {
+  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Fussboden #floorCalcPanel[hidden] { display: none; }
+body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-card__hint { margin-bottom: 14px; }
+body.ui-classic #page-Fussboden #floorCalcRows { gap: 10px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 90px 32px; gap: 12px; align-items: end; padding: 0; background: none;
+}
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row__controls,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row__inputs { display: contents; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-sign { grid-column: 1; grid-row: 1; height: 40px; min-width: 0; width: 100%; border-radius: 8px; padding: 0 6px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(2) { grid-column: 3; grid-row: 1; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-times { display: none; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-area { grid-column: 4; grid-row: 1; min-width: 0; padding: 0 0 10px; text-align: right; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field input { height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result { font-variant-numeric: tabular-nums; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result::before { content: none; }
+/* Spaltenköpfe nur in der ersten Zeile, sonst unsichtbar (Beschriftung bleibt für Screenreader) */
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:not(:first-child) .floor-calc-field > span,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:not(:first-child) .floor-calc-row-area__label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-field > span,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { font-size: 0.75rem; font-weight: 600; color: var(--muted, #6b7280); }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { display: block; margin-bottom: 6px; }
+body.ui-classic #page-Fussboden #floorCalcAddRow,
+body.ui-classic #page-Fussboden #floorCalcApply {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
+}
+body.ui-classic #page-Fussboden #floorCalcApply { background: var(--cl-accent); color: #fff; margin: 0; }
+body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-result-row { border-top: 1px solid var(--cl-border); margin-top: 10px; padding: 12px 0 0; }
+body.ui-classic #page-Fussboden #floorCalcResult { font-size: 1.25rem; }
+
+/* Belag: Kacheln, möglichst sechs in einer Reihe */
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check {
+  position: relative; display: grid; align-content: start; justify-items: stretch; gap: 8px; width: auto; padding: 10px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); box-shadow: none; cursor: pointer;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .img-wrap { width: 100%; height: 96px; aspect-ratio: auto; border-radius: 8px; border: 0; background: #f1f1f5; box-shadow: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .caption { font-size: 0.82rem; font-weight: 600; color: var(--text, #1f2937); text-align: left; max-width: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked)::after {
+  content: "\2713"; position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--cl-accent); color: #fff;
+  font-size: 13px; display: grid; place-items: center;
+}
+@media (max-width: 700px) { body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Zubehör: Kacheln (Paneele automatisch, Kleber, Abdichtung) */
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc-list .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc {
+  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:has(input:checked),
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input)) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc > .img-wrap,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; padding: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .img-wrap img { object-fit: cover; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text { grid-column: 1; grid-row: 2; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__auto { grid-column: 1; grid-row: 3; font-size: 0.8rem; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track {
+  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
+  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input))::after {
+  content: "\2713"; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--cl-accent); color: #fff;
+  font-size: 13px; display: grid; place-items: center;
+}
+
+/* Ihre Auswahl: Karte mit kleinem Bild, ohne Summe */
+body.ui-classic #page-Fussboden #floorSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: #fafafe; }
+body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__hero { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 12px 14px; }
+body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__pic { width: 72px; height: 72px; border-radius: 10px; }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field { margin-bottom: 0; }
