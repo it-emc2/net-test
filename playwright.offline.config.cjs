@@ -9,7 +9,7 @@ module.exports = defineConfig({
   testDir: "./tests/e2e/offline-sync",
   testMatch: /.*\.spec\.cjs/,
   timeout: 60000,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0, // CI runners are slower; a retry is reported as "flaky", never hidden
   workers: 1, // one app + one DB, shared
   globalSetup: require.resolve("./tests/e2e/offline-sync/global-setup.cjs"),
   use: {

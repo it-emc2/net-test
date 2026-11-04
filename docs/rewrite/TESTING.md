@@ -58,3 +58,8 @@
 ## CI (`.github/workflows/ci.yml`)
 - Triggers: every PR and every push except `main`; no secrets, no deploy.
 - Blocking: golden masters, node:test, UI parity, offline suite. Reporting only (pre-existing failures): lint (12 errors), unit (15), integration (1) — flip to blocking once fixed/removed.
+
+### Known flaky (CI only)
+| Test | Symptom | Handling |
+|---|---|---|
+| `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | restore banner not visible within 5 s on GitHub runners (passes locally and in most CI runs) | `retries: 1` in CI for the offline suite; Playwright marks it "flaky" — investigate if it starts failing twice |
