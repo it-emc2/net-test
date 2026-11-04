@@ -8,7 +8,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | 1 | Safety net on the **current** app | see below | ✅ v1 done 2026-11-04 (open v2 items listed) |
 | 2 | Skeleton TS monorepo | see below | ✅ 2026-11-04 |
 | 3 | Shared pricing package | see below | ✅ 2026-11-04 |
-| 4 | Backend port | see below | – |
+| 4 | Backend port | see below | ⏳ group 1 done 2026-11-04 |
 | 5 | Documents | see below | – |
 | 6 | Frontend port + deal URLs + one-draft-per-deal | see below | – |
 | 7 | UX simplification | see below | – |
@@ -39,7 +39,12 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] AH: payload → input adapter (`ahInputFromPayload`), 144/144 real offers/drafts identical to the legacy restore path — 2026-11-04; 2 legacy bugs documented in `FINDINGS-AH.md`
 
 ## Phase 4 — Backend port
-- [ ] Same Mongoose schemas/collection names; every endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR).
+- [x] Models with identical collections/fields (Product, Service, User, AppConfig, Offer, Draft); business config (CONFIG_SCHEMA copy, parity-checked); Vigor access; legacy-compatible sessions — 2026-11-04
+- [x] Group 1 ported + contract-tested: auth (login/logout/me/confirm-password), catalog (products, services, sla), pricing (/api/price, /api/price/inputs)
+- [ ] Group 2: offers + drafts (read, search, by-deal, save, recompute) incl. ADR 007 deal drafts
+- [ ] Group 3: customers, users, admin config
+- [ ] Group 4: integrations behind interfaces (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, signing)
+- [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
 - [ ] Integrations behind interfaces with test doubles (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, vigor).
 - [ ] Fix security findings (see local `~/emc2-local/SECURITY-FINDINGS.md`) by design: case-insensitive allowlist, no asset bypass, fail-closed API key, admin-only catalog writes, escaped regex.
 

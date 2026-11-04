@@ -45,8 +45,17 @@ describe("loadConfig", () => {
   });
 
   it("allows a remote DB only in production", () => {
-    const cfg = loadConfig({ NODE_ENV: "production", MONGODB_URI: "mongodb+srv://u:p@cluster.mongodb.net/" });
+    const cfg = loadConfig({ NODE_ENV: "production", MONGODB_URI: "mongodb+srv://u:p@cluster.mongodb.net/", AUTH_SECRET: "x".repeat(32) });
     expect(cfg.NODE_ENV).toBe("production");
+  });
+
+  it("production refuses the dev auth secret or a short one (no insecure fallback)", () => {
+    expect(() => loadConfig({ NODE_ENV: "production", MONGODB_URI: "mongodb://127.0.0.1" })).toThrow(/AUTH_SECRET/);
+    expect(() => loadConfig({ NODE_ENV: "production", MONGODB_URI: "mongodb://127.0.0.1", AUTH_SECRET: "short-but-16chars" })).toThrow(/AUTH_SECRET/);
+  });
+
+  it("vigor URI is guarded too", () => {
+    expect(() => loadConfig({ VIGOR_MONGODB_URI: "mongodb+srv://u:p@c.mongodb.net/" })).toThrow(UnsafeDatabaseError);
   });
 
   it("parses DB_READONLY and rejects garbage", () => {

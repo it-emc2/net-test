@@ -60,13 +60,18 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: v2/package-lock.json
+          cache-dependency-path: |
+            v2/package-lock.json
+            package-lock.json
+      - name: Install legacy app deps (contract test spawns the legacy server)
+        run: npm ci --no-audit --no-fund
+        working-directory: .
       - run: npm ci --no-audit --no-fund
       - name: Typecheck (server + packages)
         run: npx tsc -b
       - name: Typecheck (web)
         run: npx tsc -p apps/web/tsconfig.json --noEmit
-      - name: Tests (config, domain vs golden fixtures, server, web)
+      - name: Tests (config, domain, pricing, server incl. legacy contract test, web)
         run: npx vitest run
       - name: Build web
         run: npm run build -w @oc/web

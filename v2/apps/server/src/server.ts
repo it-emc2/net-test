@@ -3,9 +3,10 @@
 import { loadConfig } from "@oc/config";
 import { buildApp } from "./app.js";
 import { connectDb, disconnectDb } from "./db.js";
+import { registerApi } from "./routes/api.js";
 
 const cfg = loadConfig(); // throws on invalid config / remote DB outside production
-const app = await buildApp(cfg);
+const app = await buildApp(cfg, { register: (a) => registerApi(a, { cfg }) });
 
 process.on("unhandledRejection", (reason) => app.log.error({ err: reason }, "unhandled promise rejection"));
 process.on("uncaughtException", (err) => {

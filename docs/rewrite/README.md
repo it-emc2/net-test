@@ -38,3 +38,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 3 (AH) | AH pricing pure TS function, 400-case golden master from legacy UI; v2 806 tests | AH payload adapter; stage 2 typing |
 | 2026-11-04 | phase 3 (AH adapter) | AH payload adapter verified on 144 real offers via legacy restore; 2 legacy bugs found | Stage 2 typing of pricing core |
 | 2026-11-04 | phase 3 done | Pricing package fully strict (JS byte-identical proof), AH extracted + 2 bugs fixed, tray differential; v2 1,093 tests | Phase 4: backend port |
+| 2026-11-04 | phase 4 (group 1) | Models, business config, sessions compatible, secure gate; auth/catalog/pricing endpoints identical to legacy (contract test spawns legacy app); v2 1,117 tests | Group 2: offers + drafts |

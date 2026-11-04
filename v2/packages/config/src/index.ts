@@ -33,6 +33,8 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   MONGODB_URI: z.string().min(1).default("mongodb://127.0.0.1:27018"),
   MONGODB_DB: z.string().min(1).default("KonfiguratorDB"),
+  /** Separate read-only "vigor" database; defaults to MONGODB_URI (legacy behaviour). */
+  VIGOR_MONGODB_URI: z.string().min(1).optional(),
   /** Defence in depth: when true, every Mongoose write throws (used for prod read-only tooling). */
   DB_READONLY: z
     .enum(["0", "1", "true", "false"])
@@ -41,6 +43,10 @@ const EnvSchema = z.object({
   /** Optional GlitchTip / Sentry DSN — errors are always logged; this adds aggregation. */
   ERROR_TRACKING_DSN: z.string().url().optional(),
   BUILD_ID: z.string().default("dev"),
+  /** HMAC secret for session tokens — same value as the legacy app keeps sessions valid across cut-over. */
+  AUTH_SECRET: z.string().min(16).default("dev-only-auth-secret-change-me"),
+  /** Legacy-compatible session cookie flags. */
+  COOKIE_SECURE: z.enum(["0", "1", "true", "false"]).optional().transform((v) => v === undefined ? undefined : v === "1" || v === "true"),
 });
 
 export type AppConfig = Readonly<z.infer<typeof EnvSchema>>;
@@ -66,6 +72,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         `(${redactUri(cfg.MONGODB_URI)}). Development and tests run only against the local replica ` +
         `(scripts/replica). See docs/rewrite/DECISIONS.md ADR 001.`,
     );
+  }
+  if (cfg.NODE_ENV !== "production" && cfg.VIGOR_MONGODB_URI && !isLocalMongo(cfg.VIGOR_MONGODB_URI)) {
+    throw new UnsafeDatabaseError(
+      `Refusing to start: VIGOR_MONGODB_URI points at a remote host (${redactUri(cfg.VIGOR_MONGODB_URI)}) outside production.`,
+    );
+  }
+  if (cfg.NODE_ENV === "production" && (cfg.AUTH_SECRET.startsWith("dev-only") || cfg.AUTH_SECRET.length < 32)) {
+    throw new Error("Refusing to start: AUTH_SECRET must be set (≥ 32 chars) in production — no insecure fallback.");
   }
   return Object.freeze(cfg);
 }

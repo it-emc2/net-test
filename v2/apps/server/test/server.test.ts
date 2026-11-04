@@ -30,7 +30,7 @@ describe("app without database", () => {
     const reported: unknown[] = [];
     const app = await buildApp(loadConfig({ LOG_LEVEL: "silent" }), {
       reporter: (err) => reported.push(err),
-      register: (a) => { a.get("/boom", async () => { throw new Error("secret stack detail"); }); },
+      register: (a) => { a.get("/boom", { config: { public: true } }, async () => { throw new Error("secret stack detail"); }); },
     });
     const r = await app.inject({ url: "/boom" });
     expect(r.statusCode).toBe(500);

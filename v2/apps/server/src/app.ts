@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import type { AppConfig } from "@oc/config";
 import { dbState } from "./db.js";
+import { registerAuthGate } from "./plugins/auth-gate.js";
 
 /** Hook for error aggregation (GlitchTip/Sentry wiring lands with self-hosting, ADR 009). */
 export type ErrorReporter = (err: unknown, ctx: { requestId: string; route?: string }) => void;
@@ -40,6 +41,8 @@ export async function buildApp(cfg: AppConfig, opts: BuildOptions = {}): Promise
     bodyLimit: 25 * 1024 * 1024, // parity with legacy express.json({ limit: "25mb" })
   });
 
+  registerAuthGate(app, cfg.AUTH_SECRET);
+
   app.addHook("onSend", async (req, reply) => {
     reply.header("x-request-id", req.id);
   });
@@ -68,11 +71,11 @@ export async function buildApp(cfg: AppConfig, opts: BuildOptions = {}): Promise
   });
 
   // ---- core endpoints (parity: legacy has /api/health and /api/version)
-  app.get("/api/health", async (_req, reply) => {
+  app.get("/api/health", { config: { public: true } }, async (_req, reply) => {
     const db = dbState();
     return reply.status(db === "connected" ? 200 : 503).send({ ok: db === "connected", db, time: new Date().toISOString() });
   });
-  app.get("/api/version", async () => ({ buildId: cfg.BUILD_ID }));
+  app.get("/api/version", { config: { public: true } }, async () => ({ buildId: cfg.BUILD_ID }));
 
   if (opts.register) await opts.register(app);
   return app;

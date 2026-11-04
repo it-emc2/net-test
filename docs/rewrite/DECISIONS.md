@@ -19,6 +19,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 012 | Concrete v2 toolchain (React, versions, layout) | ACCEPTED | 2026-11-04 |
 | 013 | Pricing port strategy: 1:1 mechanical port, then tighten | ACCEPTED | 2026-11-04 |
 | 014 | Fix both AH restore bugs in v2 | ACCEPTED (owner) | 2026-11-04 |
+| 015 | API contract rules for the backend port | ACCEPTED | 2026-11-04 |
 
 ---
 
@@ -112,3 +113,9 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Effect in the real sample: 1 offer + 2 drafts 298.13 € → 386.01 € (zone 3); 1 draft 0 € → 184.92 €. All other 140 cases unchanged.
 - Sent (locked) offers keep their stored documents/prices; this only affects what the app computes when an AH offer is re-opened. The current app on `main` is unchanged.
 - Assumption for #2: each nested task schedule counts as its own visit (same as top-level schedules). Only 1 draft affected.
+
+## 015 — API contract rules for the backend port (ACCEPTED, technical)
+- **Success responses identical to legacy** (same fields, same values) — proven per endpoint by `v2/apps/server/test/contract.test.ts`, which runs the legacy Express app as a real process and v2 against the same in-memory DB.
+- **Errors:** unified v2 format `{ error: { code, message, requestId } }`; status code and German `message` identical to legacy's `{ error: "<message>" }`.
+- **Sessions:** token/cookie format unchanged; with the same `AUTH_SECRET` a legacy session is valid in v2 (tested) → cut-over without re-login.
+- **Security fixes by design (intentional differences, tested):** every route private unless `config.public`; no path-pattern allowlist (no case/slash/suffix bypass); user search input escaped before RegExp; production refuses to start without a real `AUTH_SECRET`.
