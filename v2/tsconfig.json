@@ -8,6 +8,9 @@
       "path": "packages/domain"
     },
     {
+      "path": "packages/pricing"
+    },
+    {
       "path": "apps/server"
     }
   ]

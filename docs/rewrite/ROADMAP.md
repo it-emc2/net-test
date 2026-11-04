@@ -7,7 +7,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 | 0 | Foundations | local replica, inventories, decisions, main watcher | ✅ 2026-11-04 |
 | 1 | Safety net on the **current** app | see below | ✅ v1 done 2026-11-04 (open v2 items listed) |
 | 2 | Skeleton TS monorepo | see below | ✅ 2026-11-04 |
-| 3 | Shared pricing package | see below | – |
+| 3 | Shared pricing package | see below | ⏳ stage 1 done 2026-11-04 |
 | 4 | Backend port | see below | – |
 | 5 | Documents | see below | – |
 | 6 | Frontend port + deal URLs + one-draft-per-deal | see below | – |
@@ -31,8 +31,9 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] CI job `v2`: typecheck, 163 tests, web build
 
 ## Phase 3 — Pricing package
-- [ ] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (no "improvements").
-- [ ] Golden master green; fingerprint byte-identical.
+- [x] Port `pricing-core.js` + `tray-search-core.js` to TS 1:1 (`v2/packages/pricing`, ADR 013) — 2026-11-04
+- [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
+- [ ] Stage 2: tighten `core.ts` to `strict:true` function by function (golden + differential stay green)
 - [ ] Extract AH/HMS/WD client pricing into the package (server can now price them too).
 
 ## Phase 4 — Backend port

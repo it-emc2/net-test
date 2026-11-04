@@ -17,6 +17,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 010 | App DB user least-privilege (replace `atlasAdmin`) | PROPOSED | 2026-11-04 |
 | 011 | HMS / WD offer types: keep unpriced, drop, or implement | OPEN | 2026-11-04 |
 | 012 | Concrete v2 toolchain (React, versions, layout) | ACCEPTED | 2026-11-04 |
+| 013 | Pricing port strategy: 1:1 mechanical port, then tighten | ACCEPTED | 2026-11-04 |
 
 ---
 
@@ -92,3 +93,10 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | Node | ≥ 24 LTS | CI uses 24 |
 | Error tracking | reporter hook in `buildApp`; GlitchTip SDK wired with self-hosting (ADR 009) | No external service before hosting is decided |
 | Legacy rule duplicates | Kept as separately named functions (e.g. three offer-type resolvers) | Parity first; consolidation = explicit future ADR |
+
+## 013 — Pricing port strategy (ACCEPTED)
+- **Stage 1 (done):** `v2/packages/pricing/src/core.ts` = legacy `pricing-core.js` (main@dad76f0) with type annotations only; package compiles with `strict:false`. Diff to legacy is reviewed: 7 annotation lines + header.
+- **Proof of equivalence:** (a) golden master 117/117 on the TS port; (b) differential test legacy JS vs TS: 20 seeded mutations × 115 real cases = 2,300 comparisons of result, mutated input and fingerprint; (c) mutation sanity check — a planted 1-cent rounding bug fails 218/232 tests.
+- **Legacy quirks kept:** input payload is mutated; three offer-type resolvers; hard-coded fallbacks next to `CONFIG_SCHEMA`. Changing any of them = rule change → golden rebuild + ADR.
+- **Stage 2 (open):** tighten to `strict:true` function by function; every step must keep golden + differential green. No logic edits mixed into typing commits.
+- **Sync with main:** when `oc-main-watcher` reports a change to `src/logic/pricing-core.js`, re-port the diff into `core.ts` and update the source commit in the header; the differential test fails until both match.
