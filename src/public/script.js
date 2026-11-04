@@ -6372,6 +6372,7 @@ function notifyBudgetTilesRendered() {
   // group can be enabled and given its default. render:false — we are inside the
   // renderer's own completion hook.
   syncProduktlinieGroups({ render: false });
+  window.__kRowsRefresh?.();
   for (const [key, fn] of Object.entries(__budgetReapply)) {
     // Only re-apply for a section that is actually on the Badolux line.
     if (getLine(REAPPLY_LINE[key] || "duschwanne") !== "standard") continue;
@@ -11585,6 +11586,8 @@ const PRODUKT_LINES = {
       // Paneel-Zeilen (initWvRows) replace the 997/1497 switches and the colour grid
       // on the Premium line; those stay as hidden data fields.
       { premium: "wvRowsSection", standard: "", what: "Paneele" },
+      // Standard: the same list for Keramico (initWvKRows); the colour tiles move into the open row.
+      { premium: "", standard: "wvKRowsSection", what: "Paneele (Keramico)" },
       // The 997/1497 Alu panels are Premium only: Standard (Keramico) is priced
       // from the Wandfläche. resetFields zeroes the quantities when hidden —
       // buildPayload reads them straight from the DOM, so a hidden "2" would
@@ -12811,9 +12814,20 @@ window.isWvWinwall = isWvWinwall;
 function syncWvSupplierGroups() {
   const ww = isWvWinwall();
   const byId = (id) => document.getElementById(id);
-  for (const id of ["wvWwPanelsSection", "wvWwDecorSection", "wvWwAccSection"]) setGroupActive(byId(id), ww);
-  // Haßmann accessories exist on VIGOUR and Badolux, not on winwall.
-  for (const id of ["wvHmAccSection", "wvHmProfileSection"]) setGroupActive(byId(id), !ww);
+  const std = !!byId("wvLineToggle")?.checked; // Standard (Badolux) uses winwall's accessories
+  for (const id of ["wvWwPanelsSection", "wvWwDecorSection"]) setGroupActive(byId(id), ww);
+  setGroupActive(byId("wvWwAccSection"), ww || std);
+  // Haßmann accessories exist on VIGOUR only.
+  for (const id of ["wvHmAccSection", "wvHmProfileSection"]) setGroupActive(byId(id), !ww && !std);
+  // winwall's own cutting service is not for Keramico panels.
+  const cut = byId("wvWwCut");
+  if (cut) {
+    const row = cut.closest(".dw-acc");
+    if (row) row.hidden = std;
+    if (std) cut.checked = false;
+  }
+  const accLabel = byId("wvWwAccSection")?.querySelector(".sec-settings__label");
+  if (accLabel) accLabel.textContent = std ? "Zubehör" : "Zubehör winwall";
   // VIGOUR-only groups: the line logic has already set them for Premium/Standard.
   if (ww) for (const id of ["wvColorSection", "wvRowsSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
   updateWwSuggestions({ write: false });
@@ -12837,8 +12851,10 @@ function wwPanelCounts() {
   return { 13: n(13), 15: n(15), 16: n(16), 17: n(17) };
 }
 function updateWwSuggestions({ write = true } = {}) {
-  const q = wwPanelCounts();
-  const panels = q[13] + q[15] + q[16] + q[17];
+  const std = !!document.getElementById("wvLineToggle")?.checked;
+  const q = std ? { 13: 0, 15: 0, 16: 0, 17: 0 } : wwPanelCounts();
+  const kPanels = std ? window.__kRowsTotal?.() || 0 : 0;
+  const panels = std ? kPanels : q[13] + q[15] + q[16] + q[17];
   const set = (sku, v) => {
     const qty = document.getElementById(`wvWwQty_${sku}`);
     const cb = document.getElementById(`wvWw_${sku}`);
@@ -12850,7 +12866,7 @@ function updateWwSuggestions({ write = true } = {}) {
     set("R_4260602", 2 * panels); // Flächenkleber, as VIGOUR: 2 Pkg per panel
     // Verbindungsprofile from the calculator's wall plan (joints on straight walls,
     // none at corners) when it matches the panels entered, else panels − 1.
-    const plan = window.__wwPlan;
+    const plan = std ? null : window.__wwPlan;
     const fits = plan?.qty && ["13", "15", "16", "17"].every((c) => (plan.qty[c] || 0) === q[c]);
     const prof = fits ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
     set("WS80113", prof ? prof.WS80113 : Math.max(0, panels - 1));
@@ -12858,7 +12874,7 @@ function updateWwSuggestions({ write = true } = {}) {
   const hint = document.getElementById("wvWwSealingHint");
   if (hint) {
     const area = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) ||
-      (q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+      (std ? kPanels * 2.4225 : q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
     let sets = [];
     try { sets = window.__pricingCore?.winwallSealingSets?.(area); } catch {}
     if (!Array.isArray(sets)) sets = [];
@@ -12866,7 +12882,7 @@ function updateWwSuggestions({ write = true } = {}) {
     hint.textContent = `WS80301 (5 m²) / WS80302 (6,25 m²) · nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${txt}` : ""}`;
   }
   const ph = document.getElementById("wvWwPanelsHint");
-  if (ph) {
+  if (ph && !std) {
     const sets = Math.floor(q[13] / 2) + Math.floor(q[15] / 2) + Math.floor(q[16] / 2);
     ph.textContent = panels
       ? `${panels} ${panels === 1 ? "Platte" : "Platten"}${sets ? `, davon ${sets} × als Set (2 gleiche Platten, günstiger)` : ""}.`
@@ -13180,6 +13196,219 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   render();
 })();
 
+/* ========== WANDVERKLEIDUNG (Standard · Badolux/Keramico): Paneel-Zeilen ==========
+   Same idea as initWvRows: one row = one Dekor + count, the Dekor tiles
+   (#wvBudgetColorSection, moved, never rebuilt) open inside the marked row.
+   Data: wvKRows (JSON [{pid,name,qty,price?}]); the 1st row's Dekor is also put into
+   the wvColor radios so everything that reads the single colour keeps working.
+   Sonder-Dekor (WP007): name + price per panel are typed from cleverbad.de. */
+(function initWvKRows() {
+  const section = document.getElementById("wvKRowsSection");
+  const listEl = document.getElementById("wvKRows");
+  const addBtn = document.getElementById("wvKRowAdd");
+  const dataEl = document.getElementById("wvKRowsData");
+  const tiles = document.getElementById("wvBudgetColorSection");
+  if (!section || !listEl || !addBtn || !dataEl) return;
+  const SONDER = "WP007";
+  const SHOP_URL = "https://cleverbad.de/konfigurator";
+  const num = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const fire = (el, t) => el.dispatchEvent(new Event(t, { bubbles: true }));
+  let rows = []; // { pid, name, qty, price }
+  let activeIdx = -1;
+  let collapsed = false;
+  let pushing = false;
+  const tilesLabel = tiles?.querySelector(".sec-settings__label");
+  const tilesLabelText = tilesLabel?.textContent || "";
+
+  const radios = () => [...document.querySelectorAll('#wvBudgetColors input[name="wvColor"]')];
+  const shortName = (n) => String(n || "").replace(/^(Standard-Dekor|Wandpaneel)\s+/i, "");
+  const tileOf = (pid) => radios().find((r) => r.value.split("|", 1)[0] === pid);
+  const imgOf = (pid) => `./assets/budget/${pid}.webp`;
+  const nameOf = (r) => (r.pid === SONDER ? (r.name && r.name !== "Wandpaneel Sonder-Dekor" ? r.name : "Sonder-Dekor") : shortName(r.name));
+  const esc = (v) => escapeHtml(String(v ?? ""));
+
+  window.__kRowsTotal = () => rows.reduce((a, r) => a + (r.qty || 0), 0);
+  window.__kRowsOn = () => !!document.getElementById("wvLineToggle")?.checked;
+
+  function save() {
+    dataEl.value = JSON.stringify(rows.map((r) => ({ pid: r.pid, name: r.name, qty: r.qty, ...(r.pid === SONDER && r.price !== "" && r.price != null ? { price: num(r.price) } : {}) })));
+  }
+
+  function render() {
+    if (tiles) section.after(tiles); // park before listEl is rebuilt
+    listEl.innerHTML = rows.length
+      ? rows.map((r, i) => {
+          const open = i === activeIdx && !collapsed;
+          return `<div class="wv-row" data-i="${i}">
+            <img class="wv-row__sw" src="${esc(imgOf(r.pid))}" alt="" onerror="this.style.visibility='hidden'" />
+            <span class="wv-row__name"><b>${esc(nameOf(r))}</b><small>${open ? "Dekor unten wählen" : "Tippen zum Ändern"}</small></span>
+            <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
+            <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
+          </div>`;
+        }).join("")
+      : `<div class="wv-rows-empty">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</div>`;
+    const activeRow = listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`);
+    activeRow?.classList.add("is-active");
+    const open = !!(tiles && activeRow && !collapsed);
+    tiles?.classList.toggle("in-row", open);
+    if (tilesLabel) tilesLabel.textContent = open ? "Dekor für diese Zeile" : tilesLabelText;
+    if (open) {
+      const body = document.createElement("div");
+      body.className = "wv-row__body";
+      const r = rows[activeIdx];
+      if (r.pid === SONDER) {
+        body.insertAdjacentHTML("afterbegin", `<div class="wv-krow-sonder">
+          <b>Sonder-Dekor bei CleverBad aussuchen</b>
+          <p class="muted">Motiv im Shop ansehen, dann Name und Preis je Paneel hier eintragen (ohne Rabatt).</p>
+          <a class="wv-krow-link" href="${SHOP_URL}" target="_blank" rel="noopener noreferrer">Wandpaneele bei CleverBad öffnen ↗</a>
+          <div class="wv-krow-fields">
+            <label>Motiv / Name<input type="text" data-f="name" value="${esc(r.name === "Wandpaneel Sonder-Dekor" ? "" : r.name)}" placeholder="z. B. Octopus Flow" autocomplete="off" /></label>
+            <label>Preis je Paneel<span class="wv-krow-eur"><input type="text" inputmode="decimal" data-f="price" value="${r.price === "" || r.price == null ? "" : esc(String(r.price).replace(".", ","))}" placeholder="Preis" autocomplete="off" /><em>€</em></span></label>
+          </div></div>`);
+      }
+      body.append(tiles);
+      activeRow.append(body);
+    }
+    // tiles: only the row's Dekor is marked
+    const cur = rows[activeIdx]?.pid;
+    const used = new Set(rows.map((r) => r.pid));
+    radios().forEach((r) => {
+      const label = r.closest("label");
+      const pid = r.value.split("|", 1)[0];
+      label?.classList.toggle("wv-active", pid === cur);
+      label?.classList.toggle("wv-used", used.has(pid) && pid !== cur);
+    });
+  }
+
+  function push() {
+    if (pushing) return;
+    pushing = true;
+    try {
+      save();
+      const first = rows[0];
+      const t = first && tileOf(first.pid);
+      if (t && !t.checked) { t.checked = true; fire(t, "change"); }
+      window.renderKeramicoCalc?.();
+      updateWwSuggestions();
+      window.requestPricingRefresh?.({ delay: 120, reason: "wv-krows" });
+      window.updatePricing?.();
+    } finally {
+      pushing = false;
+    }
+  }
+
+  // Fields → rows (restore). No saved rows but a Keramico Dekor (older draft) → one row.
+  function pull() {
+    let arr = null;
+    try { arr = JSON.parse(dataEl.value || "null"); } catch { arr = null; }
+    if (Array.isArray(arr)) {
+      rows = arr.filter((r) => /^WP/i.test(r?.pid)).map((r) => ({ pid: String(r.pid), name: String(r.name || ""), qty: Math.max(1, Math.round(Number(r.qty) || 1)), price: r.price ?? "" }));
+    } else {
+      const c = radios().find((r) => r.checked);
+      const pid = c?.value.split("|", 1)[0] || "";
+      const manual = Math.round(num(document.getElementById("wvKQty")?.value));
+      rows = /^WP/i.test(pid) ? [{ pid, name: c.value.split("|").slice(1).join("|"), qty: manual > 0 ? manual : Math.max(1, window.keramicoCurrentCount?.() || 1), price: "" }] : [];
+    }
+    activeIdx = rows.length ? 0 : -1;
+    collapsed = true;
+    render();
+    save();
+  }
+  window.pullKRows = pull;
+
+  window.applyKRowsQty = (n) => {
+    n = Math.max(1, Math.round(n || 0));
+    if (!rows.length) {
+      const c = radios().find((r) => r.checked) || radios()[0];
+      if (!c) return;
+      const [pid, ...nm] = c.value.split("|");
+      rows.push({ pid, name: nm.join("|"), qty: n, price: "" });
+      activeIdx = 0;
+    } else {
+      rows[0].qty = Math.max(1, rows[0].qty + n - window.__kRowsTotal());
+    }
+    render();
+    push();
+  };
+
+  listEl.addEventListener("click", (e) => {
+    const row = e.target.closest(".wv-row");
+    if (!row || e.target.closest(".wv-row__body")) return;
+    const i = Number(row.dataset.i);
+    if (e.target.closest(".wv-row__del")) { rows.splice(i, 1); activeIdx = Math.min(activeIdx, rows.length - 1); }
+    else if (e.target.closest("[data-d]")) rows[i].qty = Math.max(1, rows[i].qty + Number(e.target.closest("[data-d]").dataset.d));
+    else { collapsed = i === activeIdx ? !collapsed : false; activeIdx = i; render(); return; }
+    render();
+    push();
+  });
+  // Sonder-Dekor name / price typed into the open row.
+  listEl.addEventListener("input", (e) => {
+    const f = e.target?.dataset?.f;
+    if (!f || !rows[activeIdx]) return;
+    if (f === "name") {
+      rows[activeIdx].name = e.target.value;
+      const b = listEl.querySelector(`.wv-row[data-i="${activeIdx}"] .wv-row__name b`);
+      if (b) b.textContent = nameOf(rows[activeIdx]);
+    } else rows[activeIdx].price = e.target.value;
+    push();
+  });
+  // A tile sets the open row's Dekor (or starts the first row).
+  document.getElementById("wvBudgetColors")?.addEventListener("click", (e) => {
+    const input = e.target.closest("label.image-check")?.querySelector('input[name="wvColor"]');
+    if (!input) return;
+    e.preventDefault();
+    const [pid, ...nm] = input.value.split("|");
+    const name = nm.join("|");
+    if (!rows.length) { rows.push({ pid, name, qty: 1, price: "" }); activeIdx = 0; collapsed = false; }
+    else {
+      const r = rows[activeIdx < 0 ? rows.length - 1 : activeIdx];
+      r.pid = pid; r.name = name;
+      if (pid !== SONDER) r.price = "";
+    }
+    render();
+    push();
+  });
+  addBtn.addEventListener("click", () => {
+    const last = rows[rows.length - 1];
+    const c = last || (() => { const r = radios()[0]; return r ? { pid: r.value.split("|", 1)[0], name: r.value.split("|").slice(1).join("|") } : null; })();
+    if (!c) return;
+    rows.push({ pid: c.pid, name: c.name, qty: 1, price: "" });
+    activeIdx = rows.length - 1;
+    collapsed = false;
+    render();
+    push();
+  });
+  window.__kRowsRefresh = () => {
+    if (!rows.length && !dataEl.value && radios().some((r) => r.checked)) pull();
+    else render();
+  };
+  render();
+})();
+
+// Badolux-Zubehör (Keramico): closed by default, nothing in it is ever pre-selected.
+(function initBadoluxAccFold() {
+  const sec = document.getElementById("wvBadoluxAccSection");
+  const label = sec?.querySelector(".sec-settings__label");
+  if (!sec || !label) return;
+  sec.classList.add("is-foldable");
+  label.setAttribute("role", "button");
+  label.tabIndex = 0;
+  const toggle = () => {
+    const open = sec.classList.toggle("is-open");
+    label.setAttribute("aria-expanded", String(open));
+  };
+  label.setAttribute("aria-expanded", "false");
+  label.addEventListener("click", toggle);
+  label.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  // A restored offer with a Badolux accessory switched on shows it.
+  window.syncBadoluxAccFold = () => {
+    if ([...sec.querySelectorAll('input[type="checkbox"]')].some((c) => c.checked)) {
+      sec.classList.add("is-open");
+      label.setAttribute("aria-expanded", "true");
+    }
+  };
+})();
+
 /* ========== Keramico-Bedarfsrechner (Wandverkleidung, Standard) ==========
    Same rule as „Bedarf berechnen" on cleverbad.de (Badolux's shop): the wall
    widths go into the offer (wvK*) and pricing-core counts the panels with
@@ -13467,7 +13696,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
 
     // ---- results
     // A typed quantity overrides the computed one (same rule in pricing-core).
-    const manual = premium ? 0 : Math.round(num(qtyEl));
+    const manual = 0; // Standard: the Dekor rows hold the quantity (initWvKRows)
     setCount(document.getElementById("kcCount"), manual > 0 ? manual : plan.gesamt);
     qtyReset.hidden = !(manual > 0);
     qtyNote.hidden = !(manual > 0);
@@ -13502,9 +13731,10 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     paintPrice();
     if (ww) paintWinwall(plan);
     else if (premium) paintVigour(plan, arts);
+    else paintKeramico(plan);
 
     // Keramico panels count for Flächenkleber, V3V and Arbeitszeit like Alu panels.
-    const kc = !premium && isKeramicoDecor() ? (manual > 0 ? manual : plan.gesamt) : 0;
+    const kc = !premium ? (window.__kRowsTotal ? window.__kRowsTotal() : isKeramicoDecor() ? plan.gesamt : 0) : 0;
     if (kc !== keramicoCount) {
       keramicoCount = kc;
       if (!(window.__restoring || window.__RESTORING__)) recomputeWVFlachenQty();
@@ -13561,6 +13791,17 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
         .catch(() => {});
     }
     return arts;
+  }
+
+  // Standard (Keramico): the calculator only suggests; the button fills the Dekor rows.
+  let keramicoSuggest = 0;
+  function paintKeramico(plan) {
+    const mixEl = document.getElementById("kcVigourMix");
+    const btn = document.getElementById("kcVigourApply");
+    if (!mixEl || !btn) return;
+    keramicoSuggest = plan.gesamt || 0;
+    btn.disabled = !keramicoSuggest;
+    mixEl.textContent = keramicoSuggest ? `Vorschlag: ${keramicoSuggest} Paneele (95 × 255 cm)` : "Wandbreiten eintragen";
   }
 
   function paintVigour(plan, arts) {
@@ -13661,6 +13902,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   document.getElementById("kcVigourApply")?.addEventListener("click", () => {
     if (winwall()) {
       if (wwMix) window.applyWwPanelQty?.(wwMix);
+    } else if (!vigour()) {
+      if (keramicoSuggest) window.applyKRowsQty?.(keramicoSuggest);
     } else if (vigourMix) window.applyWvPanelQty?.(vigourMix);
   });
   document.getElementById("kmpTrack")?.addEventListener("click", () => setTimeout(render, 0));
@@ -13677,6 +13920,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   // widths, or null while pricing-core isn't loaded.
   window.keramicoPanelCount = (wv) => {
     if (!core) return null;
+    if (String(wv?.wvKRows ?? "").trim().startsWith("[")) {
+      try { return JSON.parse(wv.wvKRows).reduce((a, r) => a + (Math.round(Number(r?.qty)) || 0), 0); } catch { /* fall through */ }
+    }
     const manual = Math.round(Number(String(wv?.wvKQty ?? "").replace(",", ".")) || 0);
     if (manual > 0) return manual;
     return core.keramicoPanelPlan(
@@ -17691,7 +17937,8 @@ function restoreWV(wv) {
   // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
   setInputByNameOrId("wvArea", wv.wvArea || "");
   setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
-  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif"]) setInputByNameOrId(k, wv[k] || "");
+  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif", "wvKRows"]) setInputByNameOrId(k, wv[k] || "");
+  window.pullKRows?.();
   // Badolux accessories (Standard): wvBx_<SKU> + wvBxQty_<SKU>, absent in older offers.
   document.querySelectorAll('#wvBadoluxAccSection input[type="checkbox"]').forEach((cb) => {
     cb.checked = !!wv[cb.name];

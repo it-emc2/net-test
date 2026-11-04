@@ -1340,11 +1340,32 @@ function grossToNet(gross, taxRate) {
     // further down. No saved offer carries a WP* decor, so none is affected.
     const wvColorRaw = String(wv?.wvColor || "").trim();
     const keramicoPid = wvColorRaw.includes("|") ? wvColorRaw.split("|", 1)[0].trim() : "";
-    const isKeramico = /^WP/i.test(keramicoPid);
+    // Standard (Badolux) rows (since 2026-11): one entry per Dekor, JSON in wvKRows
+    // [{pid,name,qty,price?}]. A missing wvKRows = the single-decor way of older drafts.
+    let kRows = null;
+    const kRowsRaw = String(wv?.wvKRows ?? "").trim();
+    if (kRowsRaw.startsWith("[")) {
+      try {
+        const arr = JSON.parse(kRowsRaw);
+        if (Array.isArray(arr)) {
+          kRows = arr
+            .map((r) => ({
+              pid: String(r?.pid || "").trim(),
+              name: String(r?.name || "").trim(),
+              qty: Math.max(0, Math.round(Number(r?.qty) || 0)),
+              price: r?.price == null || r.price === "" ? null : Number(String(r.price).replace(",", ".")),
+            }))
+            .filter((r) => /^WP/i.test(r.pid) && r.qty > 0);
+        }
+      } catch { /* not JSON → legacy path */ }
+    }
+    const isKeramico = /^WP/i.test(keramicoPid) || !!kRows?.length;
     // winwall (since 2026-10): its own panels and accessories replace the VIGOUR
     // ones. Only offers that say so explicitly — a missing wvSupplier (every
     // older offer) is VIGOUR, priced exactly as before.
     const isWinwall = !isKeramico && wv?.wvSupplier === "ww";
+    // Standard rows use winwall's accessory set (profiles, Flächenkleber, Abdichtungsset).
+    const wwStyleAcc = isWinwall || !!kRows?.length;
 
     // Main panel quantity (user picks one color + qty here)
     const qty997 = isKeramico || isWinwall ? 0 : Number(wv?.wvQty997 || 0) || 0;
@@ -1457,7 +1478,26 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     // Keramico Standard-Wandpaneele: quantity from the wall widths, the same
     // rule as the calculator on the page (keramicoPanelPlan above).
     let keramicoQty = 0;
-    if (isKeramico) {
+    if (kRows?.length) {
+      // One line per Dekor row. Standard-Dekore get the supplier discount, the
+      // Sonder-Dekor (WP007) none and carries the name + price per panel the
+      // user typed from cleverbad.de (price missing → the DB price).
+      for (const r of kRows) {
+        keramicoQty += r.qty;
+        const isSonder = /^WP007$/i.test(r.pid);
+        const display = formatWvColor(r.name.replace(/^(Standard-Dekor|Wandpaneel)\s+/i, ""));
+        const kDiscount = /^WP00[1-6]$/i.test(r.pid) ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10) : 0;
+        const custom = isSonder && r.price > 0 ? r.price : undefined;
+        add(
+          r.pid,
+          r.qty,
+          `- ${r.qty} Stk Wandpaneel 950×2550 mm${display ? " — " + (isSonder ? "Motiv: " : "Farbe: ") + display : ""}`,
+          custom,
+          null,
+          kDiscount > 0 ? { discount: kDiscount } : null,
+        );
+      }
+    } else if (isKeramico) {
       // Sonder-Dekor (WP007) prints one motif over the whole panel → no strip reuse.
       const plan = keramicoPanelPlan(
         wv?.wvKSituation,
@@ -1541,8 +1581,22 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // customers, so the freight (45,50 € / 85 € Großplatte) is not a job cost.
     }
 
-    if (wv?.wvSealing && !isWinwall) add("TRWDSET5", 1);
-    if (wv?.flechenkleber && !isWinwall) {
+    // Standard rows: winwall's accessory set (switch + quantity each), no Haßmann set.
+    if (kRows?.length) {
+      const wwQty = (sku) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);
+      for (const sku of Object.values(WINWALL_PROFILES)) {
+        if (wwQty(sku) > 0) add(sku, wwQty(sku));
+      }
+      if (wwQty("R_4260602") > 0)
+        add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
+      if (wv?.wvWwSealing) {
+        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || keramicoQty * 2.4225;
+        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
+      }
+    }
+
+    if (wv?.wvSealing && !wwStyleAcc) add("TRWDSET5", 1);
+    if (wv?.flechenkleber && !wwStyleAcc) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
       const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497 + 2 * keramicoQty;
       const qAdh =
@@ -1553,7 +1607,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add("R_4260602", qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
     }
     let endProfilesQty = 0;
-    if (wv?.wvEndProfile && !isWinwall) {
+    if (wv?.wvEndProfile && !wwStyleAcc) {
       endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
       if (endProfilesQty > 0) add("V3A", endProfilesQty);
     }
@@ -1563,8 +1617,8 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     const corners = Number(wv?.wvCornersCount || 0) || 0;
 
     // If the user provided a value (including 0), use it; else fall back to (panels - 1)
-    if (isWinwall) {
-      // winwall brings its own Verbindungsprofil (WS80113) above.
+    if (wwStyleAcc) {
+      // winwall (and Standard rows) bring their own Verbindungsprofil (WS80113) above.
     } else if (
       userRaw !== undefined &&
       userRaw !== null &&
@@ -1585,7 +1639,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       const q = Math.round(Number(String(wv?.[`wvBxQty_${sku}`] ?? "").replace(",", ".")) || 0);
       if (wv?.[`wvBx_${sku}`] && q > 0) add(sku, q);
     }
-    if (wv?.wvSilikon && !isWinwall) {
+    if (wv?.wvSilikon && !wwStyleAcc) {
       const userQtySilikon = Number(wv?.wvSilikonQty);
       const qtyAbschlussprofil = endProfilesQty;
       // this is the qty of V3A

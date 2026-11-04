@@ -12671,3 +12671,36 @@ body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow
 #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
 body.ui-classic #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+
+/* ===== Wandverkleidung Standard (Badolux): Dekor-Zeilen, Sonder-Dekor, Zubehör ===== */
+#wvBudgetColorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvBudgetColorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvBudgetColorSection:not(.in-row) { display: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 4px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check { min-width: 0; width: auto; border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+#wvBudgetColors .image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+#wvBudgetColors .image-check .caption { color: var(--muted, #6b7280); }
+.wv-krow-sonder { margin: 0 0 14px; padding: 12px; background: var(--panel, #fff); border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; }
+.wv-krow-sonder p { margin: 6px 0 10px; font-size: 0.82rem; }
+.wv-krow-link { display: inline-block; padding: 9px 14px; border: 1.5px solid #0a84ff; border-radius: 10px; color: #0a84ff; font-weight: 700; text-decoration: none; background: #fff; }
+.wv-krow-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
+.wv-krow-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--muted, #6b7280); }
+.wv-krow-fields input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; color: var(--text, #1f2937); }
+.wv-krow-eur { position: relative; display: block; }
+.wv-krow-eur input { padding-right: 26px; text-align: right; }
+.wv-krow-eur em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted, #6b7280); }
+@media (max-width: 600px) { .wv-krow-fields { grid-template-columns: 1fr; } }
+/* Rechner (Standard): nur Vorschlag + Knopf, keine manuelle Menge mehr */
+.kc[data-line="standard"] [data-only="standard"] { display: none !important; }
+.kc[data-line="standard"] #kcVigour { display: flex !important; }
+/* Badolux-Zubehör: aufklappbar */
+#wvBadoluxAccSection.is-foldable > .sec-settings__label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+#wvBadoluxAccSection.is-foldable > .sec-settings__label::after { content: "›"; margin-left: auto; transition: transform .15s; font-size: 1.2rem; }
+#wvBadoluxAccSection.is-foldable.is-open > .sec-settings__label::after { transform: rotate(90deg); }
+#wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none; }
+.dw-acc[hidden] { display: none !important; }

@@ -140,6 +140,37 @@ describe("Keramico accessories (same as Premium + Badolux)", () => {
   });
 });
 
+describe("Standard rows (wvKRows): several Dekore", () => {
+  const rows = (r) => JSON.stringify(r);
+  test("one line per Dekor; −10 % on WP001–006, none on the Sonder-Dekor with its typed price", async () => {
+    const l = await lines({
+      wvColor: "WP003|Keramico", wvKRows: rows([
+        { pid: "WP003", name: "Keramico", qty: 2 },
+        { pid: "WP007", name: "Octopus Flow", qty: 1, price: 95.39 },
+      ]),
+    });
+    const a = l.find((x) => x.productId === "WP003");
+    const b = l.find((x) => x.productId === "WP007");
+    expect(a.qty).toBe(2);
+    expect(a.unitPrice).toBeCloseTo(116.1, 2);
+    expect(b.qty).toBe(1);
+    expect(b.unitPrice).toBeCloseTo(95.39, 2);
+    expect(b.label || b.text || "").toContain("Octopus Flow");
+  });
+  test("accessories are winwall's set, not the Haßmann one", async () => {
+    const l = await lines({
+      wvColor: "WP003|Keramico", wvKRows: rows([{ pid: "WP003", name: "Keramico", qty: 3 }]),
+      wvWw_R_4260602: "on", wvWwQty_R_4260602: "6", wvSealing: "on", flechenkleber: "on", wvEndProfile: "on", wvEndProfileQty: "2",
+    });
+    expect(l.find((x) => x.productId === "R_4260602").qty).toBe(6);
+    expect(l.some((x) => x.productId === "TRWDSET5" || x.productId === "V3A")).toBe(false);
+  });
+  test("empty rows → no panel line, old drafts without wvKRows keep working", async () => {
+    expect((await lines({ wvColor: "WP003|Keramico", wvKRows: "[]" })).some((x) => x.productId === "WP003")).toBe(false);
+    expect((await lines({ wvColor: "WP003|Keramico", wvKSituation: "wand", wvKBack: 190 })).find((x) => x.productId === "WP003").qty).toBe(2);
+  });
+});
+
 describe("vigourPanelPlan (Premium 997 / 1497, cheapest mix)", () => {
   const prices = { 997: 168, 1497: 240 };
   test("one wall: cheapest of the mixes", () => {

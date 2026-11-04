@@ -5300,6 +5300,15 @@ button.dm-btn-danger:focus-visible {
                 </div>
             </div>
 
+            <!-- Standard (Badolux · Keramico): eine Liste statt Einzelfarbe. initWvKRows schreibt
+                 die Zeilen als JSON nach wvKRows und setzt die Farbe der 1. Zeile in die Radios (wvColor). -->
+            <div id="wvKRowsSection" class="sec-settings" hidden aria-hidden="true">
+              <div class="sec-settings__label">Paneele — Standard (Keramico)</div>
+              <div id="wvKRows" class="sec-settings__group"></div>
+              <input type="hidden" id="wvKRowsData" name="wvKRows" value="" />
+              <button type="button" id="wvKRowAdd" class="wv-row-add">+ Zeile hinzufügen (Farbe oder Sonder-Dekor)</button>
+            </div>
+
             <div id="wvBudgetColorSection" class="sec-settings" hidden aria-hidden="true">
                 <div class="sec-settings__label">Dekor — Standard (Badolux)</div>
                 <div id="wvBudgetColors" class="sec-settings__group dw-color-grid is-square"></div>
