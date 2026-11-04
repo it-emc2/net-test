@@ -174,3 +174,62 @@ export function computeAhPricing(input: AhPricingInput) {
 }
 
 export type AhPricingResult = ReturnType<typeof computeAhPricing>;
+
+// ---------------------------------------------------------------------------
+// Stored payload → pricing input, exactly as the legacy restore path rebuilds the page
+// (RestoreManager.restoreConfiguratorFromOffer → restoreAh / restoreFinanzierung /
+// travelTime change handler). Verified against 143 real AH offers/drafts restored in the
+// legacy UI (tests/golden/fixtures/ah/restore.json).
+type Loose = Record<string, any> | null | undefined;
+const isOn = (v: unknown) => v === true || v === "on" || v === "true" || v === 1 || v === "1";
+
+export function ahInputFromPayload(
+  payload: Loose,
+  config: AhPricingInput["config"],
+): AhPricingInput {
+  const ah = (payload?.ah ?? {}) as Loose;
+  const az = (payload?.Arbeitszeit ?? {}) as Loose;
+  const kd = (payload?.Kundendaten ?? {}) as Loose;
+  const fin = (payload?.Finanzierung ?? {}) as Loose;
+
+  // services: ahServicesJson wins; legacy single-service fallback from ahArt fields
+  let services: AhService[] | null = null;
+  if (ah?.ahServicesJson) {
+    try { services = JSON.parse(String(ah.ahServicesJson)); } catch { services = null; }
+  }
+  if (!Array.isArray(services) && ah?.ahArt) {
+    services = [{
+      type: ah.ahArt || "",
+      einsatzUmfang: ah.ahEinsatzUmfang || "",
+      monatUmfang: ah.ahMonatUmfang || "",
+      regelmaessigkeit: ah.ahRegelmaessigkeit || "",
+    }];
+  }
+  // restoreAhServices rebuilds each service as a UI card: empty type → "Alltagsbegleitung";
+  // only task ids (strings) survive — the older format with schedules nested inside task
+  // objects cannot be read by the card, so such a service restores EMPTY (0 €).
+  // LEGACY BUG kept for parity (docs/rewrite/FINDINGS-AH.md #2).
+  const svcs = (Array.isArray(services) ? services : []).map((s) => ({
+    ...s,
+    type: s?.type || "Alltagsbegleitung",
+    tasks: (Array.isArray(s?.tasks) ? s.tasks : []).filter((t: unknown) => typeof t === "string"),
+  }));
+
+  // zone: restoring the travel time re-computes it (with the Hof PLZ rule). Without a
+  // stored travel time the page has NO zone — the saved Arbeitszeit.ahTravelZone is not
+  // restored, so travel is not billed. LEGACY BUG kept for parity (FINDINGS-AH.md #1).
+  const mins = parseDurationMinutes(az?.travelTimeHHMM ?? az?.travelTime ?? "");
+  const zone = mins > 0 ? computeAhZoneFromMinutes(mins, String(kd?.postalCode ?? "")) : null;
+
+  return {
+    services: svcs,
+    zone,
+    payer: String(kd?.payer || "Kassenkunde"), // radio default when nothing stored
+    entlastungsbetragNutzen: isOn(fin?.ahEntlastungsbetragNutzen),
+    zweiPersonen: isOn(kd?.ahZweiPersonen),
+    verhinderungspflegeMonat: Number(fin?.ahVerhinderungspflegeMonat) || 0,
+    umwidmungBeantragt: isOn(fin?.ahUmwidmungBeantragt),
+    umwidmungBetrag: Number(fin?.ahUmwidmungBetrag) || 0,
+    config,
+  };
+}

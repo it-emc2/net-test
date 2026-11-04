@@ -35,7 +35,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Golden master 117/117 on TS port; fingerprint identical; differential legacy-vs-TS 2,300 comparisons green; mutation sanity check proves the net catches 1-cent deviations
 - [ ] Stage 2: tighten `core.ts` to `strict:true` function by function (golden + differential stay green)
 - [x] AH client pricing extracted as pure function (`v2/packages/pricing/src/ah.ts`); golden master = 400 cases recorded from the REAL legacy `computeAHGesamt()` in the browser (`npx playwright test -c playwright.golden.config.cjs`) — 2026-11-04
-- [ ] AH: payload → input adapter, verified via the legacy restore path (real AH offers)
+- [x] AH: payload → input adapter (`ahInputFromPayload`), 144/144 real offers/drafts identical to the legacy restore path — 2026-11-04; 2 legacy bugs documented in `FINDINGS-AH.md`
 
 ## Phase 4 — Backend port
 - [ ] Same Mongoose schemas/collection names; every endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR).
