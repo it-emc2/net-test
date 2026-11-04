@@ -12659,3 +12659,6 @@ body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow
 /* "+ Zeile hinzufügen" als Button (Klassisch hat unten seinen eigenen Stil) */
 .wv-row-add { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px 18px; border: 0; border-radius: 12px; background: #0a84ff; color: #fff; font: inherit; font-weight: 700; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3); }
 .wv-row-add:active { transform: translateY(1px); }
+/* Neu: Panel hat dieselbe Tönung wie der Zeilenkopf; Kachel-Raster ohne weiße Box, Auswahlrahmen nicht abgeschnitten */
+.wv-row__body { background: rgba(10, 132, 255, 0.1); }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 4px; }
