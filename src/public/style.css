@@ -12662,3 +12662,4 @@ body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow
 /* Neu: Panel hat dieselbe Tönung wie der Zeilenkopf; Kachel-Raster ohne weiße Box, Auswahlrahmen nicht abgeschnitten */
 .wv-row__body { background: rgba(10, 132, 255, 0.1); }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 4px; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
