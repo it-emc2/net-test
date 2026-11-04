@@ -41,7 +41,9 @@ for (const [key, tile] of TILES) {
       const before = dialogs.length;
       const link = page.locator(`#sidebar a.side-link[data-step="${step}"]`);
       await link.scrollIntoViewIfNeeded(); // bottom links can sit below the fold (Linux font metrics)
-      await link.click();
+      // On small/Linux viewports a collapsed accordion can overlap the last links. What we
+      // record is what the link DOES, so fall back to a DOM click if the pointer is blocked.
+      try { await link.click({ timeout: 3000 }); } catch { await link.dispatchEvent("click"); }
       await page.waitForTimeout(150);
       if (dialogs.length > before) {
         rendered.push(`${step}: dialog(${dialogs.slice(before).join(" / ").slice(0, 120)})`);

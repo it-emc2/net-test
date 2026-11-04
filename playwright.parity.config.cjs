@@ -19,5 +19,6 @@ module.exports = defineConfig({
     screenshot: "only-on-failure",
     serviceWorkers: "block",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // viewport AFTER the device preset, otherwise the preset (1280×720) wins
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 1000 } } }],
 });
