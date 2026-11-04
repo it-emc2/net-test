@@ -43,7 +43,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Group 1 ported + contract-tested: auth (login/logout/me/confirm-password), catalog (products, services, sla), pricing (/api/price, /api/price/inputs)
 - [x] Group 2a (read): offers search-all / by-deal / :offerNumber / list, drafts search / :id — identical to legacy on 60 offers + 80 drafts (anonymised) — 2026-11-04. Contract test also caught a real gap: pricing must get the Offer/Draft models (frozen price of locked offers) — fixed
 - [x] Group 2b (write, legacy parity): POST offers, POST offers/:n/recompute, POST drafts (fresh number for sent offers, Ansprechpartner resolution, replay/duplicate rules), POST drafts/recompute — responses AND stored documents identical to legacy — 2026-11-04
-- [ ] Group 2c: ADR 007 deal drafts + revisions (new collections)
+- [x] Group 2c: ADR 007 deal drafts + revisions (new collections, optimistic concurrency, restore, legacy import) — 2026-11-04
 - [ ] Group 3: customers, users, admin config
 - [ ] Group 4: integrations behind interfaces (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, signing)
 - [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
@@ -70,4 +70,5 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 8 — Self-hosting + cut-over
 - [ ] Docker Compose (app, Gotenberg, Caddy; GlitchTip) on Coolify/Dokploy (ADR 009).
 - [ ] Staging against a **copy** of prod data; parallel run vs current app (same inputs → same prices/docs).
+- [ ] Deal drafts: wrap draft update + revision insert in a transaction (replica set) — see ADR 007
 - [ ] Cut-over plan with rollback; owner OK.
