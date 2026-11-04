@@ -12499,7 +12499,11 @@ body.ui-classic #page-Wandverkleidung .dw-color-grid { display: grid; grid-templ
 body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check {
   position: relative; display: grid; align-content: start; justify-items: stretch; gap: 4px; width: auto; padding: 0; border: 0; background: none; box-shadow: none; cursor: pointer;
 }
-body.ui-classic #page-Wandverkleidung .dw-color-grid .img-wrap { width: 100%; height: 56px; aspect-ratio: auto; border-radius: 10px; border: 2px solid var(--cl-border); background: #f1f1f5; box-shadow: none; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid var(--cl-border); background: #f1f1f5; box-shadow: none; }
+/* Hochformat-Kacheln; min-width:0, damit das Eigenes-Lager-Badge die Spalte nicht sprengt und Nachbarkacheln überdeckt. */
+body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check { min-width: 0; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .wv-tile-own-badge { white-space: normal; text-align: center; font-size: 0.58rem; line-height: 1.25; padding: 1px 4px; letter-spacing: -0.01em; justify-self: center; max-width: 100%; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .caption { font-size: 0.7rem; font-weight: 500; color: var(--muted, #6b7280); text-align: center; max-width: none; line-height: 1.2; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
