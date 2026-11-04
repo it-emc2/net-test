@@ -155,6 +155,8 @@ export const VIGOUR_SIZES = [1497, 997];
 
 // Badolux accessories for the Keramico panels (Standard line, cleverbad.de article
 // numbers = our productIds). Quantities are typed by hand.
+// Sonder-Dekor (WP007) on the Standard rows: fixed price per panel, the user only names the motif.
+export const KERAMICO_SONDER_PRICE = 136;
 export const BADOLUX_WV_ACCESSORIES = ["PR101VBM3", "PR47VBM02", "PR59VBM03", "PR59VBM05", "PR59VBM07", "PRI130VBM01", "PRI130VBM02"];
 export function vigourPanelPlan(situation, widths = {}, { heightCm = null, prices = {} } = {}) {
   const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
@@ -1481,13 +1483,13 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     if (kRows?.length) {
       // One line per Dekor row. Standard-Dekore get the supplier discount, the
       // Sonder-Dekor (WP007) none and carries the name + price per panel the
-      // user typed from cleverbad.de (price missing → the DB price).
+      // user typed from cleverbad.de; the price per panel is fixed (KERAMICO_SONDER_PRICE).
       for (const r of kRows) {
         keramicoQty += r.qty;
         const isSonder = /^WP007$/i.test(r.pid);
         const display = formatWvColor(r.name.replace(/^(Standard-Dekor|Wandpaneel)\s+/i, ""));
         const kDiscount = /^WP00[1-6]$/i.test(r.pid) ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10) : 0;
-        const custom = isSonder && r.price > 0 ? r.price : undefined;
+        const custom = isSonder ? KERAMICO_SONDER_PRICE : undefined;
         add(
           r.pid,
           r.qty,

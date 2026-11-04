@@ -13226,12 +13226,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const imgOf = (pid) => `./assets/budget/${pid}.webp`;
   const nameOf = (r) => (r.pid === SONDER ? (r.name && r.name !== "Wandpaneel Sonder-Dekor" ? r.name : "Sonder-Dekor") : shortName(r.name));
   const esc = (v) => escapeHtml(String(v ?? ""));
+  const sonderPrice = () => `${(window.__pricingCore?.KERAMICO_SONDER_PRICE ?? 136).toLocaleString("de-DE", { minimumFractionDigits: 2 })} €`;
 
   window.__kRowsTotal = () => rows.reduce((a, r) => a + (r.qty || 0), 0);
   window.__kRowsOn = () => !!document.getElementById("wvLineToggle")?.checked;
 
   function save() {
-    dataEl.value = JSON.stringify(rows.map((r) => ({ pid: r.pid, name: r.name, qty: r.qty, ...(r.pid === SONDER && r.price !== "" && r.price != null ? { price: num(r.price) } : {}) })));
+    dataEl.value = JSON.stringify(rows.map((r) => ({ pid: r.pid, name: r.name, qty: r.qty,  })));
   }
 
   function render() {
@@ -13259,11 +13260,11 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       if (r.pid === SONDER) {
         body.insertAdjacentHTML("afterbegin", `<div class="wv-krow-sonder">
           <b>Sonder-Dekor bei CleverBad aussuchen</b>
-          <p class="muted">Motiv im Shop ansehen, dann Name und Preis je Paneel hier eintragen (ohne Rabatt).</p>
+          <p class="muted">Motiv im Shop ansehen und den Namen hier eintragen. Preis je Paneel: <b>${esc(sonderPrice())}</b> (fest, ohne Rabatt).</p>
           <a class="wv-krow-link" href="${SHOP_URL}" target="_blank" rel="noopener noreferrer">Wandpaneele bei CleverBad öffnen ↗</a>
-          <div class="wv-krow-fields">
+          <div class="wv-krow-fields wv-krow-fields--one">
             <label>Motiv / Name<input type="text" data-f="name" value="${esc(r.name === "Wandpaneel Sonder-Dekor" ? "" : r.name)}" placeholder="z. B. Octopus Flow" autocomplete="off" /></label>
-            <label>Preis je Paneel<span class="wv-krow-eur"><input type="text" inputmode="decimal" data-f="price" value="${r.price === "" || r.price == null ? "" : esc(String(r.price).replace(".", ","))}" placeholder="Preis" autocomplete="off" /><em>€</em></span></label>
+
           </div></div>`);
       }
       body.append(tiles);
@@ -13349,7 +13350,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       rows[activeIdx].name = e.target.value;
       const b = listEl.querySelector(`.wv-row[data-i="${activeIdx}"] .wv-row__name b`);
       if (b) b.textContent = nameOf(rows[activeIdx]);
-    } else rows[activeIdx].price = e.target.value;
+    }
     push();
   });
   // A tile sets the open row's Dekor (or starts the first row).

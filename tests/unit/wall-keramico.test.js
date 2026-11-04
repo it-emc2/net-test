@@ -146,7 +146,7 @@ describe("Standard rows (wvKRows): several Dekore", () => {
     const l = await lines({
       wvColor: "WP003|Keramico", wvKRows: rows([
         { pid: "WP003", name: "Keramico", qty: 2 },
-        { pid: "WP007", name: "Octopus Flow", qty: 1, price: 95.39 },
+        { pid: "WP007", name: "Octopus Flow", qty: 1, price: 95.39 /* ignored */ },
       ]),
     });
     const a = l.find((x) => x.productId === "WP003");
@@ -154,7 +154,7 @@ describe("Standard rows (wvKRows): several Dekore", () => {
     expect(a.qty).toBe(2);
     expect(a.unitPrice).toBeCloseTo(116.1, 2);
     expect(b.qty).toBe(1);
-    expect(b.unitPrice).toBeCloseTo(95.39, 2);
+    expect(b.unitPrice).toBeCloseTo(136, 2); // fixed, typed price ignored
     expect(b.label || b.text || "").toContain("Octopus Flow");
   });
   test("accessories are winwall's set, not the Haßmann one", async () => {

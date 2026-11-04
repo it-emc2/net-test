@@ -12704,3 +12704,4 @@ body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColo
 #wvBadoluxAccSection.is-foldable.is-open > .sec-settings__label::after { transform: rotate(90deg); }
 #wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none; }
 .dw-acc[hidden] { display: none !important; }
+.wv-krow-fields--one { grid-template-columns: 1fr; }
