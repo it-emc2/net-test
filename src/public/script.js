@@ -6645,9 +6645,14 @@ function validateOptional() {
   return false;
 }
 function validateRabatt() {
-  const f = document.getElementById("form-rabatt");
-  if (!f) return true;
-  return f.reportValidity();
+  // Der Aufschlag (inkl. Pflicht-Begründung unter dem Mindestwert) liegt für bu/bwt/hl auf dieser Seite.
+  // Bewusst nur diese Prüfung: der Schritt hieß hier früher "rabatt" (Schreibfehler), die Guard lief nie —
+  // andere Pflichtfelder des Formulars sollen nicht plötzlich blockieren.
+  const sec = document.getElementById("aufschlagSection");
+  if (!sec?.closest("#page-Rabatt") || typeof window.validateAufschlagSelection !== "function") return true;
+  const ok = window.validateAufschlagSelection({ report: true });
+  if (!ok) window.toast?.error("Angaben unvollständig", "Bitte prüfen Sie die rot markierten Pflichtfelder.");
+  return ok;
 }
 function validateDuschabtrennung() {
   const f = document.getElementById("form-duschabtrennung");
@@ -7006,7 +7011,7 @@ document.body.addEventListener("click", (e) => {
                 ? validateDuschabtrennung()
                 : step === "optional"
                   ? validateOptional()
-                  : step === "rabatt"
+                  : step === "Rabatt"
                     ? validateRabatt()
                     : true;
 
