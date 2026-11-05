@@ -61,6 +61,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] docxtemplater kept; DOCX golden master green.
 - [ ] Gotenberg container replaces soffice/Puppeteer/Adobe; PDF comparison per type (ADR 008).
 - [ ] Single offer rendering source for DOCX + signing HTML.
+- [ ] Wording rules (`offerOverrides.textReplacements`) applied once on the finished output (rendered DOCX via `lib/docxTextReplace.js`, signing HTML), not on render data — main #314, 2026-11-05.
 
 ## Phase 6 — Frontend port + new flows
 - [ ] Every page/feature in `FRONTEND-INVENTORY.md`; Playwright parity suite green on new app.
