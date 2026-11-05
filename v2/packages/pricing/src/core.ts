@@ -1,5 +1,5 @@
 // @oc/pricing — 1:1 TypeScript port of the legacy src/logic/pricing-core.js
-// (source commit dad76f0 on main, 2026-11-04). Stage 1 (ADR 013): behaviour identical,
+// (synced with main@42150092, 2026-11-05). Stage 1 (ADR 013): behaviour identical,
 // verified by the pricing golden master + differential fuzz test against the legacy JS.
 // Only type annotations were added; no logic was changed. Do not "improve" logic here
 // without a golden-master rebuild and an ADR.
@@ -50,7 +50,7 @@ export interface PricingDeps {
 // 997x2550 and 1497x2550 Hassmann/VIGOUR article numbers for every color the
 // configurator offers. Keys are the UI color name, lower-cased (see
 // normalizeWvColorKey).
-const WV_COLOR_ARTICLE: Record<string, any> = {
+const WV_COLOR_ARTICLE = {
   "weiß": { "997x2550": "V3WVK07", "1497x2550": "V3WV07" }, // weiss RAL 9016
   "marmor weiß": { "997x2550": "V3WVK09", "1497x2550": "V3WV09" },
   "struktur weiß": { "997x2550": "V3WVK06", "1497x2550": "V3WV06" },
@@ -86,12 +86,12 @@ function normalizeWvColorKey(color: any) {
 // Resolve the article number for a WV panel color.
 // Priority: explicit pid embedded in the value ("pid|color") > mapped article
 // number for (color, size) > provided fallback (the size default).
-function resolveWvArticle(size: any, colorDisplay: any, explicitPid: any, fallbackPid: any) {
+export function resolveWvArticle(size: any, colorDisplay: any, explicitPid: any, fallbackPid: any) {
   if (explicitPid) return explicitPid;
   let key = normalizeWvColorKey(colorDisplay);
   // "Sonderdekor 12345" / "sonderdekor <nr>" all map to the Sonderdekor entry.
   if (key.startsWith("sonderdekor")) key = "sonderdekor";
-  const entry = WV_COLOR_ARTICLE[key];
+  const entry = (WV_COLOR_ARTICLE as any)[key];
   const mapped = entry && entry[size];
   return mapped || fallbackPid;
 }
@@ -100,7 +100,7 @@ function resolveWvArticle(size: any, colorDisplay: any, explicitPid: any, fallba
 // elsewhere are billed through at cost — list their article number here to
 // exempt them from the markup (and from the Zuschlag column in the Kalkulation).
 // Slate tray colour → vigor article suffix (Weiß is the base article).
-const SLATE_COLOR_SUFFIX: Record<string, any> = {
+const SLATE_COLOR_SUFFIX = {
   Weiss: "",
   Elfenbein: "EF",
   Steingrau: "ST",
@@ -113,16 +113,19 @@ export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
   "140322", // Lieferkosten Badewannentür — logistics fee, not Hassmann material
+  "WS-ZUSCHNITT", // winwall Zuschnitt — service, billed at cost
+  "WS-FRACHT", // winwall Lieferkosten — logistics fee
+  "WS-FRACHT-GROSS", // winwall Lieferkosten Großplatte — logistics fee
 ]);
 
 // JSON.stringify with object keys sorted at every level, so two payloads with
 // the same content but different key insertion order still fingerprint the
 // same (plain JSON.stringify does not guarantee that).
-function stableStringify(value: any): string {
+function stableStringify(value: any): any {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
     const keys = Object.keys(value).sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+    return `{${keys.map((k): any => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -130,6 +133,446 @@ function stableStringify(value: any): string {
 // Stable fingerprint of the parts of a payload that affect price, so
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
+// Keramico WP950 panels (Badolux) are 95 × 255 cm. Mirrors the „Bedarf
+// berechnen" rule on cleverbad.de, Badolux's own shop: every wall is planned on
+// its own in 95-cm strips from its start, the last strip is cut to the rest.
+// Offcuts are NOT carried round a corner (the shop's text suggests they are, its
+// code doesn't). Shared with the calculator in script.js so the drawing and the
+// offer can never disagree.
+export const KERAMICO_PANEL_CM = 95;
+export const KERAMICO_HEIGHT_CM = 255;
+export const KERAMICO_SITUATIONS = {
+  wand: { label: "Eine Wand", walls: ["back"] },
+  ecke: { label: "Ecke", walls: ["links", "back"] },
+  u: { label: "U-Form", walls: ["links", "back", "rechts"] },
+};
+// Saw cut per height cut: a 51-cm strip fits 4×, not 5×, into one 255-cm panel.
+export const KERAMICO_CUT_CM = 0.5;
+
+/**
+ * Columns per wall in 95-cm strips (see above). With a cladding height below the
+ * panel height, one panel is cut into ⌊(255 + cut) ÷ (height + cut)⌋ strips, so
+ * several columns come out of one panel (e.g. 50 cm → 5 strips per panel).
+ * `reuse: false` (Sonder-Dekor: the motif runs over the whole panel) keeps one
+ * panel per column and only shortens it. Without a height it is the plain rule.
+ * `platte` = the panel a column is cut from, `feld` = the column (1-based).
+ */
+export function keramicoPanelPlan(situation: any, widths = {}, { heightCm = null, reuse = true } = {}) {
+  const sit = (KERAMICO_SITUATIONS as any)[situation] ? situation : "wand";
+  const panelMm = KERAMICO_PANEL_CM * 10;
+  const pieces: any[] = [];
+  const walls = planWalls(sit, widths, (key: any, index: any, mm: any) => {
+    for (let x = 0; x < mm; x += panelMm) {
+      const w = Math.min(panelMm, mm - x);
+      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < panelMm - 5, size: KERAMICO_PANEL_CM });
+    }
+  });
+  return finishPlan(sit, walls, pieces, heightCm, reuse);
+}
+
+// Vigour Wandverkleidung 3.0 Alu: two widths (997 / 1497 mm), both 2550 mm high.
+// Same walls and height rule as Keramico; per wall any mix of the two widths,
+// the last piece cut to the rest. The mix is the one that is cheapest for us over
+// the whole job (net purchase price per panel, `prices` = { 997, 1497 }; without
+// prices the least panel width = least waste), then the fewest pieces.
+export const VIGOUR_SIZES = [1497, 997];
+
+// Badolux accessories for the Keramico panels (Standard line, cleverbad.de article
+// numbers = our productIds). Quantities are typed by hand.
+// Sonder-Dekor (WP007) on the Standard rows: fixed price per panel, the user only names the motif.
+export const KERAMICO_SONDER_PRICE = 136;
+export const BADOLUX_WV_ACCESSORIES = ["PR101VBM3", "PR47VBM02", "PR59VBM03", "PR59VBM05", "PR59VBM07", "PRI130VBM01", "PRI130VBM02"];
+export function vigourPanelPlan(situation: any, widths = {}, { heightCm = null, prices = {} } = {}) {
+  const sit = (KERAMICO_SITUATIONS as any)[situation] ? situation : "wand";
+  const wallMm: any[] = [];
+  const walls = planWalls(sit, widths, (key: any, index: any, mm: any) => wallMm.push({ key, index, mm }));
+  // Per wall: for each count of 1497s the fewest 997s that still cover it.
+  const options = wallMm.map(({ mm }) => {
+    const out: any[] = [];
+    for (let b = 0; b <= Math.ceil(mm / 1497); b++) {
+      const a = Math.max(0, Math.ceil((mm - b * 1497 - 5) / 997));
+      if (!out.some((o) => o.a === a && o.b === b)) out.push({ a, b });
+    }
+    return out;
+  });
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const perPanel = H > 0 && H < KERAMICO_HEIGHT_CM - 0.5
+    ? Math.max(1, Math.floor((KERAMICO_HEIGHT_CM + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  const unit = { 997: Number((prices as any)[997]) > 0 ? Number((prices as any)[997]) : 99.7, 1497: Number((prices as any)[1497]) > 0 ? Number((prices as any)[1497]) : 149.7 };
+  let best: any = null;
+  const walk = (i: any, picked: any) => {
+    if (i === options.length) {
+      const a = picked.reduce((n: any, o: any) => n + o.a, 0);
+      const b = picked.reduce((n: any, o: any) => n + o.b, 0);
+      const cost = Math.ceil(a / perPanel) * unit[997] + Math.ceil(b / perPanel) * unit[1497];
+      if (!best || cost < best.cost - 0.005 || (Math.abs(cost - best.cost) <= 0.005 && a + b < best.n))
+        best = { cost, n: a + b, picked: [...picked] };
+      return;
+    }
+    for (const o of options[i]!) walk(i + 1, [...picked, o]);
+  };
+  walk(0, []);
+  const pieces: any[] = [];
+  wallMm.forEach(({ key, index, mm }, i) => {
+    const { a, b } = best.picked[i];
+    let x = 0;
+    for (const size of [...Array(b).fill(1497), ...Array(a).fill(997)]) {
+      const w = Math.min(size, mm - x);
+      if (w <= 0) break;
+      pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < size - 5, size: size / 10 });
+      x += w;
+    }
+  });
+  const plan = finishPlan(sit, walls, pieces, heightCm, true);
+  const n = (size: any) => plan.panels.filter((p) => p.size === size / 10).length;
+  return { ...plan, qty997: n(997), qty1497: n(1497) };
+}
+
+// ---------------------------------------------------------------------------
+// winwall Wandverkleidung (3 mm Aluverbund), second supplier next to VIGOUR,
+// default for new offers since 2026-10. Article = WS + decor code + format code.
+// Net dealer prices: winwall Händlerpreisliste 2026 (Stand 03/2026).
+// Every decor of the winwall catalogue 2026 (Prospekt), code → name. Any of them
+// can be ordered via "Anderes Dekor"; WS and NW (Naturstein) both exist.
+export const WINWALL_CATALOG = {
+  WS000: "weiß",
+  WS002: "blütenweiß",
+  WS101: "cremeweiß",
+  WS004: "papyrusweiß",
+  WS130: "beige",
+  WS005: "silbergrau",
+  WS047: "hellblau",
+  WS160: "ocean",
+  WS151: "lindgrün",
+  WS132: "sand",
+  WS120: "hellgrau",
+  WS233: "Beton",
+  WS232: "Beton hell",
+  WS234: "Beton dunkel",
+  WS229: "Struktur steingrau",
+  WS228: "Struktur hellgrau",
+  WS226: "Struktur dunkelgrau",
+  WS227: "Struktur anthrazit",
+  WS213: "Lava",
+  WS243: "Beton weiß",
+  WS503: "Beton gespachtelt light",
+  WS502: "Beton gespachtelt grey",
+  WS501: "Beton gespachtelt dark",
+  WS504: "Beton gespachtelt mediterran",
+  WS203: "Marmor weiß",
+  WS204: "Marmor grau",
+  WS202: "Marmor gelb",
+  WS214: "Kalkstein",
+  WS212: "Jura Marmor",
+  WS219: "Sandstein geschliffen",
+  WS210: "Feinsteinzeug",
+  WS225: "Kalkstein beige",
+  NW220: "Limestone ivory",
+  NW221: "Limestone taupe",
+  NW222: "Limestone pearl",
+  NW215: "Marble Pur",
+  NW230: "Marble Copper Vein",
+  NW216: "Marble Alabaster",
+  NW218: "Marble Graphite",
+  WS293: "Ahorn Norwegen",
+  WS280: "Kernbuche",
+  WS294: "Kirsche",
+  WS292: "Walnuss",
+  WS299: "Altholz Planken",
+  WS297: "Scandi Style",
+  WS281: "Zebrano",
+  WS282: "Manio",
+  WS296: "Altholz",
+  WS298: "Rosewood",
+  WS290: "Eiche hell",
+  WS291: "Eiche rustikal",
+  WS289: "Eiche dunkel",
+  WS240: "Backstein",
+  WS350: "Vintage Fliesen grau",
+  WS247: "Steinwand beige",
+  WS248: "Steinwand grau",
+  WS242: "Verblender bunt",
+  WS241: "Verblender beige",
+  WS271: "Zementfliesen Portugal",
+  WS351: "Vintage Fliesen beige",
+  WS270: "Fliesen Heritage",
+  WS405: "Ornament bronze",
+  WS403: "soft Rhombus black-gold",
+  WS260: "Leinen salbei",
+  WS401: "Violett",
+  WS330: "Leder Buffalo",
+  WS257: "Lochblech",
+  WS261: "Leinen creme",
+  WS332: "Leder vintage",
+  WS402: "Gold",
+  WS258: "Riffelblech",
+  WS251: "Rost",
+  WS254: "Rost braun",
+  WS302: "Nordsee",
+  WS301: "Düne",
+  WS309: "Birkenwald",
+  WS411: "Wand der Kunst",
+  WS408: "Märchenwald",
+  WS407: "Seehund Otto",
+  WS406: "Flip-Flops",
+  WS409: "yellow duck",
+  WS410: "Colorful shapes",
+};
+// The decors shown as tiles (agreed 2026-10-30). Older offers may hold other
+// codes (e.g. WS204) — they reopen under "Anderes Dekor".
+export const WINWALL_DECORS = ["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203", "WS219",
+  "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"].map((code) => ({ code, name: (WINWALL_CATALOG as any)[code] }));
+
+/** "ws 233" / "NW220" / "233" (saved before 2026-10-30: digits only = WS) → "WS233"; else null. */
+export function winwallDecorCode(v: any) {
+  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
+  if (/^\d{3}$/.test(s)) return "WS" + s;
+  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+}
+/** Decor of a Wandverkleidung payload: the tile, or the typed number for "Anderes Dekor". */
+export function winwallDecor(wv: any) {
+  const code = winwallDecorCode(wv?.wvWwDecor === "custom" ? wv?.wvWwDecorCustom : wv?.wvWwDecor) || "WS203";
+  return { code, name: (WINWALL_CATALOG as any)[code] || null };
+}
+// `set` = two panels of the same decor; `single` = the format code of one panel.
+export const WINWALL_FORMATS = [
+  { code: "13", widthCm: 100, heightCm: 205, price: 111.47 },
+  { code: "15", widthCm: 100, heightCm: 250, price: 132.35 },
+  { code: "16", widthCm: 125, heightCm: 250, price: 173.53 },
+  { code: "17", widthCm: 150, heightCm: 250, price: 217.5 },
+  { code: "23", widthCm: 100, heightCm: 205, price: 220.59, set: true, single: "13" },
+  { code: "25", widthCm: 100, heightCm: 250, price: 261.76, set: true, single: "15" },
+  { code: "26", widthCm: 125, heightCm: 250, price: 338.24, set: true, single: "16" },
+];
+export const WINWALL_SINGLE_FORMATS = ["13", "15", "16", "17"];
+export const WINWALL_EXTRAS = [
+  { id: "WS80110", name: "winwall Abschlussprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80111", name: "winwall Inneneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80112", name: "winwall Außeneckprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80113", name: "winwall Verbindungsprofil 2550 mm, Alu eloxiert", price: 16.39 },
+  { id: "WS80102", name: "winwall Silikonkleber Novasil S800 weiß, Kartusche 290 ml", price: 10.5 },
+  // our prices (2026-10-30), the list says 169 / 196: 5 m² = 2 panels 100×250, 6,25 m² = 2 panels 125×250
+  { id: "WS80301", name: "winwall Abdichtungsset 5 m² (DIN 18534-1)", price: 113.5 },
+  { id: "WS80302", name: "winwall Abdichtungsset 6,25 m² (DIN 18534-1)", price: 135.75 },
+  { id: "WS-ZUSCHNITT", name: "winwall Zuschnitt (gerade Schnitte, je Platte)", price: 10 },
+  { id: "WS-FRACHT", name: "winwall Lieferkosten je Bestellung", price: 45.5 },
+  { id: "WS-FRACHT-GROSS", name: "winwall Lieferkosten Großplatte", price: 85 },
+];
+export const WINWALL_PROFILES = { abschluss: "WS80110", innenecke: "WS80111", aussenecke: "WS80112", verbindung: "WS80113" };
+
+const wwFormat = (code: any) => WINWALL_FORMATS.find((f) => f.code === code);
+
+/**
+ * Panel plan for winwall from the wall widths (same walls and strip rule as the
+ * Keramico/Vigour calculator). Up to 205 cm cladding height only 100 × 205 is
+ * used — by far the cheapest per cm; above that the cheapest mix of
+ * 100/125/150 × 250 over the whole job. Returns `qty` per format code.
+ */
+export function winwallPanelPlan(situation: any, widths = {}, { heightCm = null } = {}) {
+  const sit = (KERAMICO_SITUATIONS as any)[situation] ? situation : "wand";
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const low = H > 0 && H <= 205.5;
+  const codes = low ? ["13"] : ["17", "16", "15"];
+  const panelH = low ? 205 : 250;
+  const wallMm: any[] = [];
+  const walls = planWalls(sit, widths, (key: any, index: any, mm: any) => wallMm.push({ key, index, mm }));
+  const perPanel = H > 0 && H < panelH - 0.5
+    ? Math.max(1, Math.floor((panelH + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  // Per wall: counts of the wider formats; the narrowest fills the rest.
+  const [narrow, ...wide]: any[] = [...codes].reverse();
+  const options = wallMm.map(({ mm }) => {
+    const out: any[] = [];
+    const rec = (i: any, counts: any, rest: any) => {
+      if (i === wide.length) {
+        const n = Math.max(0, Math.ceil((rest - 5) / (wwFormat(narrow)!.widthCm * 10)));
+        out.push({ ...counts, [narrow]: n });
+        return;
+      }
+      const w = wwFormat(wide[i])!.widthCm * 10;
+      for (let c = 0; c <= Math.ceil(rest / w); c++) rec(i + 1, { ...counts, [wide[i]]: c }, Math.max(0, rest - c * w));
+    };
+    rec(0, {}, mm);
+    return out;
+  });
+  let best: any = null;
+  const walk = (i: any, picked: any) => {
+    if (i === options.length) {
+      const tot = {};
+      for (const o of picked) for (const [c, n] of Object.entries(o)) (tot as any)[c] = ((tot as any)[c] || 0) + n;
+      const cost = Object.entries(tot).reduce((a, [c, n]) => a + Math.ceil((n as any) / perPanel) * wwFormat(c)!.price, 0);
+      const n = Object.values(tot).reduce((a, b) => (a as any) + (b as any), 0);
+      if (!best || cost < best.cost - 0.005 || (Math.abs(cost - best.cost) <= 0.005 && (n as any) < best.n)) best = { cost, n, picked: [...picked] };
+      return;
+    }
+    for (const o of options[i]!) walk(i + 1, [...picked, o]);
+  };
+  walk(0, []);
+  const pieces: any[] = [];
+  wallMm.forEach(({ key, index, mm }, i) => {
+    let x = 0;
+    for (const c of codes) {
+      for (let k = 0; k < (best.picked[i][c] || 0); k++) {
+        const size = wwFormat(c)!.widthCm;
+        const w = Math.min(size * 10, mm - x);
+        if (w <= 0) break;
+        pieces.push({ wall: index, key, start: x / 10, breite: w / 10, zuschnitt: w < size * 10 - 5, size, format: c });
+        x += w;
+      }
+    }
+  });
+  const plan = finishPlan(sit, walls, pieces, heightCm, true, panelH);
+  const qty = {};
+  for (const c of codes) (qty as any)[c] = plan.panels.filter((p) => p.size === wwFormat(c)!.widthCm).length;
+  return { ...plan, qty };
+}
+
+// ---------------------------------------------------------------------------
+// Supplier codes (Kürzel) for offer, Bitrix deal and order lists, and the
+// "Qualität und Normen" text per product (wording as agreed 2026-10, SW/TR).
+export const SUPPLIER_QUALITY = {
+  "WV-WW": "Brandverhalten D-s2,d0 nach EN 13501-1 · Lack antibakteriell (in Anlehnung an DIN EN ISO 20743, Prüfgrundlage ISO 22196) · Druckfarben Greenguard Gold · Aluminium nach EN 485-4 · Maßtoleranz 0/+0,2 mm · 5 Jahre Produktgarantie",
+  "WV-HM": "Brandklasse B2 nach DIN 4102-1 · Lichtechtheit Wollblau Stufe 5 (DIN EN 15187)",
+  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097 · CE nach EN 14527",
+  // ponytail: DW-BX (Badolux) follows once SW has the data sheet; DW-HM / WV-BX have none yet.
+};
+
+/**
+ * { wv, dw } codes for the materials actually in the offer (null = none).
+ * WV: WV-WW winwall · WV-BX Badolux/Keramico · WV-HM Haßmann/VIGOUR.
+ * fb (only winwall on the Fußboden tab): WV-WW.
+ * DW: DW-SL Slate · DW-BX Badolux · DW-HM Haßmann · DW-FP Freier Posten.
+ */
+export function supplierCodes(payload: any, lines = []) {
+  const has = (cat: any) => lines.some((l) => (l as any)?.category === cat);
+  const wv = payload?.wandverkleidung || {};
+  const decor = String(wv.wvColor || "").split("|", 1)[0]!.trim();
+  const keramico = /^WP/i.test(decor);
+  const badoluxLine = wv.wvBudgetMode === "1" || wv.wvBudgetMode === 1 || wv.wvBudgetMode === true;
+  // winwall on the Fußboden tab (Wandverkleidung als Fußboden): its own Kürzel for the Fußboden heading.
+  const dd = payload?.duschwanne || {};
+  const floorWw = !!dd.addWallCladding && dd.wallCladdingSupplier === "ww" && has("Fußboden");
+  const wvCode = !has("Wandverkleidung")
+    ? floorWw ? "WV-WW" : null
+    : keramico || badoluxLine ? "WV-BX"
+    : wv.wvSupplier === "ww" ? "WV-WW"
+    : "WV-HM";
+  const tray = String(payload?.duschwanne?.chosenTrayProductId || "").trim();
+  const dwCode = !has("Duschwanne")
+    ? null
+    : !tray ? "DW-FP"
+    : /^SLA/i.test(tray) ? "DW-SL"
+    : /^DW/i.test(tray) ? "DW-BX" // same rule pricing uses for the Badolux discount
+    : "DW-HM";
+  return { wv: wvCode, dw: dwCode, ...(floorWw ? { fb: "WV-WW" } : {}) };
+}
+
+/** Panels per single format → order lines: two of a kind become a set (cheaper). */
+export function winwallOrderLines(decor: any, qtyByFormat = {}) {
+  const lines = [];
+  decor = winwallDecorCode(decor) || "WS203";
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number((qtyByFormat as any)[code]) || 0));
+    if (!n) continue;
+    const set = WINWALL_FORMATS.find((f) => f.set && f.single === code);
+    const sets = set ? Math.floor(n / 2) : 0;
+    if (sets) lines.push({ productId: `${decor}${set!.code}`, qty: sets, format: set, panels: sets * 2 });
+    if (n - sets * 2) lines.push({ productId: `${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
+  }
+  return lines;
+}
+
+/**
+ * Usable winwall leftover for the Fußboden: what the ordered wall panels deliver
+ * (Σ qty × width × height) minus the wall area, times the usable share. null below
+ * the minimum, without a wall area or without panels.
+ */
+export function winwallLeftoverM2(qtyByFormat = {}, wallAreaM2 = 0, usable = 0.8, min = 0.5) {
+  const area = Number(wallAreaM2) || 0;
+  if (!(area > 0)) return null;
+  let delivered = 0;
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number((qtyByFormat as any)[code]) || 0));
+    const f = wwFormat(code);
+    delivered += (n * f!.widthCm * f!.heightCm) / 10000;
+  }
+  const m2 = Math.round(Math.max(0, delivered - area) * usable * 100) / 100;
+  return m2 >= min && m2 > 0 ? m2 : null;
+}
+
+/**
+ * Verbindungsprofile from the wall plan (2026-10-30): only at joints on a straight
+ * wall (columns − 1 per wall), none at corners. Abschluss-, Innen- and
+ * Außeneckprofile are not calculated — picked by hand.
+ */
+export function winwallProfileSuggestion(plan: any) {
+  const perWall = new Map();
+  for (const p of plan?.pieces || []) perWall.set(p.wall, (perWall.get(p.wall) || 0) + 1);
+  return { WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0) };
+}
+
+/** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */
+export function winwallSealingSets(areaM2: any) {
+  const a = Number(areaM2) || 0;
+  if (a <= 0) return [];
+  if (a > 5 && a <= 6.25) return [{ productId: "WS80302", qty: 1 }];
+  return [{ productId: "WS80301", qty: Math.ceil(a / 5 - 1e-9) }];
+}
+
+function planWalls(sit: any, widths: any, each: any) {
+  return (KERAMICO_SITUATIONS as any)[sit].walls.map((key: any, index: any) => {
+    const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
+    const mm = cm > 0 ? Math.round(cm * 10) : 0;
+    if (mm > 0) each(key, index, mm);
+    return { key, index, cm: mm / 10 };
+  });
+}
+
+// Height reuse, panel numbers and cut counts, per panel width (`size`, cm).
+function finishPlan(sit: any, walls: any, pieces: any, heightCm: any, reuse: any, panelH = KERAMICO_HEIGHT_CM) {
+  const H = Number(String(heightCm ?? "").replace(",", ".")) || 0;
+  const low = H > 0 && H < panelH - 0.5;
+  const perPanel = low && reuse
+    ? Math.max(1, Math.floor((panelH + KERAMICO_CUT_CM) / (H + KERAMICO_CUT_CM)))
+    : 1;
+  pieces.forEach((p: any, i: any) => { p.feld = i + 1; });
+  const panels: any[] = [];
+  for (const size of [...new Set(pieces.map((p: any) => p.size))]) {
+    pieces.filter((p: any) => p.size === size).forEach((p: any, i: any) => {
+      if (i % perPanel === 0) panels.push({ size, strips: 0 });
+      p.platte = panels.length;
+      panels[panels.length - 1].strips++;
+    });
+  }
+  const gesamt = panels.length;
+  // Height cuts: one per strip taken from a panel; the last strip needs none when
+  // it ends exactly at the panel's end.
+  let hoehenSchnitte = 0;
+  if (low) {
+    for (const { strips } of panels) {
+      const rest = panelH - strips * H - (strips - 1) * KERAMICO_CUT_CM;
+      hoehenSchnitte += rest > 0.5 ? strips : strips - 1;
+    }
+  }
+  const breitenSchnitte = pieces.filter((p: any) => p.zuschnitt).length;
+  const total = walls.reduce((a: any, w: any) => a + w.cm, 0);
+  return {
+    situation: sit,
+    walls,
+    pieces,
+    panels,
+    panelHeightCm: panelH,
+    heightCm: low ? H : null,
+    perPanel,
+    gesamt,
+    breitenSchnitte,
+    hoehenSchnitte,
+    schnitte: breitenSchnitte + hoehenSchnitte,
+    verschnitt: Math.round((pieces.reduce((a: any, p: any) => a + p.size, 0) - total) * 10) / 10,
+  };
+}
+
 export function computeFingerprint(payload: any) {
   // zusammenfassung (Versandstatus, Checkliste) is workflow state, not a price
   // input — the same reasoning as duschwanne.trayEnabled below.
@@ -141,6 +584,27 @@ export function computeFingerprint(payload: any) {
   if (rest.duschwanne && "trayEnabled" in rest.duschwanne) {
     const { trayEnabled, ...dw } = rest.duschwanne;
     rest.duschwanne = dw;
+  }
+  // Same for the Duschabtrennung (neu) / Duschvorhang switches.
+  if (rest.duschabtrennung && ("configEnabled" in rest.duschabtrennung || "curtainEnabled" in rest.duschabtrennung)) {
+    const { configEnabled, curtainEnabled, ...da } = rest.duschabtrennung;
+    rest.duschabtrennung = da;
+  }
+  // wvSupplier "hm" (VIGOUR) is what a missing field already means: a reopened
+  // old offer gains it without anything priced changing. "ww" does change the price.
+  if (rest.wandverkleidung?.wvSupplier === "hm") {
+    const { wvSupplier, ...wv } = rest.wandverkleidung;
+    rest.wandverkleidung = wv;
+  }
+  // Dekor rows (wvKRows / wvWwRows, 2026-11): an empty field is "no rows" — what a
+  // missing field already means — so reopening an old offer must not change its fingerprint.
+  if (rest.wandverkleidung && (rest.wandverkleidung.wvKRows === "" || rest.wandverkleidung.wvWwRows === "")) {
+    const { wvKRows, wvWwRows, ...wv } = rest.wandverkleidung;
+    rest.wandverkleidung = {
+      ...wv,
+      ...(wvKRows ? { wvKRows } : {}),
+      ...(wvWwRows ? { wvWwRows } : {}),
+    };
   }
   return stableStringify(rest);
 }
@@ -203,8 +667,8 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
         .select("pricing pricingFingerprint locked")
         .sort({ updatedAt: -1 })
         .lean();
-    } catch (e: any) {
-      console.warn("[pricing] cache lookup failed, recomputing:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] cache lookup failed, recomputing:", (e as any)?.message || e);
       return null;
     }
   }
@@ -278,14 +742,14 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   async function getLiveVigourNetPrices(articleNumbers: any) {
     const ids = [
       ...new Set(
-        (articleNumbers || []).map((a: any) => String(a || "").trim()).filter(Boolean) as string[],
+        (articleNumbers || []).map((a: any) => String(a || "").trim()).filter(Boolean),
       ),
     ];
     if (!ids.length) return new Map();
 
-    const prices = await fetchVigourNetPrices(ids);
+    const prices = await fetchVigourNetPrices((ids as any));
 
-    const missing = ids.filter((id) => !prices.has(id));
+    const missing = ids.filter((id) => !prices.has((id as any)));
     if (missing.length) {
       console.error(
         `[pricing] vigor live price: no usable netPrice for ${missing.length}/${ids.length} ` +
@@ -338,7 +802,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
     const cl80Qty =
       Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
 
-    const aliasToId: Record<string, string> = { CL_BASIN: "CL" };
+    const aliasToId = { CL_BASIN: "CL" };
     const push = (id: any, qtyRaw: any, checked: any) => {
       const qtyNum =
         qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ""
@@ -356,7 +820,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
         // optional.quickAdd (custom label/price), not a real catalog SKU —
         // skip it here or it prices a second time as a phantom 0€ line.
         if (k === "BASIN_SONDER") continue;
-        const id = aliasToId[k] || k;
+        const id = (aliasToId as any)[k] || k;
         push(id, opt[`qty_${k}`], Boolean(val));
       } else if (key.startsWith("qty_")) {
   const k = key.slice(4);
@@ -368,7 +832,7 @@ export default (ProductModel: PricingProductModel, deps: PricingDeps = {} as Pri
   // so we must NOT push again here (prevents duplicates)
   if (opt[`opt_${k}`] !== undefined) continue;
 
-  const id = aliasToId[k] || k;
+  const id = (aliasToId as any)[k] || k;
   const qty = val;
   const checked = Boolean(opt[`opt_${k}`]);
   push(id, qty, checked);
@@ -569,7 +1033,7 @@ function grossToNet(gross: any, taxRate: any) {
       return Array.from(new Set(out));
     }
 
-    const MAP_DW: Record<string, any> = {
+    const MAP_DW = {
       // Badewanne
       remove_tub: "Entfernen und Entsorgen der Badewanne inkl. Befliesung",
       install_bathtub: "Einbau der Badewanne",
@@ -608,6 +1072,7 @@ function grossToNet(gross: any, taxRate: any) {
       install_toilet: "Einbau einer Toilette",
       install_shower_wc: "Einbau eines Dusch-WCs",
       trockenbau_wc: "Trockenbau für das WC",
+      install_lifting_unit: "Einbau einer Schmutzwasserhebeanlage",
     };
 
     const dwTasks = normalizeDWTasks(payload);
@@ -621,7 +1086,7 @@ function grossToNet(gross: any, taxRate: any) {
         );
         continue;
       }
-      const mapped = MAP_DW[k];
+      const mapped = (MAP_DW as any)[k];
       picked.add(mapped || k); // <-- keep free-text as-is if no mapping exists
     }
 
@@ -694,7 +1159,7 @@ function grossToNet(gross: any, taxRate: any) {
     let grabTotalQty = 0;
     let cl30Qty = 0;
 
-    const lines: MaterialLine[] = [];
+    const lines = [];
     const idsNeeded = new Set();
 
     const round2 = (n: any) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -739,21 +1204,20 @@ function grossToNet(gross: any, taxRate: any) {
   });
 };
 
-   const isBudgetMode =
-  !!dusch?.budgetMode ||
-  dusch?.budgetMode === "1" ||
-  dusch?.budgetMode === 1 ||
-  dusch?.budgetMode === true;
     // ------- Duschwanne ancillary
     setCat("Kleinmaterial");
     if (dusch.abdichtSet) add("TRWDB", 1);
- 
 
-if (dusch.drainSet) add(isBudgetMode ? "AGB001" : "AGD9060", 1);
-    // Budget flag is purely additive: old offers won't have it -> treated as OFF.
-
-
-if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
+    // Ablaufgarnitur follows the Duschwanne line (decided 2026-10-19): Standard
+    // (Badolux) = Siphon Bridge 90 (PR95DW001, cleverbad.de article), Premium =
+    // AGD9060. Same test for the Standard line as production used for its old
+    // AGB001 swap. Kleinmaterial is KM02 on both lines — AC004 is not used any more.
+    // The interim extra row "drainBadolux" (AGB001) is retired: with the swap it
+    // would bill a second drain.
+    const isStandardLine =
+      !!dusch?.budgetMode || dusch?.budgetMode === "1" || dusch?.budgetMode === 1 || dusch?.budgetMode === true;
+    if (dusch.drainSet) add(isStandardLine ? "PR95DW001" : "AGD9060", 1);
+    if (dusch.smallMaterial) add("KM02", 1);
     if (dusch.stelzlager) {
       const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || cfg.get('BU_STELZLAGER_DEFAULT_QTY', 8));
       add("PLA5282", stelzQty);
@@ -767,9 +1231,6 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
 
     if (addFlooring && floorArea > 0) {
       const floorWaste = cfg.get('BU_FLOOR_WASTE_FACTOR', 1.15);
-      const floorPanelSize = cfg.get('BU_FLOOR_PANEL_SIZE_M2', 0.3);
-      // Paneele inkl. Verschnitt
-      const panels = ceilSafe((floorArea * floorWaste) / floorPanelSize);
 
       // minimal inline color extraction from the first selected item
       const fp = Array.isArray(dusch.flooringProduct)
@@ -779,17 +1240,32 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       const floorPid =
         fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02";
 
+      // Badolux-Hydroträgerplatten (BP*) are sold per PACK of 1,49 m², not per
+      // 0,3-m² panel like V5FB02/AVP-W. Dividing them by the panel size billed a
+      // 12-m² floor as 46 units instead of 10 — about 4,6× too much. Decided by
+      // the product, not by the Fußboden Produktlinie flag: that flag only picks
+      // which tiles are offered, and a BP product comes in packs either way.
+      const isPackFloor = /^BP/i.test(floorPid);
+      const floorUnitSize = isPackFloor
+        ? cfg.get('BU_FLOOR_PACK_SIZE_M2_STANDARD', 1.49)
+        : cfg.get('BU_FLOOR_PANEL_SIZE_M2', 0.3);
+      // Einheiten (Paneele bzw. Pakete) inkl. Verschnitt, immer aufgerundet
+      const panels = ceilSafe((floorArea * floorWaste) / floorUnitSize);
+      const floorPanelSize = floorUnitSize;
+      const unitLabel = String(floorUnitSize).replace(".", ",");
+
       // AVP-W is named after its section caption ("Aluverbundplatte weiß");
       // the V5FB02 variants keep the generic "Fußboden-Paneele … Farbe: X" form.
-      const floorLabel =
-        floorPid === "AVP-W"
+      const floorLabel = isPackFloor
+        ? `- ${panels} Pkg Hydroträgerplatte (1 Pkg = ${unitLabel} m²)${color ? " — Farbe: " + color : ""}`
+        : floorPid === "AVP-W"
           ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
           : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
 
       // Hassmann export article. V5FB02 is the billing id for all five colors;
       // the order needs the color-specific V5FB0x. AVP-W is billed per 0.3 m²
       // Paneele but physically a V3WVK07 WV panel (997×2550 mm) → order those.
-      const FLOOR_HASSMANN: Record<string, any> = {
+      const FLOOR_HASSMANN = {
         "Schiefer-Beige": "V5FB01", "Lava-Beige": "V5FB02", "Loft-Grau": "V5FB03",
         "Speckstein-Schwarz": "V5FB04", "Eiche-Natur": "V5FB05",
       };
@@ -799,8 +1275,8 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
               hassmannArticle: "V3WVK07",
               hassmannQty: ceilSafe((floorArea * floorWaste) / (0.997 * 2.55)),
             }
-          : floorPid === "V5FB02" && FLOOR_HASSMANN[color]
-            ? { hassmannArticle: FLOOR_HASSMANN[color] }
+          : floorPid === "V5FB02" && (FLOOR_HASSMANN as any)[color]
+            ? { hassmannArticle: (FLOOR_HASSMANN as any)[color] }
             : null;
       add(floorPid, panels, floorLabel, null, null, floorMeta);
 
@@ -855,26 +1331,46 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
     setCat("Fußboden");
     const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
-    if (dusch.addWallCladding && wallCladdingQty > 0) {
+    // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
+    // panel line then, but the adhesive is still billed for the full floor area.
+    const wcLeftoverOnly =
+      !!dusch.wallCladdingUseLeftover && wallCladdingQty === 0 &&
+      (Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) || 0) > 0;
+    if (dusch.addWallCladding && (wallCladdingQty > 0 || wcLeftoverOnly)) {
       const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
       const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
       const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      // winwall floor (only when the offer says so; a missing supplier = VIGOUR as before)
+      const wcWinwall = dusch.wallCladdingSupplier === "ww";
       // hassmannArticle = color-specific article (for Hassmann CSV)
-      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
-      add(
-        wallCladdingHassmannPid,
-        wallCladdingQty,
-        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
-        null,
-        null,
-        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
-      );
+      const wallCladdingHassmannPid = wcWinwall ? null : resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      if (wcWinwall) {
+        const decor = winwallDecor({ wvWwDecor: dusch.wallCladdingWwDecor, wvWwDecorCustom: dusch.wallCladdingWwDecorCustom });
+        const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
+        for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
+          const f = l.format;
+          const what = f!.set ? `Set (2 Platten) ${f!.widthCm}×${f!.heightCm} cm` : `${f!.widthCm}×${f!.heightCm} cm`;
+          add(l.productId, l.qty, `- ${l.qty} ${f!.set ? "Set" : "Stk"} winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f!.price, null,
+            { name: `winwall Wandverkleidung ${decorText} ${what}` });
+        }
+      } else if (wallCladdingQty > 0)
+        add(
+          wallCladdingHassmannPid,
+          wallCladdingQty,
+          `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
+          null,
+          null,
+          { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
+        );
 
       // Flächenkleber — same rule as the regular Fußboden; no area entered → panel coverage.
+      const wwFmt = wcWinwall ? WINWALL_FORMATS.find((f) => f.code === wallCladdingSize) : null;
       const wcArea =
         Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
-        wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55;
+        (wwFmt
+          ? (wallCladdingQty * wwFmt.widthCm * wwFmt.heightCm) / 10000
+          : wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55);
       const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
       const wcPacks = ceilSafe(wcArea / wcCoverage);
       if (wcPacks > 0)
@@ -883,9 +1379,47 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
 
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
+    // Keramico Standard-Wandpaneele (WP001–WP007, 950×2550 mm = 2,4225 m² each) are
+    // a different product from the 997/1497×2550 Alu panels: they are priced from
+    // the wall AREA, not from panel counts. Riding them on wvQty997/wvQty1497
+    // billed "Wandverkleidung 3.0 Alu 997×2550 mm" quantities for narrow planks.
+    // So when the decor is a Keramico panel, the Alu quantities and extras are
+    // forced to 0 — every Alu line and every Alu-derived fallback (Flächenkleber,
+    // Verbindungsprofile) drops out — and one Keramico line is added from the
+    // wall widths of the Keramico calculator (wvK*)
+    // further down. No saved offer carries a WP* decor, so none is affected.
+    const wvColorRaw = String(wv?.wvColor || "").trim();
+    const keramicoPid = wvColorRaw.includes("|") ? wvColorRaw.split("|", 1)[0]!.trim() : "";
+    // Standard (Badolux) rows (since 2026-11): one entry per Dekor, JSON in wvKRows
+    // [{pid,name,qty,price?}]. A missing wvKRows = the single-decor way of older drafts.
+    let kRows = null;
+    const kRowsRaw = String(wv?.wvKRows ?? "").trim();
+    if (kRowsRaw.startsWith("[")) {
+      try {
+        const arr = JSON.parse(kRowsRaw);
+        if (Array.isArray(arr)) {
+          kRows = arr
+            .map((r) => ({
+              pid: String(r?.pid || "").trim(),
+              name: String(r?.name || "").trim(),
+              qty: Math.max(0, Math.round(Number(r?.qty) || 0)),
+              price: r?.price == null || r.price === "" ? null : Number(String(r.price).replace(",", ".")),
+            }))
+            .filter((r) => /^WP/i.test(r.pid) && r.qty > 0);
+        }
+      } catch { /* not JSON → legacy path */ }
+    }
+    const isKeramico = /^WP/i.test(keramicoPid) || !!kRows?.length;
+    // winwall (since 2026-10): its own panels and accessories replace the VIGOUR
+    // ones. Only offers that say so explicitly — a missing wvSupplier (every
+    // older offer) is VIGOUR, priced exactly as before.
+    const isWinwall = !isKeramico && wv?.wvSupplier === "ww";
+    // Standard rows use winwall's accessory set (profiles, Flächenkleber, Abdichtungsset).
+    const wwStyleAcc = isWinwall || !!kRows?.length;
+
     // Main panel quantity (user picks one color + qty here)
-    const qty997 = Number(wv?.wvQty997 || 0) || 0;
-    const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+    const qty997 = isKeramico || isWinwall ? 0 : Number(wv?.wvQty997 || 0) || 0;
+    const qty1497 = isKeramico || isWinwall ? 0 : Number(wv?.wvQty1497 || 0) || 0;
 
     // OLD global color (fallback)
     const wvColor = String(wv?.wvColor || "").trim();
@@ -921,8 +1455,8 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       return fromCfg || [];
     };
 
-    const extras997 = readExtras("997x2550");
-    const extras1497 = readExtras("1497x2550");
+    const extras997 = isKeramico || isWinwall ? [] : readExtras("997x2550");
+    const extras1497 = isKeramico || isWinwall ? [] : readExtras("1497x2550");
     const sumQty = (rows: any) =>
       rows.reduce((acc: any, r: any) => acc + (Number(r?.qty) || 0), 0);
     const extrasQty997 = sumQty(extras997);
@@ -991,10 +1525,157 @@ const addExtras = (rows: any, panelLabel: any, size: any, defaultPid: any) => {
 addExtras(extras997, "997×2550 mm", "997x2550", "V3WVK09");
 addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
 
-    if (wv?.wvSealing) add("TRWDSET5", 1);
-    if (wv?.flechenkleber) {
+    // Keramico Standard-Wandpaneele: quantity from the wall widths, the same
+    // rule as the calculator on the page (keramicoPanelPlan above).
+    let keramicoQty = 0;
+    if (kRows?.length) {
+      // One line per Dekor row. Standard-Dekore get the supplier discount, the
+      // Sonder-Dekor (WP007) none and carries the name + price per panel the
+      // user typed from cleverbad.de; the price per panel is fixed (KERAMICO_SONDER_PRICE).
+      for (const r of kRows) {
+        keramicoQty += r.qty;
+        const isSonder = /^WP007$/i.test(r.pid);
+        const display = formatWvColor(r.name.replace(/^(Standard-Dekor|Wandpaneel)\s+/i, ""));
+        const kDiscount = /^WP00[1-6]$/i.test(r.pid) ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10) : 0;
+        const custom = isSonder ? KERAMICO_SONDER_PRICE : undefined;
+        add(
+          r.pid,
+          r.qty,
+          `- ${r.qty} Stk Wandpaneel 950×2550 mm${display ? " — " + (isSonder ? "Motiv: " : "Farbe: ") + display : ""}`,
+          custom,
+          null,
+          kDiscount > 0 ? { discount: kDiscount } : null,
+        );
+      }
+    } else if (isKeramico) {
+      // Sonder-Dekor (WP007) prints one motif over the whole panel → no strip reuse.
+      const plan = keramicoPanelPlan(
+        wv?.wvKSituation,
+        { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts },
+        { heightCm: wv?.wvKHoehe, reuse: !/^WP007$/i.test(keramicoPid) },
+      );
+      // A quantity typed in the calculator overrides the computed one.
+      const manualQty = Math.round(Number(String(wv?.wvKQty ?? "").replace(",", ".")) || 0);
+      const kQty = manualQty > 0 ? manualQty : plan.gesamt;
+      keramicoQty = kQty;
+      if (kQty > 0) {
+        const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
+        const widthsTxt = plan.walls
+          .filter((w: any) => w.cm > 0)
+          .map((w: any) => String(w.cm).replace(".", ","))
+          .join(" + ");
+        const cutsTxt = plan.schnitte === 1 ? "1 Zuschnitt" : `${plan.schnitte} Zuschnitte`;
+        // Sonder-Dekor: the motif picked in the cleverbad.de scroller ("SKU|Name",
+        // or "eigen|…" for a customer's own image).
+        const [motifSku, ...motifName] = String(wv?.wvMotif || "").split("|");
+        const motifTxt = /^WP007$/i.test(keramicoPid) && motifName.length
+          ? ` — Motiv: ${motifName.join("|").trim()}${motifSku && motifSku !== "eigen" ? ` (${motifSku})` : ""}`
+          : "";
+        // Badolux grants −10 % on the six Standard-Dekore (WP001–006) only, not
+        // on the Sonder-Dekor WP007. Admin key; 0 switches it off.
+        const kDiscount = /^WP00[1-6]$/i.test(keramicoPid)
+          ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10)
+          : 0;
+        const details = [
+          widthsTxt ? `${(KERAMICO_SITUATIONS as any)[plan.situation].label}: ${widthsTxt} cm` : "",
+          plan.heightCm ? `Höhe ${String(plan.heightCm).replace(".", ",")} cm` : "",
+          widthsTxt ? cutsTxt : "",
+          manualQty > 0 ? "Menge manuell" : "",
+        ].filter(Boolean).join(", ");
+        add(
+          keramicoPid,
+          kQty,
+          `- ${kQty} Stk Wandpaneel 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt}${details ? ` (${details})` : ""}`,
+          undefined,
+          null,
+          kDiscount > 0 ? { discount: kDiscount } : null,
+        );
+      }
+    }
+
+    // ------- winwall panels + accessories
+    let winwallPanels = 0;
+    if (isWinwall) {
+      // One group per decor: rows (wvWwRows, since 2026-11) or the single decor + the
+      // four quantity fields of older offers. Per decor two equal plates become a set.
+      const groups = new Map();
+      let rowsMode = false;
+      const rowsRaw = String(wv?.wvWwRows ?? "").trim();
+      if (rowsRaw.startsWith("[")) {
+        try {
+          const arr = JSON.parse(rowsRaw);
+          if (Array.isArray(arr)) {
+            rowsMode = true;
+            for (const r of arr) {
+              const code = winwallDecorCode(r?.code);
+              const fmt = String(r?.fmt ?? "");
+              const qty = Math.max(0, Math.round(Number(r?.qty) || 0));
+              if (!code || !WINWALL_SINGLE_FORMATS.includes(fmt) || qty <= 0) continue;
+              const g = groups.get(code) || {};
+              g[fmt] = (Number(g[fmt]) || 0) + qty;
+              groups.set(code, g);
+            }
+          }
+        } catch { /* not JSON → single decor */ }
+      }
+      if (!rowsMode) {
+        const qtyByFormat = {};
+        for (const c of WINWALL_SINGLE_FORMATS) (qtyByFormat as any)[c] = wv?.[`wvWwQty_${c}`];
+        groups.set(winwallDecor(wv).code, qtyByFormat);
+      }
+      let coverM2 = 0;
+      for (const [code, qtyByFormat] of groups) {
+        const decor = { code, name: (WINWALL_CATALOG as any)[code] || null };
+        const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
+        for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
+          const f = l.format;
+          winwallPanels += l.panels;
+          coverM2 += (l.panels * f!.widthCm * f!.heightCm) / 10000;
+          const what = f!.set ? `Set (2 Platten) ${f!.widthCm}×${f!.heightCm} cm` : `${f!.widthCm}×${f!.heightCm} cm`;
+          // Price from the price list: any decor (also a typed one) costs the same per format.
+          // name for a typed decor that has no product in the DB
+          add(l.productId, l.qty, `- ${l.qty} ${f!.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f!.price, null,
+            { name: `winwall Duschrückwand ${decorText} ${what}` });
+        }
+      }
+      // Profiles + adhesive: switch + quantity, like the Badolux accessories.
+      const wwQty = (sku: any) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);
+      for (const sku of Object.values(WINWALL_PROFILES)) {
+        if (wwQty(sku) > 0) add(sku, wwQty(sku));
+      }
+      // Adhesive: the Flächenkleber of the VIGOUR line from our stock (TR 2026-10-30),
+      // not winwall's Novasil — so it stays out of the winwall cart. Silikon for the
+      // joints is in the Kleinmaterial flat rate.
+      if (wwQty("R_4260602") > 0)
+        add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
+      // Sealing sets by area: the Wandfläche, else what the panels cover.
+      if (wv?.wvWwSealing) {
+        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
+        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId)!.price);
+      }
+      if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
+      // No freight per offer: winwall is ordered in collective orders for several
+      // customers, so the freight (45,50 € / 85 € Großplatte) is not a job cost.
+    }
+
+    // Standard rows: winwall's accessory set (switch + quantity each), no Haßmann set.
+    if (kRows?.length) {
+      const wwQty = (sku: any) => (wv?.[`wvWw_${sku}`] ? Math.round(Number(String(wv?.[`wvWwQty_${sku}`] ?? "").replace(",", ".")) || 0) : 0);
+      for (const sku of Object.values(WINWALL_PROFILES)) {
+        if (wwQty(sku) > 0) add(sku, wwQty(sku));
+      }
+      if (wwQty("R_4260602") > 0)
+        add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
+      if (wv?.wvWwSealing) {
+        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || keramicoQty * 2.4225;
+        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId)!.price);
+      }
+    }
+
+    if (wv?.wvSealing && !wwStyleAcc) add("TRWDSET5", 1);
+    if (wv?.flechenkleber && !wwStyleAcc) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
-      const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497;
+      const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497 + 2 * keramicoQty;
       const qAdh =
         Number.isFinite(userQtyAdh) && userQtyAdh > 0
           ? userQtyAdh
@@ -1003,7 +1684,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add("R_4260602", qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
     }
     let endProfilesQty = 0;
-    if (wv?.wvEndProfile) {
+    if (wv?.wvEndProfile && !wwStyleAcc) {
       endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
       if (endProfilesQty > 0) add("V3A", endProfilesQty);
     }
@@ -1013,7 +1694,9 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     const corners = Number(wv?.wvCornersCount || 0) || 0;
 
     // If the user provided a value (including 0), use it; else fall back to (panels - 1)
-    if (
+    if (wwStyleAcc) {
+      // winwall (and Standard rows) bring their own Verbindungsprofil (WS80113) above.
+    } else if (
       userRaw !== undefined &&
       userRaw !== null &&
       String(userRaw).trim() !== ""
@@ -1021,16 +1704,19 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       if (userV3VQty > 0) {
         add("V3V", userV3VQty, `- ${userV3VQty} Stk Verbindungsprofil(e)`);
       }
-    } else if (totalPanels >= 2) {
-      console.log("corn ", corners);
-      const qV3V = Math.max(0, totalPanels - 1 - corners);
+    } else if (totalPanels + keramicoQty >= 2) {
+      const qV3V = Math.max(0, totalPanels + keramicoQty - 1 - corners);
       add(
         "V3V",
         qV3V,
         `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1 - ecken)`,
       );
     }
-    if (wv?.wvSilikon) {
+    for (const sku of BADOLUX_WV_ACCESSORIES) {
+      const q = Math.round(Number(String(wv?.[`wvBxQty_${sku}`] ?? "").replace(",", ".")) || 0);
+      if (wv?.[`wvBx_${sku}`] && q > 0) add(sku, q);
+    }
+    if (wv?.wvSilikon && !wwStyleAcc) {
       const userQtySilikon = Number(wv?.wvSilikonQty);
       const qtyAbschlussprofil = endProfilesQty;
       // this is the qty of V3A
@@ -1197,7 +1883,7 @@ if (offer === "hl") {
       ? String(meters)
       : String(meters).replace(".", ",");
 
-    const info: string[] = [];
+    const info: any[] = [];
     //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
     //if (quality) info.push(`Qualität: ${quality}`);
     //if (color) info.push(`Farbe: ${color}`);
@@ -1274,8 +1960,8 @@ if (offer === "hl") {
           });
         }
       }
-    } catch (e: any) {
-      console.warn("[pricing] hl quick-add failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] hl quick-add failed:", (e as any)?.message || e);
     }
 
     // ------- HL: permanent Lieferkosten (admin-configured, replaces the old
@@ -1303,8 +1989,8 @@ if (offer === "hl") {
           }
         }
       }
-    } catch (e: any) {
-      console.warn("[pricing] hl permanent Lieferkosten failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] hl permanent Lieferkosten failed:", (e as any)?.message || e);
     }
 
     // ------- BL · Badelift materials -------
@@ -1338,8 +2024,8 @@ if (offer === "hl") {
           add(rawPid, qty, label, null, "bl_quickadd");
         }
       }
-    } catch (e: any) {
-      console.warn("[pricing] bl quick-add failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] bl quick-add failed:", (e as any)?.message || e);
     }
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
@@ -1390,15 +2076,15 @@ if (offer === "hl") {
 }
 
 
-    } catch (e: any) {
-      console.warn("[pricing] optional->materials failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] optional->materials failed:", (e as any)?.message || e);
     }
 
     // ------- Sonderduschabtrennung Hassmann (user-entered net price)
     // ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
     setCat("Duschabtrennung");
     try {
-      const KIND_TO_LABEL: Record<string, any> = {
+      const KIND_TO_LABEL = {
         PANDELTUER: "Pendeltür Hassmann",
         GLEITUR: "Gleittür Hassmann",
         FLATPANELTUER: "Falt-Pendeltür Hassmann",
@@ -1447,12 +2133,12 @@ if (offer === "hl") {
             console.info(
               `[pricing] vigor live price: resolved ${liveNet.size}/${new Set(configIds).size} article(s)`,
             );
-          } catch (e: any) {
+          } catch (e) {
             console.error(
               "[pricing] vigor live price lookup FAILED (vigor DB unreachable?) — " +
                 `pricing ${new Set(configIds).size} configurator article(s) from the ` +
                 "configurator snapshot instead, which may be stale:",
-              e?.message || e,
+              (e as any)?.message || e,
             );
           }
         }
@@ -1468,7 +2154,7 @@ if (offer === "hl") {
           // For "Freier Posten" we already receive exact label via collector.
           const base =
             String(x?.label || "").trim() ||
-            KIND_TO_LABEL[kindUp] ||
+            (KIND_TO_LABEL as any)[kindUp] ||
             "Duschabtrennung (Hassmann)";
           const label = `- ${qty} Stk ${base}`;
           // "config" = Duschabtrennung (neu) configurator lines (Vigour/Badolux):
@@ -1534,10 +2220,10 @@ if (offer === "hl") {
           );
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       console.warn(
         "[pricing] quickAdd (Hassmann) merge failed:",
-        e?.message || e,
+        (e as any)?.message || e,
       );
     }
     setCat(null);
@@ -1558,7 +2244,7 @@ if (offer === "hl") {
           add(pid, qty, label, price, "optional");
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       console.warn("[pricing] optional quick-add failed:", e);
     }
 
@@ -1577,8 +2263,8 @@ if (offer === "hl") {
           add(pid, qty, `- ${qty} Stk ${base}`, price);
         }
       }
-    } catch (e: any) {
-      console.warn("[pricing] Duschwanne quickAdd (Freier Posten) failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] Duschwanne quickAdd (Freier Posten) failed:", (e as any)?.message || e);
     }
     setCat(null);
 
@@ -1603,10 +2289,10 @@ if (offer === "hl") {
           );
         });
       }
-    } catch (e: any) {
+    } catch (e) {
       console.warn(
         "[pricing] Aluprofil für Trockenbau (Duschabtrennung) failed:",
-        e?.message || e,
+        (e as any)?.message || e,
       );
     }
     setCat(null);
@@ -1634,8 +2320,8 @@ if (offer === "hl") {
       const prod = productMap.get(l.id) || { price: 0, name: "" };
 
       let unit;
-      if (l.perM2Base && prod.price) {
-        unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
+      if ((l as any).perM2Base && prod.price) {
+        unit = round2((Number(prod.price) || 0) / Number((l as any).perM2Base)); // €/m² from set
       } else if (Number.isFinite(l.unitOverride)) {
         unit = Number(l.unitOverride);
       } else if (vigorWvPrices.has(l.id)) {
@@ -1646,7 +2332,7 @@ if (offer === "hl") {
 
       // ✅ HL pipe pricing: DB price is €/lfm, multiply by length (m)
 if (l.source === "hl_pipe") {
-  const cm = Number(l?.meta?.lengthCm ?? 0) || 0;
+  const cm = Number((l as any)?.meta?.lengthCm ?? 0) || 0;
   if (cm > 0 && Number(prod.price) > 0) {
     const meters = cm / 100;
     unit = round2(Number(prod.price) * meters);
@@ -1660,10 +2346,13 @@ if (l.source === "hl_pipe") {
       if (l.source === "optional_reha") {
       unit = round2(grossToNet(unit, cfg.get('TAX_RATE', 0.19)));
     }
+      // Supplier discount off the DB price (e.g. Keramico −10 %), set per line.
+      const lineDiscount = Number((l as any)?.meta?.discount) || 0;
+      if (lineDiscount > 0 && lineDiscount < 1) unit = round2(unit * (1 - lineDiscount));
 
 
-      const displayNameBase = (prod.name || "").trim() || l.id;
-      const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+      const displayNameBase = (prod.name || "").trim() || (l as any).meta?.name || l.id;
+      const metaColor = typeof (l as any)?.meta?.color === "string" ? (l as any).meta.color.trim() : "";
       const isWvPanel = /^V3WVK?\d/.test(l.id);
 
       // WV panels picked on the Fußboden tab are "Aluverbundplatte"; picked on
@@ -1697,7 +2386,7 @@ const cleanInfoLine = (t: any) =>
     .replace(/^[\s•·\-–—]+/g, "")   // ✅ removes "• ", "-", "–", etc
     .trim();
 
-const rawInfoLines = l?.meta?.doorInfoLines;
+const rawInfoLines = (l as any)?.meta?.doorInfoLines;
 const infoLines = Array.isArray(rawInfoLines)
   ? rawInfoLines.map(cleanInfoLine).filter(Boolean)
   : [];
@@ -1757,9 +2446,9 @@ if (infoLines.length) {
       // For HL pipes: display qty = meters (line total already €/lfm * meters)
       const isHlPipe = l.source === "hl_pipe";
       const displayQty = isHlPipe
-        ? Number(l?.meta?.meters ?? (l?.meta?.lengthCm ?? 0) / 100) || l.qty
+        ? Number((l as any)?.meta?.meters ?? ((l as any)?.meta?.lengthCm ?? 0) / 100) || l.qty
         : l.qty;
-      const displayUnit = l?.meta?.unit || null;
+      const displayUnit = (l as any)?.meta?.unit || null;
 
       return {
   productId: l.id,
@@ -1772,11 +2461,11 @@ color: metaColor || null,
   label: finalLabel,                 // still available everywhere
   labelLines: [label, ...infoLines],  // ✅ NEW: UI can render true multiline easily
   source: l.source || null,
-  finish: l?.meta?.finish || null,
+  finish: (l as any)?.meta?.finish || null,
   // Today's vigor net price when it differs from the quoted one (saved offers only).
-  currentNet: l?.meta?.currentNet ?? lineCurrentNet,
-  hassmannArticle: l?.meta?.hassmannArticle || null,
-  hassmannQty: l?.meta?.hassmannQty || null,
+  currentNet: (l as any)?.meta?.currentNet ?? lineCurrentNet,
+  hassmannArticle: (l as any)?.meta?.hassmannArticle || null,
+  hassmannQty: (l as any)?.meta?.hassmannQty || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
 };
@@ -2002,8 +2691,8 @@ color: metaColor || null,
     try {
       const notes = computeWorkNotes(payload);
       for (const n of notes) lines.push(n);
-    } catch (e: any) {
-      console.warn("[pricing] computeWorkNotes failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[pricing] computeWorkNotes failed:", (e as any)?.message || e);
     }
 
     const posTitle = "Auszuführende Arbeiten";
@@ -2306,7 +2995,7 @@ color: metaColor || null,
       let materials: any = { title: "", lines: [], sum: 0 };
       try {
         materials = await computeMaterials(payload, priorSnapshot, !!existingOfferSnapshot?.locked);
-      } catch (e: any) {
+      } catch (e) {
         console.error("[pricing] computeMaterials failed:", e);
       }
 
@@ -2322,7 +3011,7 @@ color: metaColor || null,
       };
       try {
         services = computeServiceCosts(payload) || services;
-      } catch (e: any) {
+      } catch (e) {
         console.error("[pricing] computeServiceCosts failed:", e);
       }
       const originalServicesSum = Number(services?.sum || 0);
@@ -2342,7 +3031,7 @@ color: metaColor || null,
       if (offer === "bwt") {
         try {
           bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
-        } catch (e: any) {
+        } catch (e) {
           console.error("[pricing] computeBwtIncludedLines failed:", e);
         }
 
@@ -2353,7 +3042,7 @@ color: metaColor || null,
             materials.sum = round2((materials.sum || 0) + line.lineTotal);
             bwtMaterialExtrasTotal = round2(bwtMaterialExtrasTotal + line.lineTotal);
           }
-        } catch (e: any) {
+        } catch (e) {
           console.error("[pricing] computeBwtMaterialExtras failed:", e);
         }
 
@@ -2424,10 +3113,10 @@ try {
   let live = new Map();
   try {
     live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
-  } catch (e: any) {
+  } catch (e) {
     console.error(
       "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
-      e?.message || e,
+      (e as any)?.message || e,
     );
   }
 
@@ -2466,8 +3155,8 @@ try {
     dw.chosenScreenPrice,
     "Wannenaufsatz",
   );
-} catch (e: any) {
-  console.warn("[pricing] addBathtubLines failed:", e?.message || e);
+} catch (e) {
+  console.warn("[pricing] addBathtubLines failed:", (e as any)?.message || e);
 }
       let selectedTray = null;
 
@@ -2493,7 +3182,7 @@ try {
                 String(p.source || "").toLowerCase() === "badolux" ||
                 /^DW/i.test(String(p.productId || ""));
               if (isBadolux) {
-                const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
+                const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.25);
                 unit = round2(unit * (1 - badoluxDiscount));
               }
 
@@ -2511,12 +3200,12 @@ try {
               let articleId = p.productId;
               let name = p.name || "";
               if (isSlateTray) {
-                const sfx = SLATE_COLOR_SUFFIX[trayColor] ?? "";
+                const sfx = (SLATE_COLOR_SUFFIX as any)[trayColor] ?? "";
                 let live = new Map();
                 try {
                   live = await getLiveVigourNetPrices([p.productId + sfx]);
-                } catch (e: any) {
-                  console.error("[pricing] vigor live price lookup failed for Slate tray:", e?.message || e);
+                } catch (e) {
+                  console.error("[pricing] vigor live price lookup failed for Slate tray:", (e as any)?.message || e);
                 }
                 if (live.has(p.productId + sfx)) {
                   articleId = p.productId + sfx;
@@ -2548,8 +3237,8 @@ try {
             }
           }
         }
-      } catch (e: any) {
-        console.warn("[pricing] addSelectedTrayLine failed:", e?.message || e);
+      } catch (e) {
+        console.warn("[pricing] addSelectedTrayLine failed:", (e as any)?.message || e);
       }
 
       // Hand-set price changes (payload.offerOverrides.priceAdjustments, net €):
@@ -2882,6 +3571,8 @@ try {
         subsidyAmount_max,
         selfPayAmount,
         selectedTray,
+        // Kürzel per supplier (Angebot, Deal, Bestellliste) — see supplierCodes().
+        supplierCodes: supplierCodes(payload, materials?.lines || []),
 
         // NEW display-only blocks
         grabCounts,

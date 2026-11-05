@@ -1129,6 +1129,10 @@
     "sizeLabel": "80 x 170 x 2.6 cm",
     "unitPrice": 162.79
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -2731,6 +2735,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -2900,7 +2924,7 @@
       "category": "Duschwanne"
      }
     ],
-    "sum": 2173.85,
+    "sum": 2256.59,
     "vigorPriceDrift": null,
     "grabCounts": {
      "cl30": 0,
@@ -2912,7 +2936,7 @@
      "refUnit": null
     }
    },
-   "productsSubtotal": 2173.85,
+   "productsSubtotal": 2256.59,
    "services": {
     "title": "Auszuführende Arbeiten",
     "lines": [
@@ -3026,21 +3050,21 @@
      ]
     }
    },
-   "Nettobetrag": 3797.83,
+   "Nettobetrag": 3909.53,
    "markupPct": 0.35,
-   "markup": 760.85,
-   "markupBase": 2173.85,
+   "markup": 789.81,
+   "markupBase": 2256.59,
    "markupExemptIds": [],
-   "vatOnNet": 721.59,
+   "vatOnNet": 742.81,
    "taxRate": 0.19,
-   "total": 4519.42,
-   "netAfterRabatt_and_Bonus": 3797.83,
-   "netAfterRabatt": 3797.83,
+   "total": 4652.34,
+   "netAfterRabatt_and_Bonus": 3909.53,
+   "netAfterRabatt": 3909.53,
    "materialDiscountPct": 0,
    "rabattAmount": 0,
-   "totalAfterRabatt": 4519.42,
-   "baseVat": 721.59,
-   "base_total": 4519.42,
+   "totalAfterRabatt": 4652.34,
+   "baseVat": 742.81,
+   "base_total": 4652.34,
    "bonusGross": 0,
    "bonusNeuNet": 0,
    "bonusNeuGross": 250,
@@ -3062,12 +3086,16 @@
    "subsidyAmount": 0,
    "prior": 0,
    "subsidyAmount_max": 0,
-   "selfPayAmount": 4519.42,
+   "selfPayAmount": 4652.34,
    "selectedTray": {
     "productId": "SLA12090",
     "name": "Duschwanne Slate 120x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "120 x 90 x 3 cm",
     "unitPrice": 385.56
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -3080,7 +3108,7 @@
    },
    "materialsDisplayUI": {
     "title": "Material für Badumbau",
-    "sum": 2130.67,
+    "sum": 2213.4100000000003,
     "lines": [
      {
       "productId": "TRWDB",
@@ -3161,6 +3189,26 @@
       "hassmannQty": null,
       "docxHide": false,
       "category": "Kleinmaterial"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
      },
      {
       "productId": "V3WVK09",
@@ -3535,6 +3583,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -3822,9 +3890,9 @@
     "services": 0,
     "material": 0
    },
-   "material_afterRabatt_and_aufschlag": 2173.85,
+   "material_afterRabatt_and_aufschlag": 2256.59,
    "bwtIncludedDisplayUI": [],
-   "material_plus_aufschlag": 2934.7
+   "material_plus_aufschlag": 3046.4
   }
  },
  {
@@ -4910,6 +4978,10 @@
     "name": "Mineral Duschwanne SMC 100x160",
     "sizeLabel": "100 x 160 x 2.6 cm",
     "unitPrice": 295.68
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
    },
    "grabCounts": {
     "cl30": 0,
@@ -6979,6 +7051,10 @@
     "sizeLabel": "150 x 75 x 3 cm",
     "unitPrice": 414.54
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -8995,6 +9071,10 @@
     "name": "Duschwanne Slate 140x100x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "140 x 100 x 3 cm",
     "unitPrice": 485.1
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -11108,6 +11188,10 @@
     "name": "Duschwanne Slate 170x80x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "170 x 80 x 3 cm",
     "unitPrice": 468.09
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -13359,6 +13443,10 @@
     "sizeLabel": "100 x 120 x 2.6 cm",
     "unitPrice": 248.64
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -15601,6 +15689,10 @@
     "sizeLabel": "190 x 100 x 3 cm",
     "unitPrice": 606.06
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -17807,6 +17899,10 @@
     "sizeLabel": "100 x 80 x 3 cm",
     "unitPrice": 350.28
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -19759,6 +19855,10 @@
     "sizeLabel": "120 x 100 x 3 cm",
     "unitPrice": 443.52
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -21205,6 +21305,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1625.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -22361,6 +22465,10 @@
     "name": "Duschwanne Slate 110x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "110 x 90 x 3 cm",
     "unitPrice": 371.07
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -23978,6 +24086,10 @@
     "sizeLabel": "110 x 90 x 3 cm",
     "unitPrice": 371.07
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -25229,6 +25341,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 928.89,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -26509,6 +26625,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 5317.67,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -28382,6 +28502,10 @@
     "sizeLabel": "120 x 100 x 3 cm",
     "unitPrice": 443.52
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -30203,6 +30327,10 @@
     "sizeLabel": "170 x 75 x 3 cm",
     "unitPrice": 460.53
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -31907,6 +32035,10 @@
     "name": "Duschwanne Slate 180x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "180 x 90 x 3 cm",
     "unitPrice": 512.19
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -33638,6 +33770,10 @@
     "name": "Duschwanne Slate 180x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "180 x 90 x 3 cm",
     "unitPrice": 512.19
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -35395,6 +35531,10 @@
     "sizeLabel": "120 x 100 x 3 cm",
     "unitPrice": 443.52
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -36768,6 +36908,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2370.98,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -37588,6 +37732,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2880.06,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -38392,6 +38540,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2688.59,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -39196,6 +39348,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2668.91,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -40008,6 +40164,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2775.52,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -40812,6 +40972,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2118.95,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -41616,6 +41780,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2118.95,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -42413,6 +42581,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2589.54,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -43680,6 +43852,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2426.29,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -44903,6 +45079,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2325.62,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -46052,6 +46232,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2438.41,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -46801,6 +46985,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -47511,6 +47699,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -48719,6 +48911,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2373.63,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -50014,6 +50210,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2648.62,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -50764,6 +50964,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2256.44,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -51454,6 +51658,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2256.44,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -52184,6 +52392,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2683.52,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -53015,6 +53227,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2683.52,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -53753,6 +53969,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2338.65,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -54737,6 +54957,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1399.13,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -55826,6 +56050,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1456.56,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -56880,6 +57108,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1735.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -58012,6 +58244,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1735.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -59453,6 +59689,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2143.36,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -61414,6 +61654,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2143.36,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -62820,6 +63064,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1873.73,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -63421,6 +63669,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1873.73,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -64022,6 +64274,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1873.73,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -64623,6 +64879,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1873.73,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -66193,6 +66453,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 4153.42,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -66885,6 +67149,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3825.65,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -67617,6 +67885,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3981.72,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -68243,6 +68515,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3500.39,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -69586,6 +69862,10 @@
     "name": "Mineral Duschwanne SMC 80x170",
     "sizeLabel": "80 x 170 x 2.6 cm",
     "unitPrice": 162.79
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
    },
    "grabCounts": {
     "cl30": 0,
@@ -71667,6 +71947,10 @@
     "sizeLabel": "80 x 170 x 2.6 cm",
     "unitPrice": 162.79
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -73746,6 +74030,10 @@
     "name": "Mineral Duschwanne SMC 80x170",
     "sizeLabel": "80 x 170 x 2.6 cm",
     "unitPrice": 162.79
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
    },
    "grabCounts": {
     "cl30": 0,
@@ -75827,6 +76115,10 @@
     "sizeLabel": "80 x 170 x 2.6 cm",
     "unitPrice": 162.79
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-BX"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -77423,6 +77715,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -77592,7 +77904,7 @@
       "category": "Duschwanne"
      }
     ],
-    "sum": 2173.85,
+    "sum": 2256.59,
     "vigorPriceDrift": null,
     "grabCounts": {
      "cl30": 0,
@@ -77604,7 +77916,7 @@
      "refUnit": null
     }
    },
-   "productsSubtotal": 2173.85,
+   "productsSubtotal": 2256.59,
    "services": {
     "title": "Auszuführende Arbeiten",
     "lines": [
@@ -77718,21 +78030,21 @@
      ]
     }
    },
-   "Nettobetrag": 3797.83,
+   "Nettobetrag": 3909.53,
    "markupPct": 0.35,
-   "markup": 760.85,
-   "markupBase": 2173.85,
+   "markup": 789.81,
+   "markupBase": 2256.59,
    "markupExemptIds": [],
-   "vatOnNet": 721.59,
+   "vatOnNet": 742.81,
    "taxRate": 0.19,
-   "total": 4519.42,
-   "netAfterRabatt_and_Bonus": 3797.83,
-   "netAfterRabatt": 3797.83,
+   "total": 4652.34,
+   "netAfterRabatt_and_Bonus": 3909.53,
+   "netAfterRabatt": 3909.53,
    "materialDiscountPct": 0,
    "rabattAmount": 0,
-   "totalAfterRabatt": 4519.42,
-   "baseVat": 721.59,
-   "base_total": 4519.42,
+   "totalAfterRabatt": 4652.34,
+   "baseVat": 742.81,
+   "base_total": 4652.34,
    "bonusGross": 0,
    "bonusNeuNet": 0,
    "bonusNeuGross": 250,
@@ -77754,12 +78066,16 @@
    "subsidyAmount": 0,
    "prior": 0,
    "subsidyAmount_max": 0,
-   "selfPayAmount": 4519.42,
+   "selfPayAmount": 4652.34,
    "selectedTray": {
     "productId": "SLA12090",
     "name": "Duschwanne Slate 120x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "120 x 90 x 3 cm",
     "unitPrice": 385.56
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -77772,7 +78088,7 @@
    },
    "materialsDisplayUI": {
     "title": "Material für Badumbau",
-    "sum": 2130.67,
+    "sum": 2213.4100000000003,
     "lines": [
      {
       "productId": "TRWDB",
@@ -77853,6 +78169,26 @@
       "hassmannQty": null,
       "docxHide": false,
       "category": "Kleinmaterial"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
      },
      {
       "productId": "V3WVK09",
@@ -78227,6 +78563,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -78514,9 +78870,9 @@
     "services": 0,
     "material": 0
    },
-   "material_afterRabatt_and_aufschlag": 2173.85,
+   "material_afterRabatt_and_aufschlag": 2256.59,
    "bwtIncludedDisplayUI": [],
-   "material_plus_aufschlag": 2934.7
+   "material_plus_aufschlag": 3046.4
   }
  },
  {
@@ -79158,6 +79514,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -79327,7 +79703,7 @@
       "category": "Duschwanne"
      }
     ],
-    "sum": 2173.85,
+    "sum": 2256.59,
     "vigorPriceDrift": null,
     "grabCounts": {
      "cl30": 0,
@@ -79339,7 +79715,7 @@
      "refUnit": null
     }
    },
-   "productsSubtotal": 2173.85,
+   "productsSubtotal": 2256.59,
    "services": {
     "title": "Auszuführende Arbeiten",
     "lines": [
@@ -79453,21 +79829,21 @@
      ]
     }
    },
-   "Nettobetrag": 3797.83,
+   "Nettobetrag": 3909.53,
    "markupPct": 0.35,
-   "markup": 760.85,
-   "markupBase": 2173.85,
+   "markup": 789.81,
+   "markupBase": 2256.59,
    "markupExemptIds": [],
-   "vatOnNet": 721.59,
+   "vatOnNet": 742.81,
    "taxRate": 0.19,
-   "total": 4519.42,
-   "netAfterRabatt_and_Bonus": 3797.83,
-   "netAfterRabatt": 3797.83,
+   "total": 4652.34,
+   "netAfterRabatt_and_Bonus": 3909.53,
+   "netAfterRabatt": 3909.53,
    "materialDiscountPct": 0,
    "rabattAmount": 0,
-   "totalAfterRabatt": 4519.42,
-   "baseVat": 721.59,
-   "base_total": 4519.42,
+   "totalAfterRabatt": 4652.34,
+   "baseVat": 742.81,
+   "base_total": 4652.34,
    "bonusGross": 0,
    "bonusNeuNet": 0,
    "bonusNeuGross": 250,
@@ -79489,12 +79865,16 @@
    "subsidyAmount": 0,
    "prior": 0,
    "subsidyAmount_max": 0,
-   "selfPayAmount": 4519.42,
+   "selfPayAmount": 4652.34,
    "selectedTray": {
     "productId": "SLA12090",
     "name": "Duschwanne Slate 120x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "120 x 90 x 3 cm",
     "unitPrice": 385.56
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -79507,7 +79887,7 @@
    },
    "materialsDisplayUI": {
     "title": "Material für Badumbau",
-    "sum": 2130.67,
+    "sum": 2213.4100000000003,
     "lines": [
      {
       "productId": "TRWDB",
@@ -79588,6 +79968,26 @@
       "hassmannQty": null,
       "docxHide": false,
       "category": "Kleinmaterial"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
      },
      {
       "productId": "V3WVK09",
@@ -79962,6 +80362,26 @@
       "category": "Kleinmaterial"
      },
      {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 7,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 82.74,
+      "label": "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
       "productId": "V3WVK09",
       "name": "Wandverkleidung 3.0 Alu 997×2550 mm (Marmor weiß)",
       "color": "Marmor weiß",
@@ -80249,9 +80669,9 @@
     "services": 0,
     "material": 0
    },
-   "material_afterRabatt_and_aufschlag": 2173.85,
+   "material_afterRabatt_and_aufschlag": 2256.59,
    "bwtIncludedDisplayUI": [],
-   "material_plus_aufschlag": 2934.7
+   "material_plus_aufschlag": 3046.4
   }
  },
  {
@@ -80815,6 +81235,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1625.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -81645,6 +82069,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1625.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -82475,6 +82903,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1625.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -83305,6 +83737,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1625.66,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -84453,6 +84889,10 @@
     "name": "Duschwanne Slate 110x90x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "110 x 90 x 3 cm",
     "unitPrice": 371.07
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -86062,6 +86502,10 @@
     "sizeLabel": "110 x 90 x 3 cm",
     "unitPrice": 371.07
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -87228,6 +87672,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2764.37,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -88025,6 +88473,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2370.98,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -88835,6 +89287,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2880.06,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -89618,6 +90074,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2303.51,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -90380,6 +90840,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2880.06,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -91175,6 +91639,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2688.59,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 1,
     "cl40": 0,
@@ -92337,6 +92805,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2438.41,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -93110,6 +93582,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2438.41,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 1,
@@ -93850,6 +94326,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -94550,6 +95030,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -95250,6 +95734,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -95951,6 +96439,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2372.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -96672,6 +97164,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 835.88,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -97661,6 +98157,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1399.13,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -98890,6 +99390,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1399.13,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -100119,6 +100623,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1399.13,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -101342,6 +101850,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1376.79,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -102565,6 +103077,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1376.79,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -104384,6 +104900,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 4153.42,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -105617,6 +106137,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 4153.42,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -106850,6 +107374,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 4153.42,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -108083,6 +108611,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 4153.42,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -108715,6 +109247,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3500.39,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -109239,6 +109775,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3500.39,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -110441,6 +110981,10 @@
     "name": "Duschwanne Slate 150x75x3cm Mineralguss Weiß Nuovvo",
     "sizeLabel": "150 x 75 x 3 cm",
     "unitPrice": 414.54
+   },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
    },
    "grabCounts": {
     "cl30": 0,
@@ -112304,6 +112848,10 @@
     "sizeLabel": "150 x 75 x 3 cm",
     "unitPrice": 414.54
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -113759,6 +114307,10 @@
     "sizeLabel": "150 x 75 x 3 cm",
     "unitPrice": 414.54
    },
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": "DW-SL"
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -114963,6 +115515,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 928.64,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -116269,6 +116825,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1037.95,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -117471,6 +118031,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 722.01,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": "WV-HM",
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -118614,6 +119178,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 1640.56,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -119230,6 +119798,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 296.25,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -119692,6 +120264,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 280.84,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -120158,6 +120734,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2719.96,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -120709,6 +121289,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2411.86,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -121212,6 +121796,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 3338.05,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -121842,6 +122430,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2625.56,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -122491,6 +123083,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2625.56,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,
@@ -123196,6 +123792,10 @@
    "subsidyAmount_max": 0,
    "selfPayAmount": 2741.22,
    "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
    "grabCounts": {
     "cl30": 0,
     "cl40": 0,

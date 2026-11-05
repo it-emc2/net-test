@@ -15,7 +15,7 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | `FINDINGS-AH.md` | Legacy AH pricing bugs (kept for parity, fixes need OK) |
 | `../../v2/README.md` | The TypeScript rewrite workspace |
 
-**Main sync rule for pricing:** a change to `src/logic/pricing-core.js` on main must be re-ported into `v2/packages/pricing/src/core.ts` (header records the source commit); the differential test enforces it.
+**Main sync procedure:** (1) read `~/emc2-local/main-sync/<date>.md`; (2) merge `origin/main` into this branch; (3) `node v2/scripts/port-pricing-core.mjs <sha>` if `pricing-core.js` changed (drift guard fails otherwise), re-copy `CONFIG_SCHEMA`/models if their guards fail; (4) rebuild golden masters (`npm run golden:pricing && npm run golden:docs`) when behaviour changed on main, review the diff; (5) `node scripts/golden/pii-scan.mjs tests/golden/fixtures/**/*.json`; (6) update parity snapshots only for intended UI changes.
 | `../../scripts/replica/README.md` | Local prod replica (read-only dump) |
 
 ## Hard rules
@@ -42,3 +42,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 4 (group 2a) | Offers/drafts read endpoints identical to legacy (contract test on anonymised real docs); pricing now uses Offer/Draft snapshots | Group 2b: writes + deal drafts |
 | 2026-11-04 | phase 4 (group 2b) | Offer/draft writes identical to legacy incl. stored documents (contract test) | Group 2c: deal drafts (ADR 007) |
 | 2026-11-04 | phase 4 (group 2c) | Deal drafts + revision history (ADR 007): concurrency, restore, legacy import; v2 1,152 tests | Group 3: customers, users, admin config |
+| 2026-11-05 | main sync | Merged main@42150092 (BU redesign); pricing re-ported via new port script + drift guards (JS identical); golden rebuilt; models/config/aufschlag synced; v2 1,161 tests | Phase 4 group 3 |

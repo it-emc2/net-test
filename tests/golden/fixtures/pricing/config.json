@@ -10,6 +10,8 @@
  "WERKZEUG": 7.5,
  "BERAEUMUNG": 4.5,
  "BU_FLOOR_PANEL_SIZE_M2": 0.3,
+ "BU_WV_STANDARD_DISCOUNT": 0.1,
+ "BU_FLOOR_PACK_SIZE_M2_STANDARD": 1.49,
  "BU_FLOOR_WASTE_FACTOR": 1.15,
  "BU_FLOOR_ADHESIVE_COVERAGE": 0.6,
  "BU_STELZLAGER_DEFAULT_QTY": 8,
@@ -43,6 +45,8 @@
   "V3WV09": 5,
   "V3WVK01": 2
  },
+ "WV_LEFTOVER_USABLE_PERCENT": 0.8,
+ "WV_LEFTOVER_MIN_M2": 0.5,
  "PRODUCT_IMAGE_SKIP_IDS": [
   "AGD9060",
   "KM02",
@@ -61,6 +65,7 @@
   "0601010003",
   "INSTMATROH"
  ],
+ "BU_SHOW_DA_HASSMANN": false,
  "AZ_MIN_remove_tub": 45,
  "AZ_MIN_install_bathtub": 90,
  "AZ_MIN_install_bathtub_screen": 60,
@@ -76,6 +81,7 @@
  "AZ_MIN_close_valve": 45,
  "AZ_MIN_relocate_faucet": 90,
  "AZ_MIN_relocate_drain": 30,
+ "AZ_MIN_install_lifting_unit": 0,
  "AZ_MIN_convert_faucet": 90,
  "AZ_MIN_replace_thermostat": 30,
  "AZ_MIN_replace_shower_no_thermo": 30,

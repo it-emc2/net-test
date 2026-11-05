@@ -1,0 +1,13 @@
+/** One material line as built by computeMaterials (legacy shape, open for extra fields). */
+export interface MaterialLine {
+  id: string;
+  qty: number;
+  label?: string | null;
+  source?: string | null;
+  unitOverride?: number | null;
+  meta?: Record<string, any>;
+  perM2Base?: number;
+  category?: string | null;
+  [k: string]: any;
+}
+

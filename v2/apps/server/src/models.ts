@@ -15,6 +15,8 @@ export const Product = model("Product", new Schema({
   lengthCm: { type: Number, min: 0, default: null },
   source: { type: String, default: null },
   manufacturer: { type: String, default: null },
+  /** supplier / cleverbad article number (main@42150092, scripts/syncCleverbadArticleNumbers.mjs) */
+  articleNumber: { type: String, default: null },
 }, { timestamps: true, collection: "Products" }));
 
 export const Service = model("Service", new Schema({

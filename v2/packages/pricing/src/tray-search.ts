@@ -1,4 +1,4 @@
-// 1:1 TypeScript port of legacy src/logic/tray-search-core.js (main@dad76f0) — see core.ts header.
+// 1:1 TypeScript port of legacy src/logic/tray-search-core.js (synced with main@42150092) — see core.ts header.
 // Pure Duschwanne (shower tray) suggestion logic, shared by the server route
 // (routes/trays.js) and the offline client fallback
 // (public/tray-search-client.js) — identical results whether matching runs
@@ -73,7 +73,7 @@ export function scoreTray(p: TrayDoc, { w, l, h }: TrayDims) {
     const qd = [Math.min(w, l), Math.max(w, l)];
     sum += (td[0]! - qd[0]!) ** 2 + (td[1]! - qd[1]!) ** 2;
   } else if (w !== null || l !== null) {
-    const need = (w !== null ? w : l) as number;
+    const need: number = w !== null ? w : (l as number);
     const d = Math.min(Math.abs(wc - need), Math.abs(lc - need));
     sum += d * d;
   }
@@ -92,7 +92,7 @@ export function isBadoluxTray(p: TrayDoc) {
 // Price to display in the suggestion cards — must match the Kosten tab, which
 // shows the tray line's unitPrice (net after the Badolux discount). Hassmann/SLA
 // trays are shown at list price; Badolux trays at list × (1 − discount).
-export function trayDisplayPrice(p: TrayDoc, badoluxDiscount = 0.20) {
+export function trayDisplayPrice(p: TrayDoc, badoluxDiscount = 0.25) {
   const base = Number(p.price) || 0;
   if (!isBadoluxTray(p)) return base;
   return Math.round(base * (1 - badoluxDiscount) * 100) / 100;
@@ -102,7 +102,7 @@ export function trayDisplayPrice(p: TrayDoc, badoluxDiscount = 0.20) {
 // top 3 — the part of the route that has nothing to do with how the
 // candidates were fetched, so both the live route and the offline fallback
 // call it on whatever array they built.
-export function scoreAndRank(docs: TrayDoc[], { w, l, h, budget }: TrayDims & { budget?: unknown }, badoluxDiscount = 0.20) {
+export function scoreAndRank(docs: TrayDoc[], { w, l, h, budget }: TrayDims & { budget?: unknown }, badoluxDiscount = 0.25) {
   const mapped = docs.map((p) => {
     const pid = String(p.productId || "");
     const isDW = /^DW/i.test(pid);

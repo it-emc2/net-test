@@ -63,3 +63,12 @@
 | Test | Symptom | Handling |
 |---|---|---|
 | `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | **Known CI-only failure.** On GitHub runners the restore banner is absent after the offline reload (every attempt); locally it passes, also with 12× CPU throttling. CI artifact: app booted offline correctly (cached shell), banner element missing. Ruled out: cold SW cache (helper navigates), missing shell, slow CPU. Not confirmed: `userTypedEarly` race (synthetic input events count as typing — worth an `isTrusted` check anyway). | `test.skip` on CI only (2026-11-04), runs locally. Legacy-app test; v2 gets its own offline suite. Revisit if the legacy app keeps being developed. |
+
+## Main sync 2026-11-05 (main@42150092: BU redesign, Hebeanlage, Terminplanung)
+- Merged `main` into the rewrite branch (no conflicts).
+- **Drift guard** (`v2/packages/pricing/test/sync-with-legacy.test.ts`): TS ports must compile to the exact legacy JS — caught the change immediately. Re-port is now one command: `node v2/scripts/port-pricing-core.mjs <sha>` (legacy copy + typed header + pre-pass + `strictify.mjs`), 0 strict errors, JS identical.
+- Golden masters rebuilt from the replica: 105/115 pricing outputs changed (new fields such as supplier codes); totals changed in 3 cases (4,519.42 € → 4,652.34 €). DOCX snapshots rebuilt (owner name still masked).
+- New drift guards: models (`models-parity.test.ts`, caught `articleNumber`), business config (caught 5 new keys), `aufschlag-rules` port.
+- UI parity: BU step "Duschabtrennung" (Hassmann) hidden by default on main (`BU_SHOW_DA_HASSMANN=false`) → snapshot updated.
+- Legacy Jest suite: 16 failures on both clean main and this branch, but a **different set each run** (Vigor-test timeouts cascade) → flaky, not caused by the rewrite. Stays reporting-only in CI.
+- PII scan is now a permanent script: `node scripts/golden/pii-scan.mjs <fixtures…>` (exit 1 on staff names).

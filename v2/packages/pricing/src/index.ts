@@ -58,3 +58,4 @@ export function createPricingEngine(ProductModel: PricingProductModel, deps: Pri
   return createPricingCore(ProductModel, deps) as unknown as PricingEngine;
 }
 export * from "./ah.js";
+export * from "./aufschlag-rules.js";

@@ -5,7 +5,6 @@ Arbeiten: visible=[page-Arbeiten] modal=[] hash=#Arbeiten
 Duschwanne: visible=[page-Duschwanne] modal=[] hash=#Duschwanne
 Fussboden: visible=[page-Fussboden] modal=[] hash=#Fussboden
 Wandverkleidung: visible=[page-Wandverkleidung] modal=[] hash=#Wandverkleidung
-Duschabtrennung: visible=[page-Duschabtrennung] modal=[] hash=#Duschabtrennung
 DuschabtrennungNeu: visible=[page-DuschabtrennungNeu] modal=[] hash=#DuschabtrennungNeu
 Duschvorhang: visible=[page-Duschvorhang] modal=[] hash=#Duschvorhang
 Optional: visible=[page-Optional] modal=[] hash=#Optional

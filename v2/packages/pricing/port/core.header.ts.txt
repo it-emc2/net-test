@@ -1,0 +1,24 @@
+// @oc/pricing — 1:1 TypeScript port of the legacy src/logic/pricing-core.js
+// (synced with main@{{MAIN_SHA}}, {{DATE}}). Stage 1 (ADR 013): behaviour identical,
+// verified by the pricing golden master + differential fuzz test against the legacy JS.
+// Only type annotations were added; no logic was changed. Do not "improve" logic here
+// without a golden-master rebuild and an ADR.
+
+/** Mongoose-like Product model: only these two query shapes are used. */
+export interface PricingProductModel {
+  find(q: { productId: { $in: string[] } }): { lean(): Promise<any[]> };
+  findOne(q: { productId: string }): { lean(): Promise<any | null> };
+}
+/** Offer/Draft model as used for snapshot lookups (optional, server only). */
+export interface PricingSnapshotModel {
+  findOne(q: Record<string, unknown>): any;
+}
+export interface PricingDeps {
+  /** Admin-tunable business numbers. */
+  cfg: { get(key: string, fallback?: unknown): any };
+  /** articleNumbers → Map<id, netPrice>; an empty Map is the documented fallback. */
+  fetchVigourNetPrices: (ids: string[]) => Promise<Map<string, number>>;
+  OfferModel?: PricingSnapshotModel;
+  DraftModel?: PricingSnapshotModel;
+}
+

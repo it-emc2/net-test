@@ -1,5 +1,5 @@
 // Business configuration schema — mechanical copy of src/services/configService.js CONFIG_SCHEMA
-// (main@4b6002a). Parity enforced by test/business-config.test.ts against the legacy file.
+// (synced with main@42150092). Parity enforced by test/business-config.test.ts against the legacy file.
 /* eslint-disable */
 export interface ConfigDef { key: string; value: any; label?: any; unit?: any; type?: string; section?: string; order?: number; description?: any; note?: any; [k: string]: any }
 export const CONFIG_SCHEMA: ConfigDef[] = [
@@ -65,6 +65,16 @@ export const CONFIG_SCHEMA: ConfigDef[] = [
     description: 'Fläche eines einzelnen Bodenpaneels (V5FB02)',
   },
   {
+    key: 'BU_WV_STANDARD_DISCOUNT', value: 0.10,
+    label: 'Nachlass Standard-Wandpaneele', unit: '%', type: 'percent', section: 'bu', order: 10,
+    description: 'Badolux-Nachlass auf die sechs Keramico-Standard-Dekore WP001–WP006 (0.10 = −10 %, 129 € → 116,10 €). Nicht auf Sonder-Dekor WP007. 0 = kein Nachlass.',
+  },
+  {
+    key: 'BU_FLOOR_PACK_SIZE_M2_STANDARD', value: 1.49,
+    label: 'Standard-Boden Paketgröße', unit: 'm²', type: 'number', section: 'bu', order: 7,
+    description: 'Fläche eines Pakets Badolux-Hydroträgerplatte (BP001–BP005). Laut Lieferantenblatt 1,49 m² pro Paket.',
+  },
+  {
     key: 'BU_FLOOR_WASTE_FACTOR', value: 1.15,
     label: 'Verschnittfaktor Boden', unit: '', type: 'number', section: 'bu', order: 2,
     description: 'Aufschlag für Verschnitt bei Bodenpaneelen (1.15 = +15 %)',
@@ -80,9 +90,9 @@ export const CONFIG_SCHEMA: ConfigDef[] = [
     description: 'Standard-Anzahl Stelzlager (PLA5282) bei Duschwanne',
   },
   {
-    key: 'BU_BADOLUX_DISCOUNT', value: 0.20,
+    key: 'BU_BADOLUX_DISCOUNT', value: 0.25,
     label: 'Badolux Rabatt', unit: '%', type: 'percent', section: 'bu', order: 5,
-    description: 'Rabatt auf Badolux-Duschwannen (0.20 = 20 %). Wird auf den Listenpreis angewandt; verändert die DB nicht.',
+    description: 'Rabatt auf Badolux-Duschwannen (0.25 = 25 %, laut Händler-Preisliste). Wird auf den Listenpreis angewandt; verändert die DB nicht.',
   },
   // ── BWT – BADEWANNENTÜR ──────────────────────────────────────────────────
   {
@@ -192,6 +202,17 @@ export const CONFIG_SCHEMA: ConfigDef[] = [
     description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
   },
 
+  {
+    key: 'WV_LEFTOVER_USABLE_PERCENT', value: 0.8,
+    label: 'WV-Reste: nutzbarer Anteil', unit: '%', type: 'percent', section: 'bu', order: 7,
+    description: 'Anteil der Wandverkleidungs-Reste (Verschnitt in m²), der als Fußboden angerechnet wird (0.8 = 80 %). Der Rest ist Schnittverlust und zu kleine Stücke.',
+  },
+  {
+    key: 'WV_LEFTOVER_MIN_M2', value: 0.5,
+    label: 'WV-Reste: Mindestmenge', unit: 'm²', type: 'number', section: 'bu', order: 8,
+    description: 'Ab dieser nutzbaren Restfläche wird "Reste als Fußboden verwenden" angeboten. Darunter gibt es keine Anrechnung.',
+  },
+
   // ── PRODUKTBILDER-PDF ────────────────────────────────────────────────────
   {
     key: 'PRODUCT_IMAGE_SKIP_IDS',
@@ -203,6 +224,12 @@ export const CONFIG_SCHEMA: ConfigDef[] = [
     description: 'Artikelnummern (eine pro Zeile), die nie im Produktbilder-PDF auftauchen',
   },
 
+  // ── ANZEIGE ──────────────────────────────────────────────────────────────
+  {
+    key: 'BU_SHOW_DA_HASSMANN', value: false,
+    label: 'Duschabtrennung (Hassmann, alt) anzeigen', type: 'boolean', section: 'bu', order: 90,
+    description: 'Aus: Seite und Menüpunkt „Duschabtrennung“ sind im Badumbau ausgeblendet. Angebote, die diese Seite nutzen, zeigen sie beim Öffnen trotzdem.',
+  },
   // ── ARBEITSZEITEN JE TÄTIGKEIT ───────────────────────────────────────────
   // Minutes behind the "Automatischer Arbeitszeit-Vorschlag" (BU). Key suffix =
   // work-task value / suggestion key in script.js. New offers snapshot the
@@ -223,6 +250,7 @@ export const CONFIG_SCHEMA: ConfigDef[] = [
     ['close_valve', 'Armatur stilllegen', 45],
     ['relocate_faucet', 'Armatur versetzen', 90],
     ['relocate_drain', 'Abfluss verlegen', 30],
+    ['install_lifting_unit', 'Hebeanlage einbauen', 0],
     ['convert_faucet', 'Armatur umbauen', 90],
     ['replace_thermostat', 'Thermostat auswechseln', 30],
     ['replace_shower_no_thermo', 'Duschsystem auswechseln', 30],
