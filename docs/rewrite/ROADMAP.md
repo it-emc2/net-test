@@ -53,9 +53,13 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
   - [x] 4e Distance suggestion (`/api/routing/*`: same geocoder/router order, fallbacks, rounding), planning proxy (`/api/planning/current`, SSE `/stream`), today's customers (`/api/bitrix/kundendaten`, `/api/calendar/today`) — identical incl. outgoing requests (public services redirected to the stub) — 2026-11-05
   - [x] 4f Magic API (`/api/magic/health|products|search`: same login, token cache, upstream paths, response shapes, error detail) — identical incl. outgoing requests — 2026-11-05
   - [x] 4g Online signing (`/api/signing/*`, `/sign/:token`, admin dashboard `/admin/api/signing*`): create/reuse/force rules, payment-term + required-field + Bevollmächtigte/r checks, field carry-over, two-person filing on contacts, completion mail (office bcc) + Bitrix notes + stage move — identical incl. stored requests, outgoing calls and documents (fake HTML→PDF). Send-offer now uses v2's own signing. Document rendering = plug-in point for phase 5 — 2026-11-05
-- [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
+- [x] 4h Small endpoints: `/health`, `/api/vigor-prices` (net map + `full=1` cards), `/api/products/bulk`, `/api/services/bulk`, `/api/submissions`, `/api/offers/external/{search,drafts/:id,offers/:n}` (API key) — identical incl. stored rows — 2026-11-05
+- [x] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or assigned (2026-11-05). Not in v2 yet, by design:
+  - Phase 5 (documents): `/docx-template` (+`/pdf`, `/material-overview`), `/api/docx/pdf-preview`, `/pdf-preview/pdf-preview`, `/kalkulation/*` (preview, debug, docx, pdf, pdf-v2), `/arbeitsbericht/*` + `/api/arbeitsbericht/*` (docx, pdf, external/pdf), `/api/adobe-pdf/*`, `/latex-template/pdf`, `/pdf-template` (always 500 in legacy → retire), `/api/email/product-image-list`, `/api/email/preview-product-image-pdf`.
+  - Phase 6 (frontend): `/login` page, `/logic/{pricing-core,tray-search-core,aufschlag-rules}.js` (the new web app imports `@oc/pricing` directly; offline cache follows).
 - [ ] Integrations behind interfaces with test doubles (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, vigor).
 - [ ] Fix security findings (see local `~/emc2-local/SECURITY-FINDINGS.md`) by design: case-insensitive allowlist, no asset bypass, fail-closed API key, admin-only catalog writes, escaped regex.
+  - Done: route-level allowlist (no path patterns), fail-closed external API key (4h), escaped regex. **Open — owner decision:** admin-only catalog writes. The catalog editor tab (`AdminManager`) is shown to every logged-in user when its feature flag is on, so restricting `/api/*/bulk` to admins changes what staff can do. v2 keeps legacy behaviour until decided.
 
 ## Phase 5 — Documents
 - [ ] docxtemplater kept; DOCX golden master green.
@@ -80,4 +84,5 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] Staging against a **copy** of prod data; parallel run vs current app (same inputs → same prices/docs).
 - [ ] Deal drafts: wrap draft update + revision insert in a transaction (replica set) — see ADR 007
 - [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup
+- [ ] `EXTERNAL_API_KEY` set in production and in the bau-formular (v2 closes `/api/offers/external/*` without it).
 - [ ] Cut-over plan with rollback; owner OK.

@@ -109,7 +109,7 @@ beforeAll(async () => {
         "https://api.openrouteservice.org": bx.extBase("legacy", "ors"), "https://router.project-osrm.org": bx.extBase("legacy", "osrm"),
       }),
       OC_TEST_SMTP_PORT: String(smtp.port), OB24_BASE_URL: bx.ob24Base("legacy"), ...OB24, NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
-      SMTP_PORT: "9", OC_TEST_FAKE_PUPPETEER: "1", SIGNING_OFFICE_EMAIL: "buero@test.local", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: bx.extBase("legacy", "magic"), ...MAGIC, ORS_API_KEY: "ors-test-key",
+      SMTP_PORT: "9", EXTERNAL_API_KEY: "ext-test-key", OC_TEST_FAKE_PUPPETEER: "1", SIGNING_OFFICE_EMAIL: "buero@test.local", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: bx.extBase("legacy", "magic"), ...MAGIC, ORS_API_KEY: "ors-test-key",
     },
     stdio: "ignore",
   });
@@ -120,7 +120,7 @@ beforeAll(async () => {
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
     BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
-    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key", EXTERNAL_API_BASE: bx.extBase("v2", "magic"), ...MAGIC,
+    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key", EXTERNAL_API_BASE: bx.extBase("v2", "magic"), ...MAGIC, EXTERNAL_API_KEY: "ext-test-key",
     GEO_PHOTON_URL: bx.extBase("v2", "photon"), GEO_NOMINATIM_URL: bx.extBase("v2", "nominatim"), GEO_ORS_URL: bx.extBase("v2", "ors"), ROUTE_OSRM_URL: bx.extBase("v2", "osrm"),
     SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), SMTP_PORT: String(smtp.port), SIGNING_OFFICE_EMAIL: "buero@test.local", IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
@@ -1279,4 +1279,100 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       }
     });
   }, 120000);
+});
+
+// ---------------- remaining small endpoints (vigor, catalog bulk, submissions, external lookup) ----------------
+describe("contract: vigor prices, catalog bulk, submissions, external lookup", () => {
+  const db = () => mongoose.connection.db!;
+  const raw = async (app: "legacy" | "v2", method: string, url: string, body?: unknown, headers: Record<string, string> = { authorization: `Bearer ${token}` }) => {
+    const h = { ...headers, ...(body !== undefined ? { "content-type": "application/json" } : {}) };
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    }
+    const r = await v2.inject({ method: method as any, url, headers: h, payload: body as any });
+    return { status: r.statusCode, body: r.json() };
+  };
+  const same = async (method: string, url: string, body?: unknown, headers?: Record<string, string>) => {
+    const l = await raw("legacy", method, url, body, headers), v = await raw("v2", method, url, body, headers);
+    expect(v.status, url).toBe(l.status);
+    if (l.status >= 400 && typeof l.body?.error === "string") {
+      expect(v.body.error.message, url).toBe(l.body.error);
+      const { error: _l, ...lx } = l.body; const { error: _v, ...vx } = v.body;
+      expect(vx, url).toEqual(lx);
+    } else expect(v.body, url).toEqual(l.body);
+    return v;
+  };
+
+  it("/health same shape", async () => {
+    const l = await raw("legacy", "GET", "/health", undefined, {}), v = await raw("v2", "GET", "/health", undefined, {});
+    expect(v.status).toBe(200); expect(l.status).toBe(200);
+    expect(Object.keys(v.body).sort()).toEqual(Object.keys(l.body).sort());
+    expect(v.body.ok).toBe(true);
+  });
+
+  it("vigor-prices: net map, full=1 cards, freshest wins, zero price ignored", async () => {
+    const vdb = mongoose.connection.getClient().db("vigor");
+    await vdb.collection("products").deleteMany({ articleNumber: /^T-VG/ });
+    await vdb.collection("products").insertMany([
+      { articleNumber: "T-VG1", name: "Alt", netPrice: 10, listPrice: 20, lastSeenAt: new Date("2026-01-01"), images: ["a.jpg"], stockQuantity: 3 },
+      { articleNumber: "T-VG1", name: "Neu", netPrice: 12, listPrice: 22, lastSeenAt: new Date("2026-02-01"), images: [], stockText: "lieferbar" },
+      { articleNumber: "T-VG2", name: "Null", netPrice: 0, lastSeenAt: new Date("2026-03-01") },
+      { articleNumber: "T-VG3", name: "Ohne Datum", netPrice: "7.5" },
+    ]);
+    for (const url of ["/api/vigor-prices", "/api/vigor-prices?ids=T-VG1,T-VG2,T-VG3,NOPE", "/api/vigor-prices?ids=T-VG1,%20T-VG3&full=1", "/api/vigor-prices?ids=,"]) await same("GET", url);
+    const v = await same("GET", "/api/vigor-prices?ids=T-VG1,T-VG3&full=1");
+    expect(v.body["T-VG1"].netPrice).toBe(12);
+  });
+
+  it("products/services bulk: same response, same stored catalog rows; empty body → 400", async () => {
+    const run = async (app: "legacy" | "v2") => {
+      await db().collection("Products").deleteMany({ productId: /^T-BULK/ });
+      await db().collection("Services").deleteMany({ serviceId: /^T-BULK/ });
+      const a = await raw(app, "POST", "/api/products/bulk", [{ productId: "T-BULK-1", name: "Wanne", price: "123.5", widthCm: 70, manufacturer: "X" }, { productId: "T-BULK-2", name: "Tür" }]);
+      const b = await raw(app, "POST", "/api/products/bulk", [{ productId: "T-BULK-1", name: "Wanne 2", price: 99 }]);
+      const c = await raw(app, "POST", "/api/services/bulk", [{ serviceId: "T-BULK-S1", name: "Montage", price: 50, time: "2", description: "d" }]);
+      const rows = [
+        ...(await db().collection("Products").find({ productId: /^T-BULK/ }).sort({ productId: 1 }).toArray()),
+        ...(await db().collection("Services").find({ serviceId: /^T-BULK/ }).toArray()),
+      ].map(({ _id, createdAt, updatedAt, ...rest }) => rest);
+      const res = [a, b, c].map((r) => ({ status: r.status, ok: r.body?.ok, result: JSON.parse(JSON.stringify(r.body?.result ?? null).replace(/"[0-9a-f]{24}"/g, '"<ID>"')) }));
+      return { res, rows };
+    };
+    const l = await run("legacy"), v = await run("v2");
+    expect(v.rows).toEqual(l.rows);
+    expect(v.res).toEqual(l.res);
+    await same("POST", "/api/products/bulk", []);
+    await same("POST", "/api/services/bulk", { not: "an array" });
+    await db().collection("Products").deleteMany({ productId: /^T-BULK/ });
+    await db().collection("Services").deleteMany({ serviceId: /^T-BULK/ });
+  });
+
+  it("submissions: same computed price, same stored row", async () => {
+    const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+    const payload = JSON.parse(JSON.stringify(offers[0].payload));
+    const out: any = {};
+    for (const app of ["legacy", "v2"] as const) {
+      await db().collection("Submissions").deleteMany({});
+      const r = await raw(app, "POST", "/api/submissions", payload);
+      const rows = (await db().collection("Submissions").find({}).toArray()).map(({ _id, createdAt, ...rest }) => rest);
+      out[app] = { status: r.status, computed: r.body?.computed, hasId: !!r.body?.id, rows: JSON.parse(JSON.stringify(rows)) };
+    }
+    expect(out.v2).toEqual(out.legacy);
+    expect(out.v2.status).toBe(201);
+  });
+
+  it("external lookup: API key rules, search, draft, offer, not found", async () => {
+    const K = { "x-api-key": "ext-test-key" };
+    const draftId = String((await db().collection("drafts").findOne({}))!._id);
+    const offerNo = String((await db().collection("offers").findOne({ offerNumber: { $exists: true, $ne: "" } }))!.offerNumber);
+    await same("GET", "/api/offers/external/search?q=a", undefined, {});
+    await same("GET", "/api/offers/external/search?q=a", undefined, { "x-api-key": "wrong" });
+    await same("GET", "/api/offers/external/search?q=a&apiKey=ext-test-key", undefined, {});
+    for (const url of [
+      "/api/offers/external/search", "/api/offers/external/search?q=M%C3%BCller&limit=3", "/api/offers/external/search?q=ANG2026&limit=500",
+      `/api/offers/external/drafts/${draftId}`, "/api/offers/external/drafts/000000000000000000000000", "/api/offers/external/drafts/not-an-id",
+      `/api/offers/external/offers/${offerNo}`, "/api/offers/external/offers/NOPE-1",
+    ]) await same("GET", url, undefined, K);
+  });
 });

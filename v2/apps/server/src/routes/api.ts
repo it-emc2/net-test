@@ -27,6 +27,7 @@ import { registerPost } from "./post.js";
 import { registerRouting, registerTodaysCustomers } from "./routing.js";
 import { registerMagic } from "./magic.js";
 import { registerSigning } from "./signing.js";
+import { registerMisc } from "./misc.js";
 import { UNAVAILABLE_SIGNING_RENDERER, type SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
@@ -149,6 +150,9 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
 
   await registerOffersRead(app);
+  await registerMisc(app, {
+    vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI, computePrices: (p) => pricing.computePrices(p), externalApiKey: cfg.EXTERNAL_API_KEY,
+  });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
   await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });

@@ -9,7 +9,7 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
 
-const SEARCH_FIELDS = [
+export const SEARCH_FIELDS = [
   "offerNumber", "angNumber", "customerNumber", "dealId", "firstName", "lastName", "email", "city", "postalCode",
   "street", "company", "phone",
   "payload.Kundendaten.firstName", "payload.Kundendaten.lastName", "payload.Kundendaten.email", "payload.Kundendaten.city",

@@ -182,3 +182,10 @@ export const SigningRequest = model("SigningRequest", new Schema({
   completedAt: { type: Date, default: null },
   expiresAt: { type: Date, default: null },
 }, { timestamps: true, minimize: false, collection: "signingrequests" }));
+
+// Legacy "Submissions" (price + save button in the old JSON panel): payload + computed price.
+export const Submission = model("Submission", new Schema({
+  payload: { type: Object, required: true },
+  computed: { type: Object },
+  createdAt: { type: Date, default: Date.now },
+}, { collection: "Submissions" }));
