@@ -16,6 +16,8 @@ import { buildApp } from "../src/app.js";
 import { hashPassword } from "../src/auth.js";
 import { connectDb, disconnectDb } from "../src/db.js";
 import { registerApi } from "../src/routes/api.js";
+import { BitrixStub } from "./helpers/bitrix-stub.js";
+import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const fx = (p: string) => JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/" + p, "utf8"));
@@ -35,6 +37,7 @@ let mongod: MongoMemoryServer;
 let legacy: ChildProcess;
 let v2: FastifyInstance;
 let token = "";
+const bx = new BitrixStub(BITRIX_HANDLERS);
 
 async function waitFor(url: string, ms = 60000) {
   const end = Date.now() + ms;
@@ -49,6 +52,7 @@ beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();
   LEGACY_PORT = await freePort();
+  await bx.start();
   const client = new mongoose.mongo.MongoClient(uri);
   await client.connect();
   const db = client.db("KonfiguratorDB");
@@ -71,7 +75,7 @@ beforeAll(async () => {
     cwd: ROOT,
     env: {
       ...process.env, NODE_ENV: "test", PORT: String(LEGACY_PORT), MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB",
-      VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: `${DEAD}/rest/0/x/`, SMTP_HOST: "127.0.0.1",
+      VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: bx.base("legacy"), SMTP_HOST: "127.0.0.1",
       SMTP_PORT: "9", PLANNING_API_BASE_URL: DEAD, EXTERNAL_API_BASE: DEAD, OB24_BASE_URL: DEAD, ORS_API_KEY: "",
     },
     stdio: "ignore",
@@ -80,7 +84,10 @@ beforeAll(async () => {
   process.once("exit", () => { try { legacy.kill("SIGKILL"); } catch { /* already gone */ } });
   await waitFor(`http://127.0.0.1:${LEGACY_PORT}/api/health`);
 
-  const cfg = loadConfig({ NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET });
+  const cfg = loadConfig({
+    NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
+    BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", // throttle itself: unit test (bitrix.test.ts)
+  });
   await connectDb(cfg, { info: () => {} });
   v2 = await buildApp(cfg, { register: (a) => registerApi(a, { cfg }) });
 
@@ -96,6 +103,7 @@ afterAll(async () => {
   await v2?.close();
   await disconnectDb();
   await mongod?.stop();
+  await bx.stop();
 });
 
 async function both(method: "GET" | "POST", url: string, body?: unknown) {
@@ -468,5 +476,84 @@ describe("contract: customers, users, admin (group 3)", () => {
 
   it("security by design: config/public needs a login in v2 (legacy: open)", async () => {
     expect((await v2.inject({ url: "/admin/api/config/public" })).statusCode).toBe(401);
+  });
+});
+
+// ---------------- group 4: Bitrix (outbound calls go to a recording stub) ----------------
+describe("contract: Bitrix read routes — same response AND same outgoing Bitrix calls", () => {
+  const same = async (method: "GET" | "POST", url: string, body?: unknown) => {
+    bx.take("legacy"); bx.take("v2");
+    const r = await both(method, url, body);
+    const calls = { legacy: bx.take("legacy"), v2: bx.take("v2") };
+    expect(r.v2.status, url).toBe(r.legacy.status);
+    if (r.legacy.status >= 400) expect(r.v2.body.error.message, url).toBe(r.legacy.body.error);
+    else expect(r.v2.body, url).toEqual(r.legacy.body);
+    expect(calls.v2, url).toEqual(calls.legacy);
+    return { ...r, calls: calls.v2 };
+  };
+
+  it.each([
+    "/api/bitrix/contact/101",          // address on the contact
+    "/api/bitrix/contact/102",          // address from requisite → __addressSource
+    "/api/bitrix/contact/103",          // no address anywhere
+    "/api/bitrix/contact/404",          // empty result → 404
+    "/api/bitrix/contact/101/deals",
+    "/api/bitrix/deal/9001",            // contact via requisite, Vermieter enum + file
+    "/api/bitrix/deal/9002",            // no contact, Vermieter from "Wohnsituation:" text
+    "/api/bitrix/deal/9003",            // → 404
+  ])("GET %s", async (url) => {
+    const r = await same("GET", url);
+    expect(r.calls.length).toBeGreaterThan(0);
+  }, 30000);
+
+  it("deal 9001: contact address patched from requisite, Vermieter liegt vor via file", async () => {
+    const r = await same("GET", "/api/bitrix/deal/9001");
+    expect(r.v2.body.contact.ADDRESS_CITY).toBe("Ort2");
+    expect(r.v2.body.vermieter).toEqual({ erforderlich: true, liegtVor: true });
+    expect(r.calls.map((c) => c.method)).toEqual(["crm.deal.get", "crm.contact.get", "crm.requisite.list", "crm.address.list"]);
+  }, 30000);
+
+  it("rate limit ('Too many requests') is retried, not failed", async () => {
+    const r = await same("GET", "/api/bitrix/deal/9004");
+    expect(r.v2.status).toBe(200);
+    expect(r.calls.filter((c) => c.method === "crm.deal.get")).toHaveLength(2);
+  }, 30000);
+
+  it("Bitrix error → 500 with Bitrix message, and a bitrixlogs entry with the same shape", async () => {
+    const coll = mongoose.connection.db!.collection("bitrixlogs");
+    await coll.deleteMany({ method: "crm.deal.get", message: "Access denied" });
+    await same("GET", "/api/bitrix/deal/9005");
+    await new Promise((r) => setTimeout(r, 300)); // both apps log fire-and-forget
+    const logs = await coll.find({ method: "crm.deal.get", message: "Access denied" }, { projection: { _id: 0, createdAt: 0, updatedAt: 0 } }).toArray();
+    expect(logs).toHaveLength(2);
+    expect(logs[1]).toEqual(logs[0]);
+    expect(logs[0]).toMatchObject({ httpMethod: "GET", params: { id: "9005" }, resolved: false });
+  }, 30000);
+
+  it("activities/today and calendar/week — identical", async () => {
+    await same("GET", "/api/bitrix/activities/today");
+    const w = await same("GET", "/api/bitrix/calendar/week");
+    expect(w.v2.body.planning.days).toHaveLength(5);
+  }, 30000);
+
+  it("log-action / log-dialog-event — same response, same stored audit entry, same validation", async () => {
+    const coll = mongoose.connection.db!.collection("useractionlogs");
+    for (const [url, body] of [
+      ["/api/bitrix/log-action", { event: "configurator_opened", dealId: "D-ctr", offerNumber: "N-1", offerType: "bu" }],
+      ["/api/bitrix/deal/D-ctr2/log-dialog-event", { event: "move_dialog_dismissed", offerNumber: "N-2" }],
+    ] as const) {
+      await same("POST", url, body);
+    }
+    const docs = await coll.find({ dealId: { $in: ["D-ctr", "D-ctr2"] } }, { projection: { _id: 0, createdAt: 0, updatedAt: 0 } }).sort({ dealId: 1 }).toArray();
+    expect(docs).toHaveLength(4);
+    expect(docs[1]).toEqual(docs[0]);
+    expect(docs[3]).toEqual(docs[2]);
+    for (const [url, body] of [
+      ["/api/bitrix/log-action", { event: "nope" }],
+      ["/api/bitrix/deal/1/log-dialog-event", { event: "termin_opened" }],
+    ] as const) {
+      const r = await same("POST", url, body);
+      expect(r.v2.status).toBe(400);
+    }
   });
 });

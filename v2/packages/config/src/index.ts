@@ -49,6 +49,10 @@ const EnvSchema = z.object({
   AP_DEFAULT_EMAIL: z.string().optional(),
   /** Legacy-compatible session cookie flags. */
   COOKIE_SECURE: z.enum(["0", "1", "true", "false"]).optional().transform((v) => v === undefined ? undefined : v === "1" || v === "true"),
+  /** Bitrix24 inbound webhook base (…/rest/<user>/<token>). No hard-coded fallback (legacy had one). */
+  BITRIX_WEBHOOK_BASE: z.string().url().optional(),
+  /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */
+  BITRIX_MIN_GAP_MS: z.coerce.number().int().min(0).default(1000),
 });
 
 export type AppConfig = Readonly<z.infer<typeof EnvSchema>>;
@@ -78,6 +82,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (cfg.NODE_ENV !== "production" && cfg.VIGOR_MONGODB_URI && !isLocalMongo(cfg.VIGOR_MONGODB_URI)) {
     throw new UnsafeDatabaseError(
       `Refusing to start: VIGOR_MONGODB_URI points at a remote host (${redactUri(cfg.VIGOR_MONGODB_URI)}) outside production.`,
+    );
+  }
+  // Same idea as the DB guard: dev/test must never reach the real CRM (it would change deals).
+  if (cfg.NODE_ENV !== "production" && cfg.BITRIX_WEBHOOK_BASE && !LOCAL_HOSTS.has(new URL(cfg.BITRIX_WEBHOOK_BASE).hostname.toLowerCase())) {
+    throw new UnsafeDatabaseError(
+      `Refusing to start: NODE_ENV=${cfg.NODE_ENV} but BITRIX_WEBHOOK_BASE points at a remote host ` +
+        `(${new URL(cfg.BITRIX_WEBHOOK_BASE).hostname}). Outside production only a local Bitrix stub is allowed.`,
     );
   }
   if (cfg.NODE_ENV === "production" && (cfg.AUTH_SECRET.startsWith("dev-only") || cfg.AUTH_SECRET.length < 32)) {

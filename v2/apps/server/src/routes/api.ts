@@ -14,6 +14,9 @@ import { registerOffersRead } from "./offers-read.js";
 import { registerOffersWrite } from "./offers-write.js";
 import { registerDealDrafts } from "../deal-drafts/routes.js";
 import { registerGroup3 } from "./group3.js";
+import { registerBitrixRead } from "./bitrix-read.js";
+import { BitrixClient } from "../integrations/bitrix.js";
+import { BitrixLog } from "../models.js";
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -23,7 +26,7 @@ const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: st
 
 const publicUser = (u: any) => ({ email: u.email, name: u.name, firstName: u.firstName, lastName: u.lastName, role: u.role });
 
-export interface ApiDeps { cfg: Cfg; businessConfig?: BusinessConfig }
+export interface ApiDeps { cfg: Cfg; businessConfig?: BusinessConfig; bitrix?: BitrixClient }
 
 export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const { cfg } = deps;
@@ -123,6 +126,15 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
   await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
+  const bitrix = deps.bitrix ?? new BitrixClient({
+    baseUrl: cfg.BITRIX_WEBHOOK_BASE,
+    minGapMs: cfg.BITRIX_MIN_GAP_MS,
+    logFailure: async (entry) => {
+      app.log.error({ bitrixMethod: entry.method, httpMethod: entry.httpMethod, err: entry.message }, "bitrix call failed");
+      await BitrixLog.create(entry);
+    },
+  });
+  await registerBitrixRead(app, bitrix);
 
   // ---------------- pricing ----------------
   app.post("/api/price", async (req) => {
