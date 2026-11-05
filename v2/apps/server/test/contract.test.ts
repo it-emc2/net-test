@@ -21,7 +21,10 @@ import { registerApi } from "../src/routes/api.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
-import type { OfferDocuments, SigningPort } from "../src/email/ports.js";
+import type { OfferDocuments } from "../src/email/ports.js";
+import type { SigningRenderer } from "../src/signing/documents.js";
+// @ts-expect-error plain .mjs test helper
+import { fakePdf, normaliseHtml } from "./helpers/fake-pdf.mjs";
 import { PDFDocument } from "pdf-lib";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -58,7 +61,7 @@ chmodSync(join(FAKE_SOFFICE_DIR, "soffice"), 0o755);
 const PATH_WITH_FAKE_SOFFICE = `${FAKE_SOFFICE_DIR}:${process.env.PATH}`;
 let documentsBridge: OfferDocuments;
 let ORIGINAL_CWD = "";
-let signingBridge: SigningPort;
+let signingRenderer: SigningRenderer;
 
 const MAGIC = { EXTERNAL_API_USER: "magic@test.local", EXTERNAL_API_PASSWORD: "magic-test-pass" };
 
@@ -106,7 +109,7 @@ beforeAll(async () => {
         "https://api.openrouteservice.org": bx.extBase("legacy", "ors"), "https://router.project-osrm.org": bx.extBase("legacy", "osrm"),
       }),
       OC_TEST_SMTP_PORT: String(smtp.port), OB24_BASE_URL: bx.ob24Base("legacy"), ...OB24, NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
-      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: bx.extBase("legacy", "magic"), ...MAGIC, ORS_API_KEY: "ors-test-key",
+      SMTP_PORT: "9", OC_TEST_FAKE_PUPPETEER: "1", SIGNING_OFFICE_EMAIL: "buero@test.local", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: bx.extBase("legacy", "magic"), ...MAGIC, ORS_API_KEY: "ors-test-key",
     },
     stdio: "ignore",
   });
@@ -119,7 +122,7 @@ beforeAll(async () => {
     BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
     OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key", EXTERNAL_API_BASE: bx.extBase("v2", "magic"), ...MAGIC,
     GEO_PHOTON_URL: bx.extBase("v2", "photon"), GEO_NOMINATIM_URL: bx.extBase("v2", "nominatim"), GEO_ORS_URL: bx.extBase("v2", "ors"), ROUTE_OSRM_URL: bx.extBase("v2", "osrm"),
-    SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
+    SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), SMTP_PORT: String(smtp.port), SIGNING_OFFICE_EMAIL: "buero@test.local", IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
   await connectDb(cfg, { info: () => {} });
 
@@ -138,17 +141,25 @@ beforeAll(async () => {
   const { default: legacyCfg } = await import(ROOT + "src/services/configService.js");
   legacyCfg._cache = new Map(Object.entries(fx("pricing/config.json")));
   const docx = await import(ROOT + "src/routes/docx-template.js");
-  const signing = await import(ROOT + "src/routes/signing.js");
+  const tpl = await import(ROOT + "src/templates/signing-docs.js");
   documentsBridge = {
     renderOfferPdf: (p) => docx.generateOfferPdfBuffer(p),
     convertDocxToPdf: (b) => docx.convertDocxToPdf(b),
     getOfferRenderData: (p) => docx.getOfferRenderData(p),
     productImagePdf: async () => null,
   };
-  signingBridge = { createRequest: (a) => signing.createSigningRequest(a) };
+  // signing documents (phase 5): legacy templates + the same fake HTML→PDF as the legacy app
+  signingRenderer = {
+    renderData: (p) => docx.getOfferRenderData(p),
+    offerPdf: async (p) => (await docx.generateOfferPdfBuffer(p)).pdfBuffer,
+    angebotHtml: (data, o) => tpl.buildAngebotHtml(data, o), ahAngebotHtml: (data, o) => tpl.buildAhAngebotHtml(data, o),
+    vollmachtHtml: (sr, doc, m) => tpl.buildVollmachtHtml(sr, doc, m), abtretungHtml: (sr, doc, m) => tpl.buildAbtretungHtml(sr, doc, m),
+    zusatzblattHtml: (sr, doc, m) => tpl.buildZusatzblattHtml(sr, doc, m), abtretungAhHtml: (sr, doc, m) => tpl.buildAbtretungAhHtml(sr, doc, m),
+    htmlToPdf: async (html) => fakePdf(html),
+  };
 
   v2 = await buildApp(cfg, {
-    register: (a) => registerApi(a, { cfg, documents: documentsBridge, signing: signingBridge, mailTls: { rejectUnauthorized: false } }),
+    register: (a) => registerApi(a, { cfg, documents: documentsBridge, signingRenderer, mailTls: { rejectUnauthorized: false } }),
   });
 
   // log in on the LEGACY app; the same token is used against v2
@@ -1078,4 +1089,194 @@ describe("contract: Magic API (Hassmann product search) — same responses, same
     ["missing payload → 400", { kind: "corner" }],
     ["payload not an object → 400", { kind: "corner", payload: "x" }],
   ])("search: %s", async (_n, body) => { await run("POST", "/api/magic/search", body); });
+});
+
+// ---------------- group 4g: online signing ----------------
+describe("contract: online signing — same responses, stored requests, Bitrix notes, mails and documents", () => {
+  const db = () => mongoose.connection.db!;
+  const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+  const byNo = (n: string) => JSON.parse(JSON.stringify(offers.find((o) => o.offerNumber === n).payload));
+  const AHS = JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8")) as any[];
+  const ahBy = (payer: string) => JSON.parse(JSON.stringify(AHS.find((x) => x.payload.Kundendaten?.payer === payer).payload));
+  const SZ = byNo("ANG2026-1103-134214"), KASSE = byNo("ANG2026-1104-093242"), TWO = byNo("ANG2026-1103-130810");
+  const PNG = "data:image/png;base64,iVBORw0KGgo=";
+  const HDR = { "x-forwarded-for": "203.0.113.7", "user-agent": "contract-test" };
+  const TOKEN_RE = /[0-9a-f]{48}/g;
+  const normText = (s: string) => (normaliseHtml(s) as string).replace(TOKEN_RE, "<TOKEN>").replace(/<[0-9a-f-]{36}@test\.local>/g, "<MSGID>");
+
+  type Res = { status: number; type: string; text: string; body: any };
+  const send = async (app: "legacy" | "v2", method: string, url: string, body?: unknown, { auth = true, cookie = false } = {}): Promise<Res> => {
+    const headers: Record<string, string> = { ...HDR };
+    if (auth) headers.authorization = `Bearer ${token}`;
+    if (cookie) headers.cookie = `net_session=${token}`;
+    if (body !== undefined) headers["content-type"] = "application/json";
+    let status: number, type: string, raw: Buffer;
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+      status = r.status; type = r.headers.get("content-type") ?? ""; raw = Buffer.from(await r.arrayBuffer());
+    } else {
+      const r = await v2.inject({ method: method as any, url, headers, payload: body as any });
+      status = r.statusCode; type = String(r.headers["content-type"] ?? ""); raw = r.rawPayload;
+    }
+    const text = type.includes("pdf") ? createHashHex(raw) : raw.toString("utf8");
+    let parsed: any = null;
+    try { parsed = JSON.parse(text); } catch { /* html / pdf */ }
+    return { status, type, text, body: parsed };
+  };
+  const createHashHex = (b: Buffer) => `pdf:${b.toString("utf8").replace(/\n/g, " ")}`;
+
+  /** v2 error envelope vs legacy {error:"…"} — same status, same message, same extra fields */
+  const view = (r: Res, app: string) => {
+    let body = r.body;
+    if (body && app === "v2" && body.error && typeof body.error === "object") body = { ...body, error: body.error.message };
+    if (r.status === 401) body = { error: "<login required>" }; // auth-gate wording differs by design (see security section)
+    return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(r.text) };
+  };
+  const stripIds = (v: any): any => Array.isArray(v) ? v.map(stripIds) : v && typeof v === "object"
+    ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== "id" && k !== "_id" && k !== "__v").map(([k, x]) => [k, stripIds(x)])) : v;
+  const calls = (app: string) => bx.take(app).map((c) => ({ ...c, params: normText(decodeURIComponent(c.params.replace(/\+/g, " "))) }));
+  const stored = async (offerNumber: string) =>
+    (await db().collection("signingrequests").find({ offerNumber }).sort({ createdAt: 1 }).toArray())
+      .map((d) => JSON.parse(normText(JSON.stringify(stripIds({ ...d, createdAt: undefined, updatedAt: undefined, openedAt: !!d.openedAt, completedAt: !!d.completedAt, expiresAt: !!d.expiresAt, documents: d.documents.map((x: any) => ({ ...x, signedAt: !!x.signedAt })) })))));
+
+  /** Runs `steps` against legacy, then (clean DB) against v2; every step's response, Bitrix calls and mails must match. */
+  const scenario = async (offerNumber: string, steps: (app: "legacy" | "v2", ctx: { tok: string }) => Promise<Res>[] | Promise<void>, per: (app: "legacy" | "v2", ctx: { tok: string; log: any[] }) => Promise<void>) => {
+    const out: Record<string, { log: any[]; db: any[] }> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      await db().collection("signingrequests").deleteMany({});
+      bx.take(app); smtp.take();
+      const ctx = { tok: "", log: [] as any[] };
+      await per(app, ctx);
+      await new Promise((r) => setTimeout(r, 200));
+      out[app] = { log: ctx.log, db: await stored(offerNumber) };
+    }
+    void steps;
+    for (let i = 0; i < Math.max(out.legacy!.log.length, out.v2!.log.length); i++) expect(out.v2!.log[i], `step ${i}: ${JSON.stringify(out.legacy!.log[i]?.step)}`).toEqual(out.legacy!.log[i]);
+    expect(out.v2!.db).toEqual(out.legacy!.db);
+    return out.v2!;
+  };
+  /** one step: response + outgoing Bitrix calls + mails */
+  const step = async (app: "legacy" | "v2", ctx: { log: any[] }, name: string, p: Promise<Res>) => {
+    const r = await p;
+    await new Promise((res) => setTimeout(res, 50));
+    ctx.log.push({ step: name, res: view(r, app), calls: calls(app), mails: smtp.take().map((m) => mailView(m, normText)) });
+    return r;
+  };
+  const create = (app: "legacy" | "v2", body: Record<string, unknown>) => send(app, "POST", "/api/signing", body);
+
+  it("Selbstzahler: create + email link, open, view, payment-term rule, sign → completion (mail, Bitrix, stage)", async () => {
+    const v = await scenario("T-SZ-1", () => {}, async (app, ctx) => {
+      const r = await step(app, ctx, "create", create(app, { payload: SZ, offerNumber: "T-SZ-1", offerType: "bu", dealId: "9001", sendEmail: true }));
+      const tok = r.body.token;
+      await step(app, ctx, "open", send(app, "GET", `/api/signing/${tok}`, undefined, { auth: false }));
+      await step(app, ctx, "open again (no 2nd note)", send(app, "GET", `/api/signing/${tok}`, undefined, { auth: false }));
+      await step(app, ctx, "html", send(app, "GET", `/api/signing/${tok}/documents/angebot/html`, undefined, { auth: false }));
+      await step(app, ctx, "pdf", send(app, "GET", `/api/signing/${tok}/documents/angebot/pdf`, undefined, { auth: false }));
+      await step(app, ctx, "unknown doc", send(app, "GET", `/api/signing/${tok}/documents/vollmacht/pdf`, undefined, { auth: false }));
+      await step(app, ctx, "no signature", send(app, "POST", `/api/signing/${tok}/documents/angebot`, {}, { auth: false }));
+      await step(app, ctx, "no payment term", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG }, { auth: false }));
+      await step(app, ctx, "sign", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG, extraFields: { paymentTermIdx: 1 }, place: "Hof" }, { auth: false }));
+      await step(app, ctx, "sign again → 409", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG, extraFields: { paymentTermIdx: 1 } }, { auth: false }));
+      await step(app, ctx, "status", send(app, "GET", "/api/signing/status/T-SZ-1"));
+      await step(app, ctx, "page (customer)", send(app, "GET", `/sign/${tok}`, undefined, { auth: false }));
+      await step(app, ctx, "page (rep, cookie)", send(app, "GET", `/sign/${tok}`, undefined, { auth: false, cookie: true }));
+    });
+    // sanity: the flow really ran (equal failures on both sides must not pass)
+    const at = (name: string) => v.log.find((l: any) => l.step === name);
+    expect(at("create").res.status).toBe(201);
+    expect(at("create").mails).toHaveLength(1);
+    expect(at("pdf").res.type).toBe("application/pdf");
+    expect(at("html").res.type).toBe("text/html");
+    expect(at("no payment term").res.status).toBe(400);
+    expect(at("sign").res.body).toMatchObject({ ok: true, status: "completed", completed: true });
+    const done = at("sign");
+    expect(done.mails).toHaveLength(1);
+    expect(done.mails[0].envelope.to).toContain("buero@test.local"); // office bcc
+    expect(done.mails[0].attachments.map((a: any) => a.filename)).toContain("angebot_T-SZ-1.pdf");
+    expect(done.calls.map((c: any) => c.method)).toEqual(expect.arrayContaining(["crm.timeline.comment.add", "crm.item.update"]));
+    expect(at("page (rep, cookie)").res.body).toContain('data-internal-user="true"');
+    expect(at("page (customer)").res.body).toContain('data-internal-user="false"');
+  }, 120000);
+
+  it("Kassenkunde: Vollmacht/Abtretung required fields, field carry-over, completion with Eigenanteil stage move", async () => {
+    const v = await scenario("T-KK-1", () => {}, async (app, ctx) => {
+      const p = JSON.parse(JSON.stringify(KASSE));
+      p.Kundendaten.kk_versichertennr = ""; // forces the required-field rule
+      const r = await step(app, ctx, "create", create(app, { payload: p, offerNumber: "T-KK-1", dealId: "9002", sendEmail: false, via: "post" }));
+      const tok = r.body.token;
+      await step(app, ctx, "vollmacht html", send(app, "GET", `/api/signing/${tok}/documents/vollmacht/html`, undefined, { auth: false }));
+      await step(app, ctx, "vollmacht pdf", send(app, "GET", `/api/signing/${tok}/documents/vollmacht/pdf`, undefined, { auth: false }));
+      await step(app, ctx, "vollmacht missing KVNR", send(app, "POST", `/api/signing/${tok}/documents/vollmacht`, { signatureImage: PNG }, { auth: false }));
+      await step(app, ctx, "vollmacht with edits", send(app, "POST", `/api/signing/${tok}/documents/vollmacht`, { signatureImage: PNG, editedFields: { kk_versichertennr: "K123456789", phone: "0170 111", kassenkundeName: "AOK Bayern", geburtsdatum: "01.02.1940" } }, { auth: false }));
+      await step(app, ctx, "abtretung (carried fields)", send(app, "POST", `/api/signing/${tok}/documents/abtretung`, { signatureImage: PNG, editedFields: { pflegegrad: "3", kk_pflegegradSeit: "2024", kk_krankenkasseAdresse: "Postfach 1, Hof" } }, { auth: false }));
+      await step(app, ctx, "angebot → completed", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG, extraFields: { paymentTermIdx: 0 } }, { auth: false }));
+      await step(app, ctx, "signed PDFs for post", send(app, "GET", "/api/signing/status/T-KK-1/signed"));
+      await step(app, ctx, "admin list", send(app, "GET", "/admin/api/signing?q=T-KK"));
+      await step(app, ctx, "admin pdf (signed)", send(app, "GET", `/admin/api/signing/${tok}/documents/abtretung/pdf`));
+    });
+    expect(v.db[0].status).toBe("completed");
+    expect(v.db[0].payloadSnapshot.Kundendaten.kk_versichertennr).toBe("K123456789");
+  }, 120000);
+
+  it("reuse rules: unchanged → same link; changed after a signature → 409 confirm, force → new link; expired → 410; admin send-bitrix", async () => {
+    await scenario("T-RE-1", () => {}, async (app, ctx) => {
+      const p = JSON.parse(JSON.stringify(KASSE));
+      const r = await step(app, ctx, "create", create(app, { payload: p, offerNumber: "T-RE-1", dealId: "9001" }));
+      const tok = r.body.token;
+      await step(app, ctx, "unchanged → reused", create(app, { payload: JSON.parse(JSON.stringify(KASSE)), offerNumber: "T-RE-1", dealId: "9001", via: "post" }));
+      await step(app, ctx, "sign vollmacht", send(app, "POST", `/api/signing/${tok}/documents/vollmacht`, { signatureImage: PNG, editedFields: { phone: "0170 2" } }, { auth: false }));
+      await step(app, ctx, "admin send-bitrix (partial)", send(app, "POST", `/admin/api/signing/${tok}/send-bitrix`, {}));
+      const changed = JSON.parse(JSON.stringify(KASSE)); changed.Kundendaten.city = "Rehau";
+      await step(app, ctx, "changed → 409", create(app, { payload: changed, offerNumber: "T-RE-1", dealId: "9001" }));
+      const n = await step(app, ctx, "force → new", create(app, { payload: changed, offerNumber: "T-RE-1", dealId: "9001", force: true }));
+      await db().collection("signingrequests").updateOne({ token: n.body.token }, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+      await step(app, ctx, "expired → 410", send(app, "GET", `/api/signing/${n.body.token}`, undefined, { auth: false }));
+      await step(app, ctx, "unknown token → 404", send(app, "GET", "/api/signing/doesnotexist", undefined, { auth: false }));
+      await step(app, ctx, "no payload → 400", create(app, {}));
+      await step(app, ctx, "status needs login", send(app, "GET", "/api/signing/status/T-RE-1", undefined, { auth: false }));
+    });
+  }, 120000);
+
+  it("two persons: partner documents, labels, completion files each person's PDFs on their own contact", async () => {
+    await scenario("T-2P-1", () => {}, async (app, ctx) => {
+      const r = await step(app, ctx, "create", create(app, { payload: TWO, offerNumber: "T-2P-1", dealId: "9001" }));
+      const tok = r.body.token;
+      const open = await step(app, ctx, "open", send(app, "GET", `/api/signing/${tok}`, undefined, { auth: false }));
+      const fill = { kk_versichertennr: "K1", kassenkundeName: "AOK", geburtsdatum: "01.01.1940", phone: "0170", pflegegrad: "2", kk_pflegegradSeit: "2023", kk_krankenkasseAdresse: "Hof", street: "Weg 1", postalCode: "95028", city: "Hof", firstName: "A", lastName: "B" };
+      for (const d of open.body.documents) {
+        const body = d.key === "angebot" ? { signatureImage: PNG, extraFields: { paymentTermIdx: 0 } } : { signatureImage: PNG, editedFields: d.key.endsWith("_p2") ? { ...fill, firstName: "P", lastName: "Zwei" } : fill };
+        await step(app, ctx, `sign ${d.key}`, send(app, "POST", `/api/signing/${tok}/documents/${d.key}`, body, { auth: false }));
+      }
+    });
+  }, 120000);
+
+  it("two persons, ambiguous partner contact → flagged deal note instead of filing", async () => {
+    await scenario("T-2P-2", () => {}, async (app, ctx) => {
+      const p = JSON.parse(JSON.stringify(TWO)); p.Kundendaten.partnerLastName = "Mehrfach";
+      const r = await step(app, ctx, "create", create(app, { payload: p, offerNumber: "T-2P-2", dealId: "9001" }));
+      const tok = r.body.token;
+      const fill = { kk_versichertennr: "K1", kassenkundeName: "AOK", geburtsdatum: "01.01.1940", phone: "0170", pflegegrad: "2", kk_pflegegradSeit: "2023", kk_krankenkasseAdresse: "Hof", street: "Weg 1", postalCode: "95028", city: "Hof", firstName: "A", lastName: "B" };
+      for (const d of r.body.documents as string[]) {
+        const body = d === "angebot" ? { signatureImage: PNG, extraFields: { paymentTermIdx: 0 } } : { signatureImage: PNG, editedFields: d.endsWith("_p2") ? { ...fill, firstName: "P", lastName: "Mehrfach" } : fill };
+        await step(app, ctx, `sign ${d}`, send(app, "POST", `/api/signing/${tok}/documents/${d}`, body, { auth: false }));
+      }
+    });
+  }, 120000);
+
+  it.each([["Kassenkunde"], ["Selbstzahler"]])("AH %s: Zusatzblatt (+ Abtretung §45b), Bevollmächtigte/r rule, AH stage", async (payer) => {
+    const no = `T-AH-${payer}`;
+    await scenario(no, () => {}, async (app, ctx) => {
+      const r = await step(app, ctx, "create", create(app, { payload: ahBy(payer), offerNumber: no, offerType: "ah", dealId: "9003", sendEmail: true }));
+      const tok = r.body.token;
+      await step(app, ctx, "html angebot (AH)", send(app, "GET", `/api/signing/${tok}/documents/angebot/html`, undefined, { auth: false }));
+      await step(app, ctx, "html zusatzblatt", send(app, "GET", `/api/signing/${tok}/documents/zusatzblatt/html`, undefined, { auth: false }));
+      await step(app, ctx, "bevollmächtigte/r without signature", send(app, "POST", `/api/signing/${tok}/documents/zusatzblatt`, { signatureImage: PNG, editedFields: { bevollmaechtigterName: "Tochter" } }, { auth: false }));
+      const fill = { kk_versichertennr: "K1", kassenkundeName: "AOK", geburtsdatum: "01.01.1940", phone: "0170", pflegegrad: "2", kk_pflegegradSeit: "2023", kk_krankenkasseAdresse: "Hof", street: "Weg 1", postalCode: "95028", city: "Hof", firstName: "A", lastName: "B" };
+      for (const d of r.body.documents as string[]) {
+        const body = d === "zusatzblatt" ? { signatureImage: PNG, editedFields: { bevollmaechtigterName: "Tochter" }, extraFields: { bevollmaechtigterSignature: PNG } }
+          : d === "abtretung_ah" ? { signatureImage: PNG, editedFields: fill } : { signatureImage: PNG };
+        await step(app, ctx, `sign ${d}`, send(app, "POST", `/api/signing/${tok}/documents/${d}`, body, { auth: false }));
+      }
+    });
+  }, 120000);
 });

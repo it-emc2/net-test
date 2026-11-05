@@ -26,14 +26,17 @@ import { registerEmail } from "./email.js";
 import { registerPost } from "./post.js";
 import { registerRouting, registerTodaysCustomers } from "./routing.js";
 import { registerMagic } from "./magic.js";
+import { registerSigning } from "./signing.js";
+import { UNAVAILABLE_SIGNING_RENDERER, type SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
 import { todaysCustomers } from "../integrations/todays-customers.js";
 import { Onlinebrief24 } from "../integrations/onlinebrief24.js";
-import { UNAVAILABLE_DOCUMENTS, UNAVAILABLE_SIGNING, type OfferDocuments, type SigningPort } from "../email/ports.js";
+import { UNAVAILABLE_DOCUMENTS, type OfferDocuments, type SigningPort } from "../email/ports.js";
 
 /** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
 const LEGACY_ASSETS = fileURLToPath(new URL("../../../../../src/public/assets", import.meta.url));
+const LEGACY_SIGN_PAGE = fileURLToPath(new URL("../../../../../src/public/signpage/index.html", import.meta.url));
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -47,6 +50,8 @@ export interface ApiDeps {
   cfg: Cfg; businessConfig?: BusinessConfig; bitrix?: BitrixClient;
   /** test seams: documents (phase 5), signing (4g), mail TLS for the local test server */
   documents?: OfferDocuments; signing?: SigningPort; mailTls?: MailConfig["tls"];
+  /** signing document rendering (phase 5); default: unavailable */
+  signingRenderer?: SigningRenderer;
 }
 
 export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
@@ -157,15 +162,31 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   await registerBitrixRead(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
+  const signingSvc = await registerSigning(app, {
+    deals, renderer: deps.signingRenderer ?? UNAVAILABLE_SIGNING_RENDERER,
+    mailer: new Mailer({
+      smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_PORT || 587, secure: cfg.SMTP_SECURE === "true", requirePass: false,
+      smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS, replyTo: cfg.SMTP_REPLY_TO,
+      ...(deps.mailTls ? { tls: deps.mailTls } : {}),
+    }),
+    officeEmail: cfg.SIGNING_OFFICE_EMAIL, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, signPageFile: LEGACY_SIGN_PAGE,
+    publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "", authSecret: cfg.AUTH_SECRET, log: app.log,
+  });
+  const ownSigning: SigningPort = {
+    createRequest: async (a) => {
+      const r: any = await signingSvc.createRequest(a);
+      return { link: r.link };
+    },
+  };
   await registerEmail(app, {
     mailer: new Mailer({
       smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_SEND_PORT, smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS,
       replyTo: cfg.SMTP_REPLY_TO, imapHost: cfg.IMAP_HOST, imapPort: cfg.IMAP_PORT, imapPass: cfg.IMAP_PASS, imapSentFolder: cfg.IMAP_SENT_FOLDER,
       ...(deps.mailTls ? { tls: deps.mailTls } : {}),
     }),
-    deals, documents: deps.documents ?? UNAVAILABLE_DOCUMENTS, signing: deps.signing ?? UNAVAILABLE_SIGNING, businessConfig,
+    deals, documents: deps.documents ?? UNAVAILABLE_DOCUMENTS, signing: deps.signing ?? ownSigning, businessConfig,
     assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
-    smtpTestPort: cfg.SMTP_PORT, smtpHost: cfg.SMTP_HOST,
+    smtpTestPort: cfg.SMTP_PORT || 465, smtpHost: cfg.SMTP_HOST,
   });
   const num = (v?: string) => parseFloat(v ?? "") || null; // legacy parseFloat(env) || null
   await registerRouting(app, {

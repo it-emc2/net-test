@@ -11,6 +11,10 @@ export interface MailConfig {
   smtpHost?: string | undefined; smtpPort?: number; smtpEmail?: string | undefined; smtpUser?: string | undefined;
   smtpPass?: string | undefined; replyTo?: string | undefined;
   imapHost?: string | undefined; imapPort?: number; imapPass?: string | undefined; imapSentFolder?: string | undefined;
+  /** signing mails: legacy SMTP_SECURE; default false */
+  secure?: boolean;
+  /** offer mail requires SMTP_PASS up front; the signing mail (legacy) does not */
+  requirePass?: boolean;
   /** tests only: accept the local test server's self-signed certificate */
   tls?: ConnectionOptions;
 }
@@ -21,13 +25,15 @@ export class Mailer {
   /** Authenticated sender — SMTP_EMAIL or SMTP_USER (legacy smtpFrom). */
   get from() { return this.c.smtpEmail || this.c.smtpUser || ""; }
   get replyTo() { return this.c.replyTo || this.from; }
+  /** legacy signing buildTransport(): mail is optional, only when host + sender exist */
+  get configured() { return !!this.c.smtpHost && !!this.from; }
 
   private transport(): Transporter {
     if (!this.c.smtpHost) throw new Error("Missing env var SMTP_HOST");
     if (!this.from) throw new Error("Missing env var SMTP_EMAIL or SMTP_USER");
-    if (!this.c.smtpPass) throw new Error("Missing env var SMTP_PASS");
+    if (!this.c.smtpPass && this.c.requirePass !== false) throw new Error("Missing env var SMTP_PASS");
     return nodemailer.createTransport({
-      host: this.c.smtpHost, port: this.c.smtpPort ?? 587, secure: false, requireTLS: true, family: 4,
+      host: this.c.smtpHost, port: this.c.smtpPort ?? 587, secure: this.c.secure ?? false, requireTLS: true, family: 4,
       auth: { user: this.from, pass: this.c.smtpPass },
       connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000,
       ...(this.c.tls ? { tls: this.c.tls } : {}),

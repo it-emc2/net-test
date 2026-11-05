@@ -52,3 +52,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-05 | phase 4 (group 4d) | Letters by post (onlinebrief24) identical incl. outgoing request, A4 fitting, lock, rejection, Bitrix; v2 1,224 tests | 4e: routing/planning/todayscustomers |
 | 2026-11-05 | phase 4 (group 4e) | Distance suggestion, planning proxy (incl. live stream), today's customers identical incl. outgoing requests; v2 1,234 tests | 4f: magic API |
 | 2026-11-05 | phase 4 (group 4f) | Magic API (shower product search) identical incl. login, token cache, outgoing requests, error detail; v2 1,250 tests | 4g: signing; sync main (#313–#315) |
+| 2026-11-05 | phase 4 (group 4g) | Online signing identical (create/reuse, validation, carry-over, two-person filing, completion mail, Bitrix, stage, admin dashboard); send-offer uses v2 signing; v2 1,261 tests | remaining endpoints per BACKEND-INVENTORY, then phase 5 |

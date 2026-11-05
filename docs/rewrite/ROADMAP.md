@@ -52,7 +52,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
   - [x] 4d Letters by post (`/api/post/send`, `/config`, `/balance`): same onlinebrief24 request (auth in body, A4 fitting, attachments, spec), 24 h lock per deal, rejection handling, Bitrix link + timeline + note — identical (OB24 stub) — 2026-11-05
   - [x] 4e Distance suggestion (`/api/routing/*`: same geocoder/router order, fallbacks, rounding), planning proxy (`/api/planning/current`, SSE `/stream`), today's customers (`/api/bitrix/kundendaten`, `/api/calendar/today`) — identical incl. outgoing requests (public services redirected to the stub) — 2026-11-05
   - [x] 4f Magic API (`/api/magic/health|products|search`: same login, token cache, upstream paths, response shapes, error detail) — identical incl. outgoing requests — 2026-11-05
-  - [ ] 4g signing
+  - [x] 4g Online signing (`/api/signing/*`, `/sign/:token`, admin dashboard `/admin/api/signing*`): create/reuse/force rules, payment-term + required-field + Bevollmächtigte/r checks, field carry-over, two-person filing on contacts, completion mail (office bcc) + Bitrix notes + stage move — identical incl. stored requests, outgoing calls and documents (fake HTML→PDF). Send-offer now uses v2's own signing. Document rendering = plug-in point for phase 5 — 2026-11-05
 - [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
 - [ ] Integrations behind interfaces with test doubles (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, vigor).
 - [ ] Fix security findings (see local `~/emc2-local/SECURITY-FINDINGS.md`) by design: case-insensitive allowlist, no asset bypass, fail-closed API key, admin-only catalog writes, escaped regex.
@@ -60,7 +60,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 5 — Documents
 - [ ] docxtemplater kept; DOCX golden master green.
 - [ ] Gotenberg container replaces soffice/Puppeteer/Adobe; PDF comparison per type (ADR 008).
-- [ ] Single offer rendering source for DOCX + signing HTML.
+- [ ] Single offer rendering source for DOCX + signing HTML (fills `SigningRenderer`, `v2/apps/server/src/signing/documents.ts`; until then signing documents are unavailable in v2 production).
 - [ ] Wording rules (`offerOverrides.textReplacements`) applied once on the finished output (rendered DOCX via `lib/docxTextReplace.js`, signing HTML), not on render data — main #314, 2026-11-05.
 
 ## Phase 6 — Frontend port + new flows

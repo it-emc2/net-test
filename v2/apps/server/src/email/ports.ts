@@ -1,7 +1,7 @@
 // Plug-in points of the offer email flow that belong to other phases:
 //  - OfferDocuments → Phase 5 (DOCX/PDF rendering, product image PDF)
-//  - SigningPort    → Phase 4g (online signing requests)
-// Until those land, production uses the "unavailable" implementations below (the send fails
+//  - SigningPort    → implemented by v2's own signing service since 4g (routes/signing.ts)
+// Until phase 5 lands, production uses UNAVAILABLE_DOCUMENTS below (the send fails
 // cleanly with 500 "Send failed", nothing is sent, the deal lock is released). Tests inject
 // implementations (contract test: bridges to the legacy code, so only the email flow is compared).
 

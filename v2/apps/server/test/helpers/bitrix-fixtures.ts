@@ -46,6 +46,10 @@ export const BITRIX_HANDLERS: Record<string, Handler> = {
   "plan:/api/planning/current": () => ({ ok: true, days: [{ date: "2026-11-05", entries: [{ dealId: "9001", startMinutes: 600 }] }] }),
   "plan:/api/planning/stream": () => ({ __sse: ["event: plan\ndata: {\"v\":1}\n\n", "event: plan\ndata: {\"v\":2}\n\n"] }),
   // geocoders/routers: the display name echoes the query, so the postcode/city check passes
+  // ---- signing: partner contacts (two-person offers). Last name "Mehrfach" → two matches (ambiguous). ----
+  "crm.contact.list": (q) => [...q.values()].some((v) => v === "Mehrfach") ? { result: [{ ID: "501" }, { ID: "502" }] } : { result: [] },
+  "crm.contact.add": () => ({ result: 777 }),
+  "crm.deal.contact.add": () => ({ result: true }),
   // ---- Magic API (Hassmann product search). Every call except login must carry the token. ----
   "ext:magic/api/auth/login": (_q, _app, raw) => JSON.parse(raw || "{}").password === "magic-test-pass"
     ? { token: "magic-test-token" } : { __status: 401, body: { message: "bad login" } },

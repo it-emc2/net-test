@@ -62,7 +62,12 @@ const EnvSchema = z.object({
   PLANNING_API_KEY: z.string().optional(),
   /** Offer email (legacy names). Sending uses SMTP_SEND_PORT (legacy hard-coded 587). */
   SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().default(465), // only used by /api/email/smtp-test (legacy)
+  /** Legacy SMTP_PORT: smtp-test uses `|| 465`, the signing mails `|| 587` (so: no default here). */
+  SMTP_PORT: z.string().optional().transform((v) => (v ? Number(v) : undefined)),
+  /** Signing mails only (legacy: secure = SMTP_SECURE === "true"). */
+  SMTP_SECURE: z.string().optional(),
+  /** Bcc of the signing completion mail (legacy SIGNING_OFFICE_EMAIL). */
+  SIGNING_OFFICE_EMAIL: z.string().optional(),
   SMTP_SEND_PORT: z.coerce.number().int().default(587),
   SMTP_EMAIL: z.string().optional(),
   SMTP_USER: z.string().optional(),

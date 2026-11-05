@@ -83,3 +83,8 @@
 
 ## Email contract test (group 4c)
 Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, smtp-server); legacy's hard-coded port 587 is redirected by a test-only preload (`legacy-smtp-port-shim.mjs`). LibreOffice is replaced by a fake `soffice` on `PATH` (fixed PDF). Compared: parsed mail (addresses, subject, text, HTML, every attachment's name/type/cid/SHA-256), all outgoing Bitrix calls, EmailLog / EmailSend / UserActionLog rows, API response. Signing tokens and the timestamp line are normalised.
+
+## Signing contract test (group 4g)
+- Legacy prints signing PDFs with Puppeteer. In the spawned legacy app, `OC_TEST_FAKE_PUPPETEER=1` (preload `legacy-smtp-port-shim.mjs`) resolves `puppeteer` to `test/helpers/fake-puppeteer.mjs`: no browser starts, the "PDF" is a hash of the printed HTML with dates/tokens normalised (`fake-pdf.mjs`). v2's test renderer uses the same function, so equal bytes = equal document content.
+- Each scenario runs fully on legacy, then (signing requests cleared) on v2; every step's response, Bitrix calls and mails, and the stored `signingrequests` documents must match. Sanity asserts make sure the flow really completed.
+- Scenarios: Selbstzahler, Kassenkunde (required fields, carry-over, postal download, admin list/PDF), reuse/force/expiry/admin send-bitrix, two persons (partner contact created / ambiguous), AH Kasse + Selbstzahler.
