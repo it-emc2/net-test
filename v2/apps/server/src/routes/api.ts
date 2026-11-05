@@ -25,6 +25,8 @@ import { Mailer, type MailConfig } from "../integrations/mail.js";
 import { registerEmail } from "./email.js";
 import { registerPost } from "./post.js";
 import { registerRouting, registerTodaysCustomers } from "./routing.js";
+import { registerMagic } from "./magic.js";
+import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
 import { todaysCustomers } from "../integrations/todays-customers.js";
 import { Onlinebrief24 } from "../integrations/onlinebrief24.js";
@@ -174,6 +176,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     planning: new PlanningClient({ baseUrl: cfg.PLANNING_API_BASE_URL, apiKey: cfg.PLANNING_API_KEY }),
   });
   await registerTodaysCustomers(app, todaysCustomers({ baseUrl: cfg.BITRIX_WEBHOOK_BASE }));
+  await registerMagic(app, new MagicApi({ baseUrl: cfg.EXTERNAL_API_BASE, user: cfg.EXTERNAL_API_USER, password: cfg.EXTERNAL_API_PASSWORD }));
   await registerPost(app, {
     ob24: new Onlinebrief24({ baseUrl: cfg.OB24_BASE_URL, apiKey: cfg.OB24_API_KEY, apiSecret: cfg.OB24_API_SECRET, mode: cfg.OB24_MODE, allowProductionDefault: cfg.NODE_ENV === "production" }),
     deals, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS,

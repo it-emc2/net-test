@@ -51,3 +51,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-05 | phase 4 (group 4c) | Offer email identical (mail, attachments, lock, logs, Bitrix) via local SMTP sink; test env pins all external endpoints; found local Node 25.9 UTF-8 decode corruption (CI = truth); v2 1,209 tests | 4d: OB24 (post) |
 | 2026-11-05 | phase 4 (group 4d) | Letters by post (onlinebrief24) identical incl. outgoing request, A4 fitting, lock, rejection, Bitrix; v2 1,224 tests | 4e: routing/planning/todayscustomers |
 | 2026-11-05 | phase 4 (group 4e) | Distance suggestion, planning proxy (incl. live stream), today's customers identical incl. outgoing requests; v2 1,234 tests | 4f: magic API |
+| 2026-11-05 | phase 4 (group 4f) | Magic API (shower product search) identical incl. login, token cache, outgoing requests, error detail; v2 1,250 tests | 4g: signing; sync main (#313–#315) |

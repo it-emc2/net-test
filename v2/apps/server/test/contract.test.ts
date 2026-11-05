@@ -60,6 +60,8 @@ let documentsBridge: OfferDocuments;
 let ORIGINAL_CWD = "";
 let signingBridge: SigningPort;
 
+const MAGIC = { EXTERNAL_API_USER: "magic@test.local", EXTERNAL_API_PASSWORD: "magic-test-pass" };
+
 async function waitFor(url: string, ms = 60000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -104,7 +106,7 @@ beforeAll(async () => {
         "https://api.openrouteservice.org": bx.extBase("legacy", "ors"), "https://router.project-osrm.org": bx.extBase("legacy", "osrm"),
       }),
       OC_TEST_SMTP_PORT: String(smtp.port), OB24_BASE_URL: bx.ob24Base("legacy"), ...OB24, NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
-      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, ORS_API_KEY: "ors-test-key",
+      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: bx.extBase("legacy", "magic"), ...MAGIC, ORS_API_KEY: "ors-test-key",
     },
     stdio: "ignore",
   });
@@ -115,7 +117,7 @@ beforeAll(async () => {
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
     BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
-    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key",
+    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key", EXTERNAL_API_BASE: bx.extBase("v2", "magic"), ...MAGIC,
     GEO_PHOTON_URL: bx.extBase("v2", "photon"), GEO_NOMINATIM_URL: bx.extBase("v2", "nominatim"), GEO_ORS_URL: bx.extBase("v2", "ors"), ROUTE_OSRM_URL: bx.extBase("v2", "osrm"),
     SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
@@ -1031,4 +1033,49 @@ describe("contract: routing / planning / today's customers — same responses, s
     await run("GET", "/api/bitrix/kundendaten?stageId=C72:LEER");
     await run("POST", "/api/calendar/today", {});
   }, 60000);
+});
+
+describe("contract: Magic API (Hassmann product search) — same responses, same outgoing requests", () => {
+  const run = async (method: "GET" | "POST", url: string, body?: unknown) => {
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      bx.take(app);
+      const res = await callApp(app, method, url, body);
+      out[app] = { res, calls: bx.take(app) };
+    }
+    const { legacy: l, v2: v } = out as Record<string, { res: { status: number; body: any }; calls: any[] }>;
+    expect(v!.res.status, `${url} ${JSON.stringify(v!.res.body).slice(0, 300)}`).toBe(l!.res.status);
+    if (l!.res.status >= 400) {
+      expect(v!.res.body.error.message, url).toBe(l!.res.body.error);
+      expect(v!.res.body.detail, url).toEqual(l!.res.body.detail);
+    } else expect(v!.res.body, url).toEqual(l!.res.body);
+    expect(v!.calls, url).toEqual(l!.calls);
+    return v!;
+  };
+
+  it("first call logs in once (same credentials body), then uses the cached token", async () => {
+    const v = await run("GET", "/api/magic/health");
+    expect(v.calls.map((c) => c.method)).toEqual(["ext:magic/api/auth/login", "ext:magic/api/health"]);
+    const again = await run("GET", "/api/magic/health");
+    expect(again.calls.map((c) => c.method)).toEqual(["ext:magic/api/health"]);
+  });
+
+  it.each([
+    ["plain", "/api/magic/products"],
+    ["query passed through (repeated keys → a[]=)", "/api/magic/products?brand=a&brand=b&q=Glas%20T%C3%BCr"],
+    ["upstream error with body → detail = body", "/api/magic/products?fail=1"],
+    ["upstream error without body → detail = error text", "/api/magic/products?fail=empty"],
+  ])("products: %s", async (_n, url) => { await run("GET", url); });
+
+  it.each([
+    ["corner (array → results)", { kind: "corner", payload: { width: 1200, depth: 900, priceRange: { min: 500, max: 2000 }, orientation: "LEFT", openingTypes: ["GLEITUR"] } }],
+    ["niche (results field)", { kind: "niche", payload: { width: 900 } }],
+    ["uform (object passed as is)", { kind: "uform", payload: {} }],
+    ["walkin upstream 502 → 500 with detail", { kind: "walkin", payload: { width: 1400 } }],
+    ["missing kind → 400", { payload: {} }],
+    ["kind not a string → 400", { kind: 5, payload: {} }],
+    ["unknown kind → 400", { kind: "bathtub", payload: {} }],
+    ["missing payload → 400", { kind: "corner" }],
+    ["payload not an object → 400", { kind: "corner", payload: "x" }],
+  ])("search: %s", async (_n, body) => { await run("POST", "/api/magic/search", body); });
 });

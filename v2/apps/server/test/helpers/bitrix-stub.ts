@@ -5,7 +5,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
 export interface RecordedCall { http: string; method: string; params: string }
-export type Handler = (params: URLSearchParams, app: string, rawBody?: string) => unknown;
+export type Handler = (params: URLSearchParams, app: string, rawBody?: string, headers?: Record<string, string | string[] | undefined>) => unknown;
 
 export class BitrixStub {
   private server?: Server;
@@ -32,7 +32,7 @@ export class BitrixStub {
         (this.calls[app] ??= []).push({ http: req.method ?? "", method: `ext:${service}${path}`, params: raw });
         const h = this.handlers[`ext:${service}${path}`];
         if (!h) { res.socket?.destroy(); return; }
-        const out: any = h(new URLSearchParams(query ?? ""), app, raw);
+        const out: any = h(new URLSearchParams(query ?? ""), app, raw, req.headers);
         res.statusCode = out?.__status ?? 200;
         res.setHeader("content-type", "application/json");
         res.end(JSON.stringify(out?.__status ? out.body : out));

@@ -88,6 +88,10 @@ const EnvSchema = z.object({
   GEO_NOMINATIM_URL: z.string().url().default("https://nominatim.openstreetmap.org"),
   GEO_ORS_URL: z.string().url().default("https://api.openrouteservice.org"),
   ROUTE_OSRM_URL: z.string().url().default("https://router.project-osrm.org"),
+  /** Magic API (shower product search, read-only). Login credentials only, no production fallback. */
+  EXTERNAL_API_BASE: z.string().optional().transform((v) => v || undefined),
+  EXTERNAL_API_USER: z.string().optional(),
+  EXTERNAL_API_PASSWORD: z.string().optional(),
   /** Static assets (email presets, signature picture). Default: the legacy app's assets. */
   ASSETS_DIR: z.string().optional(),
 });

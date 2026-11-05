@@ -46,6 +46,16 @@ export const BITRIX_HANDLERS: Record<string, Handler> = {
   "plan:/api/planning/current": () => ({ ok: true, days: [{ date: "2026-11-05", entries: [{ dealId: "9001", startMinutes: 600 }] }] }),
   "plan:/api/planning/stream": () => ({ __sse: ["event: plan\ndata: {\"v\":1}\n\n", "event: plan\ndata: {\"v\":2}\n\n"] }),
   // geocoders/routers: the display name echoes the query, so the postcode/city check passes
+  // ---- Magic API (Hassmann product search). Every call except login must carry the token. ----
+  "ext:magic/api/auth/login": (_q, _app, raw) => JSON.parse(raw || "{}").password === "magic-test-pass"
+    ? { token: "magic-test-token" } : { __status: 401, body: { message: "bad login" } },
+  "ext:magic/api/health": (_q, _a, _r, h) => magicAuth(h) ?? { status: "ok", version: "test" },
+  "ext:magic/api/products": (q, _a, _r, h) => magicAuth(h) ?? (q.get("fail") === "empty" ? { __status: 500, body: "" }
+    : q.get("fail") ? { __status: 503, body: { message: "products down" } } : { items: [{ id: 1, name: "Duschtür" }], query: [...q.entries()] }),
+  "ext:magic/api/eckeinstieg-best-all/search": (_q, _a, raw, h) => magicAuth(h) ?? [{ id: "E1", width: JSON.parse(raw || "{}").width }],
+  "ext:magic/api/niche-best-all/search": (_q, _a, _r, h) => magicAuth(h) ?? { results: [{ id: "N1" }], total: 1 },
+  "ext:magic/api/uform-gleitur-all/search": (_q, _a, _r, h) => magicAuth(h) ?? { items: [{ id: "U1" }] },
+  "ext:magic/api/walkin-best-all/search": (_q, _a, _r, h) => magicAuth(h) ?? { __status: 502, body: { message: "walkin search down" } },
   "ext:photon/api/": (q) => {
     const text = q.get("q") ?? "";
     if (/Nirgendwo/.test(text)) return { features: [] };
@@ -75,3 +85,7 @@ export const BITRIX_HANDLERS: Record<string, Handler> = {
       ] }
     : { result: [{ ID: "3", SUBJECT: "Rückruf", START_TIME: todayAt(8, 15), END_TIME: null, OWNER_ID: "", STATUS: "1", TYPE_ID: "1" }] },
 };
+
+function magicAuth(h?: Record<string, string | string[] | undefined>) {
+  return h?.authorization === "Bearer magic-test-token" ? undefined : { __status: 401, body: { message: "missing token" } };
+}
