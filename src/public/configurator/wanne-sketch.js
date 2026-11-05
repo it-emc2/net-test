@@ -98,7 +98,11 @@ export function wanneSketchSVG(spec, { open = 0, small = false } = {}) {
       // Iris 24 + 60 cm)
       const [F, LW] = sc.kind === "falt" ? [53, 44] : [24, 60];
       pane([hx, zf], [hx + dir * F, zf], H, y1, "g");
-      swing(hx + dir * F, zf, dir, LW, o * 80, H, y1, "g gd");
+      // Iris (klappbar + COMBY): swings INTO the tub, up to 100° (Novellini
+      // manual 60092IRI, plan view). Steinkamp Drehfalttür: direction not
+      // stated in its manual, drawn swinging out.
+      const iris = sc.kind !== "falt";
+      swing(hx + dir * F, zf, dir, LW, o * (iris ? 95 : 80), H, y1, "g gd", iris);
       if (sc.panel) {
         // Iris COMBY: fixed side panel across the open tub end, where a wall is
         // missing; the front part is hinged on it
