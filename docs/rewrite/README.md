@@ -47,3 +47,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-05 | phase 4 (group 3) | Customers, users, admin identical to legacy; legacy bug B-1 (customers without number → 500) found; v2 1,171 tests | Group 4: integrations behind interfaces |
 | 2026-11-05 | B-1 fix | Owner OK: customers without number saved correctly in v2 (ADR 016), migration 002 (dry-run default) | Group 4 |
 | 2026-11-05 | phase 4 (group 4a) | Bitrix client (throttle/retry/log, no hard-coded token) + 7 read/log routes identical incl. outgoing calls (recording stub); non-prod refuses real Bitrix (ADR 017); v2 1,192 tests | 4b: Bitrix writes |
+| 2026-11-05 | phase 4 (group 4b) | Bitrix writes (timeline, uploads, stage moves incl. AH fields, planner notify, admin retry) identical incl. outgoing calls; AH deal fields = legacy on 572 cases; v2 1,201 tests | 4c: SMTP/IMAP + email send |

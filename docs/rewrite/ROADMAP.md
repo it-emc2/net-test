@@ -47,7 +47,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] Group 3: customers (save/search/detail), /api/users, admin (login, config read/save/reset/public, users + signatures, Bitrix/activity logs) — identical to legacy (contract test) — 2026-11-05; legacy bugs → `FINDINGS-BACKEND.md`
 - [ ] Group 4: integrations behind interfaces (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, signing) — ADR 017
   - [x] 4a Bitrix client + read routes (contact, contact deals, deal, activities/today, calendar/week, log-action, log-dialog-event) — same responses + same outgoing calls (recording stub) — 2026-11-05
-  - [ ] 4b Bitrix writes (timeline comment, uploads, stage moves incl. AH fields, offer link, partner contact, signing update, bitrix-log retry)
+  - [x] 4b Bitrix writes: timeline comment, uploads, move-ang-verschickt (BU + AH fields), move-zuteilen, move-besichtigung (+ planning notify), admin log retry — identical incl. outgoing calls; AH field numbers = legacy on 572 cases. Helpers for later groups ported: offer link, partner contact, signing update — 2026-11-05
   - [ ] 4c SMTP/IMAP + email send flow · 4d OB24 (post) · 4e routing/planning/todayscustomers · 4f magic API · 4g signing
 - [ ] Every remaining endpoint in `BACKEND-INVENTORY.md` ported or explicitly retired (ADR)
 - [ ] Integrations behind interfaces with test doubles (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, vigor).

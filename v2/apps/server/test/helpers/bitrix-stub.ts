@@ -15,10 +15,23 @@ export class BitrixStub {
   constructor(private readonly handlers: Record<string, Handler>) {}
 
   base(app: string) { return `http://127.0.0.1:${this.port}/rest/1/${app}`; }
+  /** Route-planning service base for <app>; calls are recorded as method "plan:<path>". */
+  planningBase(app: string) { return `http://127.0.0.1:${this.port}/plan/${app}`; }
   take(app: string) { const c = this.calls[app] ?? []; this.calls[app] = []; return c; }
 
   async start() {
     this.server = createServer(async (req, res) => {
+      const p = /^\/plan\/([^/]+)(\/[^?]*)$/.exec(req.url ?? "");
+      if (p) {
+        const [, app, path] = p as unknown as [string, string, string];
+        const raw = await body(req);
+        (this.calls[app] ??= []).push({ http: req.method ?? "", method: `plan:${path}`, params: raw });
+        const h = this.handlers[`plan:${path}`];
+        if (!h) { res.socket?.destroy(); return; }
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(h(new URLSearchParams(), app)));
+        return;
+      }
       const m = /^\/rest\/\d+\/([^/]+)\/([^/?]+)\.json(?:\?(.*))?$/.exec(req.url ?? "");
       if (!m) { res.socket?.destroy(); return; }
       const [, app, method, query] = m as unknown as [string, string, string, string | undefined];

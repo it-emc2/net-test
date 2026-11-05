@@ -76,7 +76,7 @@ beforeAll(async () => {
     env: {
       ...process.env, NODE_ENV: "test", PORT: String(LEGACY_PORT), MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB",
       VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: bx.base("legacy"), SMTP_HOST: "127.0.0.1",
-      SMTP_PORT: "9", PLANNING_API_BASE_URL: DEAD, EXTERNAL_API_BASE: DEAD, OB24_BASE_URL: DEAD, ORS_API_KEY: "",
+      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, OB24_BASE_URL: DEAD, ORS_API_KEY: "",
     },
     stdio: "ignore",
   });
@@ -86,7 +86,7 @@ beforeAll(async () => {
 
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
-    BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", // throttle itself: unit test (bitrix.test.ts)
+    BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), // throttle itself: unit test (bitrix.test.ts)
   });
   await connectDb(cfg, { info: () => {} });
   v2 = await buildApp(cfg, { register: (a) => registerApi(a, { cfg }) });
@@ -480,8 +480,7 @@ describe("contract: customers, users, admin (group 3)", () => {
 });
 
 // ---------------- group 4: Bitrix (outbound calls go to a recording stub) ----------------
-describe("contract: Bitrix read routes — same response AND same outgoing Bitrix calls", () => {
-  const same = async (method: "GET" | "POST", url: string, body?: unknown) => {
+const same = async (method: "GET" | "POST", url: string, body?: unknown) => {
     bx.take("legacy"); bx.take("v2");
     const r = await both(method, url, body);
     const calls = { legacy: bx.take("legacy"), v2: bx.take("v2") };
@@ -490,7 +489,9 @@ describe("contract: Bitrix read routes — same response AND same outgoing Bitri
     else expect(r.v2.body, url).toEqual(r.legacy.body);
     expect(calls.v2, url).toEqual(calls.legacy);
     return { ...r, calls: calls.v2 };
-  };
+};
+
+describe("contract: Bitrix read routes — same response AND same outgoing Bitrix calls", () => {
 
   it.each([
     "/api/bitrix/contact/101",          // address on the contact
@@ -556,4 +557,94 @@ describe("contract: Bitrix read routes — same response AND same outgoing Bitri
       expect(r.v2.status).toBe(400);
     }
   });
+});
+
+const callApp = async (app: "legacy" | "v2", method: string, url: string, body?: unknown) => {
+  const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (app === "legacy") {
+    const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  }
+  const r = await v2.inject({ method: method as any, url, headers, payload: body as any });
+  return { status: r.statusCode, body: r.json() };
+};
+
+describe("contract: Bitrix WRITE routes — same response AND same outgoing calls (stub, never real Bitrix)", () => {
+  const AH = JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8"))
+    .find((x: any) => Number(x.payload.Arbeitszeit?.ahTravelZone) > 0 && x.payload.ah.services.length > 1)?.payload
+    ?? JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8"))[0].payload;
+  const T = 30000;
+
+  it("timeline/comment: validation + comment with attachments", async () => {
+    for (const body of [{}, { entityType: "deal" }, { entityType: "deal", entityId: 5 }, { entityType: "deal", entityId: "abc", comment: "x" }]) await same("POST", "/api/bitrix/timeline/comment", body);
+    const r = await same("POST", "/api/bitrix/timeline/comment", {
+      entityType: "deal", entityId: "9001", comment: "  Hallo  ", attachments: [{ filename: "a.pdf", base64: "QUJD" }, { filename: "", content: "x" }, { filename: "b.txt", content: "WFla" }],
+    });
+    expect(r.calls.map((c) => c.method)).toEqual(["crm.timeline.comment.add"]);
+  }, T);
+
+  it("deal upload: validation, append to multi-file field, read-back, timeline copy", async () => {
+    for (const [url, body] of [
+      ["/api/bitrix/deal/9010/upload/nope", { filename: "a", base64: "x" }],
+      ["/api/bitrix/deal/0/upload/kasse", { filename: "a", base64: "x" }],
+      ["/api/bitrix/deal/9010/upload/kasse", { filename: "a" }],
+      ["/api/bitrix/deal/9003/upload/vermieter", { filename: "a.pdf", base64: "QUJD" }],
+    ] as const) await same("POST", url, body);
+    const r = await same("POST", "/api/bitrix/deal/9010/upload/kasse", { filename: "Freigabe.pdf", base64: "data:application/pdf;base64,QUJD" });
+    expect(r.v2.body).toEqual({ ok: true, kept: true }); // stub returns 2 entries after; 1 with id before
+    expect(r.calls.map((c) => c.method)).toEqual(["crm.deal.get", "crm.item.update", "crm.deal.get", "crm.timeline.comment.add"]);
+  }, T);
+
+  it("move-ang-verschickt: BU fields, amount fallback/missing, AH fields (zone once), 404, Bitrix error + audit log", async () => {
+    await same("POST", "/api/bitrix/deal/9011/move-ang-verschickt", { opportunity: 5000.5, workDays: 2, offerType: "bu", offerNumber: " ANG-1 ", selfPayAmount: 0, invoiceCopy: "post", materialCodes: "WV-WW" });
+    await same("POST", "/api/bitrix/deal/9011/move-ang-verschickt", { offerType: "bwt", invoiceCopy: "nein", finalTotal: "12" }); // amount from deal
+    const missing = await same("POST", "/api/bitrix/deal/9010/move-ang-verschickt", { offerType: "bu" });
+    expect(missing.v2.status).toBe(400);
+    expect(missing.v2.body.missing).toEqual(missing.legacy.body.missing);
+    for (const id of ["9012", "9013"]) {
+      const r = await same("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, { offerType: "ah", payload: JSON.stringify(AH), opportunity: 99, invoiceCopy: "email" });
+      expect(r.calls.at(-1)!.params.includes("UF_CRM_1711019971"), id).toBe(id === "9012");
+    }
+    await same("POST", "/api/bitrix/deal/9012/move-ang-verschickt", { offerType: "ah", payload: "{kaputt" });
+    await same("POST", "/api/bitrix/deal/9003/move-ang-verschickt", { opportunity: 1 });
+    const coll = mongoose.connection.db!.collection("useractionlogs");
+    await coll.deleteMany({ dealId: "9005" });
+    await same("POST", "/api/bitrix/deal/9005/move-ang-verschickt", { opportunity: 1, offerNumber: "N-9", offerType: "bu" });
+    await new Promise((r) => setTimeout(r, 300));
+    const logs = await coll.find({ dealId: "9005" }, { projection: { _id: 0, createdAt: 0, updatedAt: 0 } }).toArray();
+    expect(logs).toHaveLength(2);
+    expect(logs[1]).toEqual(logs[0]);
+    expect(logs[0]).toMatchObject({ event: "move_failed", message: "Access denied" });
+  }, 60000);
+
+  it("move-zuteilen / move-besichtigung (stage, comment, planner notified with the user's name)", async () => {
+    await same("POST", "/api/bitrix/deal/9001/move-zuteilen", {});
+    await same("POST", "/api/bitrix/deal/abc/move-zuteilen", {});
+    await same("POST", "/api/bitrix/deal/9001/move-besichtigung", {});
+    const r = await same("POST", "/api/bitrix/deal/9001/move-besichtigung", { comment: "Nicht erreicht", reason: "" });
+    expect(r.v2.body).toMatchObject({ ok: true, commentFailed: false, plannerSynced: true });
+    expect(r.calls.at(-1)).toEqual({ http: "POST", method: "plan:/api/planning/termin-not-held", params: JSON.stringify({ dealId: "9001", reason: "Nicht erreicht", by: "Contract" }) });
+  }, T);
+
+  it("admin retry of a logged Bitrix failure: success marks resolved; failure keeps it open", async () => {
+    const coll = mongoose.connection.db!.collection("bitrixlogs");
+    const ids: Record<string, { ok: string; bad: string }> = {};
+    for (const app of ["legacy", "v2"]) {
+      const ok = await coll.insertOne({ method: "crm.deal.get", message: "x", params: { id: "9001" }, httpMethod: "GET", resolved: false, resolvedAt: null });
+      const bad = await coll.insertOne({ method: "crm.deal.get", message: "x", params: { id: "9005" }, httpMethod: "GET", resolved: false, resolvedAt: null });
+      ids[app] = { ok: String(ok.insertedId), bad: String(bad.insertedId) };
+    }
+    const [lo, vo] = [await callApp("legacy", "POST", `/admin/api/bitrix-logs/${ids.legacy!.ok}/retry`), await callApp("v2", "POST", `/admin/api/bitrix-logs/${ids.v2!.ok}/retry`)];
+    expect(vo).toEqual(lo);
+    const [lb, vb] = [await callApp("legacy", "POST", `/admin/api/bitrix-logs/${ids.legacy!.bad}/retry`), await callApp("v2", "POST", `/admin/api/bitrix-logs/${ids.v2!.bad}/retry`)];
+    expect(vb.status).toBe(lb.status);
+    expect(vb.body.error.message).toBe(lb.body.error);
+    for (const app of ["legacy", "v2"]) {
+      expect((await coll.findOne({ _id: new mongoose.Types.ObjectId(ids[app]!.ok) }))!.resolved).toBe(true);
+      expect((await coll.findOne({ _id: new mongoose.Types.ObjectId(ids[app]!.bad) }))!.resolved).toBe(false);
+    }
+    const missing = await same("POST", "/admin/api/bitrix-logs/000000000000000000000000/retry");
+    expect(missing.v2.status).toBe(500);
+  }, T);
 });

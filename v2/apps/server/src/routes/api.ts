@@ -17,6 +17,9 @@ import { registerGroup3 } from "./group3.js";
 import { registerBitrixRead } from "./bitrix-read.js";
 import { BitrixClient } from "../integrations/bitrix.js";
 import { BitrixLog } from "../models.js";
+import { dealWrites } from "../integrations/bitrix-deal.js";
+import { PlanningClient } from "../integrations/planning.js";
+import { registerBitrixWrite } from "./bitrix-write.js";
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -135,6 +138,12 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     },
   });
   await registerBitrixRead(app, bitrix);
+  await registerBitrixWrite(app, {
+    bx: bitrix,
+    deals: dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE }),
+    planning: new PlanningClient({ baseUrl: cfg.PLANNING_API_BASE_URL, apiKey: cfg.PLANNING_API_KEY }),
+    materialCodesField: cfg.BITRIX_FIELD_MATERIAL_CODES,
+  });
 
   // ---------------- pricing ----------------
   app.post("/api/price", async (req) => {

@@ -53,6 +53,13 @@ const EnvSchema = z.object({
   BITRIX_WEBHOOK_BASE: z.string().url().optional(),
   /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */
   BITRIX_MIN_GAP_MS: z.coerce.number().int().min(0).default(1000),
+  /** Optional deal field for "Material-Kürzel" (legacy: skipped until set). */
+  BITRIX_FIELD_MATERIAL_CODES: z.string().trim().optional(),
+  /** Base of the deal field "Angebotslink-oc" (not a secret; legacy default kept). */
+  OFFER_LINK_BASE: z.string().url().default("https://oc.emc2.de"),
+  /** Route-planning service; no hard-coded default (legacy had the production URL). */
+  PLANNING_API_BASE_URL: z.string().url().optional(),
+  PLANNING_API_KEY: z.string().optional(),
 });
 
 export type AppConfig = Readonly<z.infer<typeof EnvSchema>>;
@@ -85,11 +92,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
   // Same idea as the DB guard: dev/test must never reach the real CRM (it would change deals).
-  if (cfg.NODE_ENV !== "production" && cfg.BITRIX_WEBHOOK_BASE && !LOCAL_HOSTS.has(new URL(cfg.BITRIX_WEBHOOK_BASE).hostname.toLowerCase())) {
-    throw new UnsafeDatabaseError(
-      `Refusing to start: NODE_ENV=${cfg.NODE_ENV} but BITRIX_WEBHOOK_BASE points at a remote host ` +
-        `(${new URL(cfg.BITRIX_WEBHOOK_BASE).hostname}). Outside production only a local Bitrix stub is allowed.`,
-    );
+  // Same idea for every outbound system that changes real data (ADR 017).
+  for (const key of ["BITRIX_WEBHOOK_BASE", "PLANNING_API_BASE_URL"] as const) {
+    const url = cfg[key];
+    if (cfg.NODE_ENV !== "production" && url && !LOCAL_HOSTS.has(new URL(url).hostname.toLowerCase())) {
+      throw new UnsafeDatabaseError(
+        `Refusing to start: NODE_ENV=${cfg.NODE_ENV} but ${key} points at a remote host ` +
+          `(${new URL(url).hostname}). Outside production only a local stub is allowed (ADR 017).`,
+      );
+    }
   }
   if (cfg.NODE_ENV === "production" && (cfg.AUTH_SECRET.startsWith("dev-only") || cfg.AUTH_SECRET.length < 32)) {
     throw new Error("Refusing to start: AUTH_SECRET must be set (≥ 32 chars) in production — no insecure fallback.");

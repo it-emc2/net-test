@@ -71,5 +71,6 @@ describe("config guard", () => {
     expect(() => loadConfig({ NODE_ENV: "test", BITRIX_WEBHOOK_BASE: "https://example.bitrix24.de/rest/1/x" })).toThrow(/BITRIX_WEBHOOK_BASE/);
     expect(loadConfig({ NODE_ENV: "test", BITRIX_WEBHOOK_BASE: "http://127.0.0.1:5/rest/1/x" }).BITRIX_WEBHOOK_BASE).toContain("127.0.0.1");
     expect(loadConfig({ NODE_ENV: "development" }).BITRIX_WEBHOOK_BASE).toBeUndefined();
+    expect(() => loadConfig({ NODE_ENV: "test", PLANNING_API_BASE_URL: "https://route-plannung.fly.dev" })).toThrow(/PLANNING_API_BASE_URL/);
   });
 });
