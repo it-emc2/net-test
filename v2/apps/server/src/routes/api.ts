@@ -20,6 +20,13 @@ import { BitrixLog } from "../models.js";
 import { dealWrites } from "../integrations/bitrix-deal.js";
 import { PlanningClient } from "../integrations/planning.js";
 import { registerBitrixWrite } from "./bitrix-write.js";
+import { fileURLToPath } from "node:url";
+import { Mailer, type MailConfig } from "../integrations/mail.js";
+import { registerEmail } from "./email.js";
+import { UNAVAILABLE_DOCUMENTS, UNAVAILABLE_SIGNING, type OfferDocuments, type SigningPort } from "../email/ports.js";
+
+/** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
+const LEGACY_ASSETS = fileURLToPath(new URL("../../../../../src/public/assets", import.meta.url));
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -29,7 +36,11 @@ const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: st
 
 const publicUser = (u: any) => ({ email: u.email, name: u.name, firstName: u.firstName, lastName: u.lastName, role: u.role });
 
-export interface ApiDeps { cfg: Cfg; businessConfig?: BusinessConfig; bitrix?: BitrixClient }
+export interface ApiDeps {
+  cfg: Cfg; businessConfig?: BusinessConfig; bitrix?: BitrixClient;
+  /** test seams: documents (phase 5), signing (4g), mail TLS for the local test server */
+  documents?: OfferDocuments; signing?: SigningPort; mailTls?: MailConfig["tls"];
+}
 
 export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const { cfg } = deps;
@@ -138,9 +149,20 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     },
   });
   await registerBitrixRead(app, bitrix);
+  const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
+  await registerEmail(app, {
+    mailer: new Mailer({
+      smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_SEND_PORT, smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS,
+      replyTo: cfg.SMTP_REPLY_TO, imapHost: cfg.IMAP_HOST, imapPort: cfg.IMAP_PORT, imapPass: cfg.IMAP_PASS, imapSentFolder: cfg.IMAP_SENT_FOLDER,
+      ...(deps.mailTls ? { tls: deps.mailTls } : {}),
+    }),
+    deals, documents: deps.documents ?? UNAVAILABLE_DOCUMENTS, signing: deps.signing ?? UNAVAILABLE_SIGNING, businessConfig,
+    assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
+    smtpTestPort: cfg.SMTP_PORT, smtpHost: cfg.SMTP_HOST,
+  });
   await registerBitrixWrite(app, {
     bx: bitrix,
-    deals: dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE }),
+    deals,
     planning: new PlanningClient({ baseUrl: cfg.PLANNING_API_BASE_URL, apiKey: cfg.PLANNING_API_KEY }),
     materialCodesField: cfg.BITRIX_FIELD_MATERIAL_CODES,
   });

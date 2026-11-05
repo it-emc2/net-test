@@ -16,7 +16,7 @@ const shape = (schema: mongoose.Schema) =>
 
 describe("v2 models match legacy models", () => {
   it.each([["Product.js", v2.Product], ["Service.js", v2.Service], ["User.js", v2.User], ["AppConfig.js", v2.AppConfig], ["Offer.js", v2.Offer], ["Draft.js", v2.Draft],
-    ["Customer.js", v2.Customer], ["BitrixLog.js", v2.BitrixLog], ["UserActionLog.js", v2.UserActionLog]])(
+    ["Customer.js", v2.Customer], ["BitrixLog.js", v2.BitrixLog], ["UserActionLog.js", v2.UserActionLog], ["EmailSend.js", v2.EmailSend], ["EmailLog.js", v2.EmailLog]])(
     "%s", async (file, model) => {
       const legacy = await legacyModel(file);
       expect(shape(model.schema)).toEqual(shape(legacy));

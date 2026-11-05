@@ -72,3 +72,14 @@
 - UI parity: BU step "Duschabtrennung" (Hassmann) hidden by default on main (`BU_SHOW_DA_HASSMANN=false`) → snapshot updated.
 - Legacy Jest suite: 16 failures on both clean main and this branch, but a **different set each run** (Vigor-test timeouts cascade) → flaky, not caused by the rewrite. Stays reporting-only in CI.
 - PII scan is now a permanent script: `node scripts/golden/pii-scan.mjs <fixtures…>` (exit 1 on staff names).
+
+## Local machine: Node 25.9 corrupts UTF-8 decoding (found 2026-11-05)
+- Reproduced without any project code: reading the same fixture 40× as a UTF-8 string, ~1 run in 12 returns a string with one character replaced (e.g. `"vig"` → `"聶ig"`). Raw `Buffer` reads are always identical → the fault is in buffer→string decoding (Node 25.9 on this Intel Mac; likely CPU-specific SIMD path).
+- Explains the earlier local symptoms: random SIGSEGV with parallel mongod, "different set each run" legacy Jest failures, rare contract-test byte differences in large base64 bodies.
+- **CI (Node 24, Linux) is the source of truth.** Locally, a failing test that passes when rerun alone and shows a single odd character is this bug, not a regression. Recommended: Node 24 LTS locally (owner decision; needs a download).
+
+## Test safety: in-process legacy imports (ADR 017)
+`v2/apps/server/vitest.config.ts` pins every external endpoint env var (Bitrix, planning, SMTP/IMAP, OB24, Mongo …) to a dead local port, because several legacy modules read them at import time and fall back to **production** defaults. Tests that need a stub set explicit 127.0.0.1 addresses before importing legacy code.
+
+## Email contract test (group 4c)
+Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, smtp-server); legacy's hard-coded port 587 is redirected by a test-only preload (`legacy-smtp-port-shim.mjs`). LibreOffice is replaced by a fake `soffice` on `PATH` (fixed PDF). Compared: parsed mail (addresses, subject, text, HTML, every attachment's name/type/cid/SHA-256), all outgoing Bitrix calls, EmailLog / EmailSend / UserActionLog rows, API response. Signing tokens and the timestamp line are normalised.

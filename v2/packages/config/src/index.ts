@@ -60,6 +60,22 @@ const EnvSchema = z.object({
   /** Route-planning service; no hard-coded default (legacy had the production URL). */
   PLANNING_API_BASE_URL: z.string().url().optional(),
   PLANNING_API_KEY: z.string().optional(),
+  /** Offer email (legacy names). Sending uses SMTP_SEND_PORT (legacy hard-coded 587). */
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().default(465), // only used by /api/email/smtp-test (legacy)
+  SMTP_SEND_PORT: z.coerce.number().int().default(587),
+  SMTP_EMAIL: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_REPLY_TO: z.string().optional(),
+  IMAP_HOST: z.string().optional(),
+  IMAP_PORT: z.coerce.number().int().default(993),
+  IMAP_PASS: z.string().optional(),
+  IMAP_SENT_FOLDER: z.string().optional(),
+  /** Base for links in customer emails (signing link); fallback: request host (legacy). */
+  PUBLIC_BASE_URL: z.string().url().optional(),
+  /** Static assets (email presets, signature picture). Default: the legacy app's assets. */
+  ASSETS_DIR: z.string().optional(),
 });
 
 export type AppConfig = Readonly<z.infer<typeof EnvSchema>>;
@@ -93,12 +109,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   // Same idea as the DB guard: dev/test must never reach the real CRM (it would change deals).
   // Same idea for every outbound system that changes real data (ADR 017).
-  for (const key of ["BITRIX_WEBHOOK_BASE", "PLANNING_API_BASE_URL"] as const) {
-    const url = cfg[key];
-    if (cfg.NODE_ENV !== "production" && url && !LOCAL_HOSTS.has(new URL(url).hostname.toLowerCase())) {
+  for (const key of ["BITRIX_WEBHOOK_BASE", "PLANNING_API_BASE_URL", "SMTP_HOST", "IMAP_HOST"] as const) {
+    const raw = cfg[key];
+    const host = raw ? (/^[a-z]+:\/\//i.test(raw) ? new URL(raw).hostname : raw).toLowerCase() : "";
+    if (cfg.NODE_ENV !== "production" && host && !LOCAL_HOSTS.has(host)) {
       throw new UnsafeDatabaseError(
         `Refusing to start: NODE_ENV=${cfg.NODE_ENV} but ${key} points at a remote host ` +
-          `(${new URL(url).hostname}). Outside production only a local stub is allowed (ADR 017).`,
+          `(${host}). Outside production only a local stub is allowed (ADR 017).`,
       );
     }
   }

@@ -3,7 +3,9 @@
 // identical; errors must match in status code and German message. A session token issued by
 // the legacy login must be accepted by v2 (cut-over keeps everybody logged in).
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { MongoMemoryServer } from "mongodb-memory-server";
@@ -18,6 +20,8 @@ import { connectDb, disconnectDb } from "../src/db.js";
 import { registerApi } from "../src/routes/api.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
+import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
+import type { OfferDocuments, SigningPort } from "../src/email/ports.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const fx = (p: string) => JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/" + p, "utf8"));
@@ -38,6 +42,21 @@ let legacy: ChildProcess;
 let v2: FastifyInstance;
 let token = "";
 const bx = new BitrixStub(BITRIX_HANDLERS);
+const smtp = new SmtpSink();
+const MAIL = { SMTP_EMAIL: "angebote@test.local", SMTP_PASS: "smtp-test-pass", SMTP_REPLY_TO: "service@test.local", PUBLIC_BASE_URL: "http://oc.test" };
+// fake LibreOffice: both apps "convert" DOCX → this fixed PDF (documents themselves = phase 5)
+const FAKE_SOFFICE_DIR = mkdtempSync(join(tmpdir(), "oc-fake-soffice-"));
+writeFileSync(join(FAKE_SOFFICE_DIR, "soffice"), `#!/bin/sh
+out=""; prev=""; last=""
+for a in "$@"; do [ "$prev" = "--outdir" ] && out="$a"; prev="$a"; last="$a"; done
+[ -n "$out" ] || exit 0
+printf '%%PDF-1.4\\n%% OC contract-test fake PDF\\n%%%%EOF\\n' > "$out/$(basename "$last" .docx).pdf"
+`);
+chmodSync(join(FAKE_SOFFICE_DIR, "soffice"), 0o755);
+const PATH_WITH_FAKE_SOFFICE = `${FAKE_SOFFICE_DIR}:${process.env.PATH}`;
+let documentsBridge: OfferDocuments;
+let ORIGINAL_CWD = "";
+let signingBridge: SigningPort;
 
 async function waitFor(url: string, ms = 60000) {
   const end = Date.now() + ms;
@@ -53,6 +72,7 @@ beforeAll(async () => {
   const uri = mongod.getUri();
   LEGACY_PORT = await freePort();
   await bx.start();
+  await smtp.start(0);
   const client = new mongoose.mongo.MongoClient(uri);
   await client.connect();
   const db = client.db("KonfiguratorDB");
@@ -76,6 +96,8 @@ beforeAll(async () => {
     env: {
       ...process.env, NODE_ENV: "test", PORT: String(LEGACY_PORT), MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB",
       VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: bx.base("legacy"), SMTP_HOST: "127.0.0.1",
+      ...MAIL, IMAP_PORT: "9", NODE_TLS_REJECT_UNAUTHORIZED: "0", PATH: PATH_WITH_FAKE_SOFFICE,
+      OC_TEST_SMTP_PORT: String(smtp.port), NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
       SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, OB24_BASE_URL: DEAD, ORS_API_KEY: "",
     },
     stdio: "ignore",
@@ -86,10 +108,38 @@ beforeAll(async () => {
 
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
-    BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), // throttle itself: unit test (bitrix.test.ts)
+    BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
+    SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
   await connectDb(cfg, { info: () => {} });
-  v2 = await buildApp(cfg, { register: (a) => registerApi(a, { cfg }) });
+
+  // Bridges for the parts of the email flow that belong to later phases (PDF = phase 5,
+  // signing = 4g): v2 calls the LEGACY implementations in-process, so this test compares the
+  // email flow only. SAFETY: env first (legacy modules read endpoints at import time).
+  Object.assign(process.env, {
+    BITRIX_WEBHOOK_BASE: bx.base("v2"), MONGODB_URI: uri, VIGOR_MONGODB_URI: uri, PATH: PATH_WITH_FAKE_SOFFICE, ...MAIL,
+  });
+  if (!process.env.BITRIX_WEBHOOK_BASE!.startsWith("http://127.0.0.1:")) throw new Error("unsafe Bitrix base for in-process legacy import");
+  // legacy resolves templates/assets from process.cwd() → run the worker from the repo root
+  ORIGINAL_CWD = process.cwd();
+  process.chdir(ROOT);
+  const { default: rootMongoose } = await import(ROOT + "node_modules/mongoose/index.js");
+  await rootMongoose.connect(uri, { dbName: "KonfiguratorDB" });
+  const { default: legacyCfg } = await import(ROOT + "src/services/configService.js");
+  legacyCfg._cache = new Map(Object.entries(fx("pricing/config.json")));
+  const docx = await import(ROOT + "src/routes/docx-template.js");
+  const signing = await import(ROOT + "src/routes/signing.js");
+  documentsBridge = {
+    renderOfferPdf: (p) => docx.generateOfferPdfBuffer(p),
+    convertDocxToPdf: (b) => docx.convertDocxToPdf(b),
+    getOfferRenderData: (p) => docx.getOfferRenderData(p),
+    productImagePdf: async () => null,
+  };
+  signingBridge = { createRequest: (a) => signing.createSigningRequest(a) };
+
+  v2 = await buildApp(cfg, {
+    register: (a) => registerApi(a, { cfg, documents: documentsBridge, signing: signingBridge, mailTls: { rejectUnauthorized: false } }),
+  });
 
   // log in on the LEGACY app; the same token is used against v2
   const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}/api/auth/login`, {
@@ -104,6 +154,10 @@ afterAll(async () => {
   await disconnectDb();
   await mongod?.stop();
   await bx.stop();
+  await smtp.stop();
+  rmSync(FAKE_SOFFICE_DIR, { recursive: true, force: true });
+  if (ORIGINAL_CWD) process.chdir(ORIGINAL_CWD);
+  try { const { default: m } = await import(ROOT + "node_modules/mongoose/index.js"); await m.disconnect(); } catch { /* not connected */ }
 });
 
 async function both(method: "GET" | "POST", url: string, body?: unknown) {
@@ -647,4 +701,151 @@ describe("contract: Bitrix WRITE routes — same response AND same outgoing call
     const missing = await same("POST", "/admin/api/bitrix-logs/000000000000000000000000/retry");
     expect(missing.v2.status).toBe(500);
   }, T);
+});
+
+// ---------------- group 4c: offer email (local SMTP sink + recording Bitrix stub) ----------------
+describe("contract: send-offer — same mail, same Bitrix calls, same logs (no real email leaves)", () => {
+  const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+  const BU = offers.find((o) => o.offerType === "bu").payload;
+  const AH = JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8"))
+    .find((x: any) => x.payload.Kundendaten?.payer === "Selbstzahler")?.payload
+    ?? JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8"))[0].payload;
+  const db = () => mongoose.connection.db!;
+  const SIGN = /\/sign\/[0-9a-f]{48}/g;
+  const norm = (s: string) => s.replace(SIGN, "/sign/<TOKEN>").replace(/Datum\/Zeit: [^\n]*/g, "Datum/Zeit: <NOW>");
+  const normCalls = (calls: { http: string; method: string; params: string }[]) =>
+    calls.map((c) => ({ ...c, params: norm(decodeURIComponent(c.params.replace(/\+/g, " "))) }));
+
+  type Field = string | { filename: string; content: Buffer | string };
+  const multipart = async (fields: Record<string, Field | Field[]>) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) for (const item of Array.isArray(v) ? v : [v]) {
+      if (typeof item === "string") fd.append(k, item);
+      else fd.append(k, new Blob([item.content]), item.filename);
+    }
+    const r = new Request("http://x/", { method: "POST", body: fd });
+    return { body: Buffer.from(await r.arrayBuffer()), contentType: r.headers.get("content-type")! };
+  };
+  const sendTo = async (app: "legacy" | "v2", fields: Record<string, Field | Field[]>) => {
+    const { body, contentType } = await multipart(fields);
+    const headers = { authorization: `Bearer ${token}`, "content-type": contentType };
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}/api/email/send-offer`, { method: "POST", headers, body });
+      return { status: r.status, body: await r.json() };
+    }
+    const r = await v2.inject({ method: "POST", url: "/api/email/send-offer", headers, payload: body });
+    return { status: r.statusCode, body: r.json() };
+  };
+  // signing requests too: an unchanged offer reuses the open request (no new link note) — legacy rule
+  const clean = async () => { await db().collection("emailsends").deleteMany({}); await db().collection("signingrequests").deleteMany({}); };
+  /** legacy first, then v2 (locks cleared in between); returns everything that left each app */
+  const sendBoth = async (fields: Record<string, Field | Field[]>, { clearLock = true } = {}) => {
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      if (clearLock) await clean();
+      bx.take(app); smtp.take();
+      const res = await sendTo(app, fields);
+      await new Promise((r) => setTimeout(r, 300)); // fire-and-forget logs
+      out[app] = { res, mails: smtp.take(), calls: normCalls(bx.take(app)) };
+    }
+    return out as Record<"legacy" | "v2", { res: { status: number; body: any }; mails: any[]; calls: any[] }>;
+  };
+  const expectSameResult = (o: Awaited<ReturnType<typeof sendBoth>>) => {
+    expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(o.legacy.res.status);
+    if (o.legacy.res.status >= 400) {
+      expect(o.v2.res.body.error.message).toBe(o.legacy.res.body.error);
+      for (const k of ["detail", "lastOfferNumber"]) if (k in o.legacy.res.body) expect(o.v2.res.body[k], k).toEqual(o.legacy.res.body[k]);
+      if (o.legacy.res.body.code) expect(o.v2.res.body.error.code).toBe(o.legacy.res.body.code);
+    } else {
+      const strip = (b: any) => ({ ...b, messageId: b.messageId ? "<ID>" : b.messageId });
+      expect(strip(o.v2.res.body)).toEqual(strip(o.legacy.res.body));
+    }
+    expect(o.v2.mails.map((m) => mailView(m, norm))).toEqual(o.legacy.mails.map((m) => mailView(m, norm)));
+    const firstDiff = () => {
+      const l = o.legacy.calls, v = o.v2.calls;
+      if (l.length !== v.length) return `count legacy=${l.length} [${l.map((c) => c.method)}] v2=${v.length} [${v.map((c) => c.method)}]`;
+      for (let i = 0; i < l.length; i++) {
+        const a = JSON.stringify(l[i]), b = JSON.stringify(v[i]);
+        if (a !== b) { let k = 0; while (a[k] === b[k]) k++; return `call ${i} @${k}: legacy …${a.slice(k - 60, k + 80)}… v2 …${b.slice(k - 60, k + 80)}…`; }
+      }
+      return "";
+    };
+    expect(firstDiff()).toBe("");
+  };
+  const logs = async (coll: string, filter: Record<string, unknown>) =>
+    (await db().collection(coll).find(filter, { projection: { _id: 0, createdAt: 0, updatedAt: 0 } }).sort({ _id: 1 }).toArray());
+
+  it("validation: missing 'to', invalid payload JSON, wrong edited-DOCX extension", async () => {
+    for (const f of [{ subject: "x" }, { to: "k@test.local", payload: "{kaputt" },
+      { to: "k@test.local", payload: "{}", editedDocx: { filename: "a.pdf", content: "x" } }] as Record<string, Field>[]) {
+      const o = await sendBoth(f);
+      expect(o.v2.res.status).toBe(400);
+      expectSameResult(o);
+    }
+  }, 60000);
+
+  it("full BU send: mail (text, html, presets, upload, inline signature), Bitrix link + timeline + note, EmailLog", async () => {
+    await db().collection("emaillogs").deleteMany({});
+    const o = await sendBoth({
+      to: "kunde0001@example.invalid", cc: "cc@example.invalid", subject: "Ihr Angebot", offerNumber: "ANG-T-1", offerType: "bu",
+      body: "Sehr geehrter Herr Kunde0001,\n\nanbei Ihr Angebot.\n\n- Punkt eins\n- Punkt zwei\n\nKeine Möglichkeit, die Dokumente auszudrucken? {{SIGN_LINK}}\n\nwww.emczwei.de",
+      payload: JSON.stringify(BU), dealId: "9011", excludePreset: JSON.stringify(["vollmacht"]), internalNote: "nur intern",
+      attachments: { filename: "Notiz.txt", content: "Hallo" }, bitrixDocs: { filename: "Kalkulation.pdf", content: "%PDF-kalk" },
+    });
+    expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
+    expect(o.v2.mails).toHaveLength(1);
+    expectSameResult(o);
+    const view = mailView(o.v2.mails[0], norm);
+    // offer number from the payload wins over the form field (legacy rule); vollmacht excluded
+    expect(view.attachments.map((a) => a.filename).sort()).toEqual([`${BU.offerNumber}.pdf`, "Abtretungserklärung.pdf", "Notiz.txt", "emc2_Barrierefreies_Wohnen.pdf", "signaturepicture.png"].sort());
+    expect(view.attachments.find((a) => a.filename === "signaturepicture.png")).toMatchObject({ cid: "emc2-signature-picture" });
+    expect(view.text).toContain("/sign/<TOKEN>");
+    expect(o.v2.calls.map((c) => c.method)).toEqual(expect.arrayContaining(["crm.deal.update", "crm.timeline.comment.add"]));
+    const el = (await logs("emaillogs", {})).map((e) => ({ ...e, body: norm(e.body) }));
+    expect(el).toHaveLength(2);
+    expect(el[1]).toEqual(el[0]);
+    const sends = await logs("emailsends", { dealId: "9011" });
+    expect(sends[0]).toMatchObject({ inFlightUntil: null, offerNumber: expect.any(String) });
+  }, 90000);
+
+  it("duplicate send for the same deal within 24 h → 409 (same code/message); forceResend sends", async () => {
+    const f = { to: "kunde0001@example.invalid", subject: "A", offerNumber: "ANG-T-2", offerType: "bu", payload: JSON.stringify(BU), dealId: "9011", body: "x" };
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      await clean(); smtp.take(); bx.take(app);
+      expect((await sendTo(app, f)).status).toBe(200);
+      out[app] = { blocked: await sendTo(app, f), forced: await sendTo(app, { ...f, forceResend: "1" }) };
+      smtp.take(); bx.take(app);
+    }
+    expect(out.v2.blocked.status).toBe(409);
+    expect(out.v2.blocked.body.error).toMatchObject({ code: out.legacy.blocked.body.code, message: out.legacy.blocked.body.error });
+    expect(out.v2.blocked.body.lastOfferNumber).toBe(out.legacy.blocked.body.lastOfferNumber);
+    expect(out.v2.forced.status).toBe(out.legacy.forced.status);
+  }, 90000);
+
+  it("Bitrix-only mode: no mail, documents archived on the timeline, audit event", async () => {
+    await db().collection("useractionlogs").deleteMany({ event: "offer_bitrix_only" });
+    const o = await sendBoth({ bitrixOnly: "1", subject: "Nur Bitrix", offerNumber: "ANG-T-3", offerType: "bu", payload: JSON.stringify(BU), dealId: "9011", body: "Link: {{SIGN_LINK}}" });
+    expect(o.v2.mails).toHaveLength(0);
+    expectSameResult(o);
+    const ev = await logs("useractionlogs", { event: "offer_bitrix_only" });
+    expect(ev).toHaveLength(2);
+    expect(ev[1]).toEqual(ev[0]);
+  }, 60000);
+
+  it("AH offer: AH footer, AH preset set (Selbstzahler without Abtretung/Vollmacht), AH totals", async () => {
+    const o = await sendBoth({ to: "ah@example.invalid", subject: "Alltagshilfe", offerNumber: "ANG-AH-1", offerType: "ah", payload: JSON.stringify(AH), contactId: "101", body: "Guten Tag" });
+    expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
+    expectSameResult(o);
+  }, 60000);
+
+  it("hand-edited DOCX replaces the generated PDF and is archived + flagged on the timeline", async () => {
+    const o = await sendBoth({ to: "k@example.invalid", subject: "Bearbeitet", offerNumber: "ANG-T-4", offerType: "bu", payload: JSON.stringify(BU), dealId: "9011", body: "x",
+      editedDocx: { filename: "Angebot bearbeitet.docx", content: "PK-fake-docx" } });
+    expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
+    expectSameResult(o);
+    const mailNote = o.v2.calls.find((c) => c.method === "crm.timeline.comment.add" && c.params.includes("Email automatisch von OC gesendet"))!;
+    expect(mailNote.params).toContain("Handbearbeitete DOCX hochgeladen");
+    expect(mailNote.params).toContain(`${BU.offerNumber}.docx`);
+  }, 60000);
 });
