@@ -208,3 +208,11 @@ test('Iris 3 Schürzen (vigor wording of scripts/addVigorIrisProducts.mjs): both
   const nische = parseWanneDoc(doc('IRIS160LS', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.Frontschürze weiß m.Abl. Novellini'));
   expect(nische.requires).toEqual([{ articleNumber: 'IRISNS', desc: 'Nackenstütze für Nischeneinbau der Badewanne' }]);
 });
+
+test('Iris 3 Schürzen in the scraper wording (vigor 2026-11-05), IRISNS is no tub', () => {
+  const a = parseWanneDoc(doc('IRIS170R3S', 'NOV Iris BW 170x70/80x62cm re Standard', 'm.3 Sch.m.Ab-u.Ül.Grt.weiß'));
+  const b = parseWanneDoc(doc('IRIS180L3SWE', 'NOV Iris BW 180x75/85x62cm li Standard', 'm.3 Sch.m.Ab-u.Ül.Grt.u.WE weiß'));
+  expect(a).toMatchObject({ einbau: 'Vorwand', schuerze: '3 Schürzen', side: 'rechts', lengthCm: 170, widthCm: 70, widthMaxCm: 80, zulauf: 'Ablauf' });
+  expect(b).toMatchObject({ einbau: 'Vorwand', lengthCm: 180, widthCm: 75, widthMaxCm: 85, zulauf: 'Wanneneinlauf' });
+  expect(parseWanneDoc(doc('IRISNS', 'Nackenstütze f. Badewanne Iris', 'f. Nischeneinbau Novellini'))).toBeNull();
+});

@@ -47,10 +47,10 @@ export function wanneSketchSVG(spec, { open = 0, small = false } = {}) {
   const pane = (p, q, y0, y1, cls) =>
     poly([[p[0], y0, p[1]], [q[0], y0, q[1]], [q[0], y1, q[1]], [p[0], y1, p[1]]], cls);
   // a pane hinged at x=hx (on the line z=zf) of width w, running in direction dir,
-  // swung out of the tub by angle deg
-  const swing = (hx, zf, dir, w, deg, y0, y1, cls) => {
+  // swung by angle deg: out of the tub (into the room) or, with inward, into it
+  const swing = (hx, zf, dir, w, deg, y0, y1, cls, inward = false) => {
     const th = (deg * Math.PI) / 180;
-    const end = [hx + dir * w * Math.cos(th), zf + w * Math.sin(th)];
+    const end = [hx + dir * w * Math.cos(th), zf + (inward ? -1 : 1) * w * Math.sin(th)];
     pane([hx, zf], end, y0, y1, cls);
     return end;
   };
@@ -62,22 +62,30 @@ export function wanneSketchSVG(spec, { open = 0, small = false } = {}) {
   // tub: rim, basin, front panel, visible (near) end panel
   poly([[a, H, 0], [b, H, 0], [b, H, Wd], [a, H, Wd]], "tb");
   poly([[a + 7, H, 7], [b - 7, H, 7], [b - 7, H, Wd - 7], [a + 7, H, Wd - 7]], "tbi");
-  poly([[a, 0, Wd], [b, 0, Wd], [b, H, Wd], [a, H, Wd]], "tb");
-  poly([[b, 0, 0], [b, 0, Wd], [b, H, Wd], [b, H, 0]], "tb");
+  const front = (x0, x1, y0 = 0, y1 = H) => poly([[x0, y0, Wd], [x1, y0, Wd], [x1, y1, Wd], [x0, y1, Wd]], "tb");
 
   if (door) {
     // entry door in the front panel near its end, hinged on the end side,
-    // swinging out into the room
+    // swinging INTO the tub (Iris GC drawing: 72° inward; Steinkamp manual:
+    // hinges on the inside of the front panel), so the water pressure seals it.
+    // Drawn before the front panel, which is left open at the door, so the
+    // opened door is seen through the opening, inside the tub.
     const left = door === "links";
     const d0 = left ? a + 12 : b - 12 - DOOR_W;
-    pane([d0, Wd], [d0 + DOOR_W, Wd], DOOR_Y0, H, "op");
+    pane([d0, Wd - 1], [d0 + DOOR_W, Wd - 1], DOOR_Y0, H, "op");
     const hx = left ? d0 : d0 + DOOR_W;
-    const end = swing(hx, Wd, left ? 1 : -1, DOOR_W, o * 78, DOOR_Y0, H, "g gd");
+    const end = swing(hx, Wd, left ? 1 : -1, DOOR_W, o * 72, DOOR_Y0, H, "g gd", true);
     if (!small) {
       const at = (y) => [hx + (end[0] - hx) * 0.85, y, Wd + (end[1] - Wd) * 0.85];
       line(at(DOOR_Y0 + 14), at(DOOR_Y0 + 30), "hd");
     }
+    front(a, d0);
+    front(d0 + DOOR_W, b);
+    front(d0, d0 + DOOR_W, 0, DOOR_Y0);
+  } else {
+    front(a, b);
   }
+  poly([[b, 0, 0], [b, 0, Wd], [b, H, Wd], [b, H, 0]], "tb");
 
   if (sc) {
     const sh = sc.h || 140, y1 = H + sh, zf = Wd - 3;

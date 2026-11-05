@@ -56,11 +56,15 @@ export function parseWanneDoc(doc) {
   };
 
   if (!isScreen) {
-    // "160x70/80cm" -> 160 long, tapered 70..80 wide
-    const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?\s*cm/i);
-    const schuerze = /m\.\s*3\s*Sch(ü|u)rzen/i.test(finish)
+    // Only real tubs (IRIS + length); accessories the scraper files under
+    // "badewanne" too (IRISNS Nackenstütze) are not tubs.
+    if (!/^IRIS\d/i.test(articleNumber)) return null;
+    // "160x70/80cm" or "160x70/80x62cm" -> 160 long, tapered 70..80 wide
+    const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?(?:\s*x\s*\d+)?\s*cm/i);
+    // Scraper wording varies: "m.3 Schürzen weiß m.Abl." or "m.3 Sch.m.Ab-u.Ül.Grt.u.WE"
+    const schuerze = /m\.\s*3\s*Sch(ü|u|\.)/i.test(finish)
       ? "3 Schürzen"
-      : /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
+      : /m\.\s*2\s*Sch(ü|u|\.)/i.test(finish)
         ? "2 Schürzen"
         : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
           ? "Frontschürze"
@@ -94,9 +98,9 @@ export function parseWanneDoc(doc) {
       widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
       schuerze,
       // m.WE = Wanneneinlauf (water enters through the tub), m.Abl. = plain drain
-      zulauf: /m\.\s*WE\b/i.test(finish)
+      zulauf: /\b[mu]\.\s*WE\b/i.test(finish)
         ? "Wanneneinlauf"
-        : /m\.\s*Abl/i.test(finish)
+        : /m\.\s*Ab(l|-)/i.test(finish)
           ? "Ablauf"
           : null,
     };
