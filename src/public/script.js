@@ -9168,6 +9168,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 };
 
 (function initAufschlag() {
+  // Vorübergehend aus: kein Hinweis, keine Pflicht-Begründung unter dem Mindestwert. true = wieder aktiv.
+  const AUFSCHLAG_REASON_ENFORCED = false;
   // Mindestwerte je Kundenart + Zonenfarben: src/logic/aufschlag-rules.js (rein, getestet).
   let rules = null;
   import("/logic/aufschlag-rules.js").then((m) => { rules = m; render(); validateAufschlagSelection(); }).catch(() => {});
@@ -9237,7 +9239,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     const mark = document.getElementById("aufschlagMinMark");
     if (mark) { mark.hidden = false; mark.dataset.l = `Min. ${min} %`; }
     if (warnEl) {
-      warnEl.hidden = !below;
+      warnEl.hidden = !(AUFSCHLAG_REASON_ENFORCED && below);
       const kk = payer === "Kassenkunde";
       document.getElementById("aufschlagWarnText").textContent =
         `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte prüfen.`;
@@ -9251,7 +9253,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   // sein Text bleibt aber stehen (nichts still löschen).
   function syncReason() {
     if (!reasonEl) return true;
-    const missing = !!rules && rules.aufschlagReasonMissing(currentPct(), payerName(), reasonEl.value);
+    const missing = AUFSCHLAG_REASON_ENFORCED && !!rules && rules.aufschlagReasonMissing(currentPct(), payerName(), reasonEl.value);
     reasonEl.setCustomValidity(missing ? "Bitte eine Begründung eintragen, um fortzufahren." : "");
     reasonEl.classList.toggle("empty", missing);
     if (reasonErr) reasonErr.hidden = !missing;
