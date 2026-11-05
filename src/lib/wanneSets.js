@@ -29,7 +29,10 @@ const megabadUrl = (art, code) =>
   art === 425060
     ? `https://www.megabad.com/steinkamp-badewannen-mit-tuer-und-acrylverkleidung-a-${art}.htm`
     : `https://www.megabad.com/hersteller-steinkamp-badewannen-tuer-acrylverkleidung-${code[0] === "V" ? "vorwandmontage" : "einbau"}-a-${art}.htm`;
-const MOUNT = { E: "Einbau", V: "Vorwandmontage", N: "Nische" };
+// Megabad: "Einbau Ecke links/rechts", "Vorwandmontage", "Nischeneinbau".
+const MOUNT = { E: "Ecke", V: "Vorwand", N: "Nische" };
+// Verified on Megabad 2026-11-05 (160/170 Ecke, 160 Vorwand, 180 Nische): 58,5 cm.
+const TUB_HEIGHT_CM = 58.5;
 
 // Ottofond Free-Gate via OBI, incl. VAT: plain vs. with extra Ablaufgarnitur.
 // [price, OBI article per side]
@@ -71,12 +74,14 @@ const steinkamp = STEINKAMP.flatMap(({ l, w, p, id, rechts }) =>
       return base({
         articleNumber: `STEA${l}${s}-${code}`,
         name: `Steinkamp easy entry Badewanne ${l}x${w} cm mit Glastür ${side}`,
-        finish: `Acrylverkleidung, 8 mm ESG-Glastür, ${mount}${trio ? ", Trio-Ablauf" : ""}`,
+        finish: `Acrylverkleidung, 8 mm ESG-Glastür, ${mount === "Ecke" ? "Einbau Ecke" : mount === "Vorwand" ? "Vorwandmontage" : "Nischeneinbau"}${trio ? ", Trio-Ablauf" : ""}`,
         brand: "Steinkamp",
         side,
         lengthCm: l,
         widthCm: w,
         einbau: mount,
+        tubHeightCm: TUB_HEIGHT_CM,
+        hasDoor: true,
         ablauf: trio ? "Trio" : "Standard",
         grosPrice: gross,
         image: `./assets/wanne/steinkamp-${side}.jpg`,
@@ -99,6 +104,7 @@ const ottofond = sides.flatMap(([side, s]) =>
       lengthCm: 180,
       widthCm: 80,
       einbau: null,
+      hasDoor: true,
       ablauf,
       grosPrice: gross,
       image: `./assets/wanne/ottofond-${side}.webp`,

@@ -14768,288 +14768,298 @@ function initSmartTraySearch() {
   window.__smartTray = { fetchAndRender };
 }
 /* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
-   Badewanne + Wannenaufsatz, sourced from the vigor catalog through
-   /api/bathtubs/catalog. The catalog is 18 articles, so it is fetched once and
-   filtered in memory — no per-keystroke request, no debounce, no abort races.
-   Attributes are parsed server-side (routes/bathtubs.js); this only renders. */
+   A short wizard answered with drawings: Einbau (Ecke/Nische/Vorwand) →
+   Seite → Ausführung (mit Tür / mit Glasaufsatz); then the matching products,
+   sized by chips. The catalog (/api/bathtubs/catalog, ~50 articles) is fetched
+   once and filtered in memory. Drawings come from configurator/wanne-sketch.js
+   (same look as the Duschabtrennung); the door/screen opens on hover or tap.
+   Hidden inputs keep their ids and the payload.duschwanne.* path, so pricing,
+   restore and saved offers are unchanged. */
 function initWannePicker() {
   const panel = document.getElementById("menu_WANNE");
-  const grid = document.getElementById("wanneGrid");
-  const filtersEl = document.getElementById("wanneFilters");
-  const countEl = document.getElementById("wanneCount");
+  const sketchEl = document.getElementById("wanneSketch");
+  const crumbsEl = document.getElementById("wanneCrumbs");
+  const stepEl = document.getElementById("wanneStep");
+  const resultsEl = document.getElementById("wanneResults");
   const summaryEl = document.getElementById("wanneSummary");
-  if (!panel || !grid || !filtersEl) return;
+  if (!panel || !stepEl || !resultsEl) return;
 
-  // Hidden inputs keep their original ids and the payload.duschwanne.* path, so
-  // pricing, restore and saved offers keep working after the move to this tab.
   const FIELDS = {
-    tub: {
-      id: "chosenBathtubProductId",
-      name: "chosenBathtubName",
-      price: "chosenBathtubPrice",
-      size: "bathtubSize",
-    },
-    screen: {
-      id: "chosenScreenProductId",
-      name: "chosenScreenName",
-      price: "chosenScreenPrice",
-    },
+    tub: { id: "chosenBathtubProductId", name: "chosenBathtubName", price: "chosenBathtubPrice", desc: "chosenBathtubDesc", size: "bathtubSize" },
+    screen: { id: "chosenScreenProductId", name: "chosenScreenName", price: "chosenScreenPrice", desc: "chosenScreenDesc" },
   };
-
-  // [key, label, one-line help]. Help is shown under the filter group so nobody
-  // has to guess what "Einbau" or "Trio" means.
-  const FACETS = {
-    tub: [
-      ["brand", "Hersteller", ""],
-      ["lengthCm", "Länge", ""],
-      ["side", "Türseite", "Blick von vorn auf die Wanne: auf welcher Seite die Tür bzw. der Einstieg sitzt."],
-      ["einbau", "Einbauart", "Wie die Wanne im Bad eingebaut wird. Bitte mit der Einbausituation vor Ort abgleichen."],
-      ["ablauf", "Ablaufgarnitur", "Das Bauteil im Wannenboden, über das das Wasser abläuft."],
-      ["schuerze", "Wannenschürze", "Die Verkleidung der Wanne an der Seite, die man im Raum sieht."],
-      ["zulauf", "Wassereinlauf", "Wo das Wasser in die Wanne läuft."],
-    ],
-    screen: [
-      ["side", "Seite", "Auf welcher Seite der Wanne der Aufsatz angeschlagen wird (Blick von vorn)."],
-      ["heightCm", "Höhe", ""],
-      ["seitenwand", "Seitenwand", "S70 = mit 70 cm breiter fester Seitenwand, ohne = nur das Glasteil."],
-    ],
-  };
-
-  // Plain-German meaning of single values (shown only for values that exist).
-  // ponytail: Einbau/Vorwand/Nische/Trio wording is trade-standard, not from a
-  // Steinkamp data sheet — check against it before relying on it.
-  const VALUE_HELP = {
-    einbau: {
-      Einbau: "Standard: Wanne wird in den Baukörper eingebaut, vorn mit Verkleidung.",
-      Vorwandmontage: "Wanne steht vor einer Vorwand bzw. Installationswand. Aufpreis ca. 30–130 €.",
-      Nische: "Verkleidung für eine Nische zwischen zwei Wänden. Nur bei 180 × 80 cm.",
-    },
-    ablauf: {
-      Standard: "Normale Ablaufgarnitur.",
-      Trio: "Ablauf, Überlauf und Wassereinlauf in einem Bauteil. Aufpreis ca. 230–270 €.",
-      "inkl. Ablaufgarnitur": "Set mit zusätzlicher Ablaufgarnitur (ca. 130 € mehr). Was genau enthalten ist, klärt der Händler.",
-    },
-    schuerze: {
-      "2 Schürzen": "Verkleidung vorn und an einer Seite.",
-      Frontschürze: "Verkleidung nur vorn.",
-    },
-    zulauf: {
-      Wanneneinlauf: "Das Wasser läuft direkt in der Wanne ein.",
-      Ablauf: "Nur ein Ablauf; das Wasser kommt aus der Armatur an der Wand.",
-    },
-  };
-
-  const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+  const EINBAU = [
+    ["Ecke", "Wand hinten und an einem Ende"],
+    ["Nische", "Wand hinten und an beiden Enden"],
+    ["Vorwand", "Wanne steht vor einer Vorwand"],
+  ];
+  const SIDES = ["links", "rechts"];
+  const MODES = [
+    ["door", "Mit Einstiegstür", "Komplett-Set, die Tür sitzt in der Wannenfront"],
+    ["screen", "Mit Glasaufsatz", "Wanne zum Duschen, den Aufsatz wählen Sie danach"],
+  ];
+  const ORDER = { normal: ["einbau", "side", "mode"], only: ["mode", "side"] };
   const FALLBACK_IMG = "./assets/vk-brutto.jpg";
 
-  // Product images come from the scraper's CDN. If one 404s or the CDN is
-  // unreachable, swap in the local placeholder rather than showing a broken
-  // image. "error" does not bubble, hence the capturing listener; an inline
-  // onerror would need 'unsafe-inline' in the CSP script-src.
-  grid.addEventListener(
-    "error",
-    (e) => {
-      const img = e.target;
-      if (img?.tagName !== "IMG" || img.dataset.fallback) return;
-      img.dataset.fallback = "1";
-      img.src = FALLBACK_IMG;
-    },
-    true,
-  );
-
   let items = [];
-  let type = "tub";
-  let filters = {};
+  let st = {}; // einbau, side, mode, size, ablauf, sh (Aufsatz-Höhe), sw (Seitenwand)
+  let SK = null; // wanne-sketch module, loaded lazily
+  let stage = null;
+  let specs = []; // card/tile drawings of the current render
+  let own = false; // true while our own code fires the hidden inputs' change event
 
   const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-    );
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const showVal = (k, v) =>
-    k === "heightCm" || k === "lengthCm"
-      ? `${v} cm`
-      : k === "side" && type === "tub"
-        ? `Tür ${v}`
-        : String(v);
-  // Card pills carry the facet name too, so "Trio" alone is not left unexplained.
-  const pillVal = (k, v) =>
-    k === "ablauf" && ["Standard", "Trio"].includes(v)
-      ? `${v}-Ablauf`
-      : k === "ablauf"
-        ? v
-        : showVal(k, v);
-  const ofType = (t) => items.filter((p) => p.type === (t || type));
-
-  // `skip` lets a facet count its own options against the OTHER active filters,
-  // so switching between two options of one facet never shows a zero.
-  const matches = (p, skip) =>
-    Object.entries(filters).every(
-      ([k, v]) => k === skip || v == null || String(p[k]) === String(v),
-    );
+  const sizeOf = (p) => `${p.lengthCm} × ${p.widthCm} cm`;
+  const tubs = () => items.filter((p) => p.type === "tub");
+  const screens = () => items.filter((p) => p.type === "screen");
 
   const setHidden = (id, val) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.value = val == null ? "" : String(val);
-    el.dispatchEvent(new Event("change", { bubbles: true }));
+    own = true;
+    try { el.dispatchEvent(new Event("change", { bubbles: true })); } finally { own = false; }
   };
-
-  const selectedId = (t) =>
-    (document.getElementById(FIELDS[t].id)?.value || "").trim();
-  const selectedItem = (t) =>
-    items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
-
+  const selectedId = (t) => (document.getElementById(FIELDS[t].id)?.value || "").trim();
+  const selectedItem = (t) => items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
   const tubSizeLabel = (p) =>
-    p.lengthCm && p.widthCm
-      ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`
-      : "";
+    p.lengthCm && p.widthCm ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm` : "";
 
-  // Once a tub is picked, the sensible screen is the cheapest one hinged on the
-  // same side — every Iris tub is 160x70/80, so size no longer discriminates.
-  function recommendedScreenId() {
-    const tub = selectedItem("tub");
-    if (!tub?.side) return null;
-    const same = ofType("screen")
-      .filter((p) => p.side === tub.side)
-      .sort((a, b) => a.netPrice - b.netPrice);
-    return same[0]?.articleNumber || null;
-  }
+  // einbau null = the maker does not say → fits any installation
+  const tubOk = (p, s, skip = []) =>
+    (skip.includes("einbau") || !s.einbau || !p.einbau || p.einbau === s.einbau) &&
+    (skip.includes("side") || !s.side || p.side === s.side) &&
+    (skip.includes("mode") || !s.mode || s.mode === "only" || (s.mode === "door" ? !!p.hasDoor : !p.hasDoor)) &&
+    (skip.includes("size") || !s.size || sizeOf(p) === s.size) &&
+    (skip.includes("ablauf") || !s.ablauf || !p.ablauf || p.ablauf === s.ablauf);
+  const count = (over) => tubs().filter((p) => tubOk(p, { ...st, ...over, size: null, ablauf: null })).length;
+
+  const keys = () => (st.mode === "only" ? ORDER.only : ORDER.normal);
+  const clearFrom = (k) => {
+    const ks = keys();
+    ks.slice(ks.indexOf(k)).forEach((x) => delete st[x]);
+    delete st.size; delete st.ablauf; delete st.sh; delete st.sw;
+  };
+  const nextStep = () => keys().find((k) => !st[k]);
+  const ready = () => !nextStep();
 
   function applySelection(p) {
     const f = FIELDS[p.type];
-    const isSame = selectedId(p.type) === p.articleNumber;
-    setHidden(f.id, isSame ? "" : p.articleNumber);
-    setHidden(f.name, isSame ? "" : p.name);
-    setHidden(f.price, isSame ? "" : p.netPrice);
-    if (f.size) setHidden(f.size, isSame ? "" : tubSizeLabel(p));
+    const same = selectedId(p.type) === p.articleNumber;
+    setHidden(f.id, same ? "" : p.articleNumber);
+    setHidden(f.name, same ? "" : p.name);
+    setHidden(f.price, same ? "" : p.netPrice);
+    setHidden(f.desc, same ? "" : p.desc || "");
+    if (f.size) setHidden(f.size, same ? "" : tubSizeLabel(p));
     render();
     window.updatePricing?.();
   }
 
-  function renderFilters() {
-    const reco = recommendedScreenId();
-    filtersEl.innerHTML = FACETS[type]
-      .map(([key, label, help]) => {
-        const values = [
-          ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
-        ].sort();
-        if (values.length < 2) return "";
-        const chips = values
-          .map((v) => {
-            const n = ofType().filter(
-              (p) => String(p[key]) === String(v) && matches(p, key),
-            ).length;
-            return `<button type="button" class="wanne-chip" data-fkey="${esc(key)}" data-fval="${esc(v)}"
-              aria-pressed="${String(filters[key]) === String(v)}" ${n ? "" : "disabled"}>${esc(
-                showVal(key, v),
-              )} <span class="n">${n}</span></button>`;
-          })
-          .join("");
-        const defs = values
-          .filter((v) => VALUE_HELP[key]?.[v])
-          .map((v) => `<div><strong>${esc(v)}:</strong> ${esc(VALUE_HELP[key][v])}</div>`)
-          .join("");
-        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div>${
-          help ? `<div class="wanne-fhelp">${esc(help)}</div>` : ""
-        }<div class="wanne-chips">${chips}</div>${defs ? `<div class="wanne-fdefs">${defs}</div>` : ""}</div>`;
-      })
-      .join("");
-    return reco;
+  // A restored offer (or an older pick) fills the hidden inputs: open the wizard
+  // on the matching answers so the saved choice is visible, not an empty start.
+  function syncFromSelection() {
+    const t = selectedItem("tub"), s = selectedItem("screen");
+    if (t) st = { mode: t.hasDoor ? "door" : "screen", einbau: t.einbau || "Ecke", side: t.side };
+    else if (s) st = { mode: "only", side: s.side };
+    else return false;
+    return true;
   }
 
-  function render() {
-    panel.querySelectorAll(".wanne-seg button").forEach((b) => {
-      b.setAttribute("aria-pressed", String(b.dataset.wtype === type));
+  // ---- drawings -----------------------------------------------------------
+  const specFor = (o) => ({ einbau: "ecke", side: "links", mode: "door", L: 170, Wd: 75, H: 58, ...o });
+  const einbauKey = (v) => String(v || "Ecke").toLowerCase();
+  function stageSpec() {
+    const t = selectedItem("tub");
+    const first = t || (ready() && st.mode !== "only" ? tubs().find((p) => tubOk(p, st)) : null);
+    const sc = selectedItem("screen");
+    const mode = st.mode === "only" ? "screen" : st.mode === "screen" ? (sc ? "screen" : "plain") : "door";
+    return specFor({
+      einbau: einbauKey(st.einbau || first?.einbau),
+      side: st.side || "links",
+      mode,
+      L: first?.lengthCm || 170,
+      Wd: first?.widthCm || 75,
+      H: first?.tubHeightCm || 58,
+      screenH: sc?.heightCm || Number(st.sh) || 140,
+      label: first ? `${sizeOf(first)}${first.tubHeightCm ? ` × ${String(first.tubHeightCm).replace(".", ",")} cm hoch` : ""}` : "",
     });
+  }
+  const sk = (spec) => {
+    specs.push(spec);
+    return `<div class="wz-sk" data-sk="${specs.length - 1}"></div>`;
+  };
+  function mountSketches(root) {
+    if (!SK) return;
+    root.querySelectorAll("[data-sk]").forEach((el) => {
+      const spec = specs[Number(el.dataset.sk)];
+      if (spec) SK.attachWanneSketch(el, () => spec, { small: true, host: el.closest("button") || el });
+    });
+  }
+  function drawStage() {
+    if (!SK || !sketchEl) return;
+    if (!stage) stage = SK.attachWanneSketch(sketchEl, () => stageSpec());
+    stage.redraw();
+  }
 
-    const reco = renderFilters();
-    const all = ofType();
-    const list = all
-      .filter((p) => matches(p))
-      .sort(
-        (a, b) =>
-          (b.articleNumber === reco ? 1 : 0) - (a.articleNumber === reco ? 1 : 0) ||
-          a.netPrice - b.netPrice,
-      );
+  // ---- steps ----------------------------------------------------------------
+  const tile = (attr, title, sub, spec, disabled) =>
+    `<button type="button" class="wz-tile" ${attr} ${disabled ? "disabled" : ""}>${
+      SK ? sk(spec) : ""
+    }<b>${esc(title)}</b><small>${esc(sub)}</small></button>`;
 
-    if (countEl) countEl.textContent = `${list.length} von ${all.length}`;
+  function renderStep() {
+    const step = nextStep();
+    if (!step) { stepEl.innerHTML = ""; return; }
+    let q = "", tiles = "", foot = "";
+    if (step === "einbau") {
+      q = "Wie wird die Wanne eingebaut?";
+      tiles = EINBAU.map(([v, sub]) =>
+        tile(`data-set="einbau:${v}"`, v, sub, specFor({ einbau: v.toLowerCase(), mode: "door", side: st.side || "links" }), !count({ einbau: v }))).join("");
+      foot = `<div class="wz-chips"><button type="button" class="wz-link" data-act="only">Nur einen Wannenaufsatz wählen (ohne Wanne)</button></div>`;
+    } else if (step === "side") {
+      q = st.mode === "only" ? "Auf welcher Seite wird der Aufsatz angeschlagen?" : "Auf welcher Seite ist der Einstieg?";
+      tiles = SIDES.map((v) =>
+        tile(`data-set="side:${v}"`, v[0].toUpperCase() + v.slice(1), "Blick von vorn auf die Wanne",
+          specFor({ einbau: einbauKey(st.einbau), side: v, mode: st.mode === "only" ? "screen" : "door" }),
+          st.mode === "only" ? !screens().some((p) => p.side === v) : !count({ side: v }))).join("");
+    } else if (step === "mode") {
+      q = "Welche Ausführung?";
+      tiles = MODES.map(([v, title, sub]) =>
+        tile(`data-set="mode:${v}"`, title, sub,
+          specFor({ einbau: einbauKey(st.einbau), side: st.side, mode: v === "screen" ? "screen" : "door" }), !count({ mode: v }))).join("");
+    }
+    stepEl.innerHTML = `<div class="wz-q">${esc(q)}</div><div class="wz-tiles">${tiles}</div>${foot}`;
+    mountSketches(stepEl);
+  }
 
-    const chosen = selectedId(type);
-    grid.innerHTML =
-      list
-        .map((p) => {
-          const pills = FACETS[type]
-            .map(([k]) =>
-              p[k] == null || p[k] === ""
-                ? ""
-                : `<span class="wanne-pill">${esc(pillVal(k, p[k]))}</span>`,
-            )
-            .join("");
-          // alt="" on purpose: the name sits right beside it, so the image is
-          // decorative and a screen reader would otherwise read it twice.
-          // No loading="lazy": the grid renders while the panel is still
-          // hidden, so lazy images never enter the viewport and never load.
-          return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
-            aria-pressed="${chosen === p.articleNumber}">
-            <span class="wanne-thumb"><img src="${esc(p.image || FALLBACK_IMG)}" alt="" /></span>
-            <span class="wanne-body">
-              ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
-              <span class="wanne-art">${esc(p.articleNumber)}</span>
-              <div class="wanne-name">${esc(p.name)}</div>
-              <div class="wanne-pills">${pills}</div>
-              <div class="wanne-finish">${esc(p.finish)}</div>
-              <div class="wanne-price">${eur(p.netPrice)}</div>
-            </span>
-          </button>`;
-        })
-        .join("") ||
-      `<div class="muted">Keine Treffer. Filter lockern.</div>`;
+  function renderCrumbs() {
+    const label = {
+      einbau: () => st.einbau,
+      side: () => (st.mode === "only" ? `Anschlag ${st.side}` : `Einstieg ${st.side}`),
+      mode: () => (st.mode === "only" ? "Nur Aufsatz" : st.mode === "door" ? "Mit Tür" : "Mit Glasaufsatz"),
+    };
+    const done = keys().filter((k) => st[k]);
+    crumbsEl.innerHTML = done.map((k) => `<button type="button" class="wz-crumb" data-crumb="${k}" title="Ändern">${esc(label[k]())}</button>`).join("") +
+      (done.length ? `<button type="button" class="wz-link" data-act="reset">Neu beginnen</button>` : "");
+  }
 
-    renderSummary();
+  // ---- results --------------------------------------------------------------
+  const chipRow = (label, key, values, show) => {
+    if (values.length < 2) return "";
+    return `<div class="wz-chips"><span class="lbl">${esc(label)}</span>${values
+      .map(([v, txt]) => `<button type="button" class="wanne-chip" data-chip="${key}" data-val="${esc(v)}" aria-pressed="${String(st[key]) === String(v)}">${esc(txt ?? show(v))}</button>`)
+      .join("")}</div>`;
+  };
+  const card = (p, spec, reco) => {
+    const chosen = selectedId(p.type) === p.articleNumber;
+    const thumb = SK ? sk(spec) : `<img src="${esc(p.image || FALLBACK_IMG)}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:contain" />`;
+    return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}" aria-pressed="${chosen}">
+      <span class="wanne-thumb">${thumb}</span>
+      <span class="wanne-body">${reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+        <span class="wanne-art">${esc(p.articleNumber)}</span>
+        <div class="wanne-name">${esc(p.desc || p.name)}</div>
+        <div class="wanne-price">${eur(p.netPrice)}</div></span></button>`;
+  };
+
+  function renderResults() {
+    if (!ready()) { resultsEl.innerHTML = ""; return; }
+    let html = "";
+    if (st.mode !== "only") {
+      const base = tubs().filter((p) => tubOk(p, st, ["size", "ablauf"]));
+      const sizes = [...new Set(base.map(sizeOf))];
+      const ablaufs = [...new Set(base.filter((p) => p.hasDoor && p.ablauf).map((p) => p.ablauf))];
+      const list = base.filter((p) => tubOk(p, st)).sort((a, b) => a.netPrice - b.netPrice);
+      html += chipRow("Maße", "size", sizes.map((v) => [v, v]));
+      if (ablaufs.length > 1) {
+        html += `<details class="wz-more" ${st.ablauf ? "open" : ""}><summary>Weitere Optionen: Ablauf</summary>
+          ${chipRow("Ablauf", "ablauf", ablaufs.map((v) => [v, v === "Trio" ? "Trio-Ablauf" : v === "Standard" ? "Standard-Ablauf" : v]))}
+          ${ablaufs.includes("Trio") ? '<div class="wanne-empty" style="font-size:12.5px">Trio: Ablauf, Überlauf und Einlauf in einem Bauteil (ca. 230–270 € Aufpreis).</div>' : ""}</details>`;
+      }
+      html += `<div class="wz-h">${list.length} passende ${list.length === 1 ? "Wanne" : "Wannen"}</div>`;
+      html += `<div class="wanne-grid">${
+        list.map((p) => card(p, specFor({
+          einbau: einbauKey(p.einbau || st.einbau), side: p.side, mode: p.hasDoor ? "door" : "plain",
+          L: p.lengthCm, Wd: p.widthCm, H: p.tubHeightCm || 58,
+        }), false)).join("") || `<div class="muted">Keine passende Wanne. Ändern Sie oben eine Antwort.</div>`
+      }</div>`;
+    }
+    const tub = selectedItem("tub");
+    if (st.mode === "only" || (st.mode === "screen" && tub && !tub.hasDoor)) {
+      const side = tub?.side || st.side;
+      const base = screens().filter((p) => p.side === side);
+      const heights = [...new Set(base.map((p) => p.heightCm).filter(Boolean))].sort();
+      const walls = [...new Set(base.map((p) => p.seitenwand).filter(Boolean))].sort();
+      const list = base
+        .filter((p) => (!st.sh || String(p.heightCm) === String(st.sh)) && (!st.sw || p.seitenwand === st.sw))
+        .sort((a, b) => a.netPrice - b.netPrice);
+      html += `<div class="wz-h">${st.mode === "only" ? "Wannenaufsatz" : "Dazu passender Wannenaufsatz (optional)"}</div>`;
+      html += chipRow("Höhe", "sh", heights.map((v) => [v, `${v} cm`]));
+      html += chipRow("Seitenwand", "sw", walls.map((v) => [v, v === "ohne" ? "ohne" : `${v.slice(1)} cm breit`]));
+      html += `<div class="wanne-grid">${
+        list.map((p, i) => card(p, specFor({
+          einbau: einbauKey(st.einbau), side: p.side, mode: "screen", screenH: p.heightCm,
+        }), st.mode === "screen" && i === 0)).join("") || `<div class="muted">Kein passender Aufsatz.</div>`
+      }</div>`;
+    }
+    resultsEl.innerHTML = html;
+    mountSketches(resultsEl);
   }
 
   function renderSummary() {
-    if (!summaryEl) return;
-    const tub = selectedItem("tub");
-    const screen = selectedItem("screen");
-    if (!tub && !screen) {
-      summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`;
-      return;
-    }
+    const tub = selectedItem("tub"), screen = selectedItem("screen");
+    if (!tub && !screen) { summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`; return; }
     const rows = [
-      tub && `${LABELS.tub}: <strong>${esc(tub.articleNumber)}</strong> — ${eur(tub.netPrice)}`,
-      screen &&
-        `${LABELS.screen}: <strong>${esc(screen.articleNumber)}</strong> — ${eur(screen.netPrice)}`,
+      tub && `<strong>${esc(tub.desc || tub.name)}</strong> — ${eur(tub.netPrice)}`,
+      screen && `<strong>${esc(screen.desc || screen.name)}</strong> — ${eur(screen.netPrice)}`,
     ].filter(Boolean);
     const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
-    summaryEl.innerHTML =
-      rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+    summaryEl.innerHTML = rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+  }
+
+  function render() {
+    specs = [];
+    renderCrumbs();
+    renderStep();
+    renderResults();
+    renderSummary();
+    drawStage();
   }
 
   panel.addEventListener("click", (e) => {
-    const seg = e.target.closest(".wanne-seg button");
-    if (seg) {
-      type = seg.dataset.wtype;
-      filters = {};
+    const set = e.target.closest("[data-set]");
+    if (set && !set.disabled) {
+      const [k, v] = set.dataset.set.split(":");
+      st[k] = v;
       return render();
     }
-    const chip = e.target.closest(".wanne-chip");
-    if (chip && !chip.disabled) {
-      const { fkey, fval } = chip.dataset;
-      filters[fkey] = String(filters[fkey]) === String(fval) ? null : fval;
+    const crumb = e.target.closest("[data-crumb]");
+    if (crumb) { clearFrom(crumb.dataset.crumb); return render(); }
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "only") { st = { mode: "only" }; return render(); }
+    if (act === "reset") { st = {}; return render(); }
+    const chip = e.target.closest("[data-chip]");
+    if (chip) {
+      const { chip: k, val } = chip.dataset;
+      st[k] = String(st[k]) === val ? null : val;
+      if (!st[k]) delete st[k];
       return render();
     }
-    if (e.target.closest("#wanneReset")) {
-      filters = {};
-      return render();
-    }
-    const card = e.target.closest(".wanne-card");
-    if (card) {
-      const p = items.find((x) => x.articleNumber === card.dataset.art);
+    const c = e.target.closest(".wanne-card");
+    if (c) {
+      const p = items.find((x) => x.articleNumber === c.dataset.art);
       if (p) applySelection(p);
     }
   });
+
+  // Product photos 404 / CDN down → local placeholder.
+  panel.addEventListener("error", (e) => {
+    const img = e.target;
+    if (img?.tagName !== "IMG" || img.dataset.fallback) return;
+    img.dataset.fallback = "1";
+    img.src = FALLBACK_IMG;
+  }, true);
 
   async function load() {
     try {
@@ -15059,21 +15069,26 @@ function initWannePicker() {
       items = Array.isArray(data?.items) ? data.items : [];
     } catch (e) {
       console.error("[wanne] catalog load failed:", e?.message || e);
-      grid.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
+      resultsEl.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
       return;
     }
+    syncFromSelection();
     render();
   }
 
-  // A restored offer fills the hidden inputs after this init runs; re-render so
-  // the saved pick shows as selected instead of an empty-looking grid.
+  // A restored offer fills the hidden inputs after this init ran.
   ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
-      if (items.length) render();
+      if (!items.length || own) return;
+      syncFromSelection();
+      render();
     });
   });
 
   window.__wannePicker = { reload: load, render };
+  import("/configurator/wanne-sketch.js")
+    .then((m) => { SK = m; if (items.length) render(); })
+    .catch((e) => console.warn("[wanne] sketches unavailable:", e?.message || e));
   load();
 }
 function initTraySizeAutoLabel() {
@@ -15228,6 +15243,9 @@ function attachDuschwanneToPayload(payload) {
   payload.duschwanne.chosenBathtubPrice = Number(val("chosenBathtubPrice")) || null;
   payload.duschwanne.chosenScreenName = val("chosenScreenName") || null;
   payload.duschwanne.chosenScreenPrice = Number(val("chosenScreenPrice")) || null;
+  // Brand-free text for Kostentabelle + PDF (see lib/wanneDescribe.js).
+  payload.duschwanne.chosenBathtubDesc = val("chosenBathtubDesc") || null;
+  payload.duschwanne.chosenScreenDesc = val("chosenScreenDesc") || null;
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -17506,6 +17524,8 @@ const screenPid = dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
 setHiddenById("chosenScreenProductId", screenPid);
 setHiddenById("chosenScreenName", dw.chosenScreenName);
 setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
+setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
+setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -20194,6 +20214,8 @@ function restoreDuschwanne(dw) {
   setHiddenById("chosenScreenProductId", screenPid);
   setHiddenById("chosenScreenName", dw.chosenScreenName);
   setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
+setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
+setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {

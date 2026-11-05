@@ -8,6 +8,7 @@
 import { Router } from "express";
 import { getVigorDb } from "../external/vigorDb.js";
 import { WANNE_SETS } from "../lib/wanneSets.js";
+import { describeWanne } from "../lib/wanneDescribe.js";
 
 const r = Router();
 
@@ -57,16 +58,20 @@ export function parseWanneDoc(doc) {
   if (!isScreen) {
     // "160x70/80cm" -> 160 long, tapered 70..80 wide
     const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?\s*cm/i);
+    const schuerze = /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
+      ? "2 Schürzen"
+      : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
+        ? "Frontschürze"
+        : null;
     return {
       ...base,
+      // Trade logic, not in the Vigor data: apron on front + one end = corner
+      // installation, front apron only = between two walls (niche).
+      einbau: schuerze === "2 Schürzen" ? "Ecke" : schuerze === "Frontschürze" ? "Nische" : null,
       lengthCm: num(m?.[1]),
       widthCm: num(m?.[2]),
       widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
-      schuerze: /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
-        ? "2 Schürzen"
-        : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
-          ? "Frontschürze"
-          : null,
+      schuerze,
       // m.WE = Wanneneinlauf (water enters through the tub), m.Abl. = plain drain
       zulauf: /m\.\s*WE\b/i.test(finish)
         ? "Wanneneinlauf"
@@ -138,6 +143,7 @@ r.get("/catalog", async (_req, res) => {
     const items = [...best.values()]
       .map((v) => v.parsed)
       .concat(WANNE_SETS)
+      .map((p) => ({ ...p, desc: describeWanne(p) }))
       .sort(
         (a, b) =>
           a.type.localeCompare(b.type) ||

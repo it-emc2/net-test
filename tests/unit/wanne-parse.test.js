@@ -104,3 +104,36 @@ test('image passes the first scraper url through, or null when absent', () => {
   expect(parseWanneDoc(doc('IRISWA14L', 'n', 'f')).image).toBeNull();
   expect(parseWanneDoc({ ...doc('IRISWA14L', 'n', 'f'), images: [] }).image).toBeNull();
 });
+
+// ---- customer-facing description (Kostentabelle + PDF): never a brand ----
+import { describeWanne } from '../../src/lib/wanneDescribe.js';
+import { WANNE_SETS } from '../../src/lib/wanneSets.js';
+
+const BRANDS = /steinkamp|novellini|ottofond|easy entry|iris|free-gate|comby/i;
+
+test('describe: door set reads as plain product text with size and height', () => {
+  const p = WANNE_SETS.find((x) => x.articleNumber === 'STEA160L-ET');
+  expect(describeWanne(p)).toBe(
+    'Badewanne mit Einstiegstür links, Einbau Ecke, 160 × 75 × 58,5 cm, Trio-Ablauf',
+  );
+});
+
+test('describe: screen carries side, height and side wall', () => {
+  const p = parseWanneDoc(
+    doc('IRISWAS75L', 'NOV Iris COMBY Wannenaufsatz für Iris li', '24/60x150cm ESG klar chrom.m.S75'),
+  );
+  expect(describeWanne(p)).toBe(
+    'Wannenaufsatz, 2-teilig, Anschlag links, Höhe 150 cm, mit Seitenwand 75 cm, ESG-Glas klar, Profile chrom',
+  );
+});
+
+test('describe: no article of the catalog leaks a brand name', () => {
+  const iris = parseWanneDoc(
+    doc('IRIS160L2SWE', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.2 Schürzen weiß m.WE Novellini'),
+  );
+  expect(iris.einbau).toBe('Ecke');
+  for (const p of [...WANNE_SETS, iris]) {
+    expect(describeWanne(p)).not.toMatch(BRANDS);
+    expect(describeWanne(p).length).toBeGreaterThan(20);
+  }
+});

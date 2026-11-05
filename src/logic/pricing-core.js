@@ -3083,6 +3083,12 @@ try {
     );
   }
 
+  // Customer-facing text (Kostentabelle + PDF): the brand-free description saved
+  // with the selection (lib/wanneDescribe.js, built by the catalog route). Offers
+  // saved before it existed keep the plain generic word. This file also runs in
+  // the browser, so it must not import the catalog.
+  const wanneDesc = (_pid, saved, generic) => String(saved || "").trim() || generic;
+
   const addWanneLine = async (pid, snapName, snapPrice, label) => {
     if (!pid) return;
     const already = (materials?.lines || []).some(
@@ -3110,13 +3116,13 @@ try {
     bathtubPid,
     dw.chosenBathtubName,
     dw.chosenBathtubPrice,
-    "Badewanne",
+    wanneDesc(bathtubPid, dw.chosenBathtubDesc, "Badewanne"),
   );
   await addWanneLine(
     screenPid,
     dw.chosenScreenName,
     dw.chosenScreenPrice,
-    "Wannenaufsatz",
+    wanneDesc(screenPid, dw.chosenScreenDesc, "Wannenaufsatz"),
   );
 } catch (e) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
