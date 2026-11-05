@@ -80,3 +80,40 @@ export const Draft = model("Draft", new Schema({
   savedAt: { type: Date, default: Date.now },
   clientSaveId: { type: String },
 }, { timestamps: true, collection: "drafts" }));
+
+const str = { type: String, trim: true, default: "" };
+export const Customer = model("Customer", new Schema({
+  customerNumber: { type: String, trim: true, index: true, sparse: true, unique: true },
+  bitrixContactId: { type: String, trim: true, index: true },
+  salutation: str,
+  firstName: { ...str, index: true },
+  lastName: { ...str, index: true },
+  company: { ...str, index: true },
+  email: { ...str, lowercase: true, index: true },
+  phone: str, street: str,
+  city: { ...str, index: true },
+  postalCode: str, state: str, country: str,
+  kundendaten: { type: Schema.Types.Mixed, default: {} },
+  sourceOfferType: { ...str, index: true },
+}, { timestamps: true, collection: "Kundendaten" }));
+
+export const BitrixLog = model("BitrixLog", new Schema({
+  method: { type: String, required: true, trim: true },
+  message: { type: String, default: "" },
+  params: { type: Schema.Types.Mixed, default: undefined },
+  httpMethod: { type: String, enum: ["GET", "POST"], default: "POST" },
+  resolved: { type: Boolean, default: false },
+  resolvedAt: { type: Date, default: null },
+}, { timestamps: true, collection: "bitrixlogs" }));
+
+export const USER_ACTION_EVENTS = [
+  "offer_sent", "offer_bitrix_only", "move_dialog_shown", "move_dialog_dismissed", "move_succeeded",
+  "move_failed", "termin_opened", "configurator_opened", "duschabtrennung_leaf_selected", "server_started",
+] as const;
+export const UserActionLog = model("UserActionLog", new Schema({
+  event: { type: String, required: true, trim: true, enum: USER_ACTION_EVENTS },
+  dealId: { type: String, default: "" },
+  offerNumber: { type: String, default: "" },
+  offerType: { type: String, default: "" },
+  message: { type: String, default: "" },
+}, { timestamps: true, collection: "useractionlogs" }));

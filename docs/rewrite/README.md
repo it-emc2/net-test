@@ -13,6 +13,7 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | `TESTING.md` | Test commands, baseline, golden masters |
 | `UX-CHANGES.md` | Approved deviations from today's UI |
 | `FINDINGS-AH.md` | Legacy AH pricing bugs (kept for parity, fixes need OK) |
+| `FINDINGS-BACKEND.md` | Legacy backend bugs found during the port |
 | `../../v2/README.md` | The TypeScript rewrite workspace |
 
 **Main sync procedure:** (1) read `~/emc2-local/main-sync/<date>.md`; (2) merge `origin/main` into this branch; (3) `node v2/scripts/port-pricing-core.mjs <sha>` if `pricing-core.js` changed (drift guard fails otherwise), re-copy `CONFIG_SCHEMA`/models if their guards fail; (4) rebuild golden masters (`npm run golden:pricing && npm run golden:docs`) when behaviour changed on main, review the diff; (5) `node scripts/golden/pii-scan.mjs tests/golden/fixtures/**/*.json`; (6) update parity snapshots only for intended UI changes.
@@ -43,3 +44,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-04 | phase 4 (group 2b) | Offer/draft writes identical to legacy incl. stored documents (contract test) | Group 2c: deal drafts (ADR 007) |
 | 2026-11-04 | phase 4 (group 2c) | Deal drafts + revision history (ADR 007): concurrency, restore, legacy import; v2 1,152 tests | Group 3: customers, users, admin config |
 | 2026-11-05 | main sync | Merged main@42150092 (BU redesign); pricing re-ported via new port script + drift guards (JS identical); golden rebuilt; models/config/aufschlag synced; v2 1,161 tests | Phase 4 group 3 |
+| 2026-11-05 | phase 4 (group 3) | Customers, users, admin identical to legacy; legacy bug B-1 (customers without number → 500) found; v2 1,171 tests | Group 4: integrations behind interfaces |

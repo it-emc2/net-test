@@ -320,4 +320,21 @@ export class BusinessConfig {
   }
 
   stop() { if (this.timer) clearInterval(this.timer); this.timer = null; }
+
+  /** Persist one value (legacy ConfigService.set) via the injected writer, then update the cache. */
+  async set(key: string, value: unknown, write: (key: string, value: unknown) => Promise<void>) {
+    await write(key, value);
+    this.cache.set(key, value);
+  }
+
+  /** Legacy setMany: booleans/json/text-list kept as given, everything else coerced to Number. */
+  async setMany(updates: Record<string, unknown>, write: (key: string, value: unknown) => Promise<void>) {
+    for (const [key, value] of Object.entries(updates)) {
+      const def = CONFIG_SCHEMA.find((d) => d.key === key);
+      const coerced = def?.type === "boolean" ? Boolean(value)
+        : def?.type === "json" || def?.type === "text-list" ? value
+        : Number(value);
+      await this.set(key, coerced, write);
+    }
+  }
 }

@@ -15,7 +15,8 @@ const shape = (schema: mongoose.Schema) =>
     .map(([k, p]: [string, any]) => [k, { type: p.instance, def: typeof p.defaultValue === "function" ? "fn" : p.defaultValue ?? null }]));
 
 describe("v2 models match legacy models", () => {
-  it.each([["Product.js", v2.Product], ["Service.js", v2.Service], ["User.js", v2.User], ["AppConfig.js", v2.AppConfig], ["Offer.js", v2.Offer], ["Draft.js", v2.Draft]])(
+  it.each([["Product.js", v2.Product], ["Service.js", v2.Service], ["User.js", v2.User], ["AppConfig.js", v2.AppConfig], ["Offer.js", v2.Offer], ["Draft.js", v2.Draft],
+    ["Customer.js", v2.Customer], ["BitrixLog.js", v2.BitrixLog], ["UserActionLog.js", v2.UserActionLog]])(
     "%s", async (file, model) => {
       const legacy = await legacyModel(file);
       expect(shape(model.schema)).toEqual(shape(legacy));

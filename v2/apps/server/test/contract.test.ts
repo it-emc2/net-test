@@ -59,6 +59,10 @@ beforeAll(async () => {
   await db.collection("offers").insertMany(ejson("docs-db/offers.json"));
   await db.collection("drafts").insertMany(ejson("docs-db/drafts.json"));
   await db.collection("users").insertOne({ email: USER.email, name: "Contract", passwordHash: hashPassword(USER.password), role: "admin", active: true });
+  await db.collection("users").insertMany([
+    { email: "ap@test.local", name: "AP Test", firstName: "AP", lastName: "Test", passwordHash: hashPassword("ap-pass"), role: "user", active: true, signatureDataUrl: "data:image/png;base64,AAAA", createdAt: new Date("2025-01-01") },
+    { email: "inactive@test.local", name: "Inactive", passwordHash: hashPassword("x"), role: "user", active: false, signatureDataUrl: "data:image/png;base64,BBBB" },
+  ]);
   const vigor = fx("docs/vigor-products.json");
   if (vigor.length) await client.db("vigor").collection("products").insertMany(vigor);
   await client.close();
@@ -329,4 +333,133 @@ describe("contract: offers + drafts (write)", () => {
       expect(norm(v.body.pricing, [])).toEqual(norm(l.body.pricing, []));
     }
   }, 120000);
+});
+
+// ---------------------------------------------------------------------------------------
+describe("contract: customers, users, admin (group 3)", () => {
+  const userToken = async (app: "legacy" | "v2", email: string, password: string) => {
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
+      return (await r.json()).token as string;
+    }
+    return (await v2.inject({ method: "POST", url: "/api/auth/login", payload: { email, password } })).json().token as string;
+  };
+  const call = async (app: "legacy" | "v2", method: string, url: string, body?: unknown, tok = token) => {
+    const headers: Record<string, string> = { authorization: `Bearer ${tok}` };
+    if (body !== undefined) headers["content-type"] = "application/json";
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: r.status, body: await r.json().catch(() => null) };
+    }
+    const r = await v2.inject({ method: method as any, url, headers, payload: body as any });
+    return { status: r.statusCode, body: r.json() };
+  };
+
+  it("POST /api/customers + search + :id — identical (both apps create the same customers)", async () => {
+    const people = [
+      { customerNumber: "C-0101", firstName: "Vorname0101", lastName: "Kunde0101", city: "Ort9", email: "K0101@Example.invalid", payer: "Kassenkunde", cp_name: "ANON" },
+      { kundendaten: { bitrixContactId: "B-0102", firstName: "Vorname0102", lastName: "Kunde0102", company: "", phone: "0000" }, offerType: "bwt" },
+      { customerNumber: "C-9001", firstName: "Vorname0103", lastName: "Kunde0103" },
+    ];
+    for (const [i, p] of people.entries()) {
+      const tag = (app: string, o: any) => JSON.parse(JSON.stringify(o).replace(/0(10\d)/g, app === "legacy" ? "L$1" : "V$1").replace("C-9001", app === "legacy" ? "C-L9001" : "C-V9001"));
+      const l = await call("legacy", "POST", "/api/customers", tag("legacy", p));
+      const v = await call("v2", "POST", "/api/customers", tag("v2", p));
+      expect(v.status, `customer ${i}`).toBe(l.status);
+      const swap: [string, string][] = [];
+      expect(norm(v.body, [["V10", "X10"], ["v10", "x10"], ["C-V9001", "C-X9001"]]), `customer ${i}`).toEqual(norm(l.body, [["L10", "X10"], ["l10", "x10"], ["C-L9001", "C-X9001"]]));
+      void swap;
+    }
+    for (const q of ["KundeL101", "VornameL102 KundeL102", "ort9", "C-L9001", ""]) {
+      const qv = q.replaceAll("L1", "V1").replaceAll("C-L", "C-V");
+      const l = await call("legacy", "GET", `/api/customers/search?q=${encodeURIComponent(q)}`);
+      const v = await call("v2", "GET", `/api/customers/search?q=${encodeURIComponent(qv)}`);
+      if (qv === q) { expect(v.body, q).toEqual(l.body); continue; } // untagged query: both apps see the same docs
+      expect(norm(v.body, [["V10", "X10"], ["v10", "x10"], ["C-V9001", "C-X9001"]]), q).toEqual(norm(l.body, [["L10", "X10"], ["l10", "x10"], ["C-L9001", "C-X9001"]]));
+    }
+    const anyCust = (await call("legacy", "GET", "/api/customers/search?q=KundeL101")).body.items[0];
+    const byId = await both("GET", `/api/customers/${anyCust._id}`);
+    expect(byId.v2.body).toEqual(byId.legacy.body);
+    const nf = await both("GET", "/api/customers/0123456789abcdef01234567");
+    expect(nf.v2.status).toBe(404);
+    expect(nf.v2.body.error.message).toBe(nf.legacy.body.error);
+    const bad = await both("POST", "/api/customers", { city: "x" });
+    expect(bad.v2.status).toBe(400);
+    expect(bad.v2.body.error.message).toBe(bad.legacy.body.error);
+  });
+
+  it("LEGACY BUG kept: a 2nd customer without customer number fails (unique sparse index vs \"\")", async () => {
+    // first customer without number succeeds in whichever app goes first; every later one → 500
+    const l1 = await call("legacy", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Eins" });
+    const l2 = await call("legacy", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Zwei" });
+    const v3 = await call("v2", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Drei" });
+    expect(l1.status).toBe(200);
+    expect(l2.status).toBe(500);
+    expect(v3.status).toBe(500);
+  });
+
+  it("GET /api/users — identical (only active users with signature)", async () => {
+    const r = await both("GET", "/api/users");
+    expect(r.v2.body).toEqual(r.legacy.body);
+    expect(r.v2.body.map((u: any) => u.email)).toEqual(["ap@test.local"]);
+  });
+
+  it("admin read endpoints — identical", async () => {
+    for (const url of ["/admin/api/config", "/admin/api/users", "/admin/api/bitrix-logs", "/admin/api/user-action-logs?event=server_started", "/admin/api/users/ap@test.local/signature"]) {
+      const r = await both("GET", url);
+      expect(r.v2.status, url).toBe(r.legacy.status);
+      expect(r.v2.body, url).toEqual(r.legacy.body);
+    }
+    const pub = await both("GET", "/admin/api/config/public");
+    expect(pub.v2.body).toEqual(pub.legacy.body);
+  });
+
+  it("admin writes — same effect (config set/reset, user upsert, signature)", async () => {
+    const put = { TAX_RATE: "0.19", NOT_A_KEY: 1, BU_SHOW_DA_HASSMANN: 1 };
+    const [lp, vp] = [await call("legacy", "PUT", "/admin/api/config", put), await call("v2", "PUT", "/admin/api/config", put)];
+    expect(vp.body).toEqual(lp.body);
+    const [lr, vr] = [await call("legacy", "POST", "/admin/api/config/reset", { key: "BU_SHOW_DA_HASSMANN" }), await call("v2", "POST", "/admin/api/config/reset", { key: "BU_SHOW_DA_HASSMANN" })];
+    expect(vr.body).toEqual(lr.body);
+    const unk = await both("POST", "/admin/api/config/reset", { key: "NOPE" });
+    expect(unk.v2.status).toBe(404);
+    expect(unk.v2.body.error.message).toBe(unk.legacy.body.error);
+    for (const [app, email] of [["legacy", "new-l@test.local"], ["v2", "new-v@test.local"]] as const) {
+      const r = await call(app, "POST", "/admin/api/users", { email, firstName: "N", lastName: "U", role: "user", password: "pw" });
+      expect(r.body).toEqual({ ok: true, email });
+      const s = await call(app, "POST", `/admin/api/users/${email}/signature`, { dataUrl: "data:image/png;base64,CCCC" });
+      expect(s.body).toEqual({ ok: true, hasSignature: true });
+    }
+    const list = (await both("GET", "/admin/api/users")).v2.body;
+    const nl = list.find((u: any) => u.email === "new-l@test.local"), nv = list.find((u: any) => u.email === "new-v@test.local");
+    expect({ ...nv, email: "x" }).toEqual({ ...nl, email: "x" });
+    for (const body of [{ email: "" }, { email: "nopw@test.local" }]) {
+      const r = await both("POST", "/admin/api/users", body);
+      expect(r.v2.status).toBe(400);
+      expect(r.v2.body.error.message).toBe(r.legacy.body.error);
+    }
+    const badImg = await both("POST", "/admin/api/users/ap@test.local/signature", { dataUrl: "data:text/plain;base64,x" });
+    expect(badImg.v2.status).toBe(400);
+    expect(badImg.v2.body.error.message).toBe(badImg.legacy.body.error);
+  });
+
+  it("non-admin user → 403 on admin routes (same message); admin login rules identical", async () => {
+    const lt = await userToken("legacy", "ap@test.local", "ap-pass");
+    for (const url of ["/admin/api/config", "/admin/api/users"]) {
+      const [l, v] = [await call("legacy", "GET", url, undefined, lt), await call("v2", "GET", url, undefined, lt)];
+      expect(v.status, url).toBe(403);
+      expect(v.body.error.message).toBe(l.body.error);
+    }
+    for (const body of [{ email: "ap@test.local", password: "ap-pass" }, { email: USER.email, password: "nope" }, { email: "", password: "" }]) {
+      const l = await fetch(`http://127.0.0.1:${LEGACY_PORT}/admin/api/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const v = await v2.inject({ method: "POST", url: "/admin/api/login", payload: body });
+      expect(v.statusCode).toBe(l.status);
+      expect(v.json().error.message).toBe((await l.json()).error);
+    }
+    const ok = await v2.inject({ method: "POST", url: "/admin/api/login", payload: USER });
+    expect(ok.json().user).toEqual({ email: USER.email, name: "Contract", role: "admin" });
+  });
+
+  it("security by design: config/public needs a login in v2 (legacy: open)", async () => {
+    expect((await v2.inject({ url: "/admin/api/config/public" })).statusCode).toBe(401);
+  });
 });
