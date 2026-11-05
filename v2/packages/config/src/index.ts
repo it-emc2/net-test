@@ -74,6 +74,11 @@ const EnvSchema = z.object({
   IMAP_SENT_FOLDER: z.string().optional(),
   /** Base for links in customer emails (signing link); fallback: request host (legacy). */
   PUBLIC_BASE_URL: z.string().url().optional(),
+  /** onlinebrief24 (letters by post). Production default URL only in production (client). */
+  OB24_BASE_URL: z.string().url().optional(),
+  OB24_API_KEY: z.string().optional(),
+  OB24_API_SECRET: z.string().optional(),
+  OB24_MODE: z.string().optional(),
   /** Static assets (email presets, signature picture). Default: the legacy app's assets. */
   ASSETS_DIR: z.string().optional(),
 });
@@ -109,7 +114,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   // Same idea as the DB guard: dev/test must never reach the real CRM (it would change deals).
   // Same idea for every outbound system that changes real data (ADR 017).
-  for (const key of ["BITRIX_WEBHOOK_BASE", "PLANNING_API_BASE_URL", "SMTP_HOST", "IMAP_HOST"] as const) {
+  for (const key of ["BITRIX_WEBHOOK_BASE", "PLANNING_API_BASE_URL", "SMTP_HOST", "IMAP_HOST", "OB24_BASE_URL"] as const) {
     const raw = cfg[key];
     const host = raw ? (/^[a-z]+:\/\//i.test(raw) ? new URL(raw).hostname : raw).toLowerCase() : "";
     if (cfg.NODE_ENV !== "production" && host && !LOCAL_HOSTS.has(host)) {

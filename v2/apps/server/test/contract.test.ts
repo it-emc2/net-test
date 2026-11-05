@@ -22,6 +22,7 @@ import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
 import type { OfferDocuments, SigningPort } from "../src/email/ports.js";
+import { PDFDocument } from "pdf-lib";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const fx = (p: string) => JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/" + p, "utf8"));
@@ -43,6 +44,7 @@ let v2: FastifyInstance;
 let token = "";
 const bx = new BitrixStub(BITRIX_HANDLERS);
 const smtp = new SmtpSink();
+const OB24 = { OB24_API_KEY: "ob24-test-key", OB24_API_SECRET: "ob24-test-secret", OB24_MODE: "test" };
 const MAIL = { SMTP_EMAIL: "angebote@test.local", SMTP_PASS: "smtp-test-pass", SMTP_REPLY_TO: "service@test.local", PUBLIC_BASE_URL: "http://oc.test" };
 // fake LibreOffice: both apps "convert" DOCX → this fixed PDF (documents themselves = phase 5)
 const FAKE_SOFFICE_DIR = mkdtempSync(join(tmpdir(), "oc-fake-soffice-"));
@@ -97,8 +99,8 @@ beforeAll(async () => {
       ...process.env, NODE_ENV: "test", PORT: String(LEGACY_PORT), MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB",
       VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: bx.base("legacy"), SMTP_HOST: "127.0.0.1",
       ...MAIL, IMAP_PORT: "9", NODE_TLS_REJECT_UNAUTHORIZED: "0", PATH: PATH_WITH_FAKE_SOFFICE,
-      OC_TEST_SMTP_PORT: String(smtp.port), NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
-      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, OB24_BASE_URL: DEAD, ORS_API_KEY: "",
+      OC_TEST_SMTP_PORT: String(smtp.port), OB24_BASE_URL: bx.ob24Base("legacy"), ...OB24, NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
+      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, ORS_API_KEY: "",
     },
     stdio: "ignore",
   });
@@ -109,6 +111,7 @@ beforeAll(async () => {
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
     BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
+    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24,
     SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
   await connectDb(cfg, { info: () => {} });
@@ -847,5 +850,123 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     const mailNote = o.v2.calls.find((c) => c.method === "crm.timeline.comment.add" && c.params.includes("Email automatisch von OC gesendet"))!;
     expect(mailNote.params).toContain("Handbearbeitete DOCX hochgeladen");
     expect(mailNote.params).toContain(`${BU.offerNumber}.docx`);
+  }, 60000);
+});
+
+// ---------------- group 4d: letters by post (onlinebrief24 stub + Bitrix stub) ----------------
+describe("contract: post/send — same onlinebrief24 request, same Bitrix calls, same lock", () => {
+  const db = () => mongoose.connection.db!;
+  let A4_PDF = "", LETTER_PDF = "";
+  beforeAll(async () => {
+    const make = async (w: number, h: number) => {
+      const d = await PDFDocument.create();
+      d.setCreationDate(new Date("2026-01-01")); d.setModificationDate(new Date("2026-01-01"));
+      d.addPage([w, h]).drawText("Angebot Testkunde", { x: 50, y: h - 100 });
+      return Buffer.from(await d.save()).toString("base64");
+    };
+    A4_PDF = await make(595.28, 841.89);
+    LETTER_PDF = await make(612, 792);
+  });
+  const RECIPIENT = { name: "Vorname0001 Kunde0001", street: "Musterweg 1", zipCode: "90475", city: "Ort1" };
+  const tsLine = (s: string) => s.replace(/🕒 [^&\n"]*/g, "🕒 <NOW>");
+  // Bitrix params are form-encoded (decode for readable diffs); onlinebrief24 bodies are raw JSON
+  const view = (calls: { http: string; method: string; params: string }[]) =>
+    calls.map((c) => ({ ...c, params: c.method.startsWith("ob24:") ? c.params : tsLine(decodeURIComponent(c.params.replace(/\+/g, " "))) }));
+  const both = async (body: Record<string, unknown>, { clear = true } = {}) => {
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      if (clear) await db().collection("postalsends").deleteMany({});
+      bx.take(app);
+      out[app] = { res: await callApp(app, "POST", "/api/post/send", body), calls: view(bx.take(app)) };
+    }
+    return out as Record<"legacy" | "v2", { res: { status: number; body: any }; calls: ReturnType<typeof view> }>;
+  };
+  const expectSame = (o: Awaited<ReturnType<typeof both>>) => {
+    expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 300)).toBe(o.legacy.res.status);
+    if (o.legacy.res.status >= 400) {
+      expect(o.v2.res.body.error.message).toBe(o.legacy.res.body.error);
+      for (const k of ["stage", "details", "code", "lastOfferNumber", "lastPrintjobId"]) if (k in o.legacy.res.body && k !== "code") expect(o.v2.res.body[k], k).toEqual(o.legacy.res.body[k]);
+      if (o.legacy.res.body.code) expect(o.v2.res.body.error.code).toBe(o.legacy.res.body.code);
+      expect(o.v2.res.body).not.toHaveProperty("debug"); // intended: no request echo (security)
+    } else expect(o.v2.res.body).toEqual(o.legacy.res.body);
+    expect(o.v2.calls.length, `${o.legacy.calls.map((c) => c.method)} vs ${o.v2.calls.map((c) => c.method)}`).toBe(o.legacy.calls.length);
+    o.v2.calls.forEach((c, i) => expect(c, `call ${i} ${c.method}`).toEqual(o.legacy.calls[i]));
+  };
+
+  it("validation + early failures: same status, message and stage", async () => {
+    for (const body of [
+      { recipient: RECIPIENT },
+      { recipient: { name: "X" }, document: { base64: "QUJD" } },
+      { recipient: RECIPIENT, document: { base64: A4_PDF }, attachments: [{ type: "upload", filename: "x.txt", base64: "QUJD" }] },
+      { recipient: RECIPIENT, document: { base64: A4_PDF }, attachments: [{ type: "static", id: "flyer" }] },
+      { recipient: RECIPIENT, document: { filename: "kaputt.pdf", base64: "QUJD" } },
+    ]) expectSame(await both(body));
+  }, 60000);
+
+  it("full send (A4): letter request, lock row, Bitrix offer link + timeline + internal note", async () => {
+    const o = await both({
+      recipient: RECIPIENT, auftragId: "A-77", document: { filename: "ANG-P-1.pdf", base64: A4_PDF },
+      specification: { color: "1" }, dispatchDate: "2026-12-01", registered: "r1", meta: { offerNumber: "ANG-P-1", dealId: "9011" },
+      attachments: [{ type: "static", id: "abtretung" }, { type: "upload", filename: "Plan.pdf", base64: A4_PDF }, { type: "upload", filename: "", base64: "x" }],
+      bitrixDocs: [{ filename: "Kalkulation.pdf", base64: "QUJD" }, { filename: "ohne-inhalt.pdf" }], docWarnings: ["Kalkulation (Timeout)"], internalNote: "intern", letterKind: "offer",
+    });
+    expect(o.v2.res.status).toBe(200);
+    expectSame(o);
+    expect(o.v2.calls.map((c) => c.method)).toEqual(["ob24:/printjobs", "crm.deal.update", "crm.timeline.comment.add", "crm.timeline.comment.add"]);
+    const sent = JSON.parse(o.v2.calls[0]!.params);
+    expect(sent.auth).toEqual({ apiKey: "ob24-test-key", apiSecret: "ob24-test-secret", mode: "test" });
+    expect(sent.letter).toMatchObject({ specification: { color: "1", mode: "duplex", shipping: "national" }, notice: "ANG-P-1 / Auftrag A-77", registered: "r1", dispatch_date: "2026-12-01" });
+    const rows = await db().collection("postalsends").find({ dealId: "9011" }).toArray();
+    expect(rows[0]).toMatchObject({ offerNumber: "ANG-P-1", printjobId: "555001", inFlightUntil: null });
+  }, 60000);
+
+  it("duplicate letter within 24 h → 409 (same code/message/printjob); forceResend sends", async () => {
+    const body = { recipient: RECIPIENT, document: { filename: "ANG-P-2.pdf", base64: A4_PDF }, meta: { offerNumber: "ANG-P-2", dealId: "9011" } };
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      await db().collection("postalsends").deleteMany({});
+      expect((await callApp(app, "POST", "/api/post/send", body)).status).toBe(200);
+      out[app] = { blocked: await callApp(app, "POST", "/api/post/send", body), forced: await callApp(app, "POST", "/api/post/send", { ...body, forceResend: true }) };
+      bx.take(app);
+    }
+    expect(out.v2.blocked.status).toBe(409);
+    expect(out.v2.blocked.body.error).toMatchObject({ code: out.legacy.blocked.body.code, message: out.legacy.blocked.body.error });
+    for (const k of ["lastOfferNumber", "lastPrintjobId"]) expect(out.v2.blocked.body[k]).toBe(out.legacy.blocked.body[k]);
+    expect(out.v2.forced.status).toBe(200);
+    expect(out.v2.forced.body).toEqual(out.legacy.forced.body);
+  }, 60000);
+
+  it("onlinebrief24 rejects → same status/message/details, lock released (retry possible)", async () => {
+    const o = await both({ recipient: RECIPIENT, document: { filename: "x.pdf", base64: A4_PDF }, meta: { offerNumber: "FAIL-1", dealId: "9011" } });
+    expect(o.v2.res.status).toBe(422);
+    expectSame(o);
+    const row = await db().collection("postalsends").findOne({ dealId: "9011" });
+    expect(row!.inFlightUntil).toBeNull();
+    expect(row!.sentAt).toBeNull();
+  }, 60000);
+
+  it("US-Letter PDF is fitted onto A4 in both apps before it goes to onlinebrief24", async () => {
+    const o = await both({ recipient: RECIPIENT, document: { filename: "letter.pdf", base64: LETTER_PDF } });
+    expect(o.v2.res.status).toBe(200);
+    expect(o.v2.res.body).toEqual(o.legacy.res.body);
+    const pages = async (call: { params: string }) => {
+      const doc = await PDFDocument.load(Buffer.from(JSON.parse(call.params).letter.base64_file, "base64"));
+      return doc.getPages().map((p) => { const { width, height } = p.getSize(); return [Math.round(width), Math.round(height)]; });
+    };
+    expect(await pages(o.v2.calls[0]!)).toEqual([[595, 842]]);
+    expect(await pages(o.v2.calls[0]!)).toEqual(await pages(o.legacy.calls[0]!));
+  }, 60000);
+
+  it("GET /api/post/config identical; balance sends auth in the GET body (v2; legacy can only do https)", async () => {
+    const c = await both({}, { clear: false }).catch(() => null); // warm-up no-op not needed
+    void c;
+    const [lc, vc] = [await callApp("legacy", "GET", "/api/post/config"), await callApp("v2", "GET", "/api/post/config")];
+    expect(vc).toEqual(lc);
+    bx.take("v2");
+    const bal = await callApp("v2", "GET", "/api/post/balance");
+    expect(bal.body).toEqual({ ok: true, balance: 12.34, currency: "EUR" });
+    const call = bx.take("v2")[0]!;
+    expect(call).toMatchObject({ http: "GET", method: "ob24:/balance" });
+    expect(JSON.parse(call.params).auth.mode).toBe("test");
   }, 60000);
 });

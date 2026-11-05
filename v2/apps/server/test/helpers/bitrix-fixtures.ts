@@ -37,6 +37,13 @@ export const BITRIX_HANDLERS: Record<string, Handler> = {
   "crm.item.update": (p) => ({ result: { item: { id: Number(p.get("id")), stageId: p.get("fields[stageId]") } } }),
   "crm.timeline.comment.add": () => ({ result: 4711 }),
   "plan:/api/planning/termin-not-held": () => ({ found: true }),
+  // onlinebrief24: a letter whose notice contains "FAIL" is rejected like the real API does
+  "ob24:/printjobs": (_p, _app, raw) => {
+    const letter = JSON.parse(raw || "{}").letter ?? {};
+    if (String(letter.notice || "").includes("FAIL")) return { __status: 422, body: { status: 422, message: "Das PDF ist verschlüsselt oder liegt nicht im richtigen Format vor" } };
+    return { status: 200, data: { id: 555001, status: "cart", items: [{ pages: 3, status: "cart" }] } };
+  },
+  "ob24:/balance": () => ({ status: 200, data: { balance: 12.34, currency: "EUR" } }),
   "crm.activity.list": (p) => p.get("filter[TYPE_ID]") === "3"
     ? { result: [
         { ID: "1", SUBJECT: "Besichtigung", START_TIME: todayAt(10), END_TIME: todayAt(11, 30), OWNER_ID: "9001", STATUS: "0", TYPE_ID: "3", DESCRIPTION: "Teststr. 1", COMMUNICATIONS: [{ VALUE: "0000 111", EMAIL: "" }, { EMAIL: "kunde@test.local" }] },

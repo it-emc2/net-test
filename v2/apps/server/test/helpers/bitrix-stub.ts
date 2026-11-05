@@ -5,7 +5,7 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
 export interface RecordedCall { http: string; method: string; params: string }
-export type Handler = (params: URLSearchParams, app: string) => unknown;
+export type Handler = (params: URLSearchParams, app: string, rawBody?: string) => unknown;
 
 export class BitrixStub {
   private server?: Server;
@@ -17,19 +17,23 @@ export class BitrixStub {
   base(app: string) { return `http://127.0.0.1:${this.port}/rest/1/${app}`; }
   /** Route-planning service base for <app>; calls are recorded as method "plan:<path>". */
   planningBase(app: string) { return `http://127.0.0.1:${this.port}/plan/${app}`; }
+  /** onlinebrief24 API base for <app>; recorded as method "ob24:<path>", params = JSON body. */
+  ob24Base(app: string) { return `http://127.0.0.1:${this.port}/ob24/${app}/v1`; }
   take(app: string) { const c = this.calls[app] ?? []; this.calls[app] = []; return c; }
 
   async start() {
     this.server = createServer(async (req, res) => {
-      const p = /^\/plan\/([^/]+)(\/[^?]*)$/.exec(req.url ?? "");
+      const p = /^\/(plan|ob24)\/([^/]+)(?:\/v1)?(\/[^?]*)$/.exec(req.url ?? "");
       if (p) {
-        const [, app, path] = p as unknown as [string, string, string];
+        const [, kind, app, path] = p as unknown as [string, string, string, string];
         const raw = await body(req);
-        (this.calls[app] ??= []).push({ http: req.method ?? "", method: `plan:${path}`, params: raw });
-        const h = this.handlers[`plan:${path}`];
+        (this.calls[app] ??= []).push({ http: req.method ?? "", method: `${kind}:${path}`, params: raw });
+        const h = this.handlers[`${kind}:${path}`];
         if (!h) { res.socket?.destroy(); return; }
+        const out: any = h(new URLSearchParams(), app, raw);
+        res.statusCode = out?.__status ?? 200;
         res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify(h(new URLSearchParams(), app)));
+        res.end(JSON.stringify(out?.__status ? out.body : out));
         return;
       }
       const m = /^\/rest\/\d+\/([^/]+)\/([^/?]+)\.json(?:\?(.*))?$/.exec(req.url ?? "");

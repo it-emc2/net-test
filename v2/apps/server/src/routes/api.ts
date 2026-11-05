@@ -23,6 +23,8 @@ import { registerBitrixWrite } from "./bitrix-write.js";
 import { fileURLToPath } from "node:url";
 import { Mailer, type MailConfig } from "../integrations/mail.js";
 import { registerEmail } from "./email.js";
+import { registerPost } from "./post.js";
+import { Onlinebrief24 } from "../integrations/onlinebrief24.js";
 import { UNAVAILABLE_DOCUMENTS, UNAVAILABLE_SIGNING, type OfferDocuments, type SigningPort } from "../email/ports.js";
 
 /** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
@@ -159,6 +161,10 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     deals, documents: deps.documents ?? UNAVAILABLE_DOCUMENTS, signing: deps.signing ?? UNAVAILABLE_SIGNING, businessConfig,
     assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
     smtpTestPort: cfg.SMTP_PORT, smtpHost: cfg.SMTP_HOST,
+  });
+  await registerPost(app, {
+    ob24: new Onlinebrief24({ baseUrl: cfg.OB24_BASE_URL, apiKey: cfg.OB24_API_KEY, apiSecret: cfg.OB24_API_SECRET, mode: cfg.OB24_MODE, allowProductionDefault: cfg.NODE_ENV === "production" }),
+    deals, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS,
   });
   await registerBitrixWrite(app, {
     bx: bitrix,

@@ -138,3 +138,12 @@ export const EmailLog = model("EmailLog", new Schema({
   editedDocx: { type: { name: String, sha256: String, size: Number }, default: undefined },
   sentBy: { type: String, default: "" },
 }, { timestamps: true, collection: "emaillogs" }));
+
+// One row per deal: last letter posted + in-flight lock (same lock pattern as EmailSend).
+export const PostalSend = model("PostalSend", new Schema({
+  dealId: { type: String, required: true, unique: true, trim: true },
+  inFlightUntil: { type: Date, default: null },
+  sentAt: { type: Date, default: null },
+  offerNumber: { type: String, default: "" },
+  printjobId: { type: String, default: "" },
+}, { timestamps: true, collection: "postalsends" }));
