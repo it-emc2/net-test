@@ -20,6 +20,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 | 013 | Pricing port strategy: 1:1 mechanical port, then tighten | ACCEPTED | 2026-11-04 |
 | 014 | Fix both AH restore bugs in v2 | ACCEPTED (owner) | 2026-11-04 |
 | 015 | API contract rules for the backend port | ACCEPTED | 2026-11-04 |
+| 016 | Fix B-1: customers without customer number | ACCEPTED (owner) | 2026-11-05 |
 
 ---
 
@@ -121,3 +122,8 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - **Errors:** unified v2 format `{ error: { code, message, requestId } }`; status code and German `message` identical to legacy's `{ error: "<message>" }`.
 - **Sessions:** token/cookie format unchanged; with the same `AUTH_SECRET` a legacy session is valid in v2 (tested) → cut-over without re-login.
 - **Security fixes by design (intentional differences, tested):** every route private unless `config.public`; admin routes via one role check (`config.admin`); `/admin/api/config/public` requires a login; no path-pattern allowlist (no case/slash/suffix bypass); user search input escaped before RegExp; production refuses to start without a real `AUTH_SECRET`.
+
+## 016 — Fix B-1: customers without customer number (ACCEPTED by owner, 2026-11-05)
+- v2 stores a missing `customerNumber` as **absent** instead of `""` (`routes/group3.ts`), so the unique *sparse* index no longer blocks every second customer without number. Contract test proves: legacy → 500, v2 → 200 for any number of such customers; re-saving the same person updates (no duplicate).
+- Migration `002-unset-empty-customer-number` (`apps/server/src/migrations/`) removes the one existing `""` value — dry run by default, idempotent, touches only exact `""`; run at cut-over with owner OK after a backup.
+- The current app on `main` keeps the bug.

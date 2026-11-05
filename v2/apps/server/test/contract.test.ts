@@ -388,14 +388,21 @@ describe("contract: customers, users, admin (group 3)", () => {
     expect(bad.v2.body.error.message).toBe(bad.legacy.body.error);
   });
 
-  it("LEGACY BUG kept: a 2nd customer without customer number fails (unique sparse index vs \"\")", async () => {
-    // first customer without number succeeds in whichever app goes first; every later one → 500
+  it("B-1: legacy fails on the 2nd customer without number; v2 (fixed, ADR 016) saves them all", async () => {
     const l1 = await call("legacy", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Eins" });
     const l2 = await call("legacy", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Zwei" });
-    const v3 = await call("v2", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Drei" });
     expect(l1.status).toBe(200);
-    expect(l2.status).toBe(500);
-    expect(v3.status).toBe(500);
+    expect(l2.status).toBe(500); // legacy bug, unchanged on main
+    for (const last of ["Drei", "Vier", "Fünf"]) {
+      const v = await call("v2", "POST", "/api/customers", { firstName: "OhneNr", lastName: last });
+      expect(v.status, last).toBe(200);
+      expect(v.body.customer).not.toHaveProperty("customerNumber");
+    }
+    // saving the same person again updates instead of duplicating
+    const again = await call("v2", "POST", "/api/customers", { firstName: "OhneNr", lastName: "Drei", city: "Ort5" });
+    expect(again.body.customer.city).toBe("Ort5");
+    const count = await rawDb().collection("Kundendaten").countDocuments({ firstName: "OhneNr", lastName: "Drei" });
+    expect(count).toBe(1);
   });
 
   it("GET /api/users — identical (only active users with signature)", async () => {

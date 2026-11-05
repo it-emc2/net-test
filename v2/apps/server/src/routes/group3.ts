@@ -77,9 +77,15 @@ export async function registerGroup3(
     const filter = data.customerNumber
       ? { customerNumber: data.customerNumber }
       : { firstName: data.firstName, lastName: data.lastName, company: data.company, email: data.email };
+    // FIX B-1 (ADR 016): a missing customer number is stored as ABSENT, not "". The collection
+    // has a unique *sparse* index on customerNumber — sparse skips only missing fields, so the
+    // legacy "" made every second customer without number fail with HTTP 500.
+    const { customerNumber, ...rest } = data;
+    const set: Record<string, unknown> = { ...rest, updatedAt: new Date() };
+    if (customerNumber) set.customerNumber = customerNumber;
     const customer = await Customer.findOneAndUpdate(
       filter,
-      { $set: { ...data, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+      { $set: set, $setOnInsert: { createdAt: new Date() } },
       { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
     ).lean();
     return { ok: true, customer };

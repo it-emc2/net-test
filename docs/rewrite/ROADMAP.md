@@ -71,4 +71,5 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] Docker Compose (app, Gotenberg, Caddy; GlitchTip) on Coolify/Dokploy (ADR 009).
 - [ ] Staging against a **copy** of prod data; parallel run vs current app (same inputs → same prices/docs).
 - [ ] Deal drafts: wrap draft update + revision insert in a transaction (replica set) — see ADR 007
+- [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup
 - [ ] Cut-over plan with rollback; owner OK.
