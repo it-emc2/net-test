@@ -6,8 +6,16 @@
 // attribute lives in the free-text `name` + `finish` pair, so it is parsed here,
 // once, server-side. The client only renders what this returns.
 import { Router } from "express";
-import { getVigorDb } from "../external/vigorDb.js";
-import { WANNE_SETS } from "../lib/wanneSets.js";
+import { getVigorDb, pickFreshestNetPrices } from "../external/vigorDb.js";
+import { WANNE_SETS, WANNE_ACCESSORIES, WANNE_SET_ORDER } from "../lib/wanneSets.js";
+import { describeWanne } from "../lib/wanneDescribe.js";
+
+/** { url, urlLabel } of the page that shows the product's photos and price. */
+export function productLink(articleNumber) {
+  const o = WANNE_SET_ORDER.get(articleNumber);
+  if (o?.url) return { url: o.url, urlLabel: o.shop.split(" /")[0] };
+  return { url: `https://gconlineplus.de/p/search/${encodeURIComponent(articleNumber)}`, urlLabel: "GC" };
+}
 
 const r = Router();
 
@@ -55,22 +63,51 @@ export function parseWanneDoc(doc) {
   };
 
   if (!isScreen) {
-    // "160x70/80cm" -> 160 long, tapered 70..80 wide
-    const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?\s*cm/i);
-    return {
-      ...base,
-      lengthCm: num(m?.[1]),
-      widthCm: num(m?.[2]),
-      widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
-      schuerze: /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
+    // Only real tubs (IRIS + length); accessories the scraper files under
+    // "badewanne" too (IRISNS Nackenstütze) are not tubs.
+    if (!/^IRIS\d/i.test(articleNumber)) return null;
+    // "160x70/80cm" or "160x70/80x62cm" -> 160 long, tapered 70..80 wide
+    const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?(?:\s*x\s*\d+)?\s*cm/i);
+    // Scraper wording varies: "m.3 Schürzen weiß m.Abl." or "m.3 Sch.m.Ab-u.Ül.Grt.u.WE"
+    const schuerze = /m\.\s*3\s*Sch(ü|u|\.)/i.test(finish)
+      ? "3 Schürzen"
+      : /m\.\s*2\s*Sch(ü|u|\.)/i.test(finish)
         ? "2 Schürzen"
         : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
           ? "Frontschürze"
-          : null,
+          : null;
+    return {
+      ...base,
+      // Aprons tell the installation: front + both ends = both ends free
+      // (Vorwandmontage), front + one end = corner, front only = niche.
+      einbau:
+        schuerze === "3 Schürzen" ? "Vorwand"
+          : schuerze === "2 Schürzen" ? "Ecke"
+            : schuerze === "Frontschürze" ? "Nische" : null,
+      // Novellini Iris (GC documents, checked 2026-11-05): the entry door is at
+      // the wall end, the head-rest console overhangs the other end (hence the
+      // extra "Nackenstütze für Nischeneinbau" IRISNS in a niche). So:
+      //   3 Schürzen  = front + both ends → no end wall
+      //   2 Schürzen  = front + console end panel → corner, wall at the DOOR end
+      //   Frontschürze = front only → niche (GC: "Vorwandmontage oder in Nische")
+      // Cover photo of the Iris manual: wall at the door, panel at the console end.
+      wall: schuerze === "2 Schürzen" ? side : schuerze === "Frontschürze" ? "beide" : null,
+      tubHeightCm: 62,
+      // niche: the standard head-rest console would hit the wall → IRISNS
+      // (name + price are filled from vigor by the catalog route)
+      requires: schuerze === "Frontschürze" ? [{ ...WANNE_ACCESSORIES.IRISNS }] : [],
+      // Iris is a tub with an entry door (product photo); the Iris Wannenaufsätze
+      // fit it (public/configurator/wanne-rules.js).
+      hasDoor: true,
+      screenFamily: "iris",
+      lengthCm: num(m?.[1]),
+      widthCm: num(m?.[2]),
+      widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
+      schuerze,
       // m.WE = Wanneneinlauf (water enters through the tub), m.Abl. = plain drain
-      zulauf: /m\.\s*WE\b/i.test(finish)
+      zulauf: /\b[mu]\.\s*WE\b/i.test(finish)
         ? "Wanneneinlauf"
-        : /m\.\s*Abl/i.test(finish)
+        : /m\.\s*Ab(l|-)/i.test(finish)
           ? "Ablauf"
           : null,
     };
@@ -91,6 +128,8 @@ export function parseWanneDoc(doc) {
       ? `S${finish.match(/m\.\s*S(\d+)/i)[1]}`
       : "ohne",
     klappbar: /klappb/i.test(text),
+    screenKind: /klappb/i.test(text) ? "klapp" : "comby",
+    screenFamily: "iris",
     glas: /ESG\s*klar/i.test(finish) ? "ESG klar" : null,
     rahmen: /chrom/i.test(finish) ? "chrom" : null,
   };
@@ -135,9 +174,39 @@ r.get("/catalog", async (_req, res) => {
       if (!prev || seen >= prev.seen) best.set(parsed.articleNumber, { parsed, seen });
     }
 
+    // Required accessories (IRISNS …) take name + price from vigor as well. One
+    // missing in vigor stays listed with netPrice null, so the wizard says so
+    // instead of quoting it at 0.
+    const needIds = [
+      ...new Set([...best.values()].flatMap((v) => (v.parsed.requires || []).map((z) => z.articleNumber))),
+    ];
+    const accDocs = needIds.length
+      ? await db
+          .collection("products")
+          .find({ articleNumber: { $in: needIds } }, { projection: { articleNumber: 1, name: 1, netPrice: 1, lastSeenAt: 1 } })
+          .toArray()
+      : [];
+    const accNet = pickFreshestNetPrices(accDocs);
+    const accName = new Map(accDocs.map((d) => [d.articleNumber, d.name]));
+    for (const v of best.values()) {
+      v.parsed.requires = (v.parsed.requires || []).map((z) => ({
+        ...z,
+        name: accName.get(z.articleNumber) || z.articleNumber,
+        netPrice: accNet.get(z.articleNumber) ?? null,
+      }));
+    }
+
     const items = [...best.values()]
       .map((v) => v.parsed)
       .concat(WANNE_SETS)
+      .map((p) => ({
+        ...p,
+        desc: describeWanne(p),
+        // product page with photos + price: the online shop for the sets, GC
+        // (needs the GC login) for the vigor/GC articles
+        ...productLink(p.articleNumber),
+        requires: (p.requires || []).map((z) => ({ ...z, ...productLink(z.articleNumber) })),
+      }))
       .sort(
         (a, b) =>
           a.type.localeCompare(b.type) ||

@@ -3075,13 +3075,20 @@ try {
   // the selection, then to the internal Products price.
   let live = new Map();
   try {
-    live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
+    const zubIds = Array.isArray(dw.wanneZubehoer) ? dw.wanneZubehoer.map((z) => z?.articleNumber) : [];
+    live = await getLiveVigourNetPrices([bathtubPid, screenPid, ...zubIds].filter(Boolean));
   } catch (e) {
     console.error(
       "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
       e?.message || e,
     );
   }
+
+  // Customer-facing text (Kostentabelle + PDF): the brand-free description saved
+  // with the selection (lib/wanneDescribe.js, built by the catalog route). Offers
+  // saved before it existed keep the plain generic word. This file also runs in
+  // the browser, so it must not import the catalog.
+  const wanneDesc = (_pid, saved, generic) => String(saved || "").trim() || generic;
 
   const addWanneLine = async (pid, snapName, snapPrice, label) => {
     if (!pid) return;
@@ -3101,6 +3108,7 @@ try {
       unitPrice: unit,
       lineTotal: round2(unit),
       label: `- 1 Stk ${label}`,
+      category: "Badewanne", // own group in the Kosten tab and the Angebot PDF
     };
     materials.lines.push(line);
     materials.sum = round2((materials.sum || 0) + line.lineTotal);
@@ -3110,14 +3118,22 @@ try {
     bathtubPid,
     dw.chosenBathtubName,
     dw.chosenBathtubPrice,
-    "Badewanne",
+    wanneDesc(bathtubPid, dw.chosenBathtubDesc, "Badewanne"),
   );
   await addWanneLine(
     screenPid,
     dw.chosenScreenName,
     dw.chosenScreenPrice,
-    "Wannenaufsatz",
+    wanneDesc(screenPid, dw.chosenScreenDesc, "Wannenaufsatz"),
   );
+  // Required accessories saved with the tub (e.g. IRISNS for an Iris niche):
+  // live vigor price, falling back to the price saved with the selection.
+  if (bathtubPid && Array.isArray(dw.wanneZubehoer)) {
+    for (const z of dw.wanneZubehoer) {
+      if (!z?.articleNumber) continue;
+      await addWanneLine(z.articleNumber, z.name, z.netPrice, wanneDesc(z.articleNumber, z.desc, z.articleNumber));
+    }
+  }
 } catch (e) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
 }

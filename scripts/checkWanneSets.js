@@ -9,11 +9,11 @@ const rows = WANNE_SETS.map((s) => ({ s, o: WANNE_SET_ORDER.get(s.articleNumber)
 const eur = (n) => n.toFixed(2).replace(".", ",") + " €";
 
 if (process.argv.includes("--md")) {
-  console.log("| OC article | Product | Door | Mounting | Drain | OC price | Shop | Shop art. | Link |");
-  console.log("|---|---|---|---|---|---|---|---|---|");
+  console.log("| OC article | Product | Door / Anschlag | Mounting | Wall | Drain | OC price | Wizard | Shop art. | Link |");
+  console.log("|---|---|---|---|---|---|---|---|---|---|");
   for (const { s, o } of rows)
     console.log(
-      `| ${s.articleNumber} | ${s.brand} ${s.lengthCm}x${s.widthCm} | ${s.side} | ${s.einbau ?? "–"} | ${s.ablauf} | ${eur(s.netPrice)} | ${o.shop} | ${o.shopArt} | ${o.url} |`,
+      `| ${s.articleNumber} | ${s.brand} ${s.type === "screen" ? `Aufsatz ${s.widthCm}x${s.heightCm}` : `${s.lengthCm}x${s.widthCm}`} | ${s.side} | ${s.einbau ?? "–"} | ${s.wall ?? "–"} | ${s.ablauf ?? "–"} | ${eur(s.netPrice)} | ${s.wizard === false ? (s.legacy ? "alt" : "aus") : "ja"} | ${o.shopArt} | ${o.url} |`,
     );
   process.exit(0);
 }

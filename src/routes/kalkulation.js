@@ -1085,13 +1085,20 @@ router.post("/pdf-v2", async (req, res) => {
     data.Pos002_UnitPrice = fmtCurrency(pos002Sum);
     data.Pos002_LineTotal = fmtCurrency(pos002Sum);
 
+    // Pos. 2 as EK / Aufschlag / VK. The Aufschlag is the offer's real
+    // global amount (markupBase = EK net of Pos. 2 here), not a recomputation.
+    const matVk = round2(pos002Sum + aufschlag);
+
     Object.assign(data, {
+      MatAufschlagPctLabel: `(${fmtPercentDE(markupPct * 100, 1)})`,
+      MatAufschlagLabel: aufschlag > 0 ? fmtCurrency(aufschlag) : "",
+      MatVkLabel: fmtCurrency(matVk),
       OfferBadge: isBwt ? "BWT" : "BU",
       DealId: body?.dealId || body?.Kundendaten?.dealId || "",
       PosI_Label: fmtCurrency(posI),
       PosII_Label: fmtCurrency(posII),
       PosIII_Label: fmtCurrency(posIII),
-      AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 0)} auf ${fmtCurrency(markupBase)})`,
+      AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 1)} auf ${fmtCurrency(markupBase)})`,
       AufschlagValueLabel: fmtCurrency(aufschlag),
       RabattValueLabel: rabattAmount > 0 ? `-${fmtCurrency(rabattAmount)}` : "",
       ZwischensummeLabel: fmtCurrency(zwischensumme),

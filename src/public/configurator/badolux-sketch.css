@@ -16,3 +16,9 @@
 .bs .bs-dim { fill: #3f3f3b; font-size: 13px; font-weight: 600; text-anchor: middle; }
 .bs-small .bs-g { stroke-width: 1; }
 .bs-small .bs-w { stroke-width: 0.7; }
+
+/* Wanne drawings (wanne-sketch.js) */
+.bs .bs-tb { fill: #ffffff; stroke: #9a9a95; stroke-width: 1; stroke-linejoin: round; }
+.bs .bs-tbi { fill: #eef0f1; stroke: #c9c9c5; stroke-width: 0.8; }
+.bs .bs-vw { fill: #dcdcd8; stroke: #8e8e89; stroke-width: 0.9; stroke-linejoin: round; }
+.bs .bs-op { fill: #b9c4c8; stroke: #7d878c; stroke-width: 0.8; }

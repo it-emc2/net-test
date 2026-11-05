@@ -92,7 +92,7 @@ function headerBlock(data) {
 // page CSS — styles must be inline, with an explicit font-size.
 export const KALKULATION_V2_FOOTER = `<div style="width:calc(100% - 36mm); margin:0 18mm; font-family:Arial,Helvetica,sans-serif; font-size:8pt; color:#8b9ba1; border-top:1px solid #dbe4e6; padding-top:6px; -webkit-print-color-adjust:exact;">EmC2 Attila Landgrafe &middot; Waldstraße 5 &middot; 95032 Hof &middot; service@e-m-c-2.de</div>`;
 
-function posBlock(prefix, data) {
+function posBlock(prefix, data, { material = false } = {}) {
   const no = data[`${prefix}_No`];
   const title = data[`${prefix}_Title`];
   if (!no && !title) return "";
@@ -110,16 +110,23 @@ function posBlock(prefix, data) {
       </div>
     </div>
     <table>
-      <thead><tr><th>Kostenart</th><th class="num">Menge</th><th>Einheit</th><th>Beschreibung</th><th class="num">EK/Einheit</th><th class="num">Gesamt</th></tr></thead>
+      <thead><tr><th>Kostenart</th><th class="num">Menge</th><th>Einheit</th><th>Beschreibung</th><th class="num">${material ? "EK netto/Einheit" : "EK/Einheit"}</th><th class="num">${material ? "Gesamt EK netto" : "Gesamt"}</th></tr></thead>
       <tbody>
         ${lines
           .map(
             (l) => `<tr><td>${esc(l.Kostenart)}</td><td class="num">${esc(l.Menge)}</td><td>${esc(l.Einheit)}</td><td>${esc(l.Beschreibung)}</td><td class="num">${esc(l.EK_je_Einheit)}</td><td class="num">${esc(l.Gesamt)}</td></tr>`,
           )
           .join("")}
-        <tr class="total"><td colspan="5">Summe Position ${esc(no)}</td><td class="num">${esc(fmtCurrency(rowSum))}</td></tr>
+        <tr class="total"><td colspan="5">${material ? `Summe Position ${esc(no)} &ndash; EK netto` : `Summe Position ${esc(no)}`}</td><td class="num">${esc(fmtCurrency(rowSum))}</td></tr>
+        ${
+          material && data.MatAufschlagLabel
+            ? `<tr class="sub"><td colspan="5">+ Aufschlag ${esc(data.MatAufschlagPctLabel)} auf EK netto</td><td class="num">${esc(data.MatAufschlagLabel)}</td></tr>
+        <tr class="total"><td colspan="5">= Summe Position ${esc(no)} &ndash; VK netto</td><td class="num">${esc(data.MatVkLabel)}</td></tr>`
+            : ""
+        }
       </tbody>
-    </table>`;
+    </table>
+    ${material ? `<div class="note">Alle Materialpreise sind EK-Preise netto. VK = EK + Aufschlag, vor Rabatt und Bonus.</div>` : ""}`;
 }
 
 function reisezeitKostenBlock(data) {
@@ -181,7 +188,7 @@ export function buildKalkulationV2Html(data) {
     <thead><tr><th>Position</th><th class="num">Summe</th></tr></thead>
     <tbody>
       <tr><td>I. Auszuführende Arbeiten</td><td class="num">${esc(data.PosI_Label)}</td></tr>
-      <tr><td>II. Material für Badumbau</td><td class="num">${esc(data.PosII_Label)}</td></tr>
+      <tr><td>II. Material für Badumbau (EK netto)</td><td class="num">${esc(data.PosII_Label)}</td></tr>
       <tr><td>III. Optionale Produkte</td><td class="num">${esc(data.PosIII_Label)}</td></tr>
       <tr class="sub"><td>${esc(data.AufschlagLabel)}</td><td class="num">${esc(data.AufschlagValueLabel)}</td></tr>
       ${
@@ -189,9 +196,9 @@ export function buildKalkulationV2Html(data) {
           ? `<tr class="sub"><td>Rabatt</td><td class="num">${esc(data.RabattValueLabel)}</td></tr>`
           : ""
       }
-      <tr class="sub"><td>Zwischensumme</td><td class="num">${esc(data.ZwischensummeLabel)}</td></tr>
+      <tr class="sub"><td>Zwischensumme (VK netto)</td><td class="num">${esc(data.ZwischensummeLabel)}</td></tr>
       <tr class="sub"><td>Bonus / Gratis</td><td class="num">${esc(data.BonusGesamtLabel)}</td></tr>
-      <tr class="total"><td>Nettobetrag</td><td class="num">${esc(data.NettobetragLabel)}</td></tr>
+      <tr class="total"><td>Nettobetrag (VK netto)</td><td class="num">${esc(data.NettobetragLabel)}</td></tr>
       <tr><td>zzgl. 19% MwSt.</td><td class="num">${esc(data.UstValue)}</td></tr>
       <tr class="total"><td>Gesamt (brutto)</td><td class="num">${esc(data.BruttoValue)}</td></tr>
     </tbody>
@@ -215,7 +222,7 @@ export function buildKalkulationV2Html(data) {
 
 <div class="page">
   ${headerBlock(data)}
-  ${posBlock("Pos002", data)}
+  ${posBlock("Pos002", data, { material: true })}
   ${
     data.HasBonus300 || data.HasBonusGrab
       ? `<div class="section-lbl">Boni &amp; Aktionen</div>
