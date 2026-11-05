@@ -19,7 +19,7 @@ const CACHE = `nt-shell-${VERSION}`;
 const CACHE_PREFIX = "nt-shell-";
 
 // Product photos live here (see the CSP imgSrc list in app.js).
-const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
+const IMAGE_HOSTS = new Set(["media.onlineplus.store", "lojjuyeivvvykspkfaxl.supabase.co"]);
 
 // The Duschabtrennung sub-configurator's two catalog models. Unlike a price or
 // an offer, this is scraper-refreshed daily catalog data (da-config.js), so a
@@ -29,6 +29,7 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 const DA_CONFIG_MODEL_PATHS = new Set([
   "/api/da-config/model/vigour",
   "/configurator/badolux-model.json",
+  "/configurator/badolux-model-v1.json",
 ]);
 
 // Modules the offline path needs at the exact moment it cannot fetch them: the
@@ -44,6 +45,7 @@ const DA_CONFIG_MODEL_PATHS = new Set([
 const PRECACHE = [
   "/logic/pricing-core.js",
   "/logic/tray-search-core.js",
+  "/logic/aufschlag-rules.js",
   // Every module script.js pulls in with import(). They are fetched at the
   // moment they are needed, which offline is exactly when they cannot be.
   "/OfflineSaveQueue.js",
@@ -81,12 +83,21 @@ const PRECACHE = [
   "/assets/duschwanne.jpeg",
   "/api/da-config/model/vigour",
   "/configurator/badolux-model.json",
+  "/configurator/badolux-model-v1.json",
+  // Badolux Duschabtrennung main photos (the gallery loads from cleverbad.de).
+  "/assets/badolux/da/lissabon.webp",
+  "/assets/badolux/da/lissabon-ecke.webp",
+  "/assets/badolux/da/rom.webp",
+  "/assets/badolux/da/stockholm.webp",
+  "/assets/badolux/da/madrid.webp",
+  "/assets/badolux/da/wien-walkin.webp",
+  "/assets/badolux/da/wien-pendel.webp",
   // The whole Wandverkleidung tab, ~2.3MB total: every static swatch/profile
   // image in its section of index.html, plus the 7 Budget-Wandpaneele
   // (Badolux WP*) photos, whose path is built client-side from productId
   // (script.js loadBudgetWandPanels()) and so never appears as an <img src>
   // for discoverShellAssets to find either way.
-  "/assets/2213de9935c01b8fba3425df1cd46c4b.jpg",
+  "/assets/wv-alu-marmor-weiss.webp",
   "/assets/585c6146589e2f4c59e026c2b5373966.jpg",
   "/assets/6dd521ee32b126983e37b93433b29b95.jpg",
   "/assets/Aragon grau.jpeg",
@@ -105,13 +116,13 @@ const PRECACHE = [
   "/assets/schiefer-grau-wv.png",
   "/assets/silikon_ransauer.jpg",
   "/assets/sonder.jpg",
-  "/assets/budget/WP001.png",
-  "/assets/budget/WP002.png",
-  "/assets/budget/WP003.png",
-  "/assets/budget/WP004.png",
-  "/assets/budget/WP005.png",
-  "/assets/budget/WP006.png",
-  "/assets/budget/WP007.png",
+  "/assets/budget/WP001.webp",
+  "/assets/budget/WP002.webp",
+  "/assets/budget/WP003.webp",
+  "/assets/budget/WP004.webp",
+  "/assets/budget/WP005.webp",
+  "/assets/budget/WP006.webp",
+  "/assets/budget/WP007.webp",
   "/assets/slate-color-weiss.jpg",
   "/assets/slate-color-elfenbein.jpg",
   "/assets/slate-color-steingrau.jpg",

@@ -85,7 +85,7 @@ export function isBadoluxTray(p) {
 // Price to display in the suggestion cards — must match the Kosten tab, which
 // shows the tray line's unitPrice (net after the Badolux discount). Hassmann/SLA
 // trays are shown at list price; Badolux trays at list × (1 − discount).
-export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
+export function trayDisplayPrice(p, badoluxDiscount = 0.25) {
   const base = Number(p.price) || 0;
   if (!isBadoluxTray(p)) return base;
   return Math.round(base * (1 - badoluxDiscount) * 100) / 100;
@@ -95,7 +95,7 @@ export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
 // top 3 — the part of the route that has nothing to do with how the
 // candidates were fetched, so both the live route and the offline fallback
 // call it on whatever array they built.
-export function scoreAndRank(docs, { w, l, h, budget }, badoluxDiscount = 0.20) {
+export function scoreAndRank(docs, { w, l, h, budget }, badoluxDiscount = 0.25) {
   const mapped = docs.map((p) => {
     const pid = String(p.productId || "");
     const isDW = /^DW/i.test(pid);

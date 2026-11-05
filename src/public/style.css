@@ -1900,29 +1900,109 @@ a.btn {
   border-radius: 2px;
 }
 
-/* ---------- Make the Fußboden/Wandverkleidung toggles bigger (match each other) ---------- */
-.check-pill:has(#addFlooring),
-.check-pill:has(#addWallCladding),
-.check-pill:has(#dwTrayToggle) {
-  padding: 14px 18px;
+/* ---------- Section on/off switch (BU material sections) ----------
+   iOS-style switch with the section name and one line of explanation. Own class
+   on purpose: .check-pill is used elsewhere and keeps its look. The input keeps
+   its id/name, so payload and restore are unchanged. */
+.sec-switch {
+  display: flex;
+  align-items: center;
   gap: 14px;
-  font-size: 1.02rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 18px;
+  border: 1px solid var(--input-border, #d0d5dd);
   border-radius: 14px;
+  background: var(--panel, #fff);
+  cursor: pointer;
+  user-select: none;
 }
+.sec-switch input,
+.sec-mini-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.sec-switch__track {
+  position: relative;
+  flex: none;
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: #e5e5ea;
+  transition: background-color 0.2s ease;
+}
+.sec-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+input:checked + .sec-switch__track { background: #34c759; }
+input:checked + .sec-switch__track::after { transform: translateX(20px); }
+input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgba(52, 199, 89, 0.35)); }
+/* Same switch without the card, for a row in a settings group. */
+.sec-mini-switch { position: relative; display: inline-flex; flex: none; cursor: pointer; }
+.sec-switch__text { display: grid; gap: 2px; min-width: 0; }
+.sec-switch__text strong { font-size: 1.02rem; font-weight: 600; color: var(--text, #1f2937); }
+.sec-switch__text small { font-size: 0.85rem; color: var(--muted, #6b7280); }
+.sec-switch-field { margin: 0 0 16px; }
+/* Settings group under the switch (iOS "inset grouped" list). */
+.sec-settings { margin: 0 0 18px; }
+.sec-settings__label {
+  margin: 0 4px 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+/* "Ihre Auswahl" divider: full-width hairline with a centred accent pill. */
+.sec-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
+.sec-divider::before, .sec-divider::after { content: ""; flex: 1; border-top: 1px solid var(--input-border, #d0d5dd); }
+.sec-divider > span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px;
+  background: rgba(10, 132, 255, 0.12); color: #0a84ff; font-size: 0.85rem; font-weight: 600;
+}
+.sec-divider > span::before { content: "\2713"; font-size: 0.8rem; }
+.wv-leftover-btn { flex: none; border: 0; border-radius: 8px; padding: 9px 16px; background: #0a84ff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+#wvcLeftoverRow .sec-switch { display: inline-flex; flex: none; width: auto; margin: 0 0 0 auto; }
+#wvcProductCard .wvc-sel--small .wvc-sel__img { width: 72px; height: 72px; }
+.wvc-leftover-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: rgba(52, 199, 89, 0.14); color: #1d7a3a; font-weight: 500; }
+[data-mode="dark"] .wvc-leftover-note { color: #4cd964; }
+.sec-settings__group {
+  border: 1px solid var(--input-border, #d0d5dd);
+  border-radius: 14px;
+  background: var(--panel, #fff);
+  overflow: hidden;
+}
+.sec-settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 18px;
+}
+.sec-settings__row + .sec-settings__row { border-top: 1px solid var(--input-border, #e5e7eb); }
+.sec-settings__text { display: grid; gap: 2px; min-width: 0; }
+.sec-settings__text strong { font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); }
+.sec-settings__text small { font-size: 0.85rem; color: var(--muted, #6b7280); }
+[data-mode="dark"] .sec-switch__track { background: #3a3a3c; }
+[data-mode="dark"] input:checked + .sec-switch__track { background: #30d158; }
+[data-mode="dark"] .sec-switch__track::after { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
 
-.check-pill:has(#addFlooring) .box,
-.check-pill:has(#addWallCladding) .box,
-.check-pill:has(#dwTrayToggle) .box {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-}
-
-.check-pill:has(#addFlooring) input:checked + .box::after,
-.check-pill:has(#addWallCladding) input:checked + .box::after,
-.check-pill:has(#dwTrayToggle) input:checked + .box::after {
-  inset: 5px;
-}
+/* Duschabtrennung (neu) / Duschvorhang: switched off, only heading, switch and
+   the page navigation stay. */
+.page[data-section-off] > :not(.sec-keep):not(.actions):not(template) { display: none !important; }
 
 /* ---------- A11y ---------- */
 .sr-only {
@@ -1945,48 +2025,11 @@ a.btn {
 /* Duschwanne an/aus: one attribute on the form hides every tray-only part.
    An attribute rather than [hidden] on each element, because other code
    toggles [hidden] on some of them (e.g. the Slate colour section). */
-/* Description line under the switch's question (the pill itself is the
-   shared .check-pill, sized like the Fußboden/Wandverkleidung toggles). */
-.dw-tray-switch__text {
-  display: grid;
-  gap: 2px;
-}
-.dw-tray-switch__text small {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-/* The two-line text would otherwise squeeze the box below its 24px. */
-.check-pill:has(#dwTrayToggle) .box {
-  flex: none;
-}
-#form-duschwanne[data-tray-off] .dw-tray-only {
+#form-duschwanne[data-tray-off] .dw-tray-only,
+/* Off = only the switch (and the page navigation) is left. */
+#form-duschwanne[data-tray-off] > :not(.sec-switch-field):not(.actions) {
   display: none !important;
 }
-/* Kleinmaterial is then the only tile left; auto-fill keeps the empty tracks
-   so it stays tile-sized instead of stretching across the whole row. */
-#form-duschwanne[data-tray-off] .dw-tray-extras-grid {
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-}
-
-.dw-tray-extras-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  grid-template-rows: auto auto auto;
-  gap: 16px;
-}
-
-.dw-tray-extras-grid > .field {
-  margin: 0;
-  display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-}
-
-.dw-tray-extras-grid > .field .image-check {
-  width: 100%;
-  height: 100%;
-}
-
 /* Uniform product-tile cards: header / tile / note / qty-or-price, aligned
    across the row via subgrid so cards with different optional content
    (warning text, qty input) still line up instead of drifting to
@@ -2009,22 +2052,6 @@ a.btn {
 
 .product-tile-grid > .field .image-check {
   width: min(220px, 100%);
-}
-
-/* #flooringPanel's >=1024px rule (below) blows product tiles up to a third
-   of the row and crops them; scope back to the standard fixed-size tile so
-   Fußboden and Wandverkleidung product cards match. */
-#flooringPanel .product-tile-grid .image-check {
-  max-width: min(220px, 100%);
-  flex: none;
-}
-
-#flooringPanel .product-tile-grid .img-wrap {
-  aspect-ratio: 4 / 5;
-}
-
-#flooringPanel .product-tile-grid .img-wrap img {
-  object-fit: contain;
 }
 
 /* ---------- Wandverkleidung: Abschlussprofil / Verbindungsprofil V3V row ----------
@@ -2428,36 +2455,38 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   padding: 12px;
 }
 
-/* ---------- Smart tray suggestions ---------- */
+/* ---------- Smart tray suggestions (iOS grouped list, 2026-10-27) ---------- */
 #tray-suggestions .suggestion-heading {
-  font-size: 0.85rem;
+  margin: 18px 4px 6px;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--muted-foreground);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 8px;
+  color: var(--muted, #6b7280);
 }
 
 #tray-suggestions .suggestion-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  display: block;
+  border: 1px solid var(--input-border, #d0d5dd);
+  border-radius: 14px;
+  background: var(--panel, #fff);
+  overflow: hidden;
 }
 
 #tray-suggestions .suggestion-card {
   min-width: 0;
-  border: 1.5px solid var(--border, #e5e7eb);
-  border-radius: 12px;
-  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 0; /* a global label margin left an untinted strip under the selected row */
   cursor: pointer;
-  background: var(--card);
-  color: var(--card-foreground);
-  transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
   position: relative;
+  background: transparent;
+  color: var(--text, #1f2937);
+  transition: background-color 0.12s ease;
 }
+#tray-suggestions .suggestion-card + .suggestion-card { border-top: 1px solid var(--input-border, #e5e7eb); }
 
 #tray-suggestions .suggestion-card input[type="radio"] {
   position: absolute;
@@ -2467,113 +2496,314 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   height: 0;
 }
 
-/* body */
-#tray-suggestions .sc-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-#tray-suggestions .sc-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-#tray-suggestions .sc-title {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  font-size: 0.92rem;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-#tray-suggestions .sc-price {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--primary, #2563eb);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-#tray-suggestions .sc-dims {
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-
-#tray-suggestions .sc-badges {
+#tray-suggestions .sc-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+#tray-suggestions .sc-title { font-size: 1rem; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+#tray-suggestions .sc-sub {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 2px;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.82rem;
+  color: var(--muted, #6b7280);
+  /* WebKit text autosizing inflates short badge text unevenly on iPad Safari. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
-
-#tray-suggestions .sc-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 999px;
-  letter-spacing: 0.03em;
-}
-
 #tray-suggestions .sc-badge--best {
-  background: rgba(37, 99, 235, 0.10);
-  color: var(--primary, #2563eb);
-  border: 1px solid rgba(37, 99, 235, 0.25);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 132, 255, 0.12);
+  color: #0a6fd6;
 }
-
-#tray-suggestions .sc-badge--source {
-  background: transparent;
-  color: var(--foreground, #111827);
-  border: 1px solid var(--border);
+/* Lagerbestand: Punkt + Text. Grün = auf Lager (mit Menge), Orange = Menge 0
+   aber lieferbar (Verbundhaus/Zentrallager/Nachtverbund), Rot = muss bestellt werden. */
+#tray-suggestions .sc-stock {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 0.74rem; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px;
 }
+#tray-suggestions .sc-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: currentColor; }
+#tray-suggestions .sc-stock--in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+#tray-suggestions .sc-stock--soon { background: rgba(255, 159, 10, 0.16); color: #b26a00; }
+#tray-suggestions .sc-stock--out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+[data-mode="dark"] #tray-suggestions .sc-stock--in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+[data-mode="dark"] #tray-suggestions .sc-stock--soon { background: rgba(255, 159, 10, 0.22); color: #ffc261; }
+[data-mode="dark"] #tray-suggestions .sc-stock--out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+#tray-suggestions .sc-price { font-size: 1rem; font-weight: 600; white-space: nowrap; color: var(--text, #1f2937); }
 
-#tray-suggestions .is-budget .sc-badge--source {
-  background: rgba(234, 179, 8, 0.12);
-  color: #92400e;
-  border-color: rgba(234, 179, 8, 0.35);
-}
-
-/* checkmark indicator */
 #tray-suggestions .sc-check {
   width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+  flex: 0 0 22px;
+  text-align: center;
+  font-size: 18px;
   font-weight: 700;
-  color: transparent;
-  background: transparent;
-  flex-shrink: 0;
-  margin-left: 10px;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  color: #0a84ff;
+  visibility: hidden;
 }
-
 #tray-suggestions .suggestion-card:hover,
-#tray-suggestions .suggestion-card:focus-within {
-  background: var(--card-hover);
-  color: var(--card-foreground);
-  border-color: var(--ring, #2563eb);
+#tray-suggestions .suggestion-card:focus-within { background: rgba(0, 0, 0, 0.03); }
+#tray-suggestions .suggestion-card.is-selected { background: rgba(10, 132, 255, 0.06); }
+#tray-suggestions .suggestion-card.is-selected .sc-check { visibility: visible; }
+[data-mode="dark"] #tray-suggestions .suggestion-card:hover,
+[data-mode="dark"] #tray-suggestions .suggestion-card:focus-within { background: rgba(255, 255, 255, 0.05); }
+[data-mode="dark"] #tray-suggestions .suggestion-card.is-selected { background: rgba(10, 132, 255, 0.16); }
+[data-mode="dark"] #tray-suggestions .sc-badge--best { background: rgba(10, 132, 255, 0.22); color: #7cc0ff; }
+
+/* Maße: two rows of a grouped list, value right-aligned with its unit. */
+.dw-dims { margin-bottom: 4px; }
+.dw-dim-row { cursor: text; flex-wrap: nowrap; }
+.dw-dim-row .dw-dim-name { font-size: 1rem; color: var(--text, #1f2937); }
+.dw-dim-row .dw-dim-input { display: inline-flex; align-items: center; gap: 8px; color: var(--muted, #6b7280); }
+#form-duschwanne .dw-dim-row input[type="number"] {
+  width: 110px;
+  text-align: right;
+  font-size: 1rem;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  box-shadow: none;
+}
+#form-duschwanne .dw-dim-row input[type="number"]:focus { outline: none; box-shadow: none; }
+.dw-dim-row:focus-within { background: rgba(10, 132, 255, 0.05); }
+
+/* Slate-Farbe: runde Farbfelder in einer Zeile, Auswahl = blauer Ring. */
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 14px 18px; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .image-check {
+  display: grid; justify-items: center; gap: 6px; width: auto; padding: 0;
+  border: 0; background: none; box-shadow: none;
+}
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .img-wrap {
+  width: 46px; height: 46px; aspect-ratio: auto; border-radius: 50%;
+  border: 1px solid var(--input-border, #d0d5dd); transition: box-shadow 0.15s ease;
+}
+/* The pictures show a whole tray; zoom into its surface so the field shows the colour. */
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; transform: scale(2.4); }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .caption { font-size: 0.78rem; font-weight: 500; color: var(--muted, #6b7280); }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .image-check:has(input:checked) .caption { color: var(--text, #1f2937); }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .image-check:has(input:focus-visible) { outline: none; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid .image-check:has(input:focus-visible) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff, 0 0 0 7px rgba(10, 132, 255, 0.25); }
+
+/* Zubehör: eine Zeile je Artikel — Bild, Text, (Stepper), Schalter. Das label ist
+   display:contents, so dass seine Teile direkt im Zeilenraster liegen und ein
+   Tipp irgendwo darauf weiter die Checkbox schaltet. */
+.dw-acc-list { margin-top: 4px; }
+.dw-acc {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto; align-items: center;
+  gap: 4px 14px; padding: 10px 18px; cursor: pointer;
+}
+.dw-acc + .dw-acc { border-top: 1px solid var(--input-border, #e5e7eb); }
+/* The label is display:contents, so its hidden checkbox (position:absolute) would
+   otherwise sit at the top of the page — tapping a row then scrolled there. */
+.dw-acc, .ios-check-row, .sec-switch { position: relative; }
+:is(#form-duschwanne, #form-fussboden) .dw-acc .image-check { display: contents; }
+.dw-acc .img-wrap {
+  grid-column: 1; grid-row: 1; width: 44px; height: 44px; aspect-ratio: auto;
+  border-radius: 10px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; padding: 3px; box-sizing: border-box;
+}
+.dw-acc__text { grid-column: 2; grid-row: 1; display: grid; gap: 2px; min-width: 0; }
+:is(#form-duschwanne, #form-fussboden) .dw-acc .caption { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+.dw-acc__text small { font-size: 0.82rem; color: var(--muted, #6b7280); }
+.dw-acc .sec-switch__track { grid-column: 4; grid-row: 1; }
+.dw-acc:has(input:not(:checked)) .img-wrap { opacity: 0.45; }
+.stelzlager-qty-row {
+  grid-column: 3; grid-row: 1; display: inline-flex; align-items: center;
+  border-radius: 9px; background: rgba(118, 118, 128, 0.12); overflow: hidden;
+}
+.stelzlager-qty-row[hidden] { display: none; }
+.stelzlager-qty-btn {
+  width: 36px; height: 32px; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 1.15rem; line-height: 1; color: var(--text, #1f2937);
+}
+.stelzlager-qty-btn:active { background: rgba(118, 118, 128, 0.2); }
+#stelzlagerQtyInput {
+  width: 38px; padding: 4px 0; border: 0; background: transparent; box-shadow: none;
+  text-align: center; font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); -moz-appearance: textfield;
+}
+#stelzlagerQtyInput::-webkit-inner-spin-button, #stelzlagerQtyInput::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Fußboden: Belag-Texturen als eckige Felder (Mehrfach-Checkboxen wie bisher). */
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid.is-square .img-wrap { width: 58px; height: 58px; border-radius: 12px; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid.is-square img { transform: none; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid.is-square .image-check { width: 84px; align-content: start; }
+:is(#form-duschwanne, #form-fussboden) .dw-color-grid.is-square .caption { max-width: 84px; text-align: center; line-height: 1.25; overflow-wrap: break-word; hyphens: auto; }
+.dw-acc__auto { grid-column: 3 / 5; grid-row: 1; font-size: 0.85rem; color: var(--muted, #6b7280); }
+.dw-acc > .img-wrap { overflow: hidden; display: grid; place-items: center; }
+.dw-acc > .img-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+
+/* iOS segmented control for a radio pair (Umfang). */
+.ios-seg { display: inline-flex; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+.ios-seg label { position: relative; margin: 0; cursor: pointer; }
+.ios-seg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ios-seg span { display: block; padding: 7px 14px; border-radius: 7px; font-size: 0.92rem; font-weight: 500; color: var(--text, #1f2937); white-space: nowrap; }
+.ios-seg input:checked + span { background: var(--panel, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+.ios-seg input:focus-visible + span { outline: 2px solid #0a84ff; outline-offset: 1px; }
+[data-mode="dark"] .ios-seg { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .ios-seg input:checked + span { background: #636366; }
+
+/* A whole settings row as a button with a chevron (Flächenrechner). */
+.ios-disclosure {
+  width: 100%; border: 0; border-top: 1px solid var(--input-border, #e5e7eb); border-radius: 0; background: none;
+  font: inherit; font-size: 1rem; color: var(--text, #1f2937); text-align: left; cursor: pointer;
+}
+.ios-disclosure::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #6b7280); transition: transform 0.15s ease; }
+.ios-disclosure[aria-expanded="true"]::after { transform: rotate(90deg); }
+.sec-settings__group > .floor-calc-card { margin: 0; border: 0; border-top: 1px solid var(--input-border, #e5e7eb); border-radius: 0; box-shadow: none; }
+#form-fussboden .dw-dim-row input { width: 110px; text-align: right; font-size: 1rem; border: 0; background: transparent; padding: 4px 0; box-shadow: none; }
+#form-fussboden .dw-dim-row input:focus { outline: none; box-shadow: none; }
+
+/* Eigenes-Lager-Badge (wv-tile-own-badge) unter dem Farbfeld statt darüber. */
+#form-fussboden .dw-color-grid .wv-tile-own-badge {
+  position: static; transform: none; margin: 0; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; white-space: nowrap; background: rgba(180, 83, 9, 0.14); color: #92400e; box-shadow: none;
+}
+[data-mode="dark"] #form-fussboden .dw-color-grid .wv-tile-own-badge { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+
+/* Wand als Boden — Ihre Auswahl: Bild links, rechts Name / Farbe · Art.-Nr. /
+   Preis / Lager-Badges, oben bündig untereinander. */
+.wvc-summary:has(> #wvcProductCard[hidden]) { display: none; }
+.wvc-sel { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; padding: 16px 18px; }
+/* winwall: a whole (tall) panel — show its lower part, where e.g. the marble veins are. */
+.wvc-sel__img.is-panel { object-position: 50% 80%; }
+.wvc-sel__img { width: 200px; height: 200px; object-fit: cover; border-radius: 12px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
+.wvc-sel__info { display: grid; gap: 6px; align-content: start; padding-top: 4px; min-width: 0; }
+.wvc-sel__name { font-size: 1.1rem; font-weight: 600; line-height: 1.3; color: var(--text, #1f2937); }
+.wvc-sel__meta { font-size: 0.88rem; color: var(--muted, #6b7280); }
+.wvc-sel__price { margin-top: 6px; font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
+.wvc-sel__price small { font-size: 0.9rem; font-weight: 500; color: var(--muted, #6b7280); }
+.wvc-sel__badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* Both badges identical in size; the #wvcProductCard prefix beats the older
+   "#wvcProductCard .dac-line-stock { margin-top }" and the own-badge padding. */
+#wvcProductCard .wvc-sel__badges .dac-line-stock,
+#wvcProductCard .wvc-sel__badges .wv-own-lager-badge {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 28px; margin: 0; padding: 0 12px 0 4px;
+  border: 0; border-radius: 999px; font-size: 0.8rem; font-weight: 600; line-height: 1; box-shadow: none;
+}
+#wvcProductCard .wvc-sel__badges .dac-stock-qty,
+#wvcProductCard .wvc-sel__badges .wv-own-lager-qty {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: none;
+  min-width: 20px; width: auto; height: 20px; margin: 0; padding: 0 5px; border-radius: 999px; font-size: 0.72rem; line-height: 1; color: #fff;
+}
+.wvc-sel__badges .dac-stock-in { background: rgba(52, 199, 89, 0.14); color: #1f8a3c; }
+.wvc-sel__badges .dac-stock-in .dac-stock-qty { background: #34c759; }
+.wvc-sel__badges .dac-stock-out { background: rgba(255, 59, 48, 0.12); color: #c4271d; }
+.wvc-sel__badges .dac-stock-out .dac-stock-qty { background: #ff3b30; }
+.wvc-sel__badges .wv-own-lager-badge { background: rgba(255, 159, 10, 0.16); color: #b26a00; }
+.wvc-sel__badges .wv-own-lager-qty { background: #ff9f0a; }
+[data-mode="dark"] .wvc-sel__img { border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] .wvc-sel__badges .dac-stock-in { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+[data-mode="dark"] .wvc-sel__badges .dac-stock-out { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+[data-mode="dark"] .wvc-sel__badges .wv-own-lager-badge { background: rgba(255, 159, 10, 0.22); color: #ffc261; }
+@media (max-width: 600px) {
+  .wvc-sel { grid-template-columns: 1fr; }
+  .wvc-sel__img { width: 100%; height: 220px; }
 }
 
-#tray-suggestions .suggestion-card.is-selected {
-  border-color: var(--ring, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  background: var(--card-selected);
+/* Wandverkleidung als Fußboden: die zwei Plattenformate als Listenzeilen. */
+#wallCladdingCards , #wvAreaCards { display: block; margin: 0; }
+#wallCladdingCards .wvc-card , #wvAreaCards .wvc-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 22px; grid-template-areas: "head price check" "qty price check" "cov price check";
+  align-items: center; gap: 2px 14px; width: 100%; margin: 0; padding: 12px 18px; text-align: left;
+  border: 0; border-radius: 0; box-shadow: none; background: transparent; font: inherit; color: var(--text, #1f2937); cursor: pointer;
+}
+#wallCladdingCards .wvc-card + .wvc-card , #wvAreaCards .wvc-card + .wvc-card { border-top: 1px solid var(--input-border, #e5e7eb); }
+#wallCladdingCards .wvc-card-head , #wvAreaCards .wvc-card-head { grid-area: head; justify-content: flex-start; font-size: 1rem; font-weight: 500; }
+#wallCladdingCards .wvc-qty , #wvAreaCards .wvc-qty { grid-area: qty; font-size: 0.85rem; color: var(--muted, #6b7280); }
+#wallCladdingCards .wvc-coverage , #wvAreaCards .wvc-coverage { grid-area: cov; font-size: 0.82rem; color: var(--muted, #6b7280); }
+#wallCladdingCards .wvc-price-row , #wvAreaCards .wvc-price-row { grid-area: price; display: grid; justify-items: end; font-weight: 600; }
+#wallCladdingCards .wvc-select-label , #wvAreaCards .wvc-select-label { grid-area: check; font-size: 0; }
+#wallCladdingCards .wvc-selected .wvc-select-label::after , #wvAreaCards .wvc-selected .wvc-select-label::after { content: "✓"; font-size: 18px; font-weight: 700; color: #0a84ff; }
+#wallCladdingCards .wvc-card.wvc-selected , #wvAreaCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.06); }
+#wallCladdingCards .wvc-badge , #wvAreaCards .wvc-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(10, 132, 255, 0.12); color: #0a6fd6; }
+[data-mode="dark"] #wallCladdingCards .wvc-card , [data-mode="dark"] #wvAreaCards .wvc-card { background: transparent; }
+[data-mode="dark"] #wallCladdingCards .wvc-card.wvc-selected , [data-mode="dark"] #wvAreaCards .wvc-card.wvc-selected { background: rgba(10, 132, 255, 0.16); }
+[data-mode="dark"] #wallCladdingCards .wvc-badge , [data-mode="dark"] #wvAreaCards .wvc-badge { background: rgba(10, 132, 255, 0.22); color: #7cc0ff; }
+
+/* Freier Posten: eine aufklappbare Zeile, darin Formularzeilen (Name links, Wert rechts). */
+#dw-custom-details {
+  margin: 0 0 18px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px;
+  background: var(--panel, #fff); overflow: hidden;
+}
+#dw-custom-details > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding: 12px 18px; font-size: 1rem; font-weight: 500; color: var(--text, #1f2937);
+}
+#dw-custom-details > summary::-webkit-details-marker { display: none; }
+.dw-custom-caret { margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #6b7280); transition: transform 0.15s ease; }
+#dw-custom-details[open] .dw-custom-caret { transform: rotate(90deg); }
+#dw-custom-details.is-urgent { border-color: #f59e0b; background: #fffbeb; }
+#dw-custom-details fieldset.da-row { border: 0; margin: 0; padding: 0; }
+#dw-custom-details .da-grid-4 { display: block; }
+#dw-custom-details .da-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0;
+  padding: 10px 18px; border-top: 1px solid var(--input-border, #e5e7eb);
+  font-size: 1rem; font-weight: 400; color: var(--text, #1f2937);
+}
+#dw-custom-details .da-label input {
+  flex: 1; max-width: 60%; text-align: right; border: 0; background: transparent; box-shadow: none;
+  padding: 4px 0; font-size: 1rem; color: var(--text, #1f2937);
+}
+#dw-custom-details .da-label input:focus { outline: none; }
+#dw-custom-details .da-label:focus-within { background: rgba(10, 132, 255, 0.05); }
+#dw-custom-details .da-help {
+  display: block; margin: 0; padding: 10px 18px 14px; border-top: 1px solid var(--input-border, #e5e7eb);
+  font-size: 0.82rem; color: var(--muted, #6b7280);
 }
 
-#tray-suggestions .suggestion-card.is-selected .sc-check {
-  background: var(--primary, #2563eb);
-  border-color: var(--primary, #2563eb);
-  color: #fff;
+/* Ihre Auswahl: Wannenbild + gewählte Teile. */
+.dw-summary__hero { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 18px; align-items: center; padding: 14px 18px; }
+/* The tray pictures are 400×400 with a lot of white around the tray: zoom in a bit. */
+.dw-summary__pic { width: 240px; height: 240px; overflow: hidden; border-radius: 12px; border: 1px solid var(--input-border, #e5e7eb); background: #fff; }
+.dw-summary__pic img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); }
+/* Riviera is a room photo, not a cut-out: no zoom, keep the tray (lower part) in view. */
+.dw-summary__pic.is-photo img { transform: none; object-position: 50% 80%; }
+.dw-summary__hero strong { display: block; font-size: 1.05rem; font-weight: 600; color: var(--text, #1f2937); }
+.dw-summary__hero small { display: block; margin-top: 2px; font-size: 0.85rem; color: var(--muted, #6b7280); }
+.dw-summary__items { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 18px 14px; border-top: 1px solid var(--input-border, #e5e7eb); }
+.dw-summary__item {
+  display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px;
+  border-radius: 999px; background: rgba(118, 118, 128, 0.1); font-size: 0.85rem; color: var(--text, #1f2937);
 }
+.dw-summary__item img { width: 28px; height: 28px; border-radius: 50%; object-fit: contain; background: #fff; }
+
+/* Kundenbäder: vorher/nachher nebeneinander, horizontal wischbar. */
+.dw-refs__list { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 46%); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
+.dw-ref { margin: 0; cursor: zoom-in; scroll-snap-align: start; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); overflow: hidden; }
+.dw-ref__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.dw-ref__pair img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
+.dw-ref figcaption { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 0; text-align: center; font-size: 0.8rem; font-weight: 600; color: var(--muted, #6b7280); }
+.dw-ref figcaption span:last-child { color: #1f8a3c; }
+
+[data-mode="dark"] .dw-acc .img-wrap,
+[data-mode="dark"] .dw-summary__item img,
+[data-mode="dark"] .dw-summary__pic { border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] .stelzlager-qty-row { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .dw-summary__item { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .dw-ref figcaption span:last-child { color: #5fe08a; }
+@media (max-width: 560px) {
+  .dw-summary__hero { grid-template-columns: 1fr; }
+  .dw-summary__pic { width: 100%; }
+}
+
+/* Vorher/Nachher groß: nebeneinander, so hoch wie der Bildschirm erlaubt. */
+.dw-ref-dialog {
+  width: min(96vw, 1100px); max-width: none; max-height: 94vh; padding: 14px; border: 0; border-radius: 18px;
+  background: var(--panel, #fff); color: var(--text, #1f2937);
+}
+.dw-ref-dialog::backdrop { background: rgba(0, 0, 0, 0.72); }
+.dw-ref-dialog__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center; }
+.dw-ref-dialog figure { margin: 0; display: grid; gap: 8px; justify-items: center; }
+/* Each picture keeps its own shape (some are landscape), no letterbox bars. */
+.dw-ref-dialog img { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(94vh - 80px); border-radius: 12px; }
+.dw-ref-dialog figcaption { font-size: 0.95rem; font-weight: 600; color: var(--muted, #6b7280); }
+.dw-ref-dialog figure + figure figcaption { color: #1f8a3c; }
+.dw-ref-dialog__close {
+  position: absolute; top: 20px; right: 20px; z-index: 1; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer;
+}
+[data-mode="dark"] .dw-ref-dialog { background: #1c1c1e; } /* --panel is translucent in dark */
+[data-mode="dark"] .dw-ref-dialog figure + figure figcaption { color: #5fe08a; }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
 #traySmartSearch,
@@ -2584,17 +2814,6 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   margin-top: 12px;
 }
 
-@media (max-width: 1024px) {
-  #tray-suggestions .suggestion-list {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  }
-}
-
-@media (max-width: 820px) {
-  #tray-suggestions .suggestion-list {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ---------- Color swatch cards ---------- */
 .color-swatch-group {
@@ -4370,22 +4589,190 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 .doc-select-row { font-size: 0.95rem; }
 
-/* ===== Additive: Badolux Low Budget mode UI helpers ===== */
+/* ===== Produktlinie Standard (Badolux) / Premium (Vigour, Hassmann) =====
+   Loest die Checkbox "Low Budget Variante priorisieren" ab. Die Klasse
+   .budget-mode wird weiterhin von BadoluxManager gesetzt (andere Regeln haengen
+   daran); das fruehere gelbe "Low Budget Modus aktiv"-Banner ersetzt jetzt der
+   Umschalter selbst zusammen mit .tier-status. */
 #form-duschwanne.budget-mode,
 #form-fussboden.budget-mode {
   position: relative;
 }
 
-#form-duschwanne.budget-mode::before,
-#form-fussboden.budget-mode::before {
-  content: "💰 Low Budget Modus aktiv";
-  display: block;
-  margin: 10px 0 14px;
-  padding: 10px 12px;
-  border-radius: 10px;
+.tier-switch {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tier-switch__label {
+  font-size: 12px;
   font-weight: 600;
-  background: rgba(255, 215, 0, 0.15);
-  border: 1px solid rgba(255, 215, 0, 0.35);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.tier-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--section-bg-base, #eef0f5);
+}
+
+/* Touch targets sized for the tablet this is used on. */
+.tier-seg__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  min-height: 52px;
+  min-width: 168px;
+  padding: 8px 20px;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted-foreground);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tier-seg__btn strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.tier-seg__btn span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.tier-seg__btn[aria-pressed="true"] {
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111827);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16);
+}
+
+.tier-seg__btn[data-tier="standard"][aria-pressed="true"] {
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16), inset 0 0 0 2px var(--tier-standard, #0f766e);
+}
+
+.tier-seg__btn[data-tier="premium"][aria-pressed="true"] {
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16), inset 0 0 0 2px var(--tier-premium, #7c3aed);
+}
+
+.tier-seg__btn:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Status line under the heading — the "which line am I in" indicator. */
+.tier-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tier-status__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.tier-status__text b {
+  font-weight: 700;
+}
+
+.tier-status[data-tier="standard"] {
+  background: #ccfbf1;
+  color: #134e4a;
+}
+
+.tier-status[data-tier="standard"] .tier-status__dot {
+  background: var(--tier-standard, #0f766e);
+}
+
+.tier-status[data-tier="premium"] {
+  background: var(--accent-weak, #ede9fe);
+  color: #4c1d95;
+}
+
+.tier-status[data-tier="premium"] .tier-status__dot {
+  background: var(--tier-premium, #7c3aed);
+}
+
+/* Saved tray from the other line: pinned, never auto-switched — switching the
+   line would change the accessory articles and therefore the saved price. */
+#tray-suggestions .suggestion-pinned {
+  margin-bottom: 14px;
+}
+
+#tray-suggestions .suggestion-pinned-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+#tray-suggestions .suggestion-card.is-pinned {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+#tray-suggestions .suggestion-pinned-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: #78350f;
+}
+
+/* No product in the selected line for these dimensions. */
+#tray-suggestions .tray-fallback {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1.5px dashed #f59e0b;
+  border-radius: 14px;
+  background: #fffbeb;
+}
+
+#tray-suggestions .tray-fallback p {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 13.5px;
+  color: #78350f;
+}
+
+#tray-suggestions .tray-fallback strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+@media (max-width: 820px) {
+  .tier-seg__btn {
+    min-width: 140px;
+  }
 }
 
 /* Optional: show badge on budget tray suggestions */
@@ -5186,28 +5573,35 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   color: white;
 }
 
-/* ---------- Fußboden / Wandverkleidung inner tab switch ---------- */
+/* ---------- Fußboden / Wandverkleidung inner tab switch (iOS segmented) ---------- */
 .fb-tab-switch {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
   margin: 0 0 16px;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.12);
 }
 
 .fb-tab-switch-btn {
-  border: 1px solid var(--accent);
-  background: #fff;
-  color: var(--accent-strong);
-  border-radius: 999px;
-  padding: 9px 20px;
-  font-weight: 600;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text, #1f2937);
+  padding: 8px 16px;
   font: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .fb-tab-switch-btn.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--panel, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+  font-weight: 600;
 }
+[data-mode="dark"] .fb-tab-switch { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] .fb-tab-switch-btn.active { background: #636366; color: #fff; }
 
 /* ---------- Wandverkleidung-als-Fußboden panel option cards ---------- */
 .wvc-cards {
@@ -5261,7 +5655,9 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .wv-product-card-name { font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wv-product-card-art { color: #6b7280; font-size: 0.8rem; }
 .wv-product-card-price { font-weight: 700; color: var(--accent-strong, #5b21b6); white-space: nowrap; }
-.wv-product-card-stock { font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+/* Vigour's stock text can be a whole sentence ("Ware im Verbundhaus Würzburg …"):
+   it wraps instead of widening the colour section past the card. */
+.wv-product-card-stock { font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; max-width: 260px; text-align: right; }
 .wv-product-card-stock.in  { background: #dcfce7; color: #166534; }
 .wv-product-card-stock.out { background: #f3f4f6; color: #6b7280; }
 [data-mode="dark"] .wv-product-card { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.25); }
@@ -5352,209 +5748,69 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 /* ── Flächenrechner card ─────────────────────────────────────────────── */
-.floor-calc-card {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  padding: 14px;
-  min-width: 0;
-}
-
-.floor-calc-card__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.floor-calc-card__title {
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.floor-calc-card__hint {
-  font-size: 0.88rem;
-  color: var(--muted);
-}
-
-.floor-calc-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ── One row ─────────────────────────────────────────────────────────── */
+/* Flächenrechner (iOS-Stil, 2026-10-27): je Zeile [+/−] Länge × Breite = Fläche [×].
+   Gemeinsam für Fußboden, Wand als Boden und Wandverkleidung (makeFloorCalc). */
+.floor-calc-card { display: grid; gap: 10px; padding: 12px 18px 16px; background: transparent; }
+.floor-calc-card[hidden] { display: none; } /* display:grid would beat [hidden] */
+.floor-calc-card__title-row { display: flex; justify-content: space-between; gap: 12px; }
+.floor-calc-card__title { font-weight: 600; }
+.floor-calc-card__hint { font-size: 0.82rem; color: var(--muted, #6b7280); }
+.floor-calc-rows { display: grid; gap: 8px; }
 .floor-calc-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: rgba(122, 63, 232, 0.04);
-  transition: border-color 0.15s, background 0.15s;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; background: rgba(118, 118, 128, 0.08);
 }
-
-.floor-calc-row[data-sign="subtract"] {
-  background: rgba(220, 38, 38, 0.04);
-  border-color: rgba(220, 38, 38, 0.22);
-}
-
-.floor-calc-row__controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+.floor-calc-row__controls { display: contents; }
 .floor-calc-sign {
-  padding: 5px 14px;
-  border-radius: 8px;
-  border: 1.5px solid;
-  font-size: 0.85rem;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  grid-column: 1; grid-row: 1; align-self: end; height: 38px; min-width: 104px; padding: 0 12px;
+  border: 0; border-radius: 9px; font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
 }
-
-.floor-calc-sign[data-sign="add"] {
-  border-color: #16a34a;
-  color: #166534;
-  background: #f0fdf4;
-}
-
-.floor-calc-sign[data-sign="subtract"] {
-  border-color: #dc2626;
-  color: #991b1b;
-  background: #fef2f2;
-}
-
+.floor-calc-sign[data-sign="add"] { background: rgba(52, 199, 89, 0.16); color: #1f8a3c; }
+.floor-calc-sign[data-sign="subtract"] { background: rgba(255, 59, 48, 0.14); color: #c4271d; }
 .floor-calc-remove-row {
-  margin-left: auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-  line-height: 1;
-  flex: 0 0 auto;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-  padding: 0;
+  grid-column: 3; grid-row: 1; align-self: end; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted, #6b7280); font-size: 1.3rem; line-height: 1; cursor: pointer;
 }
-
-.floor-calc-remove-row:hover {
-  border-color: #dc2626;
-  color: #dc2626;
-  background: #fef2f2;
-}
-
+.floor-calc-remove-row:hover { background: rgba(118, 118, 128, 0.16); }
 .floor-calc-row__inputs {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  grid-column: 2; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: end; gap: 8px;
 }
-
-.floor-calc-field {
-  flex: 1 1 80px;
-  min-width: 0;
+.floor-calc-field { display: grid; gap: 3px; margin: 0; min-width: 0; }
+.floor-calc-field > span { font-size: 0.75rem; color: var(--muted, #6b7280); }
+.floor-calc-field input {
+  width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px; text-align: right; font-size: 1rem;
+  border: 0; border-radius: 9px; background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: inset 0 0 0 1px var(--input-border, #d0d5dd);
+  -moz-appearance: textfield;
 }
-
-.floor-calc-times {
-  align-self: center;
-  flex: 0 0 auto;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--muted);
-  padding-bottom: 4px;
-}
-
-.floor-calc-row-area {
-  flex: 0 0 110px;
-  min-width: 90px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px dashed var(--border);
-}
-
-.floor-calc-row-area__label {
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin-bottom: 2px;
-}
-
-.floor-calc-row-result {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-/* ── Add-row button ──────────────────────────────────────────────────── */
+.floor-calc-field input::-webkit-inner-spin-button,
+.floor-calc-field input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.floor-calc-field input:focus { outline: none; box-shadow: inset 0 0 0 2px #0a84ff; }
+.floor-calc-times { align-self: end; padding-bottom: 9px; color: var(--muted, #6b7280); }
+.floor-calc-row-area { min-width: 84px; padding-bottom: 9px; text-align: right; background: none; border: 0; }
+.floor-calc-row-area__label { display: none; }
+.floor-calc-row-result { font-weight: 600; white-space: nowrap; color: var(--text, #1f2937); }
+.floor-calc-row-result::before { content: "= "; color: var(--muted, #6b7280); font-weight: 400; }
+.floor-calc-row[data-sign="subtract"] .floor-calc-row-result { color: #c4271d; }
 .floor-calc-add-btn {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 9px;
-  border: 1.5px dashed var(--accent);
-  background: transparent;
-  color: var(--accent-strong);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  transition: background 0.15s;
+  justify-self: start; padding: 6px 2px; border: 0; background: none; font: inherit; font-weight: 600; color: #0a84ff; cursor: pointer;
 }
-
-.floor-calc-add-btn:hover {
-  background: var(--accent-weak);
-}
-
-/* ── Result + apply row ──────────────────────────────────────────────── */
 .floor-calc-result-row {
-  margin-top: 12px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 10px; border-top: 1px solid var(--input-border, #e5e7eb);
 }
-
-.floor-calc-result-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.floor-calc-result-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
+.floor-calc-result-label { font-size: 0.8rem; color: var(--muted, #6b7280); }
+.floor-calc-result-value { font-size: 1.15rem; font-weight: 700; color: var(--text, #1f2937); }
 .floor-calc-apply {
-  border: 1px solid var(--accent);
-  background: var(--accent-weak);
-  color: var(--accent-strong);
-  border-radius: 10px;
-  padding: 9px 16px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
+  height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: #0a84ff; color: #fff;
+  font: inherit; font-weight: 600; cursor: pointer;
 }
-
-.floor-calc-apply:hover,
-.floor-calc-apply:focus-visible {
-  background: var(--accent);
-  color: #fff;
-}
+.floor-calc-apply:hover, .floor-calc-apply:focus-visible { background: #0071e3; }
+[data-mode="dark"] .floor-calc-row { background: rgba(118, 118, 128, 0.18); }
+[data-mode="dark"] .floor-calc-field input { background: rgba(0, 0, 0, 0.25); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+[data-mode="dark"] .floor-calc-sign[data-sign="add"] { background: rgba(48, 209, 88, 0.2); color: #5fe08a; }
+[data-mode="dark"] .floor-calc-sign[data-sign="subtract"] { background: rgba(255, 69, 58, 0.22); color: #ff8a82; }
+[data-mode="dark"] .floor-calc-row[data-sign="subtract"] .floor-calc-row-result { color: #ff8a82; }
+[data-mode="dark"] .floor-calc-add-btn { color: #4da3ff; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
@@ -7819,38 +8075,7 @@ button.pad-clear {
   gap: 8px;
 }
 
-.today-calendar-done {
-  border: 1px solid color-mix(in srgb, #16a34a 30%, var(--border));
-  background: color-mix(in srgb, #16a34a 12%, var(--panel));
-  color: #15803d;
-  border-radius: 12px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 38px;
-  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
-}
-
-.today-calendar-done:hover,
-.today-calendar-done:focus-visible {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #fff;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
-}
-
-.today-calendar-done:disabled {
-  cursor: default;
-  opacity: .75;
-  box-shadow: none;
-}
-
-/* "Nicht erreicht" — same shape as .today-calendar-done, amber instead of green */
+/* "Nicht erreicht" — amber */
 .today-calendar-noshow {
   border: 1px solid color-mix(in srgb, #d97706 32%, var(--border));
   background: color-mix(in srgb, #d97706 12%, var(--panel));
@@ -8062,7 +8287,6 @@ button.pad-clear {
      grid row. */
   .today-calendar-call,
   .today-calendar-navigate,
-  .today-calendar-done,
   .today-calendar-noshow,
   .today-calendar-open {
     min-height: 68px;
@@ -10661,20 +10885,37 @@ details.az-group[open] > summary.az-group-title::before {
   color: var(--text);
 }
 
-[data-mode="dark"] #tray-suggestions .sc-badge--source {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--muted-foreground);
-  border-color: var(--border);
+/* Produktlinie switch / Freier Posten in dark mode */
+[data-mode="dark"] .tier-seg {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-[data-mode="dark"] #tray-suggestions .is-budget .sc-badge--source {
-  background: rgba(234, 179, 8, 0.15);
-  color: #fbbf24;
-  border-color: rgba(234, 179, 8, 0.35);
+[data-mode="dark"] .tier-seg__btn[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--text);
 }
 
-[data-mode="dark"] #tray-suggestions .sc-check {
-  border-color: var(--border);
+[data-mode="dark"] .tier-status[data-tier="standard"] {
+  background: rgba(15, 118, 110, 0.22);
+  color: #99f6e4;
+}
+
+[data-mode="dark"] .tier-status[data-tier="premium"] {
+  background: rgba(124, 58, 237, 0.22);
+  color: #ddd6fe;
+}
+
+[data-mode="dark"] #tray-suggestions .suggestion-card.is-pinned,
+[data-mode="dark"] #tray-suggestions .tray-fallback,
+[data-mode="dark"] #dw-custom-details.is-urgent {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.45);
+}
+
+[data-mode="dark"] #tray-suggestions .suggestion-pinned-head,
+[data-mode="dark"] #tray-suggestions .suggestion-pinned-note,
+[data-mode="dark"] #tray-suggestions .tray-fallback p {
+  color: #fcd34d;
 }
 
 /* ── 30. Adobe section (already dark-bg, just fix subtext) ───── */
@@ -10757,50 +10998,6 @@ details.az-group[open] > summary.az-group-title::before {
 [data-mode="dark"] nav.step-nav {
   background: var(--card);
   border-color: var(--border);
-}
-
-/* ── Stelzlager Set qty stepper ─────────────────────────────── */
-.stelzlager-qty-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-.stelzlager-qty-row[hidden] { display: none; }
-.stelzlager-qty-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.stelzlager-qty-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--card);
-  color: var(--text);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-}
-.stelzlager-qty-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-#stelzlagerQtyInput {
-  width: 52px;
-  text-align: center;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.9rem;
 }
 
 /* ---------- Interne Liste (Kundendaten, nicht kundensichtbar) ---------- */
@@ -11391,6 +11588,114 @@ details.az-group[open] > summary.az-group-title::before {
 [data-mode="dark"] #page-Zusammenfassung .document-card__format{background:rgba(255,255,255,.08);color:var(--text)}
 [data-mode="dark"] #page-Zusammenfassung .document-card__badge{color:#f2bc78}
 
+/* ---------- Keramico-Bedarfsrechner (Wandverkleidung, Standard) ---------- */
+.kc { margin: 6px 0 22px; padding: 18px 18px 16px; border: 1px solid rgba(10,10,10,0.1); border-radius: 16px; background: #fff; }
+.kc-head h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
+.kc-head p { margin: 0 0 12px; font-size: 0.85rem; }
+.kc-sits { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.kc-chip { min-height: 40px; padding: 0 16px; border: 1px solid rgba(10,10,10,0.18); border-radius: 999px; background: #fff; color: #111; font: inherit; font-size: 0.9rem; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.kc-chip[aria-pressed="true"] { background: #111; border-color: #111; color: #fff; }
+.kc-view-chip { min-height: 40px; padding: 0 16px; border: 1px solid rgba(10,10,10,0.18); border-radius: 999px; background: #fff; color: #111; font: inherit; font-weight: 600; cursor: pointer; }
+.kc-view-chip[aria-pressed="true"] { background: #111; border-color: #111; color: #fff; }
+[data-mode="dark"] .kc-view-chip { background: transparent; color: #f3f4f6; border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .kc-view-chip[aria-pressed="true"] { background: #f3f4f6; color: #111; }
+.kc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.kc-toolbar .kc-sits { margin-bottom: 0; }
+.kc-view-chip { display: inline-flex; align-items: center; justify-content: center; }
+.kc-floor--room { fill: #d6d9dc; }
+.kc-tile { stroke: rgba(0,0,0,0.12); stroke-width: 0.8; }
+.kc-room-base { stroke: #cfc9bf; stroke-width: 1; }
+.kc-room-base--back { fill: #f3f0ea; }
+.kc-room-base--links { fill: #e6e1d8; }
+.kc-room-base--rechts { fill: #ece8e0; }
+.kc-skirting { fill: #ffffff; stroke: #cfc9bf; stroke-width: 0.8; }
+.kc-hline { stroke: #0a84ff; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.kc-hlabel { fill: #0a6fd6; font-size: 11px; font-weight: 600; }
+.kc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kc-stage { width: 100%; max-width: 640px; margin: 0 auto; }
+.kc-svg { display: block; width: 100%; height: auto; touch-action: manipulation; }
+.kc-svg * { transition: opacity .25s ease; }
+.kc-floor { fill: rgba(10,10,10,0.07); }
+.kc-wall-base { stroke-width: 1.2; }
+.kc-wall--back { opacity: 0.45; }
+.kc-piece { fill: #f8f7f5; fill-opacity: 0.55; stroke: none; transform-box: fill-box; transform-origin: 50% 100%; }
+.kc-piece--alt { fill: rgba(10,10,10,0.05); fill-opacity: 1; }
+.kc-piece--cut { stroke: var(--kc-solid); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.kc-piece.kc-on { fill: var(--kc-solid); fill-opacity: 0.22; }
+.kc-new { animation: kc-rise .42s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes kc-rise { from { opacity: 0; transform: scaleY(.6); } to { opacity: 1; transform: scaleY(1); } }
+.kc-seam { stroke: rgba(10,10,10,0.42); stroke-width: 1; }
+.kc-badge text { fill: #fff; font-size: 10px; font-weight: 600; text-anchor: middle; }
+.kc-mark rect { fill: #fff; stroke: rgba(10,10,10,0.24); stroke-width: 1; }
+.kc-mark circle { fill: rgba(10,10,10,0.82); }
+.kc-mark-n { fill: #fff; font-size: 7.5px; text-anchor: middle; }
+.kc-mark-w { fill: rgba(10,10,10,0.88); font-size: 10px; text-anchor: middle; }
+.kc-leader { stroke: rgba(10,10,10,0.45); stroke-width: .8; }
+.kc-svg--empty .kc-mark, .kc-svg--empty .kc-leader { display: none; }
+.kc-has-focus [data-wall]:not(.kc-on) { opacity: 0.25; }
+.kc-has-focus .kc-wall.kc-on { opacity: 1; }
+.kc-legend { margin: 6px 0 12px; font-size: 0.78rem; }
+.kc-rows { display: grid; gap: 10px; }
+.kc-row { display: grid; grid-template-columns: 26px minmax(110px, 160px) 120px auto; align-items: center; gap: 10px; margin: 0; font-weight: 500; }
+.kc-row[hidden] { display: none; }
+.kc-row input { height: 46px; font-size: 1rem; }
+.kc-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #999; color: #fff; font-size: 0.78rem; font-weight: 600; }
+.kc-dot--h { background: #6b7280; }
+.kc-unit { color: #6b7280; font-size: 0.85rem; }
+.kc-warn { margin-top: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; font-size: 0.86rem; }
+.kc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+.kc-stat { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid rgba(10,10,10,0.12); font-size: 0.88rem; color: #4b5563; }
+.kc-stat b { font-size: 1.35rem; font-weight: 600; color: #111; font-variant-numeric: tabular-nums; }
+.kc-stat-label { font-size: 0.78rem; color: #6b7280; }
+.kc-cutlist { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(10,10,10,0.12); border-radius: 12px; background: #f7f7f6; font-size: 0.86rem; }
+@media (max-width: 560px) {
+  .kc-row { grid-template-columns: 26px 1fr 100px auto; }
+  .kc-stats { grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .kc-new { animation: none; } .kc-svg * { transition: none; } }
+[data-mode="dark"] .kc { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); }
+[data-mode="dark"] .kc-chip { background: transparent; color: #f3f4f6; border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .kc-chip[aria-pressed="true"] { background: #f3f4f6; color: #111; }
+[data-mode="dark"] .kc-stat b { color: #f3f4f6; }
+[data-mode="dark"] .kc-cutlist { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); }
+[data-mode="dark"] .kc-warn { background: rgba(245,158,11,0.12); color: #fcd34d; }
+[data-mode="dark"] .kc-stage { background: #fafafa; border-radius: 12px; }
+.kc-note { margin: 0 0 12px; color: #6b7280; font-size: 0.85rem; line-height: 1.4; background: none; border: 0; padding: 0; }
+.kc-legend.kc-note { margin: 6px 0 12px; font-size: 0.78rem; }
+#wvPanelsLabel[hidden] { display: none; }
+
+/* ---------- Sonder-Dekor Motiv-Scroller ---------- */
+.kmp { margin-top: 16px; padding: 14px 0 4px; border-top: 1px solid rgba(10,10,10,0.1); }
+.kmp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.kmp-chosen { font-size: 0.85rem; color: #6b7280; }
+.kmp-chosen.is-set { color: #15803d; font-weight: 600; }
+.kmp-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.kmp-track { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.kmp-card { flex: 0 0 128px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 2px solid rgba(10,10,10,0.1); border-radius: 12px; background: #fff; font: inherit; text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .15s, box-shadow .15s; }
+.kmp-card[hidden] { display: none; }
+.kmp-card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,58,237,0.18); }
+.kmp-img { display: block; height: 176px; border-radius: 8px; overflow: hidden; background: #f3f4f6; }
+.kmp-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kmp-img--own { display: grid; place-items: center; text-align: center; font-size: 0.85rem; color: #6b7280; border: 1px dashed rgba(10,10,10,0.25); }
+.kmp-name { font-size: 0.82rem; font-weight: 600; color: #111; line-height: 1.2; }
+.kmp-k { font-size: 0.72rem; color: #6b7280; }
+[data-mode="dark"] .kmp-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+[data-mode="dark"] .kmp-name { color: #f3f4f6; }
+/* A non-wrapping scroller's min-content is the width of all its cards, which
+   stretched the whole Wandverkleidung section past the page. width:0 +
+   min-width:100% makes it fill its parent without pushing it wider. */
+.kmp-track { width: 0; min-width: 100%; }
+/* display:flex on these would otherwise beat the hidden attribute. */
+.kc-cutlist[hidden], .kmp[hidden] { display: none; }
+/* Same size and look as the colour tiles above (label.image-check). */
+.kmp-track { gap: 14px; }
+.kmp-card { flex: 0 0 220px; gap: 8px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; }
+.kmp-img { height: auto; aspect-ratio: 4 / 5; border-radius: 10px; border: 1px solid #eef0f4; }
+.kmp-name { font-size: 0.9rem; font-weight: 600; color: #6b7280; }
+.kmp-card.is-selected .kmp-name { color: var(--accent); }
+.kmp-card.is-selected { border-color: rgb(117, 193, 159); box-shadow: none; }
+.kmp-card.is-selected .kmp-name { color: rgb(59, 138, 104); }
+
 /* Kundendaten (BU/BWT): "Genehmigung des Vermieters erforderlich?" ist Pflicht —
    rot, solange weder Ja noch Nein gewählt ist. Doku: docs/vermieter-genehmigung.md */
 #vermieterErforderlichRow:not(:has(input:checked)) > label { color: var(--danger); }
@@ -11413,6 +11718,242 @@ details.az-group[open] > summary.az-group-title::before {
 .dealUploadBox[data-state="busy"] .du-ico { display: none; }
 @keyframes du-rot { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .dealUploadBox .du-spin { animation-duration: 2s; } }
+
+/* Duschwanne: "same size, cheaper as Standard (Badolux)" hint below the trays.
+   Never on a sent offer (its price is pinned) — only drafts / new versions. */
+.tray-line-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap;
+  margin: 10px 0 4px; padding: 12px 16px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); color: var(--text, #1f2937); }
+.tray-line-hint::before { content: "i"; flex: 0 0 22px; height: 22px; border-radius: 50%; background: #0a84ff; color: #fff;
+  font: 700 13px/22px Georgia, serif; text-align: center; }
+.tray-line-hint[hidden], body.is-sent-offer .tray-line-hint { display: none !important; }
+.tray-line-hint .tlh-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 320px; font-size: 0.9rem; }
+.tray-line-hint .tlh-text span { color: var(--muted, #6b7280); font-size: 0.84rem; }
+.tray-line-hint button { flex: 0 0 auto; min-height: 40px; }
+
+
+/* Keramico calculator: manual panel count (overrides the computed one) */
+.kc-manual { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(10,10,10,0.1); }
+.kc-manual label { margin: 0; font-weight: 600; font-size: 0.88rem; }
+.kc-manual input, #wvKQty { width: 160px; max-width: 160px; height: 44px; font-size: 1rem; }
+.kc-manual button { min-height: 40px; }
+.kc-manual button[hidden], .kc-qty-note[hidden] { display: none; }
+.kc-qty-note { flex-basis: 100%; font-size: 0.82rem; color: #6b7280; }
+.kc-qty-note.is-low { color: #b45309; font-weight: 600; }
+.kc-cutlist span + span { display: block; margin-top: 2px; }
+
+/* Wandverkleidung (Premium): 997 / 1497 cards side by side, each half of the row,
+   with tile, Farbe select, Menge and "+ Farbe hinzufügen" at the column's full
+   width. One column below 640 px. */
+#wvPanelField997, #wvPanelField1497 { flex: 1 1 calc(50% - 7px); min-width: 0 !important; margin-top: 0; }
+#wvPanelField997 > label.image-check, #wvPanelField1497 > label.image-check { width: 100%; max-width: none; box-sizing: border-box; }
+#wvPanelField997 > label.image-check .img-wrap, #wvPanelField1497 > label.image-check .img-wrap { width: 100%; aspect-ratio: 4 / 5; height: auto; }
+#wvPanelField997 > label.image-check .img-wrap img, #wvPanelField1497 > label.image-check .img-wrap img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+#wvQty997Wrap, #wvQty1497Wrap { max-width: none !important; }
+#wvPanelField997 select, #wvPanelField1497 select,
+#wvPanelField997 input[type="number"], #wvPanelField1497 input[type="number"],
+#wvPanelField997 .wv-extras-wrap > .btn, #wvPanelField1497 .wv-extras-wrap > .btn { width: 100%; box-sizing: border-box; }
+#wvPanelField997 .wv-extra-row select, #wvPanelField1497 .wv-extra-row select { flex: 1 1 auto; min-width: 0; width: auto; }
+#wvPanelField997 .wv-extra-row input[type="number"], #wvPanelField1497 .wv-extra-row input[type="number"] { width: 80px; }
+@media (max-width: 640px) { #wvPanelField997, #wvPanelField1497 { flex-basis: 100%; } }
+
+/* Wall-width calculator on both lines: line-specific parts. */
+.kc[data-line="premium"] [data-only="standard"],
+.kc[data-line="standard"] [data-only="premium"] { display: none !important; }
+.kc-vigour { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 12px; }
+.kc-vigour-mix { flex: 1 1 260px; font-weight: 600; }
+
+/* ===== Wandverkleidung (iOS grouped lists, 2026-10-27) ===== */
+/* Ausführung: radio list with a blue check on the chosen row. */
+.ios-checklist { display: block; }
+.ios-check-row {
+  display: flex; align-items: center; gap: 12px; margin: 0; padding: 12px 18px; min-height: 48px; box-sizing: border-box;
+  font-size: 1rem; font-weight: 400; color: var(--text, #1f2937); cursor: pointer;
+}
+.ios-check-row + .ios-check-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+.ios-check-row[hidden] { display: none; }
+.ios-check-row > input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ios-check-row > input[type="radio"] + span { flex: 1; }
+.ios-check-row > input[type="radio"] + span::after { content: "✓"; float: right; font-weight: 700; color: #0a84ff; visibility: hidden; }
+.ios-check-row > input[type="radio"]:checked + span::after { visibility: visible; }
+.ios-check-row:has(> input[type="radio"]:focus-visible) { background: rgba(10, 132, 255, 0.06); }
+.ios-check-row--switch > input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.ios-check-row--switch { flex-wrap: wrap; }
+.ios-check-row--switch > span:nth-of-type(2) { flex: 1; }
+.ios-check-row--switch small { color: var(--muted, #6b7280); }
+.ios-check-row--switch .sec-switch__track { order: 3; }
+.ios-check-row .wv-height { order: 2; display: inline-flex; align-items: center; gap: 6px; color: var(--muted, #6b7280); }
+.ios-check-row .wv-height input {
+  width: 72px; height: 34px; padding: 0 8px; text-align: right; font-size: 1rem; border: 0; border-radius: 8px;
+  background: rgba(118, 118, 128, 0.12); color: var(--text, #1f2937); box-shadow: none;
+}
+
+/* Generic stepper: − [n] +, used by Plattenwahl, Zubehör, Profile. */
+.ios-stepper { display: inline-flex; align-items: center; flex: none; border-radius: 9px; background: rgba(118, 118, 128, 0.12); overflow: hidden; }
+.ios-stepper[hidden] { display: none; }
+.ios-stepper button { width: 36px; height: 34px; padding: 0; border: 0; background: none; font-size: 1.15rem; line-height: 1; color: var(--text, #1f2937); cursor: pointer; }
+.ios-stepper button:active { background: rgba(118, 118, 128, 0.22); }
+/* id prefix beats the old "#wvPanelField997 input[type=number] { width: 100% }" */
+.ios-stepper input,
+#form-wandverkleidung .ios-stepper input {
+  width: 44px; height: 34px; padding: 0; border: 0; background: transparent; box-shadow: none; text-align: center;
+  font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); -moz-appearance: textfield;
+}
+.ios-stepper input::-webkit-inner-spin-button, .ios-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.dw-acc > .ios-stepper { grid-column: 3; grid-row: 1; }
+[data-mode="dark"] .ios-stepper, [data-mode="dark"] .ios-check-row .wv-height input { background: rgba(118, 118, 128, 0.24); }
+
+/* Shared row/swatch rules also for the Wandverkleidung form. */
+#form-wandverkleidung .dw-acc .image-check { display: contents; }
+#form-wandverkleidung .dw-acc .caption { font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+#form-wandverkleidung .dw-color-grid { display: flex; flex-wrap: wrap; gap: 14px 18px; padding: 14px 18px; }
+#form-wandverkleidung .dw-color-grid .image-check { display: grid; justify-items: center; align-content: start; gap: 6px; width: 84px; padding: 0; border: 0; background: none; box-shadow: none; }
+#form-wandverkleidung .dw-color-grid .img-wrap { width: 58px; height: 58px; aspect-ratio: auto; border-radius: 12px; border: 1px solid var(--input-border, #d0d5dd); transition: box-shadow 0.15s ease; }
+#form-wandverkleidung .dw-color-grid img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+#form-wandverkleidung .dw-color-grid .caption { max-width: 84px; text-align: center; line-height: 1.25; font-size: 0.78rem; font-weight: 500; color: var(--muted, #6b7280); overflow-wrap: break-word; hyphens: auto; }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:checked) .caption { color: var(--text, #1f2937); }
+#form-wandverkleidung .dw-color-grid .image-check:has(input:focus-visible) { outline: none; }
+#form-wandverkleidung .dw-color-grid .wv-tile-own-badge {
+  position: static; transform: none; margin: 0; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; white-space: nowrap; background: rgba(180, 83, 9, 0.14); color: #92400e; box-shadow: none;
+}
+[data-mode="dark"] #form-wandverkleidung .dw-color-grid .wv-tile-own-badge { background: rgba(245, 158, 11, 0.22); color: #fcd34d; }
+#form-wandverkleidung .dw-dim-row input { width: 110px; text-align: right; font-size: 1rem; border: 0; background: transparent; padding: 4px 0; box-shadow: none; }
+#form-wandverkleidung .dw-dim-row input:focus { outline: none; box-shadow: none; }
+#wvSonderDecorDetails { margin: 10px 0 0; padding: 12px 18px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); }
+
+/* Plattenwahl: one row per size, "Andere Farbe" folds out under it. */
+/* Standard line hides both sizes (syncProduktlinieGroups) — then hide the empty frame too. */
+.sec-settings:has(> .wv-sizes):not(:has(.wv-size:not([hidden]))) { display: none; }
+.wv-size { margin: 0; }
+.wv-size + .wv-size { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wv-size .dw-acc { border: 0; }
+.wv-size-more { padding: 0 18px 10px 76px; }
+.wv-size-more > summary { list-style: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #0a84ff; }
+.wv-size-more > summary::-webkit-details-marker { display: none; }
+.wv-size-more > summary::after { content: " ›"; }
+.wv-size-more[open] > summary::after { content: " ⌄"; }
+.wv-size-more .field { margin: 8px 0 0; }
+#form-wandverkleidung .wv-size-more select { max-width: 320px; }
+#form-wandverkleidung .wv-size-more .wv-extras-wrap > .btn {
+  width: auto; min-height: 0; margin-top: 4px !important; padding: 6px 0; border: 0; background: none; box-shadow: none;
+  font-weight: 600; color: #0a84ff;
+}
+[data-mode="dark"] #form-wandverkleidung .wv-size-more .wv-extras-wrap > .btn { color: #4da3ff; }
+#form-wandverkleidung .wv-size-more .wv-extra-row { display: grid; grid-template-columns: 80px minmax(0, 320px) auto; align-items: center; gap: 8px; margin-top: 6px; }
+#form-wandverkleidung .wv-size-more .wv-extra-row .btn {
+  width: auto; min-height: 0; padding: 6px 4px; border: 0; background: none; box-shadow: none; font-weight: 600; color: #ff3b30;
+}
+[data-mode="dark"] #form-wandverkleidung .wv-size-more .wv-extra-row .btn { color: #ff6961; }
+#form-wandverkleidung .wv-size-more .wv-extras-wrap > label { font-size: 0.85rem; color: var(--muted, #6b7280); }
+.wv-size-more .wv-extras-wrap { margin-top: 10px !important; }
+[data-mode="dark"] .wv-size-more > summary { color: #4da3ff; }
+
+/* V3V rule text as a quiet line under the row. */
+.dw-acc > .wv-v3v-hint {
+  grid-column: 2 / -1; grid-row: 2; display: flex; gap: 8px; align-items: flex-start; margin: 2px 0 0; padding: 8px 10px;
+  border: 0; border-radius: 10px; font-size: 0.82rem; line-height: 1.4;
+}
+.wv-v3v-hint.tone-info { background: rgba(10, 132, 255, 0.07); color: var(--text, #1f2937); }
+.wv-v3v-hint.tone-ok { background: rgba(52, 199, 89, 0.1); color: #1f6f37; }
+.wv-v3v-hint.tone-amber { background: rgba(255, 159, 10, 0.12); color: #92400e; }
+.wv-v3v-hint .ic { display: none; } /* the rule text carries its own ⚠️ / ✅ */
+.wv-v3v-hint .formula { margin-top: 2px; font-size: 0.78rem; color: var(--muted, #6b7280); }
+[data-mode="dark"] .wv-v3v-hint.tone-info { background: rgba(10, 132, 255, 0.16); color: #e5e7eb; }
+[data-mode="dark"] .wv-v3v-hint.tone-ok { background: rgba(48, 209, 88, 0.16); color: #5fe08a; }
+[data-mode="dark"] .wv-v3v-hint.tone-amber { background: rgba(255, 159, 10, 0.18); color: #ffc261; }
+
+/* Skizze & Notiz: a closed disclosure row at the end. */
+.wv-sketch > summary { list-style: none; cursor: pointer; display: flex; align-items: center; padding: 14px 18px; font-size: 1rem; font-weight: 500; color: var(--text, #1f2937); }
+.wv-sketch > summary::-webkit-details-marker { display: none; }
+.wv-sketch > summary::after { content: "›"; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--muted, #6b7280); transition: transform 0.15s ease; }
+.wv-sketch[open] > summary::after { transform: rotate(90deg); }
+.wv-sketch[open] > summary { border-radius: 14px 14px 0 0; }
+.wv-sketch__body { padding: 14px 0 0; }
+
+/* Ihre Auswahl (Wandverkleidung): hide the label while there is nothing to show. */
+.wv-summary:has(> #wvProductCard[hidden]) { display: none; }
+#wvcProductCard .wvc-sel + .wvc-sel,
+#wvProductCard .wvc-sel + .wvc-sel { border-top: 1px solid var(--input-border, #e5e7eb); }
+#wvProductCard .wvc-sel__badges .dac-line-stock,
+#wvProductCard .wvc-sel__badges .wv-own-lager-badge {
+  display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 28px; margin: 0; padding: 0 12px 0 4px;
+  border: 0; border-radius: 999px; font-size: 0.8rem; font-weight: 600; line-height: 1; box-shadow: none;
+}
+#wvProductCard .wvc-sel__badges .dac-stock-qty,
+#wvProductCard .wvc-sel__badges .wv-own-lager-qty {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; flex: none;
+  min-width: 20px; width: auto; height: 20px; margin: 0; padding: 0 5px; border-radius: 999px; font-size: 0.72rem; line-height: 1; color: #fff;
+}
+
+/* Bedarf nach Wandbreiten (Keramico/Vigour): same card as the groups, segmented chips. */
+#form-wandverkleidung .kc { margin: 0; border: 1px solid var(--input-border, #d0d5dd); border-radius: 14px; background: var(--panel, #fff); }
+#form-wandverkleidung .kc-head h3 { display: none; }
+#form-wandverkleidung .kc-sits { display: inline-flex; flex-wrap: nowrap; gap: 0; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); }
+#form-wandverkleidung .kc-chip, #form-wandverkleidung .kc-view-chip { min-height: 32px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; color: var(--text, #1f2937); font-weight: 500; }
+#form-wandverkleidung .kc-chip[aria-pressed="true"], #form-wandverkleidung .kc-view-chip[aria-pressed="true"] { background: var(--panel, #fff); color: var(--text, #1f2937); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); font-weight: 600; }
+#form-wandverkleidung .kc-rows { gap: 0; border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; overflow: hidden; }
+#form-wandverkleidung .kc-row { grid-template-columns: 26px minmax(0, 1fr) 90px auto; padding: 8px 14px; }
+#form-wandverkleidung .kc-row + .kc-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+#form-wandverkleidung .kc-row input { height: 36px; border: 0; background: transparent; box-shadow: none; text-align: right; }
+#form-wandverkleidung .kc-row input:focus { outline: none; }
+#form-wandverkleidung .kc-row:focus-within { background: rgba(10, 132, 255, 0.05); }
+#form-wandverkleidung #kcVigourApply { border: 0; border-radius: 10px; background: #0a84ff; color: #fff; font-weight: 600; min-height: 40px; padding: 0 16px; }
+#form-wandverkleidung #kcVigourApply:disabled { background: rgba(118, 118, 128, 0.2); color: var(--muted, #6b7280); }
+[data-mode="dark"] #form-wandverkleidung .kc { background: var(--panel); border-color: rgba(255, 255, 255, 0.12); }
+[data-mode="dark"] #form-wandverkleidung .kc-sits { background: rgba(118, 118, 128, 0.24); }
+[data-mode="dark"] #form-wandverkleidung .kc-chip, [data-mode="dark"] #form-wandverkleidung .kc-view-chip { color: #f3f4f6; }
+[data-mode="dark"] #form-wandverkleidung .kc-chip[aria-pressed="true"], [data-mode="dark"] #form-wandverkleidung .kc-view-chip[aria-pressed="true"] { background: #636366; color: #fff; }
+[data-mode="dark"] #form-wandverkleidung .kc-rows,
+[data-mode="dark"] #form-wandverkleidung .kc-row + .kc-row { border-color: rgba(255, 255, 255, 0.12); }
+
+/* Area suggestion (997/1497) as list rows — same as Wand als Boden. */
+#wvAreaCards { display: block; margin: 0; }
+
+/* winwall "Anderes Dekor": a "+" tile, then the typed WS/NW number with the catalogue name. */
+.ww-decor-custom .img-wrap { display: grid; place-items: center; background: rgba(118, 118, 128, 0.12) !important; }
+.ww-decor-custom .img-wrap img { grid-area: 1 / 1; }
+.ww-decor-custom__plus { grid-area: 1 / 1; font-size: 1.8rem; font-weight: 300; line-height: 1; color: #0a84ff; }
+.ww-decor-custom .img-wrap img:not([hidden]) + .ww-decor-custom__plus { display: none; }
+.ww-decor-entry { margin-top: 10px; }
+.ww-decor-entry[hidden] { display: none; }
+/* id prefix beats the generic full-width text input */
+#wvWwCustomRow input {
+  width: 130px; margin: 0; flex: none; padding: 8px 12px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 10px;
+  font: inherit; font-size: 1.05rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; text-align: center;
+}
+.ww-decor-entry small.is-ok { color: #1f8a3c; font-weight: 600; }
+.ww-decor-entry small.is-warn { color: #b26a00; font-weight: 600; }
+[data-mode="dark"] .ww-decor-entry small.is-ok { color: #5fe08a; }
+[data-mode="dark"] .ww-decor-entry small.is-warn { color: #ffc261; }
+
+/* ---------- Wandverkleidung (VIGOUR): Paneel-Zeilen ---------- */
+/* Old size / colour controls stay in the DOM as the data fields (initWvRows). */
+#wvPanelField997, #wvPanelField1497, .sec-settings:has(> #wvPanelsLabel) { display: none !important; }
+.wv-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+.wv-row + .wv-row { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wv-row__sw { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex: none; background: #e5e7eb; }
+.wv-row select { flex: 1 1 160px; min-width: 0; }
+.wv-row__size { flex: 0 0 auto !important; width: auto !important; }
+.wv-row__step { display: inline-flex; align-items: center; gap: 4px; background: rgba(118, 118, 128, 0.12); border-radius: 9px; padding: 2px; }
+.wv-row__step button { border: 0; background: var(--panel, #fff); color: var(--text, #1f2937); border-radius: 7px; width: 34px; height: 34px; padding: 0; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.wv-row__step output { min-width: 28px; text-align: center; font-weight: 600; }
+.wv-row__del { border: 0; background: transparent; color: #ff3b30; font-size: 1.3rem; cursor: pointer; padding: 4px 8px; }
+.wv-row-add { margin: 10px 4px 0; border: 0; background: transparent; color: #0a84ff; font: inherit; font-weight: 600; cursor: pointer; padding: 6px 0; }
+.wv-rows-empty { padding: 14px 16px; color: var(--muted, #6b7280); }
+.wv-row { position: relative; }
+.wv-row.is-active { background: rgba(10, 132, 255, 0.1); box-shadow: inset 3px 0 0 #0a84ff; }
+.wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+.wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: 2px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active { background: var(--cl-weak); border-color: var(--cl-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active::after { background: var(--cl-accent); }
+/* Colour overview as a picker: ring = colour is in a row, blue = the marked row. */
+#wvColors label.image-check:has(input:checked) { border-color: transparent; box-shadow: none; }
+#wvColors label.image-check:has(input:checked) .caption { color: var(--muted, #6b7280); }
+#wvColors label.image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#wvColors label.image-check.wv-active .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
+#wvColors label.image-check.wv-active .caption { color: var(--text, #1f2937); }
 
 /* Wortlaut-Overrides (OfferOverrides.js) — iOS-style grouped list */
 .offer-overrides-card{margin:0 0 16px;padding:16px;background:var(--panel,#fff);border:1px solid var(--border,#e5e7eb);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
@@ -11446,3 +11987,716 @@ details.az-group[open] > summary.az-group-title::before {
 .offer-overrides-card[open] > summary.oo-head::after{transform:rotate(-135deg);margin-top:-2px}
 .offer-overrides-card[open] > summary.oo-head{margin-bottom:2px}
 .offer-overrides-card .oo-badge--lock{background:rgba(255,159,10,.18);color:#8a5200}
+
+/* ===== Ansicht Klassisch / Neu =====
+   Header-Schalter setzt body.ui-classic (initUiViewToggle, script.js). Der klassische
+   Look ist nur CSS, je Seite gescoped; Markup, IDs und JS sind in beiden Ansichten gleich. */
+.ui-view-seg { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); }
+.ui-view-seg__btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 0.82rem;
+  font-weight: 600; padding: 5px 12px; border-radius: 999px; color: var(--muted, #6b7280);
+}
+.ui-view-seg__btn[aria-pressed="true"] { background: var(--accent, #7c3aed); color: #fff; }
+
+/* -- Duschwanne (klassisch) -- */
+body.ui-classic #page-Duschwanne {
+  --cl-border: var(--border, #e5e7eb);
+  --cl-accent: var(--accent, #7c3aed);
+  --cl-weak: color-mix(in srgb, var(--accent, #7c3aed) 12%, var(--panel, #fff));
+}
+/* Überschriften: schlicht statt Versalien */
+body.ui-classic #page-Duschwanne .sec-settings__label {
+  margin: 22px 0 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text, #1f2937);
+}
+body.ui-classic #page-Duschwanne .sec-settings__group {
+  border: 0; border-radius: 0; background: none; overflow: visible;
+}
+body.ui-classic #page-Duschwanne .sec-divider { display: block; margin: 22px 0 8px; }
+body.ui-classic #page-Duschwanne .sec-divider::before,
+body.ui-classic #page-Duschwanne .sec-divider::after,
+body.ui-classic #page-Duschwanne .sec-divider > span::before { display: none; }
+body.ui-classic #page-Duschwanne .sec-divider > span { padding: 0; background: none; color: var(--text, #1f2937); font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Check-Pillen: Hauptschalter, Hinweis, Produktlinie */
+body.ui-classic #page-Duschwanne .sec-switch,
+body.ui-classic #page-Duschwanne .tier-seg__btn {
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; min-height: 66px;
+}
+body.ui-classic #page-Duschwanne .sec-switch { gap: 10px; align-items: center; }
+body.ui-classic #page-Duschwanne .sec-switch:has(input:checked),
+body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"] { border-color: var(--cl-accent); background: var(--cl-weak); }
+/* Schalter-Spur wird zur Checkbox */
+body.ui-classic #page-Duschwanne .sec-switch__track {
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box;
+  display: grid; place-items: center; order: -1;
+}
+body.ui-classic #page-Duschwanne .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Duschwanne input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Duschwanne input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Einstellungen: Produktlinie | Hinweis nebeneinander, gleiche Kartenhöhe */
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) > .sec-settings__group {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row {
+  display: block; padding: 0; border: 0; position: relative;
+}
+body.ui-classic #page-Duschwanne .sec-settings__text strong { display: block; font-size: 0.95rem; line-height: 20px; margin-bottom: 8px; }
+body.ui-classic #page-Duschwanne .tier-line { display: none; }
+body.ui-classic #page-Duschwanne .tier-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; background: none; width: 100%; }
+body.ui-classic #page-Duschwanne .tier-seg__btn { min-width: 0; align-items: flex-start; position: relative; padding-left: 42px; box-shadow: none !important; color: var(--text, #1f2937); }
+body.ui-classic #page-Duschwanne .tier-seg__btn[data-tier="premium"] { order: -1; }
+body.ui-classic #page-Duschwanne .tier-seg__btn::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+}
+body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"]::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+body.ui-classic #page-Duschwanne .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
+/* Hinweis-Karte: Überschrift über der Karte, Karte so hoch wie die Produktlinien-Karten */
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child { margin-top: 28px; }
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child::before {
+  content: "Hinweis im Angebot"; position: absolute; top: -28px; left: 0; font-size: 0.95rem; font-weight: 600; line-height: 20px;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child {
+  display: flex; align-items: center; gap: 10px; flex-direction: row-reverse; justify-content: flex-end;
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; min-height: 66px; cursor: pointer;
+}
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child .sec-settings__text strong { margin: 0; font-size: 1rem; }
+body.ui-classic #page-Duschwanne .sec-mini-switch { position: static; }
+body.ui-classic #page-Duschwanne .sec-mini-switch .sec-switch__track { position: static; }
+body.ui-classic #page-Duschwanne .sec-mini-switch .sec-switch__track::before { content: ""; position: absolute; inset: 0; }
+@media (max-width: 700px) {
+  body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) > .sec-settings__group { grid-template-columns: 1fr; }
+}
+
+/* Maße: zwei beschriftete Felder mit "cm" */
+body.ui-classic #page-Duschwanne .dw-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-dim-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; border: 0; }
+body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-name { font-weight: 500; }
+body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-input { display: flex; align-items: center; gap: 8px; }
+body.ui-classic #page-Duschwanne #form-duschwanne .dw-dim-row input[type="number"],
+body.ui-classic #page-Duschwanne .dw-dim-row input[type="number"] {
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne .dw-dim-row:focus-within { background: none; }
+
+/* Wannen-Vorschläge: Kacheln statt Liste */
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; border: 0; border-radius: 0; background: none; overflow: visible;
+}
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-heading { text-transform: none; letter-spacing: 0; font-size: 0.9rem; color: var(--muted, #6b7280); margin: 14px 0 8px; }
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card {
+  align-items: flex-start; border: 2px solid var(--cl-border); border-radius: 12px; padding: 10px 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card + .suggestion-card { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card.is-selected { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+body.ui-classic #page-Duschwanne #tray-suggestions .sc-price { color: var(--cl-accent); font-weight: 700; }
+
+/* Farbe: rechteckige Farbfelder */
+body.ui-classic #page-Duschwanne .dw-color-grid { padding: 0; }
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { width: 96px; height: 64px; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+
+/* Zubehör: Bildkacheln mit Haken */
+body.ui-classic #page-Duschwanne .dw-acc-list .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-acc {
+  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Duschwanne .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
+body.ui-classic #page-Duschwanne .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
+body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; }
+body.ui-classic #page-Duschwanne .dw-acc > .img-wrap img { object-fit: contain; }
+body.ui-classic #page-Duschwanne .dw-acc__text { grid-column: 1; grid-row: 2; }
+body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
+body.ui-classic #page-Duschwanne .dw-acc .sec-switch__track {
+  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
+  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
+}
+body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
+body.ui-classic #page-Duschwanne .stelzlager-qty-row {
+  grid-column: 1; grid-row: 3; position: relative; z-index: 1; background: none; gap: 6px; justify-self: start;
+}
+body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+
+/* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
+body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
+body.ui-classic #page-Duschwanne #dw-custom-details[open] { border-style: solid; border-color: var(--cl-border); }
+body.ui-classic #page-Duschwanne #dw-custom-details > summary { font-weight: 600; padding: 14px 16px; }
+body.ui-classic #page-Duschwanne #dw-custom-details fieldset.da-row { display: flex; flex-direction: column; padding: 0 16px 16px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-help { order: -1; border: 0; padding: 0 0 14px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 { display: grid; grid-template-columns: 2fr 1fr 90px 1.2fr; gap: 12px; }
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 6px; padding: 0; border: 0;
+  font-size: 0.82rem; font-weight: 500; color: var(--muted, #6b7280);
+}
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label input {
+  flex: none; max-width: none; width: 100%; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff); font-size: 1rem;
+}
+body.ui-classic #page-Duschwanne #dw-custom-details .da-label:focus-within { background: none; }
+@media (max-width: 700px) {
+  body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 { grid-template-columns: 1fr 1fr; }
+  body.ui-classic #page-Duschwanne #dw-custom-details .da-grid-4 > :first-child { grid-column: 1 / -1; }
+}
+
+/* Ihre Auswahl: Karte (klassisch) */
+body.ui-classic #page-Duschwanne #dwSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); }
+/* Kundenbäder klassisch: alle drei Paare sichtbar statt abgeschnittenem Scroller */
+body.ui-classic #page-Duschwanne .dw-refs__list { grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); grid-auto-columns: auto; overflow: visible; }
+@media (max-width: 600px) { body.ui-classic #page-Duschwanne .dw-refs__list { grid-template-columns: 1fr; } }
+
+/* -- Fußboden-Tab (klassisch); Wandverkleidung bleibt unberührt -- */
+body.ui-classic #page-Fussboden {
+  --cl-border: var(--border, #e5e7eb);
+  --cl-accent: var(--accent, #7c3aed);
+  --cl-weak: color-mix(in srgb, var(--accent, #7c3aed) 12%, var(--panel, #fff));
+}
+/* Hauptschalter als Check-Pille */
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch {
+  gap: 10px; padding: 12px 14px; min-height: 66px; border: 1px solid var(--cl-border); border-radius: 12px;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track {
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box; display: grid; place-items: center; order: -1;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track::after,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Tabs mit Unterstrich */
+body.ui-classic #page-Fussboden .fb-tab-switch {
+  display: flex; gap: 6px; padding: 0; margin: 18px 0 0; border-radius: 0; background: none; border-bottom: 1px solid var(--cl-border);
+}
+body.ui-classic #page-Fussboden .fb-tab-switch-btn { padding: 10px 18px; border-radius: 10px 10px 0 0; font-weight: 600; color: var(--muted, #6b7280); box-shadow: none; }
+body.ui-classic #page-Fussboden .fb-tab-switch-btn.active { background: var(--cl-weak); color: var(--cl-accent); box-shadow: inset 0 -3px 0 var(--cl-accent); }
+
+/* Überschriften */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__label {
+  margin: 22px 0 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text, #1f2937);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__group { border: 0; border-radius: 0; background: none; overflow: visible; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider { display: block; margin: 22px 0 8px; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider::after,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider > span::before { display: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-divider > span { padding: 0; background: none; color: var(--text, #1f2937); font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Einstellungen: zwei gleich hohe Vollbreiten-Zeilen, links Titel, rechts zwei Optionskarten */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) > .sec-settings__group { display: flex; flex-direction: column; gap: 12px; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row {
+  display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 14px;
+  border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row + .sec-settings__row { border-top: 1px solid var(--cl-border); }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__text strong { font-size: 0.95rem; }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; background: none; width: 100%;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span {
+  position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px;
+  background: #fff; box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  font-weight: 600; white-space: nowrap;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[data-tier="premium"] { order: -1; }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"],
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"]::before,
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+@media (max-width: 700px) {
+  body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row { grid-template-columns: 1fr; }
+}
+
+/* Fläche: m²-Feld neben dem Rechner-Button */
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) > .sec-settings__group { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; border: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-name { font-weight: 500; }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-input { display: flex; align-items: center; gap: 8px; }
+body.ui-classic #page-Fussboden #fbTabFloor #floorArea {
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-dim-row:focus-within { background: none; }
+body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
+}
+body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle::after { display: none; }
+
+/* Flächenrechner: Kopfzeile, gleich breite Felder, +/− Tag, rechtsbündige Ergebnisse */
+body.ui-classic #page-Fussboden #floorCalcPanel {
+  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Fussboden #floorCalcPanel[hidden] { display: none; }
+body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-card__hint { margin-bottom: 14px; }
+body.ui-classic #page-Fussboden #floorCalcRows { gap: 10px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 90px 32px; gap: 12px; align-items: end; padding: 0; background: none;
+}
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row__controls,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row__inputs { display: contents; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-sign { grid-column: 1; grid-row: 1; height: 40px; min-width: 0; width: 100%; border-radius: 8px; padding: 0 6px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(2) { grid-column: 3; grid-row: 1; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-times { display: none; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-area { grid-column: 4; grid-row: 1; min-width: 0; padding: 0 0 10px; text-align: right; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field input { height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result { font-variant-numeric: tabular-nums; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result::before { content: none; }
+/* Spaltenköpfe nur in der ersten Zeile, sonst unsichtbar (Beschriftung bleibt für Screenreader) */
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:not(:first-child) .floor-calc-field > span,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:not(:first-child) .floor-calc-row-area__label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-field > span,
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { font-size: 0.75rem; font-weight: 600; color: var(--muted, #6b7280); }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { display: block; margin-bottom: 6px; }
+body.ui-classic #page-Fussboden #floorCalcAddRow,
+body.ui-classic #page-Fussboden #floorCalcApply {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
+}
+body.ui-classic #page-Fussboden #floorCalcApply { background: var(--cl-accent); color: #fff; margin: 0; }
+body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-result-row { border-top: 1px solid var(--cl-border); margin-top: 10px; padding: 12px 0 0; }
+body.ui-classic #page-Fussboden #floorCalcResult { font-size: 1.25rem; }
+
+/* Belag: Kacheln, möglichst sechs in einer Reihe */
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check {
+  position: relative; display: grid; align-content: start; justify-items: stretch; gap: 8px; width: auto; padding: 10px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); box-shadow: none; cursor: pointer;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .img-wrap { width: 100%; height: 96px; aspect-ratio: auto; border-radius: 8px; border: 0; background: #f1f1f5; box-shadow: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .caption { font-size: 0.82rem; font-weight: 600; color: var(--text, #1f2937); text-align: left; max-width: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked) .img-wrap { box-shadow: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked)::after {
+  content: "\2713"; position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border-radius: 50%; background: var(--cl-accent); color: #fff;
+  font-size: 13px; display: grid; place-items: center;
+}
+@media (max-width: 700px) { body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Zubehör: Kacheln (Paneele automatisch, Kleber, Abdichtung) */
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc-list .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc {
+  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
+  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:has(input:checked),
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input)) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc > .img-wrap,
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; padding: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .img-wrap img { object-fit: cover; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text { grid-column: 1; grid-row: 2; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__auto { grid-column: 1; grid-row: 3; font-size: 0.8rem; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track {
+  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
+  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
+}
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input))::after {
+  content: "\2713"; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--cl-accent); color: #fff;
+  font-size: 13px; display: grid; place-items: center;
+}
+
+/* Ihre Auswahl: Karte mit kleinem Bild, ohne Summe */
+body.ui-classic #page-Fussboden #floorSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: #fafafe; }
+body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__hero { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 12px 14px; }
+body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__pic { width: 72px; height: 72px; border-radius: 10px; }
+body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field { margin-bottom: 0; }
+/* Hauptschalter als Check-Pille */
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch {
+  gap: 10px; padding: 12px 14px; min-height: 66px; border: 1px solid var(--cl-border); border-radius: 12px;
+}
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch__track,
+body.ui-classic #page-Wandverkleidung .dw-acc .sec-switch__track {
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box; display: grid; place-items: center; order: -1;
+}
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch__track::after,
+body.ui-classic #page-Wandverkleidung .dw-acc .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Überschriften */
+body.ui-classic #page-Wandverkleidung .sec-settings__label {
+  margin: 22px 0 8px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text, #1f2937);
+}
+body.ui-classic #page-Wandverkleidung .sec-settings__group { border: 0; border-radius: 0; background: none; overflow: visible; }
+body.ui-classic #page-Wandverkleidung .sec-divider { display: block; margin: 22px 0 8px; }
+body.ui-classic #page-Wandverkleidung .sec-divider::before,
+body.ui-classic #page-Wandverkleidung .sec-divider::after,
+body.ui-classic #page-Wandverkleidung .sec-divider > span::before { display: none; }
+body.ui-classic #page-Wandverkleidung .sec-divider > span { padding: 0; background: none; color: var(--text, #1f2937); font-size: 0.95rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+/* Fläche: m²-Feld neben dem Rechner-Button */
+body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) > .sec-settings__group { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; border: 0; }
+body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-name { font-weight: 500; }
+body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-input { display: flex; align-items: center; gap: 8px; }
+body.ui-classic #page-Wandverkleidung #wvArea {
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Wandverkleidung .dw-dim-row:focus-within { background: none; }
+body.ui-classic #page-Wandverkleidung #wvaCalcToggle {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
+}
+body.ui-classic #page-Wandverkleidung #wvaCalcToggle::after { display: none; }
+
+/* Flächenrechner: Kopfzeile, gleich breite Felder, +/− Tag, rechtsbündige Ergebnisse */
+body.ui-classic #page-Wandverkleidung #wvaCalcPanel {
+  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Wandverkleidung #wvaCalcPanel[hidden] { display: none; }
+body.ui-classic #page-Wandverkleidung #wvaCalcPanel .floor-calc-card__hint { margin-bottom: 14px; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows { gap: 10px; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 90px 32px; gap: 12px; align-items: end; padding: 0; background: none;
+}
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row__controls,
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row__inputs { display: contents; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-sign { grid-column: 1; grid-row: 1; height: 40px; min-width: 0; width: 100%; border-radius: 8px; padding: 0 6px; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field:nth-of-type(1) { grid-column: 2; grid-row: 1; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field:nth-of-type(2) { grid-column: 3; grid-row: 1; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-times { display: none; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-area { grid-column: 4; grid-row: 1; min-width: 0; padding: 0 0 10px; text-align: right; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field input { height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-result { font-variant-numeric: tabular-nums; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-result::before { content: none; }
+/* Spaltenköpfe nur in der ersten Zeile, sonst unsichtbar (Beschriftung bleibt für Screenreader) */
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:not(:first-child) .floor-calc-field > span,
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:not(:first-child) .floor-calc-row-area__label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:first-child .floor-calc-field > span,
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { font-size: 0.75rem; font-weight: 600; color: var(--muted, #6b7280); }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { display: block; margin-bottom: 6px; }
+body.ui-classic #page-Wandverkleidung #wvaCalcAddRow,
+body.ui-classic #page-Wandverkleidung #wvaCalcApply {
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
+}
+body.ui-classic #page-Wandverkleidung #wvaCalcApply { background: var(--cl-accent); color: #fff; margin: 0; }
+body.ui-classic #page-Wandverkleidung #wvaCalcPanel .floor-calc-result-row { border-top: 1px solid var(--cl-border); margin-top: 10px; padding: 12px 0 0; }
+body.ui-classic #page-Wandverkleidung #wvaCalcResult { font-size: 1.25rem; }
+
+/* -- Wandverkleidung (klassisch) -- */
+body.ui-classic #page-Wandverkleidung {
+  --cl-border: var(--border, #e5e7eb);
+  --cl-accent: var(--accent, #7c3aed);
+  --cl-weak: color-mix(in srgb, var(--accent, #7c3aed) 12%, var(--panel, #fff));
+}
+/* Produktlinie: drei Optionskarten */
+body.ui-classic #page-Wandverkleidung .sec-settings:has(.tier-seg) > .sec-settings__group { display: block; }
+body.ui-classic #page-Wandverkleidung .sec-settings:has(.tier-seg) .sec-settings__row {
+  display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+}
+body.ui-classic #page-Wandverkleidung .sec-settings__text strong { font-size: 0.95rem; }
+body.ui-classic #page-Wandverkleidung .tier-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0; background: none; width: 100%; }
+body.ui-classic #page-Wandverkleidung .tier-seg__btn {
+  position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px; background: #fff;
+  box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+}
+body.ui-classic #page-Wandverkleidung .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
+body.ui-classic #page-Wandverkleidung .tier-seg__btn::before,
+body.ui-classic #page-Wandverkleidung .ios-check-row > input[type="radio"] + span::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+}
+body.ui-classic #page-Wandverkleidung .tier-seg__btn[aria-pressed="true"] { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Wandverkleidung .tier-seg__btn[aria-pressed="true"]::before,
+body.ui-classic #page-Wandverkleidung .ios-check-row > input[type="radio"]:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+@media (max-width: 700px) { body.ui-classic #page-Wandverkleidung .tier-seg { grid-template-columns: 1fr; } }
+
+/* Ausführung: fünf Radio-Karten + Höhenzeile */
+body.ui-classic #page-Wandverkleidung #wvKindGroup { display: grid; gap: 8px; }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row {
+  position: relative; padding: 11px 14px 11px 42px; min-height: 0; border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+}
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row + .ios-check-row { border-top: 1px solid var(--cl-border); }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row[hidden] { display: none; }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row > input[type="radio"] + span { font-weight: 600; }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row > input[type="radio"] + span::after { display: none; }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row:has(input[type="radio"]:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row--switch { padding-left: 14px; margin-top: 4px; }
+body.ui-classic #page-Wandverkleidung #wvKindGroup .ios-check-row--switch:has(input:checked) { border-color: var(--cl-border); background: var(--panel, #fff); }
+
+/* Plattenwahl / Formate / Zubehör / Profile: einzelne Karten-Zeilen */
+body.ui-classic #page-Wandverkleidung .wv-sizes,
+body.ui-classic #page-Wandverkleidung .dw-acc-list > .sec-settings__group,
+body.ui-classic #page-Wandverkleidung #wvWwPanelsSection > .sec-settings__group,
+body.ui-classic #page-Wandverkleidung #wvRows,
+body.ui-classic #page-Wandverkleidung #wvKRows { display: grid; gap: 8px; }
+body.ui-classic #page-Wandverkleidung .dw-acc,
+body.ui-classic #page-Wandverkleidung .wv-ww-fmt.sec-settings__row,
+body.ui-classic #page-Wandverkleidung .dw-acc-list .sec-settings__row,
+body.ui-classic #page-Wandverkleidung #wvRows > *,
+body.ui-classic #page-Wandverkleidung #wvKRows > * {
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px;
+}
+body.ui-classic #page-Wandverkleidung .dw-acc + .dw-acc,
+body.ui-classic #page-Wandverkleidung .sec-settings__row + .sec-settings__row { border-top: 1px solid var(--cl-border); }
+body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size .dw-acc { margin: 0; }
+body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; }
+body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size .dw-acc { border: 0; padding: 0; }
+body.ui-classic #page-Wandverkleidung #wvWwPanelsSection .sec-settings__row:last-child { border: 0; background: none; padding: 6px; }
+body.ui-classic #page-Wandverkleidung .ios-stepper button { width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Wandverkleidung .ios-stepper input { border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Wandverkleidung .wv-row-add { margin-top: 10px; padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; }
+
+/* Dekor-Raster: acht Muster je Reihe */
+body.ui-classic #page-Wandverkleidung .dw-color-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; padding: 0; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check {
+  position: relative; display: grid; align-content: start; justify-items: stretch; gap: 4px; width: auto; padding: 0; border: 0; background: none; box-shadow: none; cursor: pointer;
+}
+body.ui-classic #page-Wandverkleidung .dw-color-grid .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid var(--cl-border); background: #f1f1f5; box-shadow: none; }
+/* Hochformat-Kacheln; min-width:0, damit das Eigenes-Lager-Badge die Spalte nicht sprengt und Nachbarkacheln überdeckt. */
+body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check { min-width: 0; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .wv-tile-own-badge { white-space: normal; text-align: center; font-size: 0.58rem; line-height: 1.25; padding: 1px 4px; letter-spacing: -0.01em; justify-self: center; max-width: 100%; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .caption { font-size: 0.7rem; font-weight: 500; color: var(--muted, #6b7280); text-align: center; max-width: none; line-height: 1.2; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check:has(input:checked) .caption { color: var(--text, #1f2937); font-weight: 600; }
+@media (max-width: 700px) { body.ui-classic #page-Wandverkleidung .dw-color-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Vorschlagskarten für die Wandfläche */
+body.ui-classic #page-Wandverkleidung #wvAreaCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+body.ui-classic #page-Wandverkleidung #wvAreaCards .wvc-card { border: 2px solid var(--cl-border); border-radius: 12px; padding: 10px 12px; background: var(--panel, #fff); }
+body.ui-classic #page-Wandverkleidung #wvAreaCards .wvc-card + .wvc-card { border-top: 2px solid var(--cl-border); }
+body.ui-classic #page-Wandverkleidung #wvAreaCards .wvc-card.wvc-selected { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
+
+/* Bedarfsrechner */
+body.ui-classic #page-Wandverkleidung .kc { border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe; }
+body.ui-classic #page-Wandverkleidung .kc-chip,
+body.ui-classic #page-Wandverkleidung .kc-view-chip { border: 1px solid #d1d5db; background: #fff; color: var(--text, #1f2937); font-weight: 600; }
+body.ui-classic #page-Wandverkleidung .kc-chip[aria-pressed="true"],
+body.ui-classic #page-Wandverkleidung .kc-view-chip[aria-pressed="true"] { background: var(--cl-weak); border-color: var(--cl-accent); color: var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .kc-stat { padding: 8px 12px; border: 1px solid var(--cl-border); border-radius: 10px; background: #fff; }
+body.ui-classic #page-Wandverkleidung .kc-row input { border: 1px solid #d1d5db; border-radius: 10px; }
+
+/* Ihre Auswahl + Reste */
+body.ui-classic #page-Wandverkleidung #wvProductCard { border: 1px solid var(--cl-border); border-radius: 12px; background: #fafafe; }
+body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__group { border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe; }
+body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__row { padding: 12px 14px; }
+body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color: var(--cl-accent); border: 1px solid var(--cl-accent); border-radius: 10px; padding: 11px 16px; }
+
+/* Produktlinie im Tab Wandverkleidung als Fußboden (wie .tier-seg__btn, aber ohne die globale Linien-Umschaltung) */
+/* Touch targets sized for the tablet this is used on. */
+.wc-sup-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  min-height: 52px;
+  min-width: 168px;
+  padding: 8px 20px;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted-foreground);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wc-sup-btn strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.wc-sup-btn span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.wc-sup-btn[aria-pressed="true"] {
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111827);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16);
+}
+
+
+
+.wc-sup-btn:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ===== Aufschlag: Mindestwert je Kundenart, Begründung, Zonenregler (Neu + Klassisch) ===== */
+.aufschlag-min { font-size: 0.85rem; color: var(--muted-foreground, #6b7280); white-space: nowrap; }
+.aufschlag-min b { color: var(--foreground, #1f2937); }
+.aufschlag-value-box.is-low input[type="text"] { border-color: #f5c26b; background: #fff7e6; }
+.aufschlag-chip.is-low { color: #b45309; border-color: #f5c26b; background: #fffdf7; }
+.aufschlag-chip.is-low.active { background: #fff1d6; border-color: #f59e0b; }
+
+/* Regler: Spurverlauf rot | orange | gelb | grün; Griff in der Zonenfarbe (--aknob aus render()).
+   --amin-n = Mindestwert in % der Reglerbreite (Skala 0–200 %); 60 % → 30, 70 % → 35. */
+.aufschlag-track {
+  --amin-n: 25; --aknob: #f97316; --thumb: 24px;
+  --p-min: calc(var(--amin-n) * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  --p-60: calc(30 * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  --p-70: calc(35 * (100% - var(--thumb)) / 100 + var(--thumb) / 2);
+  position: relative; margin: 30px 0 6px;
+}
+.aufschlag-track .sonderaufschlag-slider {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer;
+}
+.aufschlag-track .sonderaufschlag-slider::-webkit-slider-runnable-track {
+  height: 10px; border-radius: 99px;
+  background: linear-gradient(90deg, #ef4444 0 var(--p-min), #f97316 var(--p-min) var(--p-60), #facc15 var(--p-60) var(--p-70), #22c55e var(--p-70) 100%);
+}
+.aufschlag-track .sonderaufschlag-slider::-moz-range-track {
+  height: 10px; border-radius: 99px;
+  background: linear-gradient(90deg, #ef4444 0 var(--p-min), #f97316 var(--p-min) var(--p-60), #facc15 var(--p-60) var(--p-70), #22c55e var(--p-70) 100%);
+}
+.aufschlag-track .sonderaufschlag-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: var(--thumb); height: var(--thumb); margin-top: -7px; border-radius: 50%;
+  background: var(--aknob); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.aufschlag-track .sonderaufschlag-slider::-moz-range-thumb {
+  width: calc(var(--thumb) - 6px); height: calc(var(--thumb) - 6px); border-radius: 50%;
+  background: var(--aknob); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.aufschlag-minmark {
+  position: absolute; left: var(--p-min); top: 5px; width: 2px; height: 24px; margin-left: -1px; background: #334155; pointer-events: none;
+}
+.aufschlag-minmark::after {
+  content: attr(data-l); position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: #334155; white-space: nowrap;
+}
+.aufschlag-minmark[hidden] { display: none; }
+
+/* Hinweis + Pflicht-Begründung */
+.aufschlag-warn { flex-direction: column; align-items: stretch; gap: 10px; background: #fff7e6; border-color: #f5c26b; color: #b45309; }
+.aufschlag-warn__t { display: flex; gap: 10px; font-weight: 600; }
+.aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--foreground, #1f2937); }
+.aufschlag-reason label span { color: #b91c1c; }
+.aufschlag-reason textarea {
+  width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; resize: vertical; background: #fff; box-sizing: border-box;
+}
+.aufschlag-reason textarea.empty { border-color: #ef4444; }
+.aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
+.aufschlag-reason__err[hidden] { display: none; }
+.aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted-foreground, #6b7280); }
+
+/* ===== Wandverkleidung (Neu + Klassisch): Dekor-Kacheln klappen in der markierten Zeile auf ===== */
+.wv-row__name { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
+.wv-row__name small { color: var(--muted, #6b7280); font-size: 0.75rem; }
+.wv-row__color { display: none; }
+.wv-row { cursor: pointer; }
+.wv-row.is-active::after { display: none; }
+.wv-row__body { flex: 0 0 calc(100% + 28px); width: calc(100% + 28px); box-sizing: border-box; order: 99; margin: 0 -14px -10px; padding: 14px; border-top: 1px solid rgba(10, 132, 255, 0.25); cursor: default; }
+#wvColorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvColorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvColorSection:not(.in-row) { display: none; }
+body.ui-classic #page-Wandverkleidung .wv-row__body { margin: 0 -14px -12px; border-radius: 0 0 12px 12px; background: var(--cl-weak); border-top-color: var(--cl-border); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: none; }
+/* Hochformat-Kacheln, größer – Farbe gut zeigbar */
+#page-Wandverkleidung #wvColorSection.in-row #wvColors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 0; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .image-check { min-width: 0; width: auto; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors .caption { font-size: 0.78rem; }
+/* "+ Zeile hinzufügen" als Button (Klassisch hat unten seinen eigenen Stil) */
+.wv-row-add { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px 18px; border: 0; border-radius: 12px; background: #0a84ff; color: #fff; font: inherit; font-weight: 700; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3); }
+.wv-row-add:active { transform: translateY(1px); }
+/* Neu: Panel hat dieselbe Tönung wie der Zeilenkopf; Kachel-Raster ohne weiße Box, Auswahlrahmen nicht abgeschnitten */
+.wv-row__body { background: rgba(10, 132, 255, 0.1); }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 4px; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
+/* Nur EINE Kachel markiert: die Farbe der offenen Zeile. Das gecheckte Radio (= Farbe der 1. Zeile) bleibt neutral. */
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check { border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check .caption { color: var(--muted, #6b7280); font-weight: 500; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+body.ui-classic #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+
+/* ===== Wandverkleidung Standard (Badolux): Dekor-Zeilen, Sonder-Dekor, Zubehör ===== */
+#wvBudgetColorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvBudgetColorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvBudgetColorSection:not(.in-row) { display: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 4px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check { min-width: 0; width: auto; border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColors .image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+#wvBudgetColors .image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+#wvBudgetColors .image-check .caption { color: var(--muted, #6b7280); }
+.wv-krow-sonder { margin: 0 0 14px; padding: 12px; background: var(--panel, #fff); border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; }
+.wv-krow-sonder p { margin: 6px 0 10px; font-size: 0.82rem; }
+.wv-krow-link { display: inline-block; padding: 9px 14px; border: 1.5px solid #0a84ff; border-radius: 10px; color: #0a84ff; font-weight: 700; text-decoration: none; background: #fff; }
+.wv-krow-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
+.wv-krow-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--muted, #6b7280); }
+.wv-krow-fields input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; color: var(--text, #1f2937); }
+.wv-krow-eur { position: relative; display: block; }
+.wv-krow-eur input { padding-right: 26px; text-align: right; }
+.wv-krow-eur em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted, #6b7280); }
+@media (max-width: 600px) { .wv-krow-fields { grid-template-columns: 1fr; } }
+/* Rechner (Standard): nur Vorschlag + Knopf, keine manuelle Menge mehr */
+.kc[data-line="standard"] [data-only="standard"] { display: none !important; }
+.kc[data-line="standard"] #kcVigour { display: flex !important; }
+/* Badolux-Zubehör: aufklappbar */
+#wvBadoluxAccSection.is-foldable > .sec-settings__label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+#wvBadoluxAccSection.is-foldable > .sec-settings__label::after { content: "›"; margin-left: auto; transition: transform .15s; font-size: 1.2rem; }
+#wvBadoluxAccSection.is-foldable.is-open > .sec-settings__label::after { transform: rotate(90deg); }
+#wvBadoluxAccSection.is-foldable:not(.is-open) > .sec-settings__group { display: none !important; }
+.dw-acc[hidden] { display: none !important; }
+.wv-krow-fields--one { grid-template-columns: 1fr; }
+/* geöffnete Zeile: runde Ecken, Inhalt wird an der Rundung beschnitten */
+body.ui-classic #page-Wandverkleidung #wvRows > *,
+body.ui-classic #page-Wandverkleidung #wvKRows > * { overflow: hidden; }
+
+/* ===== Wandverkleidung winwall: Platten-Zeilen, Dekor-Kacheln in der Zeile ===== */
+#wvWwPanelsSection { display: none !important; } /* Datenfelder (wvWwQty_*) bleiben, die Zeilen ersetzen die Anzeige */
+.wv-ww-fmtsel { flex: 0 0 auto !important; width: auto !important; }
+#wvWwDecorSection.in-row { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+#wvWwDecorSection.in-row > .sec-settings__label { margin-bottom: 10px; }
+#wvWwDecorSection:not(.in-row) { display: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; padding: 4px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 12px; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check { min-width: 0; width: auto; border-color: transparent; box-shadow: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check .img-wrap { border-color: var(--input-border, #e5e7eb); box-shadow: none; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-used .img-wrap { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #8e8e93; }
+#page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-active .img-wrap { border-color: #0a84ff; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); }
+body.ui-classic #page-Wandverkleidung #wvWwDecorSection.in-row #wvWwDecors .image-check.wv-active .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
+#wvWwDecors .image-check .caption { color: var(--muted, #6b7280); }
+#wvWwDecors .image-check.wv-active .caption { color: var(--text, #1f2937); font-weight: 700; }
+body.ui-classic #page-Wandverkleidung #wvWwRows { display: grid; gap: 8px; }
+body.ui-classic #page-Wandverkleidung #wvWwRows > * { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; overflow: hidden; }
+
+/* Klassisch: Zubehör-Häkchen zeigen "an" deutlich (gefülltes Feld + Haken) */
+body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }

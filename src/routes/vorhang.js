@@ -77,6 +77,9 @@ async function toItem(d) {
     sizeCm: parseSizeCm(d.articleNumber, d.name),
     // curtain height (HEWIDV140200W → 200 cm); null for everything else
     heightCm: Number(String(d.articleNumber || "").toUpperCase().match(CURTAIN_RE)?.[2]) || null,
+    // stock for the badge in "Ihre Auswahl" (display only)
+    stockQuantity: d.stockQuantity ?? null,
+    stockText: d.stockText ?? null,
   };
 }
 

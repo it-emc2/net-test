@@ -486,14 +486,14 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
   const PARA_kk_uber2000_LINES = [
-    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "Zahlungsbedingungen für den Eigenanteil:",
     "- 100 % sofort abzüglich 2 % Skonto oder",
     "- 50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
     "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
   ];
 
   const PARA_kk_unter2000_LINES = [
-    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "Zahlungsbedingungen für den Eigenanteil:",
     "100 % sofort bei Auftragsbestätigung – ohne Abzug",
     "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
   ];

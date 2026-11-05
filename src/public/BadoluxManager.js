@@ -21,6 +21,7 @@ export function initBadoluxManager(options = {}) {
       renderBudgetWvColors: null,
       refreshTray: null,
       updatePricing: null,
+      syncTierUi: null,
     },
     ...options,
   };
@@ -43,9 +44,17 @@ export function initBadoluxManager(options = {}) {
       TRWDB: `${cfg.assetsBase}/BL-Dichtband.png`,
       TRWDSET5: `${cfg.assetsBase}/BL-Dichtbahn.png`,
       PLA5282: `${cfg.assetsBase}/BL-Stelzlager.png`,
-      AGD9060: `${cfg.assetsBase}/AGB001.png`,
-      KM02: `${cfg.assetsBase}/AC004.png`,
+      // Standard Ablaufgarnitur = Siphon Bridge 90 (PR95DW001), priced as such in
+      // pricing-core. Kleinmaterial stays KM02 on both lines → no swap.
+      AGD9060: `${cfg.assetsBase}/PR95DW001.webp`,
     };
+    // Captions that change with the line (the Standard tile is a different product).
+    const captions = { AGD9060: "Siphon Bridge 90 PR95DW001" };
+    const heading = document.getElementById("dwDrainHeading");
+    if (heading) {
+      if (!heading.dataset.textOriginal) heading.dataset.textOriginal = heading.textContent;
+      heading.textContent = on ? "Badolux · Ablauf 90 mm" : heading.dataset.textOriginal;
+    }
 
     Object.entries(map).forEach(([pid, budgetSrc]) => {
       const label =
@@ -59,6 +68,12 @@ export function initBadoluxManager(options = {}) {
       // store original once
       if (!img.dataset.srcOriginal) {
         img.dataset.srcOriginal = img.getAttribute("src") || "";
+      }
+
+      const cap = label?.querySelector(".caption");
+      if (cap && captions[pid]) {
+        if (!cap.dataset.textOriginal) cap.dataset.textOriginal = cap.textContent;
+        cap.textContent = on ? captions[pid] : cap.dataset.textOriginal;
       }
 
       if (on) {
@@ -140,13 +155,20 @@ export function initBadoluxManager(options = {}) {
     const empty = $(cfg.els.flooringBudgetEmpty);
     if (!group || !wrap) return;
 
+    // Clear only once the list is in: clearing before the await let two overlapping
+    // renders (toggle spam, or a restore re-applying a saved BP selection) both
+    // append, so every budget floor showed up twice.
+    const myToken = ++floorRenderToken;
+    const list = await loadBudgetFloorsFromBackend();
+    if (myToken !== floorRenderToken) return; // a newer render took over
+
     wrap.innerHTML = "";
 
-    const list = await loadBudgetFloorsFromBackend();
     const has = Array.isArray(list) && list.length > 0;
 
     if (!has) {
       if (empty) empty.hidden = false;
+      window.notifyBudgetTilesRendered?.();
       return;
     }
     if (empty) empty.hidden = true;
@@ -182,7 +204,9 @@ export function initBadoluxManager(options = {}) {
 
       const caption = document.createElement("span");
       caption.className = "caption";
-      caption.textContent = name;
+      // All Badolux floors are Hydroträgerplatten (the group label says so); the
+      // tile shows just the colour. Display only — value/data-color keep the name.
+      caption.textContent = name.replace(/^Hydroträgerplatte\s+/i, "") || name;
 
       label.appendChild(input);
       label.appendChild(imgWrap);
@@ -190,25 +214,28 @@ export function initBadoluxManager(options = {}) {
 
       wrap.appendChild(label);
     }
+
+    // Let the app re-apply a restored Badolux floor selection now that its tile exists.
+    window.notifyBudgetTilesRendered?.();
   }
 
+  // Renders the Badolux floor tiles on request. Visibility belongs to the Fußboden
+  // line in script.js, not to this manager's checkbox.
   async function updateBudgetFloorVisibility() {
-    const group = $(cfg.els.flooringBudgetGroup);
-    if (!group) return;
-    const on = isOn();
-    group.hidden = !on;
-    group.setAttribute("aria-hidden", (!on).toString());
-    if (on) await renderBudgetFloors();
+    if (!$(cfg.els.flooringBudgetGroup)) return;
+    await renderBudgetFloors();
   }
 
+  // Only the Duschwanne's own concerns live here now. Fußboden and Wandverkleidung
+  // have had their own Produktlinie since 2026-09-11, so their visibility is owned
+  // by syncProduktlinieGroups() in script.js — driving it from this one checkbox
+  // would switch all three sections at once again.
   function applyAll(on) {
+    // Keep the Standard/Premium switches in step, including the session-restore
+    // path below, which sets .checked directly and fires no change event.
+    cfg.hooks.syncTierUi?.(!!on);
     applyBudgetModeUI(on);
     swapAccessoryImages(on);
-    updateBudgetFloorVisibility();
-
-    // WV budget hooks (optional)
-    cfg.hooks.setWvBudgetVisibility?.(!!on);
-    if (on) cfg.hooks.renderBudgetWvColors?.();
 
     // smart tray refresh (optional)
     cfg.hooks.refreshTray?.();

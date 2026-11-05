@@ -72,7 +72,7 @@ test("falls back to the cached pricing snapshot when the live product list fetch
   const list = await window.loadBudgetWandPanels();
   // Sorted by productId, exactly like the live path.
   expect(list.map((p) => p.productId)).toEqual(["WP001", "WP002"]);
-  expect(list[0]).toMatchObject({ name: "Standard-Dekor Weiß", img: "./assets/budget/WP001.png" });
+  expect(list[0]).toMatchObject({ name: "Standard-Dekor Weiß", img: "./assets/budget/WP001.webp" });
 });
 
 test("an empty cache offline yields an empty list, not a throw", async () => {
@@ -98,6 +98,6 @@ test("still prefers the live fetch when it succeeds", async () => {
 
   const list = await window.loadBudgetWandPanels();
   expect(list).toEqual([
-    { productId: "WP001", name: "Live Weiß", img: "./assets/budget/WP001.png" },
+    { productId: "WP001", name: "Live Weiß", img: "./assets/budget/WP001.webp" },
   ]);
 });

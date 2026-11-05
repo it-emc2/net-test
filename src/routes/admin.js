@@ -78,9 +78,12 @@ const PUBLIC_CONFIG_KEYS = [
   'WERKZEUG',
   'BERAEUMUNG',
   'WV_OWN_LAGER',
+  'WV_LEFTOVER_USABLE_PERCENT',
+  'WV_LEFTOVER_MIN_M2',
   'GRAB_BONUS_IDS',
   'NEUKUNDENBONUS_BRUTTO',
   'NEUKUNDENBONUS_SCHWELLE',
+  'BU_SHOW_DA_HASSMANN',
 ];
 router.get('/api/config/public', async (req, res) => {
   try {

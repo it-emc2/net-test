@@ -146,6 +146,9 @@ app.use(
           "blob:",
           "https://media.onlineplus.store",
           // "https://*.onlineplus.store",
+          // Keramico motif panels, shown straight from cleverbad.de's image
+          // storage (Badolux's shop) — see assets/badolux/keramico-motive.json.
+          "https://lojjuyeivvvykspkfaxl.supabase.co",
         ],
 
         fontSrc: ["'self'", "data:"],
@@ -162,6 +165,8 @@ app.use(
           // connect-src, not img-src. Without it every CDN product image fails
           // with ERR_FAILED as soon as the offline shell is registered.
           "https://media.onlineplus.store",
+          // Same reason for the Keramico motif images (img-src above).
+          "https://lojjuyeivvvykspkfaxl.supabase.co",
         ],
 
         objectSrc: ["'none'"],
@@ -593,6 +598,15 @@ const TRAY_SEARCH_CORE_SRC = await readFile(
 );
 app.get("/logic/tray-search-core.js", (req, res) => {
   res.type("application/javascript").send(TRAY_SEARCH_CORE_SRC);
+});
+
+// Mindest-Aufschlag je Kundenart + Reglerfarben (public/script.js, initAufschlag): reine Regeln, auch offline nötig.
+const AUFSCHLAG_RULES_SRC = await readFile(
+  path.join(__dirname, "logic", "aufschlag-rules.js"),
+  "utf8",
+);
+app.get("/logic/aufschlag-rules.js", (req, res) => {
+  res.type("application/javascript").send(AUFSCHLAG_RULES_SRC);
 });
 
 // GET /api/price/inputs

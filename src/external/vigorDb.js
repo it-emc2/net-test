@@ -68,4 +68,68 @@ export async function fetchVigourNetPrices(articleNumbers) {
   return pickFreshestNetPrices(docs);
 }
 
+// Same freshest-wins rule as the prices above, but for the stock fields
+// (stockQuantity / stockText / stockSymbol). Only docs that actually carry stock
+// data take part, so an older doc with a reading doesn't lose to a newer one
+// without — the scraper reaches the same article through several config paths and
+// not every path records stock.
+export function pickFreshestStock(docs) {
+  const best = new Map();
+  for (const d of docs || []) {
+    if (d?.stockQuantity == null && d?.stockText == null) continue;
+    const seen = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() || 0 : 0;
+    const prev = best.get(d.articleNumber);
+    if (prev && seen < prev.seen) continue;
+    best.set(d.articleNumber, {
+      seen,
+      stockQuantity: d.stockQuantity ?? null,
+      stockText: d.stockText ?? null,
+      stockSymbol: d.stockSymbol ?? null,
+    });
+  }
+  return new Map(
+    [...best].map(([id, v]) => [
+      id,
+      {
+        stockQuantity: v.stockQuantity,
+        stockText: v.stockText,
+        stockSymbol: v.stockSymbol,
+      },
+    ]),
+  );
+}
+
+// Current stock for the given article numbers, as
+// Map<articleNumber, {stockQuantity, stockText, stockSymbol}>. Articles the vigor
+// DB doesn't know (Badolux, for one — a different supplier that isn't scraped) are
+// simply absent, and callers show no badge for those. Throws when the vigor DB is
+// unreachable; callers are expected to treat that as "no stock data", never as an
+// error worth failing the surrounding request for.
+export async function fetchVigourStock(articleNumbers) {
+  const ids = [
+    ...new Set(
+      (articleNumbers || []).map((a) => String(a || "").trim()).filter(Boolean),
+    ),
+  ];
+  if (!ids.length) return new Map();
+
+  const db = await getVigorDb();
+  const docs = await db
+    .collection("products")
+    .find(
+      { articleNumber: { $in: ids } },
+      {
+        projection: {
+          articleNumber: 1,
+          stockQuantity: 1,
+          stockText: 1,
+          stockSymbol: 1,
+          lastSeenAt: 1,
+        },
+      },
+    )
+    .toArray();
+  return pickFreshestStock(docs);
+}
+
 export default getVigorDb;
