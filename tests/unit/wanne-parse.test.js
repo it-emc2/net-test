@@ -139,7 +139,7 @@ test('describe: no article of the catalog leaks a brand name', () => {
 });
 
 // ---- configurations: catalog matrix + which Aufsatz fits which tub ----
-import { screenFit, screensFor } from '../../src/public/configurator/wanne-rules.js';
+import { screenFit, screensFor, screenEnd } from '../../src/public/configurator/wanne-rules.js';
 
 const SETS = WANNE_SETS.filter((x) => x.wizard !== false);
 const tub = (id) => WANNE_SETS.find((x) => x.articleNumber === id);
@@ -160,20 +160,51 @@ test('catalog: old article numbers stay for saved offers but leave the wizard', 
   expect(WANNE_SETS.filter((x) => x.brand === 'Ottofond').every((x) => x.wizard === false)).toBe(true);
 });
 
-test('rules: Steinkamp Aufsatz only at an end wall and never above the door', () => {
-  expect(fitIds(tub('ST160-EL-TR'))).toEqual(['STSA-2T-L', 'STSA-PT-L']); // wall left, door right
-  expect(fitIds(tub('ST160-EL-TL'))).toEqual([]); // wall left = door side → above the door
-  expect(fitIds(tub('ST170-N-TL'))).toEqual(['STSA-2T-R', 'STSA-PT-R']); // niche: opposite the door
-  expect(fitIds(tub('ST180-V-TL'))).toEqual([]); // both ends free: no wall to hinge on
-  expect(screenFit(tub('ST180-V-TL'), tub('STSA-2T-L')).reason).toMatch(/Seitenwand/);
+test('rules: Steinkamp Aufsatz on the door side, hinged on a wall there', () => {
+  expect(fitIds(tub('ST160-EL-TL'))).toEqual(['STSA-2T-L', 'STSA-PT-L']); // wall + door left
+  expect(fitIds(tub('ST160-EL-TR'))).toEqual([]); // door at the free end: no wall to hinge on
+  expect(fitIds(tub('ST170-N-TR'))).toEqual(['STSA-2T-R', 'STSA-PT-R']); // niche: door side
+  expect(fitIds(tub('ST180-V-TL'))).toEqual([]); // both ends free
+  expect(screenFit(tub('ST160-EL-TR'), tub('STSA-2T-L')).reason).toMatch(/Türseite/);
 });
 
-test('rules: Iris Aufsatz must match the Iris tub side, never a Steinkamp tub', () => {
-  const irisTub = parseWanneDoc(doc('IRIS160L2S', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.2 Schürzen weiß m.Abl. Novellini'));
-  const irisL = parseWanneDoc(doc('IRISWA14L', 'Wannenaufsatz für Iris links Höhe 140cm', '24/60cm klappb. ESG klar chrom Novellini'));
-  const irisR = parseWanneDoc(doc('IRISWA14R', 'Wannenaufsatz für Iris rechts Höhe 140cm', '24/60cm klappb. ESG klar chrom Novellini'));
-  expect(irisTub).toMatchObject({ einbau: 'Ecke', wall: 'links', screenFamily: 'iris' });
-  expect(screenFit(irisTub, irisL).ok).toBe(true);
-  expect(screenFit(irisTub, irisR).ok).toBe(false);
-  expect(screenFit(tub('ST160-EL-TR'), irisL).ok).toBe(false);
+test('rules: Iris (GC docs) — door at the wall end; klappbar hinges there, COMBY needs a free door end', () => {
+  const ecke = parseWanneDoc(doc('IRIS160L2S', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.2 Schürzen weiß m.Abl. Novellini'));
+  const nische = parseWanneDoc(doc('IRIS160LS', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.Frontschürze weiß m.Abl. Novellini'));
+  const klapp = parseWanneDoc(doc('IRISWA14L', 'Wannenaufsatz für Iris links Höhe 140cm', '24/60cm klappb. ESG klar chrom Novellini'));
+  const klappR = parseWanneDoc(doc('IRISWA14R', 'Wannenaufsatz für Iris rechts Höhe 140cm', '24/60cm klappb. ESG klar chrom Novellini'));
+  const comby70 = parseWanneDoc(doc('IRISWA14S70L', 'NOV Iris COMBY Wannenaufsatz für Iris li', '24/60x140cm ESG klar chrom.m.S70'));
+  const comby75 = parseWanneDoc(doc('IRISWA14S75L', 'NOV Iris COMBY Wannenaufsatz für Iris li', '24/60x140cm ESG klar chrom.m.S75'));
+  expect(ecke).toMatchObject({ einbau: 'Ecke', wall: 'links', side: 'links', widthCm: 70, tubHeightCm: 62 });
+  expect(screenFit(ecke, klapp).ok).toBe(true); // hinged on the wall at the door
+  expect(screenFit(nische, klapp).ok).toBe(true);
+  expect(screenFit(ecke, klappR).ok).toBe(false); // other side
+  expect(screenFit(ecke, comby70).ok).toBe(false); // wall at the door end
+  expect(screenFit(nische, comby70).ok).toBe(false);
+  // a free door end (Iris with 3 Schürzen, not in our catalog) takes the COMBY of matching width
+  const frei = { ...ecke, einbau: 'Vorwand', wall: null };
+  expect(screenFit(frei, comby70).ok).toBe(true);
+  expect(screenFit(frei, comby75).reason).toMatch(/75 cm passt nicht/);
+  expect(screenEnd(ecke, klapp)).toBe('links'); // door end
+  expect(screenFit(tub('ST160-EL-TL'), klapp).ok).toBe(false); // other family
+});
+
+test('Iris 3 Schürzen (vigor wording of scripts/addVigorIrisProducts.mjs): both ends free, COMBY of their width', () => {
+  const t160 = parseWanneDoc(doc('IRIS160L3S', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.3 Schürzen weiß m.Abl. Novellini'));
+  const t180 = parseWanneDoc(doc('IRIS180L3SWE', 'Badewanne Acryl Iris 180x75/85cm weiß li', 'm.3 Schürzen weiß m.WE Novellini'));
+  const scr = [
+    ['IRISWA14S70L', '24/60x140cm ESG klar chrom.m.S70'],
+    ['IRISWA14S75L', '24/60x140cm ESG klar chrom.m.S75'],
+    ['IRISWAS70L', '24/60x150cm ESG klar chrom.m.S70'],
+    ['IRISWAS75L', '24/60x150cm ESG klar chrom.m.S75'],
+  ].map(([id, f]) => parseWanneDoc(doc(id, 'NOV Iris COMBY Wannenaufsatz für Iris li', f)))
+    .concat(parseWanneDoc(doc('IRISWA14L', 'Wannenaufsatz für Iris links Höhe 140cm', '24/60cm klappb. ESG klar chrom Novellini')));
+  expect(t160).toMatchObject({ einbau: 'Vorwand', wall: null, schuerze: '3 Schürzen', widthCm: 70, widthMaxCm: 80, requires: [] });
+  expect(t180).toMatchObject({ einbau: 'Vorwand', widthCm: 75, zulauf: 'Wanneneinlauf' });
+  expect(screensFor(t160, scr).map((s) => s.articleNumber)).toEqual(['IRISWA14S70L', 'IRISWAS70L']);
+  expect(screensFor(t180, scr).map((s) => s.articleNumber)).toEqual(['IRISWA14S75L', 'IRISWAS75L']);
+  expect(describeWanne(t160)).toBe('Badewanne mit Einstiegstür links, Vorwandmontage, Verkleidung vorn und an beiden Enden, 160 × 70/80 × 62 cm');
+  // niche Iris carries the IRISNS requirement (price comes from vigor)
+  const nische = parseWanneDoc(doc('IRIS160LS', 'Badewanne Acryl Iris 160x70/80cm weiß li', 'm.Frontschürze weiß m.Abl. Novellini'));
+  expect(nische.requires).toEqual([{ articleNumber: 'IRISNS', desc: 'Nackenstütze für Nischeneinbau der Badewanne' }]);
 });

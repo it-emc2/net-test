@@ -252,6 +252,18 @@ const legacy = LEGACY.flatMap(([l, w, prices, ids, rechtsPrice]) =>
   ),
 );
 
+// Required accessories that the wizard adds automatically with a tub (field
+// `requires` on the tub). Name and price come from vigor like every other Iris
+// article (scripts/addVigorIrisProducts.mjs adds IRISNS there) — purchase
+// prices stay out of the repo. Ordered with the tub via Hassmann/GC, so NOT in
+// WANNE_SET_ORDER (which keeps articles out of the Hassmann cart).
+// IRISNS: Novellini "Nackenstütze für Nischeneinbau" — the standard head-rest
+// console overhangs the tub end, so an Iris in a niche needs this one
+// (GC Bildpreisliste Sanitär 2026 S. 959).
+export const WANNE_ACCESSORIES = {
+  IRISNS: { articleNumber: "IRISNS", desc: "Nackenstütze für Nischeneinbau der Badewanne" },
+};
+
 export const WANNE_SETS = [...steinkamp, ...STEINKAMP_SCREENS, ...ottofond, ...legacy];
 
 // Where the office orders each article: never Hassmann, so the Hassmann

@@ -56,7 +56,8 @@ export function describeWanne(p) {
       : `Badewanne${p.side ? ` ${p.side}` : ""}`,
     mountText(p),
     dims(p),
-    p.schuerze || null,
+    // the mount text already says "Verkleidung vorn und an beiden Enden"
+    p.einbau === "Vorwand" ? null : p.schuerze || null,
     p.zulauf === "Wanneneinlauf" ? "Wanneneinlauf" : null,
     p.ablauf === "Trio" ? "Trio-Ablauf" : null,
     p.ablauf === "inkl. Ablaufgarnitur" ? "inkl. Ablaufgarnitur" : null,

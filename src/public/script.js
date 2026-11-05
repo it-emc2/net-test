@@ -14788,7 +14788,7 @@ function initWannePicker() {
   if (!panel || !stepEl || !resultsEl) return;
 
   const FIELDS = {
-    tub: { id: "chosenBathtubProductId", name: "chosenBathtubName", price: "chosenBathtubPrice", desc: "chosenBathtubDesc", size: "bathtubSize" },
+    tub: { id: "chosenBathtubProductId", name: "chosenBathtubName", price: "chosenBathtubPrice", desc: "chosenBathtubDesc", size: "bathtubSize", extras: "chosenBathtubExtras" },
     screen: { id: "chosenScreenProductId", name: "chosenScreenName", price: "chosenScreenPrice", desc: "chosenScreenDesc" },
   };
   const EINBAU = [
@@ -14811,7 +14811,9 @@ function initWannePicker() {
   const esc = (s) =>
     String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const sizeOf = (p) => `${p.lengthCm} × ${p.widthCm} cm`;
+  // same notation as the card headline: tapered tubs show both widths
+  const sizeOf = (p) =>
+    `${p.lengthCm} × ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`;
   const inWizard = (p) => p.wizard !== false;
   const tubs = () => items.filter((p) => p.type === "tub" && inWizard(p));
   const screens = () => items.filter((p) => p.type === "screen" && inWizard(p));
@@ -14836,8 +14838,9 @@ function initWannePicker() {
     (skip.includes("side") || !s.side || p.side === s.side) &&
     (skip.includes("mode") || s.mode !== "screen" || takesScreen(p)) &&
     (skip.includes("size") || !s.size || sizeOf(p) === s.size) &&
-    (skip.includes("ablauf") || !s.ablauf || !p.ablauf || p.ablauf === s.ablauf);
-  const count = (over) => tubs().filter((p) => tubOk(p, { ...st, ...over, size: null, ablauf: null })).length;
+    (skip.includes("ablauf") || !s.ablauf || !p.ablauf || p.ablauf === s.ablauf) &&
+    (skip.includes("ablauf") || !s.zulauf || !p.zulauf || p.zulauf === s.zulauf);
+  const count = (over) => tubs().filter((p) => tubOk(p, { ...st, ...over, size: null, ablauf: null, zulauf: null })).length;
 
   const keys = () =>
     st.mode === "only" ? ["mode", "side"] : ["einbau", ...(st.einbau === "Ecke" ? ["wall"] : []), "side", "mode"];
@@ -14845,7 +14848,7 @@ function initWannePicker() {
     const ks = keys();
     ks.slice(ks.indexOf(k)).forEach((x) => delete st[x]);
     if (k === "einbau") delete st.wall;
-    delete st.size; delete st.ablauf; delete st.sh; delete st.sw;
+    delete st.size; delete st.ablauf; delete st.zulauf; delete st.sh; delete st.sw;
   };
   const nextStep = () => keys().find((k) => !st[k]);
   const ready = () => !nextStep();
@@ -14857,6 +14860,8 @@ function initWannePicker() {
     setHidden(f.price, p ? p.netPrice : "");
     setHidden(f.desc, p ? p.desc || "" : "");
     if (f.size) setHidden(f.size, p ? tubSizeLabel(p) : "");
+    // required accessories (e.g. IRISNS for an Iris niche) ride with the tub
+    if (f.extras) setHidden(f.extras, p?.requires?.length ? JSON.stringify(p.requires) : "");
   }
   function applySelection(p) {
     const same = selectedId(p.type) === p.articleNumber;
@@ -14882,11 +14887,23 @@ function initWannePicker() {
   // ---- drawings -----------------------------------------------------------
   const specFor = (o) => ({ einbau: "ecke", wall: "links", door: "links", screen: null, L: 170, Wd: 75, H: 58, ...o });
   const lc = (v) => (v ? String(v).toLowerCase() : v);
-  const screenSpec = (p) =>
-    p ? { side: p.side, kind: p.screenKind || (p.klappbar ? "klapp" : "comby"), h: p.heightCm, panel: /^S\d+/.test(p.seitenwand || "") } : null;
-  // first hinge side a Steinkamp Aufsatz could use with these answers (for drawings)
+  // `tub` decides the end a side-panel Aufsatz stands at (the open one)
+  const screenSpec = (p, tub) =>
+    p ? {
+      side: R && tub ? R.screenEnd(tub, p) : p.side,
+      kind: p.screenKind || (p.klappbar ? "klapp" : "comby"),
+      h: p.heightCm,
+      panel: /^S\d+/.test(p.seitenwand || ""),
+    } : null;
+  // the Aufsatz always stands at the door end; null where no tub could take one
+  // with a wall-hinged Aufsatz (used for the drawings before a product is picked)
   const hingeFor = (einbau, wall, door) =>
-    einbau === "Ecke" ? (wall !== door ? wall : null) : einbau === "Nische" ? (door === "links" ? "rechts" : "links") : null;
+    einbau === "Ecke" ? (wall === door ? door : null) : einbau === "Nische" ? door : null;
+  const previewScreen = (einbau, wall, door, h = 140) =>
+    !door ? null
+      : hingeFor(einbau, wall, door) ? { side: door, kind: "falt", h }
+        : einbau === "Ecke" || einbau === "Vorwand" ? { side: door, kind: "comby", h, panel: true }
+          : null;
 
   function stageSpec() {
     const t = selectedItem("tub");
@@ -14896,10 +14913,11 @@ function initWannePicker() {
     const wall = st.wall || first?.wall || "links";
     const door = st.mode === "only" ? null : st.side || first?.side || (st.einbau ? null : "links");
     let screen = null;
-    if (sc) screen = screenSpec(sc);
+    if (sc) screen = screenSpec(sc, first || { einbau, wall });
     else if (st.mode === "screen" || st.mode === "only") {
-      const h = st.mode === "only" ? st.side : hingeFor(einbau, wall, door);
-      if (h) screen = { side: h, kind: "falt", h: Number(st.sh) || 140 };
+      screen = st.mode === "only"
+        ? { side: st.side || "links", kind: "falt", h: Number(st.sh) || 140 }
+        : previewScreen(einbau, wall, door, Number(st.sh) || 140);
     }
     return specFor({
       einbau: lc(einbau), wall: einbau === "Ecke" ? wall : null, door, screen,
@@ -14948,7 +14966,7 @@ function initWannePicker() {
       if (st.mode === "only") {
         q = "Auf welcher Seite wird der Aufsatz angeschlagen?";
         tiles = SIDES.map((v) =>
-          tile(`data-set="side:${v}"`, `Anschlag ${v}`, "An dieser Seite muss eine Wand sein",
+          tile(`data-set="side:${v}"`, `Anschlag ${v}`, "Auf der Türseite der vorhandenen Wanne",
             specFor({ einbau: "nische", door: null, screen: { side: v, kind: "falt", h: 140 } }), !screens().some((p) => p.side === v))).join("");
       } else {
         q = "Auf welcher Seite ist die Tür?";
@@ -14960,13 +14978,12 @@ function initWannePicker() {
     } else if (step === "mode") {
       q = "Mit Wannenaufsatz?";
       const n = count({ mode: "screen" });
-      const h = hingeFor(E, st.wall, st.side);
       tiles =
         tile(`data-set="mode:plain"`, "Ohne Aufsatz", "Nur die Wanne mit Einstiegstür",
           specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: st.side }), !count({ mode: "plain" })) +
         tile(`data-set="mode:screen"`, "Mit Glasaufsatz",
           n ? "Glaswand auf dem Wannenrand, zum Duschen" : R ? R.noScreenReason(st) : "Regeln werden geladen …",
-          specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: st.side, screen: h ? { side: h, kind: "falt", h: 140 } : null }), !n);
+          specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: st.side, screen: n ? previewScreen(E, st.wall, st.side) : null }), !n);
     }
     stepEl.innerHTML = `<div class="wz-q">${esc(q)}</div><div class="wz-tiles">${tiles}</div>${foot}`;
     mountSketches(stepEl);
@@ -14991,15 +15008,54 @@ function initWannePicker() {
       .map(([v, txt]) => `<button type="button" class="wanne-chip" data-chip="${key}" data-val="${esc(v)}" aria-pressed="${String(st[key]) === String(v)}">${esc(txt)}</button>`)
       .join("")}</div>`;
   };
+  // Card = what tells variants apart at a glance: size as the headline, the
+  // deciding features as pills, the offer text small underneath.
+  const de = (n) => String(n).replace(".", ",");
+  const MOUNT_SHORT = { Ecke: "Ecke", Nische: "Nische", Vorwand: "Beide Enden frei" };
+  function cardHead(p) {
+    if (p.type === "screen") {
+      const kind =
+        p.screenKind === "pendel" ? "Pendeltür" : p.screenKind === "falt" ? "Faltwand 2-teilig"
+          : /^S\d+/.test(p.seitenwand || "") ? "Faltwand mit Seitenwand" : "Faltwand klappbar";
+      return {
+        title: kind,
+        pills: [
+          `Anschlag ${p.side}`,
+          p.heightCm && `${p.heightCm} cm hoch`,
+          /^S\d+/.test(p.seitenwand || "") && `Seitenwand ${p.seitenwand.slice(1)} cm`,
+          p.screenFamily === "steinkamp" && p.widthCm && `${p.widthCm} cm breit`,
+        ],
+      };
+    }
+    const w = p.widthMaxCm && p.widthMaxCm !== p.widthCm ? `${p.widthCm}/${p.widthMaxCm}` : p.widthCm;
+    return {
+      title: `${p.lengthCm} × ${w} cm`,
+      pills: [
+        `Tür ${p.side}`,
+        p.einbau === "Ecke" && p.wall ? `Ecke, Wand ${p.wall}` : MOUNT_SHORT[p.einbau],
+        p.tubHeightCm && `${de(p.tubHeightCm)} cm hoch`,
+        p.ablauf === "Trio" && "Trio-Ablauf",
+        p.zulauf === "Wanneneinlauf" && "Wanneneinlauf",
+      ],
+    };
+  }
   const card = (p, spec, reco) => {
     const chosen = selectedId(p.type) === p.articleNumber;
     const thumb = SK ? sk(spec) : `<img src="${esc(p.image || FALLBACK_IMG)}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:contain" />`;
+    const head = cardHead(p);
+    const extras = p.requires || [];
+    const total = p.netPrice + extras.reduce((n, z) => n + (z.netPrice || 0), 0);
     return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}" aria-pressed="${chosen}">
       <span class="wanne-thumb">${thumb}</span>
       <span class="wanne-body">${reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
         <span class="wanne-art">${esc(p.articleNumber)}</span>
-        <div class="wanne-name">${esc(p.desc || p.name)}</div>
-        <div class="wanne-price">${eur(p.netPrice)}</div></span></button>`;
+        <div class="wanne-title">${esc(head.title)}</div>
+        <div class="wanne-pills">${head.pills.filter(Boolean).map((x) => `<span class="wanne-pill">${esc(x)}</span>`).join("")}</div>
+        ${extras.map((z) => z.netPrice > 0
+          ? `<div class="wanne-note">inkl. ${esc(z.desc)} (+${eur(z.netPrice)})</div>`
+          : `<div class="wanne-note" style="color:#b42318">Pflichtzubehör ${esc(z.articleNumber)} fehlt im Vigor-Katalog – Preis fehlt, bitte nachtragen.</div>`).join("")}
+        <div class="wanne-name" title="So steht es im Angebot">${esc(p.desc || p.name)}</div>
+        <div class="wanne-price">${eur(total)}</div></span></button>`;
   };
   const tubSpec = (p, screen = null) => specFor({
     einbau: lc(p.einbau || "Ecke"), wall: p.einbau === "Ecke" ? p.wall : null, door: p.side, screen,
@@ -15017,12 +15073,16 @@ function initWannePicker() {
       const base = tubs().filter((p) => tubOk(p, st, ["size", "ablauf"]));
       const sizes = [...new Set(base.map(sizeOf))];
       const ablaufs = [...new Set(base.map((p) => p.ablauf).filter(Boolean))];
+      const zulaufs = [...new Set(base.map((p) => p.zulauf).filter(Boolean))];
       const list = base.filter((p) => tubOk(p, st)).sort((a, b) => a.netPrice - b.netPrice);
       html += chipRow("Maße", "size", sizes.map((v) => [v, v]));
-      if (ablaufs.length > 1) {
-        html += `<details class="wz-more" ${st.ablauf ? "open" : ""}><summary>Weitere Optionen: Ablauf</summary>
+      if (ablaufs.length > 1 || zulaufs.length > 1) {
+        const what = [ablaufs.length > 1 && "Ablauf", zulaufs.length > 1 && "Wassereinlauf"].filter(Boolean).join(" und ");
+        html += `<details class="wz-more" ${st.ablauf || st.zulauf ? "open" : ""}><summary>Weitere Optionen: ${what}</summary>
           ${chipRow("Ablauf", "ablauf", ablaufs.map((v) => [v, v === "Trio" ? "Trio-Ablauf" : v === "Standard" ? "Standard-Ablauf" : v]))}
-          ${ablaufs.includes("Trio") ? '<div class="wanne-empty" style="font-size:12.5px">Trio: Ablauf, Überlauf und Einlauf in einem Bauteil (ca. 230–270 € Aufpreis).</div>' : ""}</details>`;
+          ${ablaufs.includes("Trio") ? '<div class="wanne-empty" style="font-size:12.5px">Trio: Ablauf, Überlauf und Einlauf in einem Bauteil (ca. 230–270 € Aufpreis).</div>' : ""}
+          ${chipRow("Wasser", "zulauf", zulaufs.map((v) => [v, v === "Wanneneinlauf" ? "Wanneneinlauf" : "aus der Armatur"]))}
+          ${zulaufs.includes("Wanneneinlauf") ? '<div class="wanne-empty" style="font-size:12.5px">Wanneneinlauf: Das Wasser läuft unten durch die Wanne ein statt aus der Armatur.</div>' : ""}</details>`;
       }
       html += `<div class="wz-h">${list.length} passende ${list.length === 1 ? "Wanne" : "Wannen"}</div>`;
       html += `<div class="wanne-grid">${
@@ -15043,7 +15103,17 @@ function initWannePicker() {
       html += chipRow("Höhe", "sh", heights.map((v) => [v, `${v} cm`]));
       html += chipRow("Seitenwand", "sw", walls.map((v) => [v, v === "ohne" ? "ohne" : `${v.slice(1)} cm breit`]));
       html += `<div class="wanne-grid">${
-        list.map((p, i) => card(p, tubIn ? tubSpec(tubIn, screenSpec(p)) : specFor({ einbau: "nische", door: null, screen: screenSpec(p) }), st.mode === "screen" && i === 0)).join("") ||
+        list.map((p, i) => {
+          // no tub chosen ("nur Aufsatz"): draw the corner it is meant for —
+          // a side-panel Aufsatz at the open end, any other at its wall
+          const panelled = /^S\d+/.test(p.seitenwand || "");
+          const spec = tubIn
+            ? tubSpec(tubIn, screenSpec(p, tubIn))
+            : panelled
+              ? specFor({ einbau: "ecke", wall: p.side === "links" ? "rechts" : "links", door: null, screen: screenSpec(p) })
+              : specFor({ einbau: "ecke", wall: p.side, door: null, screen: screenSpec(p) });
+          return card(p, spec, st.mode === "screen" && i === 0);
+        }).join("") ||
         `<div class="muted">Kein passender Aufsatz.</div>`
       }</div>`;
     } else if (st.mode === "screen") {
@@ -15056,11 +15126,13 @@ function initWannePicker() {
   function renderSummary() {
     const tub = selectedItem("tub"), screen = selectedItem("screen");
     if (!tub && !screen) { summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`; return; }
+    const extras = tub?.requires || [];
     const rows = [
       tub && `<strong>${esc(tub.desc || tub.name)}</strong> — ${eur(tub.netPrice)}`,
+      ...extras.map((z) => `<strong>${esc(z.desc)}</strong> — ${eur(z.netPrice)}`),
       screen && `<strong>${esc(screen.desc || screen.name)}</strong> — ${eur(screen.netPrice)}`,
     ].filter(Boolean);
-    const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
+    const total = (tub?.netPrice || 0) + extras.reduce((n, z) => n + (z.netPrice || 0), 0) + (screen?.netPrice || 0);
     summaryEl.innerHTML = rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
   }
 
@@ -15301,6 +15373,12 @@ function attachDuschwanneToPayload(payload) {
   // Brand-free text for Kostentabelle + PDF (see lib/wanneDescribe.js).
   payload.duschwanne.chosenBathtubDesc = val("chosenBathtubDesc") || null;
   payload.duschwanne.chosenScreenDesc = val("chosenScreenDesc") || null;
+  // required accessories picked with the tub (wanneSets WANNE_ACCESSORIES)
+  try {
+    payload.duschwanne.wanneZubehoer = bPid ? JSON.parse(val("chosenBathtubExtras") || "[]") : [];
+  } catch {
+    payload.duschwanne.wanneZubehoer = [];
+  }
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -16082,7 +16160,7 @@ function escapeHtml(s) {
     }
     return out;
   }
-  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Weiteres"];
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
@@ -17581,6 +17659,7 @@ setHiddenById("chosenScreenName", dw.chosenScreenName);
 setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
 setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
+setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(dw.wanneZubehoer) : "");
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -20271,6 +20350,7 @@ function restoreDuschwanne(dw) {
   setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
 setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
+setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(dw.wanneZubehoer) : "");
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -21617,7 +21697,7 @@ window.setPricingData = function setPricingData(data) {
     document.getElementById("rb-material-discount-section") ||
     elDiscount?.closest(".field") ||
     elDiscount?.closest(".row") ||
-    elDiscount?.parentElement;
+    elDiscount?.parentEl聥ment;
 
   if (!sec || !elDiscount) return;
 

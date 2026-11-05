@@ -6,8 +6,8 @@
 // attribute lives in the free-text `name` + `finish` pair, so it is parsed here,
 // once, server-side. The client only renders what this returns.
 import { Router } from "express";
-import { getVigorDb } from "../external/vigorDb.js";
-import { WANNE_SETS } from "../lib/wanneSets.js";
+import { getVigorDb, pickFreshestNetPrices } from "../external/vigorDb.js";
+import { WANNE_SETS, WANNE_ACCESSORIES } from "../lib/wanneSets.js";
 import { describeWanne } from "../lib/wanneDescribe.js";
 
 const r = Router();
@@ -58,19 +58,33 @@ export function parseWanneDoc(doc) {
   if (!isScreen) {
     // "160x70/80cm" -> 160 long, tapered 70..80 wide
     const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?\s*cm/i);
-    const schuerze = /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
-      ? "2 Schürzen"
-      : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
-        ? "Frontschürze"
-        : null;
+    const schuerze = /m\.\s*3\s*Sch(ü|u)rzen/i.test(finish)
+      ? "3 Schürzen"
+      : /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
+        ? "2 Schürzen"
+        : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
+          ? "Frontschürze"
+          : null;
     return {
       ...base,
-      // Trade logic, not in the Vigor data: apron on front + one end = corner
-      // installation, front apron only = between two walls (niche).
-      einbau: schuerze === "2 Schürzen" ? "Ecke" : schuerze === "Frontschürze" ? "Nische" : null,
-      // Iris "li" with 2 aprons = front + RIGHT end → the wall is at the door
-      // end. Front apron only → between two walls.
+      // Aprons tell the installation: front + both ends = both ends free
+      // (Vorwandmontage), front + one end = corner, front only = niche.
+      einbau:
+        schuerze === "3 Schürzen" ? "Vorwand"
+          : schuerze === "2 Schürzen" ? "Ecke"
+            : schuerze === "Frontschürze" ? "Nische" : null,
+      // Novellini Iris (GC documents, checked 2026-11-05): the entry door is at
+      // the wall end, the head-rest console overhangs the other end (hence the
+      // extra "Nackenstütze für Nischeneinbau" IRISNS in a niche). So:
+      //   3 Schürzen  = front + both ends → no end wall
+      //   2 Schürzen  = front + console end panel → corner, wall at the DOOR end
+      //   Frontschürze = front only → niche (GC: "Vorwandmontage oder in Nische")
+      // Cover photo of the Iris manual: wall at the door, panel at the console end.
       wall: schuerze === "2 Schürzen" ? side : schuerze === "Frontschürze" ? "beide" : null,
+      tubHeightCm: 62,
+      // niche: the standard head-rest console would hit the wall → IRISNS
+      // (name + price are filled from vigor by the catalog route)
+      requires: schuerze === "Frontschürze" ? [{ ...WANNE_ACCESSORIES.IRISNS }] : [],
       // Iris is a tub with an entry door (product photo); the Iris Wannenaufsätze
       // fit it (public/configurator/wanne-rules.js).
       hasDoor: true,
@@ -147,6 +161,28 @@ r.get("/catalog", async (_req, res) => {
       const seen = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() || 0 : 0;
       const prev = best.get(parsed.articleNumber);
       if (!prev || seen >= prev.seen) best.set(parsed.articleNumber, { parsed, seen });
+    }
+
+    // Required accessories (IRISNS …) take name + price from vigor as well. One
+    // missing in vigor stays listed with netPrice null, so the wizard says so
+    // instead of quoting it at 0.
+    const needIds = [
+      ...new Set([...best.values()].flatMap((v) => (v.parsed.requires || []).map((z) => z.articleNumber))),
+    ];
+    const accDocs = needIds.length
+      ? await db
+          .collection("products")
+          .find({ articleNumber: { $in: needIds } }, { projection: { articleNumber: 1, name: 1, netPrice: 1, lastSeenAt: 1 } })
+          .toArray()
+      : [];
+    const accNet = pickFreshestNetPrices(accDocs);
+    const accName = new Map(accDocs.map((d) => [d.articleNumber, d.name]));
+    for (const v of best.values()) {
+      v.parsed.requires = (v.parsed.requires || []).map((z) => ({
+        ...z,
+        name: accName.get(z.articleNumber) || z.articleNumber,
+        netPrice: accNet.get(z.articleNumber) ?? null,
+      }));
     }
 
     const items = [...best.values()]

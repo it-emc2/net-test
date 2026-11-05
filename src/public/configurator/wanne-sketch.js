@@ -92,9 +92,9 @@ export function wanneSketchSVG(spec, { open = 0, small = false } = {}) {
       pane([hx, zf], [hx + dir * F, zf], H, y1, "g");
       swing(hx + dir * F, zf, dir, LW, o * 80, H, y1, "g gd");
       if (sc.panel) {
-        // Iris COMBY: fixed side panel across the tub at the end of the screen
-        const xs = hx + dir * (F + LW);
-        pane([xs, zf], [xs, 4], H, y1, "g");
+        // Iris COMBY: fixed side panel across the open tub end, where a wall is
+        // missing; the front part is hinged on it
+        pane([hx + dir * 3, 4], [hx + dir * 3, zf], H, y1, "g");
       }
     }
     if (!small) text(`Höhe ${sh} cm`, [hx + dir * 45, y1 + 8, zf], "dim");

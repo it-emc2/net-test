@@ -21,14 +21,16 @@ Bathtubs with an entry door (and matching Wannenaufsätze) that are **not** in V
 |---|---|
 | Steinkamp easy entry | 160×75, 170×75, 180×80 · Einbau Ecke links / Ecke rechts (wall at that end, side panel on the other) / Nische / Vorwandmontage (panels front + both ends) · door left or right, **independent of the wall side** · Standard (Viega M5) or Trio · = 48 articles, height 58,5 cm |
 | Steinkamp Aufsatz | 2-teilig faltbar, Anschlag links/rechts, 100×140 cm · Pendeltür 1-teilig 88×140 cm, links/rechts · 469,99 € · hinged on an end wall |
-| Novellini Iris (Vigor) | door tub; 2 Schürzen = corner, wall at the door end; Frontschürze = niche; Aufsatz per side ("für Iris li/re") |
+| Novellini Iris (Vigor) | door tub, 62 cm high (GC Langtext). GC documents: door at the WALL end, head-rest console overhangs the other end. 2 Schürzen (front + console end) = corner with the wall at the door; Frontschürze = niche (needs extra Nackenstütze IRISNS); 3 Schürzen = both ends free; ohne Schürze = tiled in. Vigor holds only 160 cm, Frontschürze + 2 Schürzen; the 12 Iris with 3 Schürzen (160/170/180, with/without Wanneneinlauf) and IRISNS are added to vigor with `scripts/addVigorIrisProducts.mjs --prices <file>` (prices from a local file, never in the repo) |
 | Ottofond Free-Gate | hidden in the wizard: corner/door meaning of "links/rechts" not documented consistently |
 
 ## Rules (wanne-rules.js)
 
-- Steinkamp Aufsatz needs an end wall on its Anschlag side → Ecke: only on the wall side; Nische: either side; Vorwandmontage: none.
-- Steinkamp Aufsatz above the entry door (same end): **blocked** — no manufacturer statement that it works (door cut-out reaches the rim).
-- Iris Aufsatz: same side as the Iris tub. Screens of one family never fit the other.
+- **The Aufsatz always stands at the door end** (Megabad lists the Steinkamp Aufsatz "Anschlag links" with the tub "mit Glastür links"; Iris Aufsätze are sold per tub side).
+- Steinkamp Aufsatz is hinged on an end wall → the door end needs a wall: corner with the wall on the door side, or niche. Door at the free end or Vorwandmontage: no Aufsatz.
+- Iris klappbar (IRISWA14L/R): hinged on the wall at the door end → corner (2 Schürzen) and niche.
+- Iris COMBY with side panel (S70/S75): only with a FREE door end (COMBY manual: back wall only) = Iris 3 Schürzen (in vigor via scripts/addVigorIrisProducts.mjs). Panel width = tub width at the door end: S70 for 160/170, S75 for 180.
+- Screens of one family never fit the other.
 
 ## Prices
 
@@ -42,9 +44,10 @@ Bathtubs with an entry door (and matching Wannenaufsätze) that are **not** in V
 ## Open questions
 
 - Profibad purchase prices and supplier contact.
-- Steinkamp: can an Aufsatz stand above the entry door? Until confirmed, blocked.
 - Ottofond: which corner / door side "links"/"rechts" means.
-- Iris COMBY side panel (S70/S75): exact placement.
+- IRISNS (Nackenstütze für Nischeneinbau) is added automatically with an Iris niche tub; name and price come from vigor. Missing in vigor → the wizard shows a red hint.
+- The scraper should load the 3-Schürzen Iris and IRISNS itself, so prices stay current; until then re-run scripts/addVigorIrisProducts.mjs with fresh GC prices.
+- Iris variants still missing: 170/180 cm with Frontschürze / 2 Schürzen, ohne Schürze, klappbar 150 cm (IRISWAL/R), whirlpool (IRISP…) and WRA versions.
 
 ## All sets and links (generated with `node scripts/checkWanneSets.js --md`)
 

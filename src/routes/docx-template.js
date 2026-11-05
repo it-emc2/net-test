@@ -1372,6 +1372,7 @@ async function mapData(body = {}, computed = {}) {
     "Duschwanne",
     "Duschabtrennung",
     "Duschvorhang",
+    "Badewanne",
     "Weiteres",
   ];
   // HL's fallback bucket (Speditionskosten and any other uncategorized line)
