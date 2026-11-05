@@ -14769,7 +14769,7 @@ function initSmartTraySearch() {
 }
 /* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
    A short wizard answered with drawings: Einbau (Ecke/Nische/Vorwand) →
-   Seite → Ausführung (mit Tür / mit Glasaufsatz); then the matching products,
+   Tür- und Wandseite → Wannenaufsatz (ohne / mit); then the matching products,
    sized by chips. The catalog (/api/bathtubs/catalog, ~50 articles) is fetched
    once and filtered in memory. Drawings come from configurator/wanne-sketch.js
    (same look as the Duschabtrennung); the door/screen opens on hover or tap.
@@ -14794,9 +14794,10 @@ function initWannePicker() {
     ["Vorwand", "Wanne steht vor einer Vorwand"],
   ];
   const SIDES = ["links", "rechts"];
+  // Every tub has an entry door; the only choice left is the glass screen.
   const MODES = [
-    ["door", "Mit Einstiegstür", "Komplett-Set, die Tür sitzt in der Wannenfront"],
-    ["screen", "Mit Glasaufsatz", "Wanne zum Duschen, den Aufsatz wählen Sie danach"],
+    ["plain", "Ohne Aufsatz", "Nur die Wanne mit Einstiegstür"],
+    ["screen", "Mit Glasaufsatz", "Glaswand auf dem Wannenrand, zum Duschen"],
   ];
   const ORDER = { normal: ["einbau", "side", "mode"], only: ["mode", "side"] };
   const FALLBACK_IMG = "./assets/vk-brutto.jpg";
@@ -14831,7 +14832,7 @@ function initWannePicker() {
   const tubOk = (p, s, skip = []) =>
     (skip.includes("einbau") || !s.einbau || !p.einbau || p.einbau === s.einbau) &&
     (skip.includes("side") || !s.side || p.side === s.side) &&
-    (skip.includes("mode") || !s.mode || s.mode === "only" || (s.mode === "door" ? !!p.hasDoor : !p.hasDoor)) &&
+    (skip.includes("mode") || s.mode !== "screen" || !!p.acceptsScreen) &&
     (skip.includes("size") || !s.size || sizeOf(p) === s.size) &&
     (skip.includes("ablauf") || !s.ablauf || !p.ablauf || p.ablauf === s.ablauf);
   const count = (over) => tubs().filter((p) => tubOk(p, { ...st, ...over, size: null, ablauf: null })).length;
@@ -14861,24 +14862,24 @@ function initWannePicker() {
   // on the matching answers so the saved choice is visible, not an empty start.
   function syncFromSelection() {
     const t = selectedItem("tub"), s = selectedItem("screen");
-    if (t) st = { mode: t.hasDoor ? "door" : "screen", einbau: t.einbau || "Ecke", side: t.side };
+    if (t) st = { mode: s && t.acceptsScreen ? "screen" : "plain", einbau: t.einbau || "Ecke", side: t.side };
     else if (s) st = { mode: "only", side: s.side };
     else return false;
     return true;
   }
 
   // ---- drawings -----------------------------------------------------------
-  const specFor = (o) => ({ einbau: "ecke", side: "links", mode: "door", L: 170, Wd: 75, H: 58, ...o });
+  const specFor = (o) => ({ einbau: "ecke", side: "links", screen: false, L: 170, Wd: 75, H: 58, ...o });
   const einbauKey = (v) => String(v || "Ecke").toLowerCase();
   function stageSpec() {
     const t = selectedItem("tub");
     const first = t || (ready() && st.mode !== "only" ? tubs().find((p) => tubOk(p, st)) : null);
     const sc = selectedItem("screen");
-    const mode = st.mode === "only" ? "screen" : st.mode === "screen" ? (sc ? "screen" : "plain") : "door";
     return specFor({
       einbau: einbauKey(st.einbau || first?.einbau),
       side: st.side || "links",
-      mode,
+      // screen step chosen: draw it until a tub without a picked screen says otherwise
+      screen: st.mode === "only" || (st.mode === "screen" && (!t || !!sc)),
       L: first?.lengthCm || 170,
       Wd: first?.widthCm || 75,
       H: first?.tubHeightCm || 58,
@@ -14916,19 +14917,20 @@ function initWannePicker() {
     if (step === "einbau") {
       q = "Wie wird die Wanne eingebaut?";
       tiles = EINBAU.map(([v, sub]) =>
-        tile(`data-set="einbau:${v}"`, v, sub, specFor({ einbau: v.toLowerCase(), mode: "door", side: st.side || "links" }), !count({ einbau: v }))).join("");
+        tile(`data-set="einbau:${v}"`, v, sub, specFor({ einbau: v.toLowerCase(), side: st.side || "links" }), !count({ einbau: v }))).join("");
       foot = `<div class="wz-chips"><button type="button" class="wz-link" data-act="only">Nur einen Wannenaufsatz wählen (ohne Wanne)</button></div>`;
     } else if (step === "side") {
-      q = st.mode === "only" ? "Auf welcher Seite wird der Aufsatz angeschlagen?" : "Auf welcher Seite ist der Einstieg?";
+      q = st.mode === "only" ? "Auf welcher Seite wird der Aufsatz angeschlagen?" : "Auf welcher Seite sind Tür und Wand?";
       tiles = SIDES.map((v) =>
-        tile(`data-set="side:${v}"`, v[0].toUpperCase() + v.slice(1), "Blick von vorn auf die Wanne",
-          specFor({ einbau: einbauKey(st.einbau), side: v, mode: st.mode === "only" ? "screen" : "door" }),
+        tile(`data-set="side:${v}"`, v[0].toUpperCase() + v.slice(1),
+          st.mode === "only" ? "Blick von vorn auf die Wanne" : "Tür an der Wandseite, Blick von vorn",
+          specFor({ einbau: einbauKey(st.einbau), side: v, screen: st.mode === "only" }),
           st.mode === "only" ? !screens().some((p) => p.side === v) : !count({ side: v }))).join("");
     } else if (step === "mode") {
-      q = "Welche Ausführung?";
+      q = "Mit Wannenaufsatz?";
       tiles = MODES.map(([v, title, sub]) =>
         tile(`data-set="mode:${v}"`, title, sub,
-          specFor({ einbau: einbauKey(st.einbau), side: st.side, mode: v === "screen" ? "screen" : "door" }), !count({ mode: v }))).join("");
+          specFor({ einbau: einbauKey(st.einbau), side: st.side, screen: v === "screen" }), !count({ mode: v }))).join("");
     }
     stepEl.innerHTML = `<div class="wz-q">${esc(q)}</div><div class="wz-tiles">${tiles}</div>${foot}`;
     mountSketches(stepEl);
@@ -14937,8 +14939,8 @@ function initWannePicker() {
   function renderCrumbs() {
     const label = {
       einbau: () => st.einbau,
-      side: () => (st.mode === "only" ? `Anschlag ${st.side}` : `Einstieg ${st.side}`),
-      mode: () => (st.mode === "only" ? "Nur Aufsatz" : st.mode === "door" ? "Mit Tür" : "Mit Glasaufsatz"),
+      side: () => (st.mode === "only" ? `Anschlag ${st.side}` : `Tür + Wand ${st.side}`),
+      mode: () => (st.mode === "only" ? "Nur Aufsatz" : st.mode === "screen" ? "Mit Glasaufsatz" : "Ohne Aufsatz"),
     };
     const done = keys().filter((k) => st[k]);
     crumbsEl.innerHTML = done.map((k) => `<button type="button" class="wz-crumb" data-crumb="${k}" title="Ändern">${esc(label[k]())}</button>`).join("") +
@@ -14969,7 +14971,7 @@ function initWannePicker() {
     if (st.mode !== "only") {
       const base = tubs().filter((p) => tubOk(p, st, ["size", "ablauf"]));
       const sizes = [...new Set(base.map(sizeOf))];
-      const ablaufs = [...new Set(base.filter((p) => p.hasDoor && p.ablauf).map((p) => p.ablauf))];
+      const ablaufs = [...new Set(base.filter((p) => p.ablauf).map((p) => p.ablauf))];
       const list = base.filter((p) => tubOk(p, st)).sort((a, b) => a.netPrice - b.netPrice);
       html += chipRow("Maße", "size", sizes.map((v) => [v, v]));
       if (ablaufs.length > 1) {
@@ -14980,13 +14982,13 @@ function initWannePicker() {
       html += `<div class="wz-h">${list.length} passende ${list.length === 1 ? "Wanne" : "Wannen"}</div>`;
       html += `<div class="wanne-grid">${
         list.map((p) => card(p, specFor({
-          einbau: einbauKey(p.einbau || st.einbau), side: p.side, mode: p.hasDoor ? "door" : "plain",
+          einbau: einbauKey(p.einbau || st.einbau), side: p.side,
           L: p.lengthCm, Wd: p.widthCm, H: p.tubHeightCm || 58,
         }), false)).join("") || `<div class="muted">Keine passende Wanne. Ändern Sie oben eine Antwort.</div>`
       }</div>`;
     }
     const tub = selectedItem("tub");
-    if (st.mode === "only" || (st.mode === "screen" && tub && !tub.hasDoor)) {
+    if (st.mode === "only" || (st.mode === "screen" && tub?.acceptsScreen)) {
       const side = tub?.side || st.side;
       const base = screens().filter((p) => p.side === side);
       const heights = [...new Set(base.map((p) => p.heightCm).filter(Boolean))].sort();
@@ -14999,7 +15001,7 @@ function initWannePicker() {
       html += chipRow("Seitenwand", "sw", walls.map((v) => [v, v === "ohne" ? "ohne" : `${v.slice(1)} cm breit`]));
       html += `<div class="wanne-grid">${
         list.map((p, i) => card(p, specFor({
-          einbau: einbauKey(st.einbau), side: p.side, mode: "screen", screenH: p.heightCm,
+          einbau: einbauKey(st.einbau), side: p.side, screen: true, screenH: p.heightCm,
         }), st.mode === "screen" && i === 0)).join("") || `<div class="muted">Kein passender Aufsatz.</div>`
       }</div>`;
     }

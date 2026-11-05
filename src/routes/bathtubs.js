@@ -68,6 +68,10 @@ export function parseWanneDoc(doc) {
       // Trade logic, not in the Vigor data: apron on front + one end = corner
       // installation, front apron only = between two walls (niche).
       einbau: schuerze === "2 Schürzen" ? "Ecke" : schuerze === "Frontschürze" ? "Nische" : null,
+      // Iris is a tub with an entry door (product photo) and takes the Iris
+      // Wannenaufsätze on its rim.
+      hasDoor: true,
+      acceptsScreen: true,
       lengthCm: num(m?.[1]),
       widthCm: num(m?.[2]),
       widthMaxCm: num(m?.[3]) ?? num(m?.[2]),

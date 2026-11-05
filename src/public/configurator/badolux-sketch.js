@@ -158,7 +158,7 @@ function arcFloor(items, c, r, from, sweep) {
   for (let i = 0; i < pts.length - 1; i++) items.push({ line: [pts[i], pts[i + 1]], cls: "sw" });
 }
 
-export function render(items, small) {
+function render(items, small) {
   const all = items.flatMap((it) => it.pts || it.line || [it.at]).map((p) => proj(...p));
   const minX = Math.min(...all.map((p) => p[0])), maxX = Math.max(...all.map((p) => p[0]));
   const minY = Math.min(...all.map((p) => p[1])), maxY = Math.max(...all.map((p) => p[1]));
