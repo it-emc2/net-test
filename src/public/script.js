@@ -14782,312 +14782,474 @@ function initSmartTraySearch() {
   window.__smartTray = { fetchAndRender };
 }
 /* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
-   Badewanne + Wannenaufsatz, sourced from the vigor catalog through
-   /api/bathtubs/catalog. The catalog is 18 articles, so it is fetched once and
-   filtered in memory — no per-keystroke request, no debounce, no abort races.
-   Attributes are parsed server-side (routes/bathtubs.js); this only renders. */
+   A short wizard answered with drawings:
+     Einbau (Ecke / Nische / beide Enden frei) → Wandseite (only Ecke) →
+     Türseite → Wannenaufsatz (ohne / mit) → matching products, sized by chips.
+   Wall side and door side are independent (Steinkamp sells every combination).
+   Which Aufsatz fits which tub lives in configurator/wanne-rules.js; anything
+   the manufacturers don't back is greyed out with the reason, so nothing gets
+   ordered that cannot be installed. The catalog (/api/bathtubs/catalog) is
+   fetched once and filtered in memory. Drawings: configurator/wanne-sketch.js.
+   Hidden inputs keep their ids and the payload.duschwanne.* path, so pricing,
+   restore and saved offers are unchanged. */
 function initWannePicker() {
   const panel = document.getElementById("menu_WANNE");
-  const grid = document.getElementById("wanneGrid");
-  const filtersEl = document.getElementById("wanneFilters");
-  const countEl = document.getElementById("wanneCount");
+  const sketchEl = document.getElementById("wanneSketch");
+  const crumbsEl = document.getElementById("wanneCrumbs");
+  const stepEl = document.getElementById("wanneStep");
+  const resultsEl = document.getElementById("wanneResults");
   const summaryEl = document.getElementById("wanneSummary");
-  if (!panel || !grid || !filtersEl) return;
+  if (!panel || !stepEl || !resultsEl) return;
 
-  // Hidden inputs keep their original ids and the payload.duschwanne.* path, so
-  // pricing, restore and saved offers keep working after the move to this tab.
   const FIELDS = {
-    tub: {
-      id: "chosenBathtubProductId",
-      name: "chosenBathtubName",
-      price: "chosenBathtubPrice",
-      size: "bathtubSize",
-    },
-    screen: {
-      id: "chosenScreenProductId",
-      name: "chosenScreenName",
-      price: "chosenScreenPrice",
-    },
+    tub: { id: "chosenBathtubProductId", name: "chosenBathtubName", price: "chosenBathtubPrice", desc: "chosenBathtubDesc", size: "bathtubSize", extras: "chosenBathtubExtras" },
+    screen: { id: "chosenScreenProductId", name: "chosenScreenName", price: "chosenScreenPrice", desc: "chosenScreenDesc" },
   };
-
-  // [key, label, one-line help]. Help is shown under the filter group so nobody
-  // has to guess what "Einbau" or "Trio" means.
-  const FACETS = {
-    tub: [
-      ["brand", "Hersteller", ""],
-      ["lengthCm", "Länge", ""],
-      ["side", "Türseite", "Blick von vorn auf die Wanne: auf welcher Seite die Tür bzw. der Einstieg sitzt."],
-      ["einbau", "Einbauart", "Wie die Wanne im Bad eingebaut wird. Bitte mit der Einbausituation vor Ort abgleichen."],
-      ["ablauf", "Ablaufgarnitur", "Das Bauteil im Wannenboden, über das das Wasser abläuft."],
-      ["schuerze", "Wannenschürze", "Die Verkleidung der Wanne an der Seite, die man im Raum sieht."],
-      ["zulauf", "Wassereinlauf", "Wo das Wasser in die Wanne läuft."],
-    ],
-    screen: [
-      ["side", "Seite", "Auf welcher Seite der Wanne der Aufsatz angeschlagen wird (Blick von vorn)."],
-      ["heightCm", "Höhe", ""],
-      ["seitenwand", "Seitenwand", "S70 = mit 70 cm breiter fester Seitenwand, ohne = nur das Glasteil."],
-    ],
-  };
-
-  // Plain-German meaning of single values (shown only for values that exist).
-  // ponytail: Einbau/Vorwand/Nische/Trio wording is trade-standard, not from a
-  // Steinkamp data sheet — check against it before relying on it.
-  const VALUE_HELP = {
-    einbau: {
-      Einbau: "Standard: Wanne wird in den Baukörper eingebaut, vorn mit Verkleidung.",
-      Vorwandmontage: "Wanne steht vor einer Vorwand bzw. Installationswand. Aufpreis ca. 30–130 €.",
-      Nische: "Verkleidung für eine Nische zwischen zwei Wänden. Nur bei 180 × 80 cm.",
-    },
-    ablauf: {
-      Standard: "Normale Ablaufgarnitur.",
-      Trio: "Ablauf, Überlauf und Wassereinlauf in einem Bauteil. Aufpreis ca. 230–270 €.",
-      "inkl. Ablaufgarnitur": "Set mit zusätzlicher Ablaufgarnitur (ca. 130 € mehr). Was genau enthalten ist, klärt der Händler.",
-    },
-    schuerze: {
-      "2 Schürzen": "Verkleidung vorn und an einer Seite.",
-      Frontschürze: "Verkleidung nur vorn.",
-    },
-    zulauf: {
-      Wanneneinlauf: "Das Wasser läuft direkt in der Wanne ein.",
-      Ablauf: "Nur ein Ablauf; das Wasser kommt aus der Armatur an der Wand.",
-    },
-  };
-
-  const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+  const EINBAU = [
+    ["Ecke", "Ecke", "Wand hinten und an einem Ende"],
+    ["Nische", "Nische", "Wand hinten und an beiden Enden"],
+    ["Vorwand", "Beide Enden frei", "Nur hinten eine Wand, z. B. mittig an der Wand"],
+  ];
+  const SIDES = ["links", "rechts"];
+  const cap = (v) => v[0].toUpperCase() + v.slice(1);
   const FALLBACK_IMG = "./assets/vk-brutto.jpg";
 
-  // Product images come from the scraper's CDN. If one 404s or the CDN is
-  // unreachable, swap in the local placeholder rather than showing a broken
-  // image. "error" does not bubble, hence the capturing listener; an inline
-  // onerror would need 'unsafe-inline' in the CSP script-src.
-  grid.addEventListener(
-    "error",
-    (e) => {
-      const img = e.target;
-      if (img?.tagName !== "IMG" || img.dataset.fallback) return;
-      img.dataset.fallback = "1";
-      img.src = FALLBACK_IMG;
-    },
-    true,
-  );
-
   let items = [];
-  let type = "tub";
-  let filters = {};
+  let st = {}; // einbau, wall, side (Tür), mode (plain|screen|only), size, ablauf, sh, sw
+  let SK = null; // wanne-sketch module (drawings), optional
+  let R = null; // wanne-rules module (compatibility), required for the Aufsatz step
+  let stage = null;
+  let specs = [];
+  let own = false; // true while our own code fires the hidden inputs' change event
 
   const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
-    );
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
-  const showVal = (k, v) =>
-    k === "heightCm" || k === "lengthCm"
-      ? `${v} cm`
-      : k === "side" && type === "tub"
-        ? `Tür ${v}`
-        : String(v);
-  // Card pills carry the facet name too, so "Trio" alone is not left unexplained.
-  const pillVal = (k, v) =>
-    k === "ablauf" && ["Standard", "Trio"].includes(v)
-      ? `${v}-Ablauf`
-      : k === "ablauf"
-        ? v
-        : showVal(k, v);
-  const ofType = (t) => items.filter((p) => p.type === (t || type));
-
-  // `skip` lets a facet count its own options against the OTHER active filters,
-  // so switching between two options of one facet never shows a zero.
-  const matches = (p, skip) =>
-    Object.entries(filters).every(
-      ([k, v]) => k === skip || v == null || String(p[k]) === String(v),
-    );
+  // same notation as the card headline: tapered tubs show both widths
+  const sizeOf = (p) =>
+    `${p.lengthCm} × ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`;
+  const inWizard = (p) => p.wizard !== false;
+  const tubs = () => items.filter((p) => p.type === "tub" && inWizard(p));
+  const screens = () => items.filter((p) => p.type === "screen" && inWizard(p));
+  const fits = (t, s) => !!R && R.screenFit(t, s).ok;
+  const takesScreen = (t) => !!R && R.acceptsScreen(t, screens());
 
   const setHidden = (id, val) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.value = val == null ? "" : String(val);
-    el.dispatchEvent(new Event("change", { bubbles: true }));
+    own = true;
+    try { el.dispatchEvent(new Event("change", { bubbles: true })); } finally { own = false; }
   };
-
-  const selectedId = (t) =>
-    (document.getElementById(FIELDS[t].id)?.value || "").trim();
-  const selectedItem = (t) =>
-    items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
-
+  const selectedId = (t) => (document.getElementById(FIELDS[t].id)?.value || "").trim();
+  const selectedItem = (t) => items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
   const tubSizeLabel = (p) =>
-    p.lengthCm && p.widthCm
-      ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`
-      : "";
+    p.lengthCm && p.widthCm ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm` : "";
 
-  // Once a tub is picked, the sensible screen is the cheapest one hinged on the
-  // same side — every Iris tub is 160x70/80, so size no longer discriminates.
-  function recommendedScreenId() {
-    const tub = selectedItem("tub");
-    if (!tub?.side) return null;
-    const same = ofType("screen")
-      .filter((p) => p.side === tub.side)
-      .sort((a, b) => a.netPrice - b.netPrice);
-    return same[0]?.articleNumber || null;
+  const tubOk = (p, s, skip = []) =>
+    (skip.includes("einbau") || !s.einbau || p.einbau === s.einbau) &&
+    (skip.includes("wall") || !s.wall || p.wall === s.wall) &&
+    (skip.includes("side") || !s.side || p.side === s.side) &&
+    (skip.includes("mode") || s.mode !== "screen" || takesScreen(p)) &&
+    (skip.includes("size") || !s.size || sizeOf(p) === s.size) &&
+    (skip.includes("ablauf") || !s.ablauf || !p.ablauf || p.ablauf === s.ablauf) &&
+    (skip.includes("ablauf") || !s.zulauf || !p.zulauf || p.zulauf === s.zulauf);
+  const count = (over) => tubs().filter((p) => tubOk(p, { ...st, ...over, size: null, ablauf: null, zulauf: null })).length;
+
+  const keys = () =>
+    st.mode === "only" ? ["mode", "side"] : ["einbau", ...(st.einbau === "Ecke" ? ["wall"] : []), "side", "mode"];
+  const clearFrom = (k) => {
+    const ks = keys();
+    ks.slice(ks.indexOf(k)).forEach((x) => delete st[x]);
+    if (k === "einbau") delete st.wall;
+    delete st.size; delete st.ablauf; delete st.zulauf; delete st.sh; delete st.sw;
+  };
+  const nextStep = () => keys().find((k) => !st[k]);
+  const ready = () => !nextStep();
+
+  function setItem(type, p) {
+    const f = FIELDS[type];
+    setHidden(f.id, p ? p.articleNumber : "");
+    setHidden(f.name, p ? p.name : "");
+    setHidden(f.price, p ? p.netPrice : "");
+    setHidden(f.desc, p ? p.desc || "" : "");
+    if (f.size) setHidden(f.size, p ? tubSizeLabel(p) : "");
+    // required accessories (e.g. IRISNS for an Iris niche) ride with the tub
+    if (f.extras) setHidden(f.extras, p?.requires?.length ? JSON.stringify(p.requires) : "");
   }
-
   function applySelection(p) {
-    const f = FIELDS[p.type];
-    const isSame = selectedId(p.type) === p.articleNumber;
-    setHidden(f.id, isSame ? "" : p.articleNumber);
-    setHidden(f.name, isSame ? "" : p.name);
-    setHidden(f.price, isSame ? "" : p.netPrice);
-    if (f.size) setHidden(f.size, isSame ? "" : tubSizeLabel(p));
+    const same = selectedId(p.type) === p.articleNumber;
+    setItem(p.type, same ? null : p);
+    // a screen that no longer fits the newly chosen tub must not stay in the offer
+    const tub = selectedItem("tub"), sc = selectedItem("screen");
+    if (p.type === "tub" && tub && sc && !fits(tub, sc)) setItem("screen", null);
     render();
     window.updatePricing?.();
   }
 
-  function renderFilters() {
-    const reco = recommendedScreenId();
-    filtersEl.innerHTML = FACETS[type]
-      .map(([key, label, help]) => {
-        const values = [
-          ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
-        ].sort();
-        if (values.length < 2) return "";
-        const chips = values
-          .map((v) => {
-            const n = ofType().filter(
-              (p) => String(p[key]) === String(v) && matches(p, key),
-            ).length;
-            return `<button type="button" class="wanne-chip" data-fkey="${esc(key)}" data-fval="${esc(v)}"
-              aria-pressed="${String(filters[key]) === String(v)}" ${n ? "" : "disabled"}>${esc(
-                showVal(key, v),
-              )} <span class="n">${n}</span></button>`;
-          })
-          .join("");
-        const defs = values
-          .filter((v) => VALUE_HELP[key]?.[v])
-          .map((v) => `<div><strong>${esc(v)}:</strong> ${esc(VALUE_HELP[key][v])}</div>`)
-          .join("");
-        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div>${
-          help ? `<div class="wanne-fhelp">${esc(help)}</div>` : ""
-        }<div class="wanne-chips">${chips}</div>${defs ? `<div class="wanne-fdefs">${defs}</div>` : ""}</div>`;
-      })
-      .join("");
-    return reco;
+  // A restored offer (or an older pick) fills the hidden inputs: open the wizard
+  // on the matching answers so the saved choice is visible, not an empty start.
+  function syncFromSelection() {
+    const t = selectedItem("tub"), s = selectedItem("screen");
+    if (t && inWizard(t))
+      st = { einbau: t.einbau, ...(t.einbau === "Ecke" ? { wall: t.wall } : {}), side: t.side, mode: s ? "screen" : "plain" };
+    else if (!t && s) st = { mode: "only", side: s.side };
+    else return false;
+    return true;
   }
 
-  function render() {
-    panel.querySelectorAll(".wanne-seg button").forEach((b) => {
-      b.setAttribute("aria-pressed", String(b.dataset.wtype === type));
+  // ---- drawings -----------------------------------------------------------
+  const specFor = (o) => ({ einbau: "ecke", wall: "links", door: "links", screen: null, L: 170, Wd: 75, H: 58, ...o });
+  const lc = (v) => (v ? String(v).toLowerCase() : v);
+  // `tub` decides the end a side-panel Aufsatz stands at (the open one)
+  const screenSpec = (p, tub) =>
+    p ? {
+      side: R && tub ? R.screenEnd(tub, p) : p.side,
+      kind: p.screenKind || (p.klappbar ? "klapp" : "comby"),
+      h: p.heightCm,
+      panel: /^S\d+/.test(p.seitenwand || ""),
+    } : null;
+  // the Aufsatz always stands at the door end; null where no tub could take one
+  // with a wall-hinged Aufsatz (used for the drawings before a product is picked)
+  const hingeFor = (einbau, wall, door) =>
+    einbau === "Ecke" ? (wall === door ? door : null) : einbau === "Nische" ? door : null;
+  const previewScreen = (einbau, wall, door, h = 140) =>
+    !door ? null
+      : hingeFor(einbau, wall, door) ? { side: door, kind: "falt", h }
+        : einbau === "Ecke" || einbau === "Vorwand" ? { side: door, kind: "comby", h, panel: true }
+          : null;
+
+  function stageSpec() {
+    const t = selectedItem("tub");
+    const first = t && inWizard(t) ? t : ready() && st.mode !== "only" ? tubs().find((p) => tubOk(p, st)) : null;
+    const sc = selectedItem("screen");
+    const einbau = st.einbau || first?.einbau || "Ecke";
+    const wall = st.wall || first?.wall || "links";
+    const door = st.mode === "only" ? null : st.side || first?.side || (st.einbau ? null : "links");
+    let screen = null;
+    if (sc) screen = screenSpec(sc, first || { einbau, wall });
+    else if (st.mode === "screen" || st.mode === "only") {
+      screen = st.mode === "only"
+        ? { side: st.side || "links", kind: "falt", h: Number(st.sh) || 140 }
+        : previewScreen(einbau, wall, door, Number(st.sh) || 140);
+    }
+    return specFor({
+      einbau: lc(einbau), wall: einbau === "Ecke" ? wall : null, door, screen,
+      L: first?.lengthCm || 170, Wd: first?.widthCm || 75, H: first?.tubHeightCm || 58,
+      label: first ? `${sizeOf(first)}${first.tubHeightCm ? `, ${String(first.tubHeightCm).replace(".", ",")} cm hoch` : ""}` : " ",
     });
+  }
+  const sk = (spec) => {
+    specs.push(spec);
+    return `<div class="wz-sk" data-sk="${specs.length - 1}"></div>`;
+  };
+  function mountSketches(root) {
+    if (!SK) return;
+    root.querySelectorAll("[data-sk]").forEach((el) => {
+      const spec = specs[Number(el.dataset.sk)];
+      if (spec) SK.attachWanneSketch(el, () => spec, { small: true, host: el.closest("button") || el });
+    });
+  }
+  function drawStage() {
+    if (!SK || !sketchEl) return;
+    if (!stage) stage = SK.attachWanneSketch(sketchEl, () => stageSpec());
+    stage.redraw();
+  }
 
-    const reco = renderFilters();
-    const all = ofType();
-    const list = all
-      .filter((p) => matches(p))
-      .sort(
-        (a, b) =>
-          (b.articleNumber === reco ? 1 : 0) - (a.articleNumber === reco ? 1 : 0) ||
-          a.netPrice - b.netPrice,
-      );
+  // ---- steps ----------------------------------------------------------------
+  const tile = (attr, title, sub, spec, disabled) =>
+    `<button type="button" class="wz-tile" ${attr} ${disabled ? "disabled" : ""}>${
+      SK ? sk(spec) : ""
+    }<b>${esc(title)}</b><small>${esc(sub)}</small></button>`;
 
-    if (countEl) countEl.textContent = `${list.length} von ${all.length}`;
+  function renderStep() {
+    const step = nextStep();
+    if (!step) { stepEl.innerHTML = ""; return; }
+    const E = st.einbau, ecke = E === "Ecke";
+    let q = "", tiles = "", foot = "";
+    if (step === "einbau") {
+      q = "Wie steht die Wanne im Bad?";
+      tiles = EINBAU.map(([v, title, sub]) =>
+        tile(`data-set="einbau:${v}"`, title, sub, specFor({ einbau: lc(v), wall: "links", door: null }), !count({ einbau: v }))).join("");
+      foot = `<div class="wz-chips"><button type="button" class="wz-link" data-act="only">Nur einen Wannenaufsatz wählen (ohne Wanne)</button></div>`;
+    } else if (step === "wall") {
+      q = "Auf welcher Seite ist die Wand?";
+      tiles = SIDES.map((v) =>
+        tile(`data-set="wall:${v}"`, `Wand ${v}`, "Blick von vorn auf die Wanne", specFor({ einbau: "ecke", wall: v, door: null }), !count({ wall: v }))).join("");
+    } else if (step === "side") {
+      if (st.mode === "only") {
+        q = "Auf welcher Seite wird der Aufsatz angeschlagen?";
+        tiles = SIDES.map((v) =>
+          tile(`data-set="side:${v}"`, `Anschlag ${v}`, "Auf der Türseite der vorhandenen Wanne",
+            specFor({ einbau: "nische", door: null, screen: { side: v, kind: "falt", h: 140 } }), !screens().some((p) => p.side === v))).join("");
+      } else {
+        q = "Auf welcher Seite ist die Tür?";
+        tiles = SIDES.map((v) => {
+          const sub = ecke ? (v === st.wall ? "An der Wandseite" : "Am freien Ende") : "Blick von vorn auf die Wanne";
+          return tile(`data-set="side:${v}"`, `Tür ${v}`, sub, specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: v }), !count({ side: v }));
+        }).join("");
+      }
+    } else if (step === "mode") {
+      q = "Mit Wannenaufsatz?";
+      const n = count({ mode: "screen" });
+      tiles =
+        tile(`data-set="mode:plain"`, "Ohne Aufsatz", "Nur die Wanne mit Einstiegstür",
+          specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: st.side }), !count({ mode: "plain" })) +
+        tile(`data-set="mode:screen"`, "Mit Glasaufsatz",
+          n ? "Glaswand auf dem Wannenrand, zum Duschen" : R ? R.noScreenReason(st) : "Regeln werden geladen …",
+          specFor({ einbau: lc(E), wall: ecke ? st.wall : null, door: st.side, screen: n ? previewScreen(E, st.wall, st.side) : null }), !n);
+    }
+    stepEl.innerHTML = `<div class="wz-q">${esc(q)}</div><div class="wz-tiles">${tiles}</div>${foot}`;
+    mountSketches(stepEl);
+  }
 
-    const chosen = selectedId(type);
-    grid.innerHTML =
-      list
-        .map((p) => {
-          const pills = FACETS[type]
-            .map(([k]) =>
-              p[k] == null || p[k] === ""
-                ? ""
-                : `<span class="wanne-pill">${esc(pillVal(k, p[k]))}</span>`,
-            )
-            .join("");
-          // alt="" on purpose: the name sits right beside it, so the image is
-          // decorative and a screen reader would otherwise read it twice.
-          // No loading="lazy": the grid renders while the panel is still
-          // hidden, so lazy images never enter the viewport and never load.
-          return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
-            aria-pressed="${chosen === p.articleNumber}">
-            <span class="wanne-thumb"><img src="${esc(p.image || FALLBACK_IMG)}" alt="" /></span>
-            <span class="wanne-body">
-              ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
-              <span class="wanne-art">${esc(p.articleNumber)}</span>
-              <div class="wanne-name">${esc(p.name)}</div>
-              <div class="wanne-pills">${pills}</div>
-              <div class="wanne-finish">${esc(p.finish)}</div>
-              <div class="wanne-price">${eur(p.netPrice)}</div>
-            </span>
-          </button>`;
-        })
-        .join("") ||
-      `<div class="muted">Keine Treffer. Filter lockern.</div>`;
+  function renderCrumbs() {
+    const label = {
+      einbau: () => EINBAU.find(([v]) => v === st.einbau)?.[1] || st.einbau,
+      wall: () => `Wand ${st.wall}`,
+      side: () => (st.mode === "only" ? `Anschlag ${st.side}` : `Tür ${st.side}`),
+      mode: () => (st.mode === "only" ? "Nur Aufsatz" : st.mode === "screen" ? "Mit Glasaufsatz" : "Ohne Aufsatz"),
+    };
+    const done = keys().filter((k) => st[k]);
+    crumbsEl.innerHTML = done.map((k) => `<button type="button" class="wz-crumb" data-crumb="${k}" title="Ändern">${esc(label[k]())}</button>`).join("") +
+      (done.length ? `<button type="button" class="wz-link" data-act="reset">Neu beginnen</button>` : "");
+  }
 
-    renderSummary();
+  // ---- results --------------------------------------------------------------
+  const chipRow = (label, key, values) => {
+    if (values.length < 2) return "";
+    return `<div class="wz-chips"><span class="lbl">${esc(label)}</span>${values
+      .map(([v, txt]) => `<button type="button" class="wanne-chip" data-chip="${key}" data-val="${esc(v)}" aria-pressed="${String(st[key]) === String(v)}">${esc(txt)}</button>`)
+      .join("")}</div>`;
+  };
+  // Card = what tells variants apart at a glance: size as the headline, the
+  // deciding features as pills, the offer text small underneath.
+  const de = (n) => String(n).replace(".", ",");
+  const MOUNT_SHORT = { Ecke: "Ecke", Nische: "Nische", Vorwand: "Beide Enden frei" };
+  function cardHead(p) {
+    if (p.type === "screen") {
+      const kind =
+        p.screenKind === "pendel" ? "Pendeltür" : p.screenKind === "falt" ? "Faltwand 2-teilig"
+          : /^S\d+/.test(p.seitenwand || "") ? "Faltwand mit Seitenwand" : "Faltwand klappbar";
+      return {
+        title: kind,
+        pills: [
+          `Anschlag ${p.side}`,
+          p.heightCm && `${p.heightCm} cm hoch`,
+          /^S\d+/.test(p.seitenwand || "") && `Seitenwand ${p.seitenwand.slice(1)} cm`,
+          p.screenFamily === "steinkamp" && p.widthCm && `${p.widthCm} cm breit`,
+        ],
+      };
+    }
+    const w = p.widthMaxCm && p.widthMaxCm !== p.widthCm ? `${p.widthCm}/${p.widthMaxCm}` : p.widthCm;
+    return {
+      title: `${p.lengthCm} × ${w} cm`,
+      pills: [
+        `Tür ${p.side}`,
+        p.einbau === "Ecke" && p.wall ? `Ecke, Wand ${p.wall}` : MOUNT_SHORT[p.einbau],
+        p.tubHeightCm && `${de(p.tubHeightCm)} cm hoch`,
+        p.ablauf === "Trio" && "Trio-Ablauf",
+        p.zulauf === "Wanneneinlauf" && "Wanneneinlauf",
+      ],
+    };
+  }
+  const card = (p, spec, reco) => {
+    const chosen = selectedId(p.type) === p.articleNumber;
+    const thumb = SK ? sk(spec) : `<img src="${esc(p.image || FALLBACK_IMG)}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:contain" />`;
+    const head = cardHead(p);
+    const extras = p.requires || [];
+    const total = p.netPrice + extras.reduce((n, z) => n + (z.netPrice || 0), 0);
+    return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}" aria-pressed="${chosen}">
+      <span class="wanne-thumb">${thumb}</span>
+      <span class="wanne-body">${reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+        <span class="wanne-art">${esc(p.articleNumber)}</span>
+        <div class="wanne-title">${esc(head.title)}</div>
+        <div class="wanne-pills">${head.pills.filter(Boolean).map((x) => `<span class="wanne-pill">${esc(x)}</span>`).join("")}</div>
+        ${extras.map((z) => z.netPrice > 0
+          ? `<div class="wanne-note">inkl. ${esc(z.desc)} (+${eur(z.netPrice)}) ${link(z, z.articleNumber)}</div>`
+          : `<div class="wanne-note" style="color:#b42318">Pflichtzubehör ${esc(z.articleNumber)} fehlt im Vigor-Katalog – Preis fehlt, bitte nachtragen.</div>`).join("")}
+        <div class="wanne-name" title="So steht es im Angebot">${esc(p.desc || p.name)}</div>
+        <div class="wanne-foot"><span class="wanne-price">${eur(total)}</span>${link(p, `Bei ${p.urlLabel || "Händler"} ansehen`)}</div></span></button>`;
+  };
+  // Product page (photos, price) in a new tab. A span, not <a>: the card is a
+  // <button> and must not contain a link; the panel click handler opens it.
+  const link = (p, label) => p?.url
+    ? `<span class="wanne-link" role="link" tabindex="0" data-href="${esc(p.url)}" title="${esc(p.url)}">${esc(label)} ↗</span>`
+    : "";
+  const tubSpec = (p, screen = null) => specFor({
+    einbau: lc(p.einbau || "Ecke"), wall: p.einbau === "Ecke" ? p.wall : null, door: p.side, screen,
+    L: p.lengthCm, Wd: p.widthCm, H: p.tubHeightCm || 58,
+  });
+
+  function renderResults() {
+    let html = "";
+    const tub = selectedItem("tub");
+    if (tub && !inWizard(tub)) {
+      html += `<div class="wanne-summary" style="margin:0 0 14px"><strong>Hinweis:</strong> Die gespeicherte Wanne ${esc(tub.articleNumber)} stammt aus dem alten Katalog ohne Angabe der Wandseite. Bitte hier neu auswählen.</div>`;
+    }
+    if (!ready()) { resultsEl.innerHTML = html; return; }
+    if (st.mode !== "only") {
+      const base = tubs().filter((p) => tubOk(p, st, ["size", "ablauf"]));
+      const sizes = [...new Set(base.map(sizeOf))];
+      const ablaufs = [...new Set(base.map((p) => p.ablauf).filter(Boolean))];
+      const zulaufs = [...new Set(base.map((p) => p.zulauf).filter(Boolean))];
+      const list = base.filter((p) => tubOk(p, st)).sort((a, b) => a.netPrice - b.netPrice);
+      html += chipRow("Maße", "size", sizes.map((v) => [v, v]));
+      if (ablaufs.length > 1 || zulaufs.length > 1) {
+        const what = [ablaufs.length > 1 && "Ablauf", zulaufs.length > 1 && "Wassereinlauf"].filter(Boolean).join(" und ");
+        html += `<details class="wz-more" ${st.ablauf || st.zulauf ? "open" : ""}><summary>Weitere Optionen: ${what}</summary>
+          ${chipRow("Ablauf", "ablauf", ablaufs.map((v) => [v, v === "Trio" ? "Trio-Ablauf" : v === "Standard" ? "Standard-Ablauf" : v]))}
+          ${ablaufs.includes("Trio") ? '<div class="wanne-empty" style="font-size:12.5px">Trio: Ablauf, Überlauf und Einlauf in einem Bauteil (ca. 230–270 € Aufpreis).</div>' : ""}
+          ${chipRow("Wasser", "zulauf", zulaufs.map((v) => [v, v === "Wanneneinlauf" ? "Wanneneinlauf" : "aus der Armatur"]))}
+          ${zulaufs.includes("Wanneneinlauf") ? '<div class="wanne-empty" style="font-size:12.5px">Wanneneinlauf: Das Wasser läuft unten durch die Wanne ein statt aus der Armatur.</div>' : ""}</details>`;
+      }
+      html += `<div class="wz-h">${list.length} passende ${list.length === 1 ? "Wanne" : "Wannen"}</div>`;
+      html += `<div class="wanne-grid">${
+        list.map((p) => card(p, tubSpec(p), false)).join("") || `<div class="muted">Keine passende Wanne. Ändern Sie oben eine Antwort.</div>`
+      }</div>`;
+    }
+    const tubIn = tub && inWizard(tub) ? tub : null;
+    if (st.mode === "only" || (st.mode === "screen" && tubIn)) {
+      const base = st.mode === "only" ? screens().filter((p) => p.side === st.side) : R ? R.screensFor(tubIn, screens()) : [];
+      const heights = [...new Set(base.map((p) => p.heightCm).filter(Boolean))].sort();
+      const walls = [...new Set(base.map((p) => p.seitenwand).filter(Boolean))].sort();
+      const list = base
+        .filter((p) => (!st.sh || String(p.heightCm) === String(st.sh)) && (!st.sw || p.seitenwand === st.sw))
+        .sort((a, b) => a.netPrice - b.netPrice);
+      html += `<div class="wz-h">${st.mode === "only" ? "Wannenaufsatz" : "Passender Wannenaufsatz"}</div>`;
+      if (st.mode === "only")
+        html += `<div class="wanne-empty" style="font-size:12.5px;margin-bottom:8px">Nur für eine vorhandene Wanne derselben Serie. An der Anschlagseite muss eine Wand sein.</div>`;
+      html += chipRow("Höhe", "sh", heights.map((v) => [v, `${v} cm`]));
+      html += chipRow("Seitenwand", "sw", walls.map((v) => [v, v === "ohne" ? "ohne" : `${v.slice(1)} cm breit`]));
+      html += `<div class="wanne-grid">${
+        list.map((p, i) => {
+          // no tub chosen ("nur Aufsatz"): draw the corner it is meant for —
+          // a side-panel Aufsatz at the open end, any other at its wall
+          const panelled = /^S\d+/.test(p.seitenwand || "");
+          const spec = tubIn
+            ? tubSpec(tubIn, screenSpec(p, tubIn))
+            : panelled
+              ? specFor({ einbau: "ecke", wall: p.side === "links" ? "rechts" : "links", door: null, screen: screenSpec(p) })
+              : specFor({ einbau: "ecke", wall: p.side, door: null, screen: screenSpec(p) });
+          return card(p, spec, st.mode === "screen" && i === 0);
+        }).join("") ||
+        `<div class="muted">Kein passender Aufsatz.</div>`
+      }</div>`;
+    } else if (st.mode === "screen") {
+      html += `<div class="wanne-empty" style="margin-top:14px">Wählen Sie eine Wanne, dann erscheinen die passenden Aufsätze.</div>`;
+    }
+    resultsEl.innerHTML = html;
+    mountSketches(resultsEl);
   }
 
   function renderSummary() {
-    if (!summaryEl) return;
-    const tub = selectedItem("tub");
-    const screen = selectedItem("screen");
-    if (!tub && !screen) {
-      summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`;
-      return;
-    }
+    const tub = selectedItem("tub"), screen = selectedItem("screen");
+    if (!tub && !screen) { summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`; return; }
+    const extras = tub?.requires || [];
     const rows = [
-      tub && `${LABELS.tub}: <strong>${esc(tub.articleNumber)}</strong> — ${eur(tub.netPrice)}`,
-      screen &&
-        `${LABELS.screen}: <strong>${esc(screen.articleNumber)}</strong> — ${eur(screen.netPrice)}`,
+      tub && `<strong>${esc(tub.desc || tub.name)}</strong> — ${eur(tub.netPrice)}`,
+      ...extras.map((z) => `<strong>${esc(z.desc)}</strong> — ${eur(z.netPrice)}`),
+      screen && `<strong>${esc(screen.desc || screen.name)}</strong> — ${eur(screen.netPrice)}`,
     ].filter(Boolean);
-    const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
-    summaryEl.innerHTML =
-      rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+    const total = (tub?.netPrice || 0) + extras.reduce((n, z) => n + (z.netPrice || 0), 0) + (screen?.netPrice || 0);
+    summaryEl.innerHTML = rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+  }
+
+  function render() {
+    specs = [];
+    renderCrumbs();
+    renderStep();
+    renderResults();
+    renderSummary();
+    drawStage();
   }
 
   panel.addEventListener("click", (e) => {
-    const seg = e.target.closest(".wanne-seg button");
-    if (seg) {
-      type = seg.dataset.wtype;
-      filters = {};
+    const set = e.target.closest("[data-set]");
+    if (set && !set.disabled) {
+      const [k, v] = set.dataset.set.split(":");
+      st[k] = v;
+      // "Ohne Aufsatz" must not leave a previously picked Aufsatz in the offer
+      if (k === "mode" && v === "plain" && selectedId("screen")) {
+        setItem("screen", null);
+        window.updatePricing?.();
+      }
       return render();
     }
-    const chip = e.target.closest(".wanne-chip");
-    if (chip && !chip.disabled) {
-      const { fkey, fval } = chip.dataset;
-      filters[fkey] = String(filters[fkey]) === String(fval) ? null : fval;
+    const crumb = e.target.closest("[data-crumb]");
+    if (crumb) { clearFrom(crumb.dataset.crumb); return render(); }
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "only") { st = { mode: "only" }; return render(); }
+    if (act === "reset") { st = {}; return render(); }
+    const chip = e.target.closest("[data-chip]");
+    if (chip) {
+      const { chip: k, val } = chip.dataset;
+      if (String(st[k]) === val) delete st[k];
+      else st[k] = val;
       return render();
     }
-    if (e.target.closest("#wanneReset")) {
-      filters = {};
-      return render();
+    const lk = e.target.closest(".wanne-link");
+    if (lk) {
+      e.preventDefault();
+      window.open(lk.dataset.href, "_blank", "noopener");
+      return;
     }
-    const card = e.target.closest(".wanne-card");
-    if (card) {
-      const p = items.find((x) => x.articleNumber === card.dataset.art);
+    const c = e.target.closest(".wanne-card");
+    if (c) {
+      const p = items.find((x) => x.articleNumber === c.dataset.art);
       if (p) applySelection(p);
     }
   });
 
+  panel.addEventListener("keydown", (e) => {
+    const lk = e.target.closest?.(".wanne-link");
+    if (lk && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(lk.dataset.href, "_blank", "noopener");
+    }
+  });
+
+  // Product photos 404 / CDN down → local placeholder.
+  panel.addEventListener("error", (e) => {
+    const img = e.target;
+    if (img?.tagName !== "IMG" || img.dataset.fallback) return;
+    img.dataset.fallback = "1";
+    img.src = FALLBACK_IMG;
+  }, true);
+
   async function load() {
     try {
-      const res = await fetch("/api/bathtubs/catalog", { credentials: "same-origin" });
+      const [res, rules] = await Promise.all([
+        fetch("/api/bathtubs/catalog", { credentials: "same-origin" }),
+        import("/configurator/wanne-rules.js"),
+      ]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      R = rules;
       const data = await res.json();
       items = Array.isArray(data?.items) ? data.items : [];
     } catch (e) {
       console.error("[wanne] catalog load failed:", e?.message || e);
-      grid.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
+      resultsEl.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
       return;
     }
+    syncFromSelection();
     render();
   }
 
-  // A restored offer fills the hidden inputs after this init runs; re-render so
-  // the saved pick shows as selected instead of an empty-looking grid.
+  // A restored offer fills the hidden inputs after this init ran.
   ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
-      if (items.length) render();
+      if (!items.length || own) return;
+      syncFromSelection();
+      render();
     });
   });
 
   window.__wannePicker = { reload: load, render };
+  import("/configurator/wanne-sketch.js")
+    .then((m) => { SK = m; if (items.length) render(); })
+    .catch((e) => console.warn("[wanne] sketches unavailable:", e?.message || e));
   load();
 }
 function initTraySizeAutoLabel() {
@@ -15242,6 +15404,15 @@ function attachDuschwanneToPayload(payload) {
   payload.duschwanne.chosenBathtubPrice = Number(val("chosenBathtubPrice")) || null;
   payload.duschwanne.chosenScreenName = val("chosenScreenName") || null;
   payload.duschwanne.chosenScreenPrice = Number(val("chosenScreenPrice")) || null;
+  // Brand-free text for Kostentabelle + PDF (see lib/wanneDescribe.js).
+  payload.duschwanne.chosenBathtubDesc = val("chosenBathtubDesc") || null;
+  payload.duschwanne.chosenScreenDesc = val("chosenScreenDesc") || null;
+  // required accessories picked with the tub (wanneSets WANNE_ACCESSORIES)
+  try {
+    payload.duschwanne.wanneZubehoer = bPid ? JSON.parse(val("chosenBathtubExtras") || "[]") : [];
+  } catch {
+    payload.duschwanne.wanneZubehoer = [];
+  }
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -16023,7 +16194,7 @@ function escapeHtml(s) {
     }
     return out;
   }
-  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Weiteres"];
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
@@ -17520,6 +17691,9 @@ const screenPid = dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
 setHiddenById("chosenScreenProductId", screenPid);
 setHiddenById("chosenScreenName", dw.chosenScreenName);
 setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
+setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
+setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
+setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(dw.wanneZubehoer) : "");
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -20208,6 +20382,9 @@ function restoreDuschwanne(dw) {
   setHiddenById("chosenScreenProductId", screenPid);
   setHiddenById("chosenScreenName", dw.chosenScreenName);
   setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
+setHiddenById("chosenBathtubDesc", dw.chosenBathtubDesc);
+setHiddenById("chosenScreenDesc", dw.chosenScreenDesc);
+setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(dw.wanneZubehoer) : "");
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -21554,7 +21731,7 @@ window.setPricingData = function setPricingData(data) {
     document.getElementById("rb-material-discount-section") ||
     elDiscount?.closest(".field") ||
     elDiscount?.closest(".row") ||
-    elDiscount?.parentElement;
+    elDiscount?.parentEl聥ment;
 
   if (!sec || !elDiscount) return;
 

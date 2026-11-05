@@ -561,6 +561,25 @@ describe('Pricing Module', () => {
       expect(line).toBeDefined();
     });
 
+    test('Wanne: brand-free description and the required IRISNS ride along', async () => {
+      const payload = createBasePayload({
+        duschwanne: {
+          chosenBathtubProductId: 'IRIS160LS',
+          chosenBathtubName: 'Badewanne Acryl Iris 160x70/80cm weiß li',
+          chosenBathtubPrice: 1000, // test values, not real prices
+          chosenBathtubDesc: 'Badewanne mit Einstiegstür links, Nischeneinbau, 160 × 70/80 × 62 cm, Frontschürze',
+          wanneZubehoer: [
+            { articleNumber: 'IRISNS', name: 'Nackenstütze f. Badewanne Iris f. Nischeneinbau Novellini', desc: 'Nackenstütze für Nischeneinbau der Badewanne', netPrice: 100 },
+          ],
+        },
+      });
+      const result = await pricing.computePrices(payload);
+      const tub = result.materials.lines.find((l) => l.productId === 'IRIS160LS');
+      const ns = result.materials.lines.find((l) => l.productId === 'IRISNS');
+      expect(tub.label).toBe('- 1 Stk Badewanne mit Einstiegstür links, Nischeneinbau, 160 × 70/80 × 62 cm, Frontschürze');
+      expect(ns).toMatchObject({ unitPrice: 100, label: '- 1 Stk Nackenstütze für Nischeneinbau der Badewanne' });
+    });
+
     test('adds drain set when selected', async () => {
       mockProductModel.find.mockReturnValue({
         lean: jest.fn().mockResolvedValue([
