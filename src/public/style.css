@@ -12708,3 +12708,11 @@ body.ui-classic #page-Wandverkleidung #wvWwRows > * { border: 1px solid var(--cl
 /* Klassisch: Zubehör-Häkchen zeigen "an" deutlich (gefülltes Feld + Haken) */
 body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
 body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Dokumentenvorschau (Zusammenfassung): the shell's near-white gradient is defined inline in
+   index.html; in dark mode the light title/status text sat on it and was hardly visible. */
+[data-mode="dark"] #page-Zusammenfassung .document-preview-shell {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.92));
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+}

@@ -5753,7 +5753,9 @@ async function downloadPDFWithProgress(endpoint, payload) {
     };
   }
 
-  async function openInlineDocumentPreview(input, { scrollIntoView = true } = {}) {
+  // keepContent: an automatic refresh leaves the current preview on screen until the new one
+  // is ready (no blank flash while the PDF is rebuilt).
+  async function openInlineDocumentPreview(input, { scrollIntoView = true, keepContent = false } = {}) {
     const config =
       typeof input === "string" ? PREVIEW_CONFIGS[input] : input;
 
@@ -5768,15 +5770,17 @@ async function downloadPDFWithProgress(endpoint, payload) {
     activePreviewConfig = config;
     const sequence = ++refreshSequence;
     previewInFlight = true;
-    cleanupPreviewUrls();
     section.hidden = false;
-    showPreviewMode(config.mode);
-    iframe.removeAttribute("src");
-    iframe.src = "about:blank";
-    textPreviewContent.textContent = "";
+    if (!keepContent) {
+      cleanupPreviewUrls();
+      showPreviewMode(config.mode);
+      iframe.removeAttribute("src");
+      iframe.src = "about:blank";
+      textPreviewContent.textContent = "";
+      setPreviewLinks();
+    }
     if (title) title.textContent = config.title;
     if (status) status.textContent = `${config.title} wird erstellt…`;
-    setPreviewLinks();
     setActiveSwitcher(config.key);
 
     try {
@@ -5784,6 +5788,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       if (sequence < latestAppliedSequence) return;
       latestAppliedSequence = sequence;
 
+      cleanupPreviewUrls(); // no-op unless the old preview was kept on screen
       previewUrl = URL.createObjectURL(resource.blob);
       downloadUrl = URL.createObjectURL(resource.blob);
 
@@ -5823,25 +5828,32 @@ async function downloadPDFWithProgress(endpoint, payload) {
     return typeof getCurrentStep === "function" && getCurrentStep() === "Zusammenfassung";
   }
 
-  function schedulePreviewRefresh(reason = "Änderungen erkannt") {
+  // delay: typing waits for a pause (the PDF takes seconds to build), other triggers are quick.
+  function schedulePreviewRefresh(reason = "Änderungen erkannt", delay = 700) {
     if (!activePreviewConfig || section.hidden) return;
     if (!isZusammenfassungActive()) return;
 
     clearTimeout(autoRefreshTimer);
-    autoRefreshTimer = setTimeout(async () => {
-      if (!activePreviewConfig || previewInFlight) return;
+    const run = async () => {
+      if (!activePreviewConfig) return;
       // Re-check: the user may have navigated away during the debounce. An
       // automatic refresh must not run (nor trigger requireBereichValid's
       // toast/redirect) when the Zusammenfassung tab is no longer active.
       if (!isZusammenfassungActive()) return;
+      // One build at a time — but never drop the change that arrived meanwhile.
+      if (previewInFlight) {
+        autoRefreshTimer = setTimeout(run, 1000);
+        return;
+      }
       try {
         if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
-        await openInlineDocumentPreview(activePreviewConfig, { scrollIntoView: false });
+        await openInlineDocumentPreview(activePreviewConfig, { scrollIntoView: false, keepContent: true });
         if (status) status.textContent = `${activePreviewConfig.title} automatisch aktualisiert.`;
       } catch (error) {
         console.warn("[document-preview] auto refresh failed:", reason, error);
       }
-    }, 700);
+    };
+    autoRefreshTimer = setTimeout(run, delay);
   }
 
   function bindPreviewButton(id, previewKey) {
@@ -5901,7 +5913,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
   }
   summaryPage?.addEventListener(
     "input",
-    (e) => affectsPreview(e) && schedulePreviewRefresh("input"),
+    (e) => affectsPreview(e) && schedulePreviewRefresh("input", 2500),
     true,
   );
   summaryPage?.addEventListener(

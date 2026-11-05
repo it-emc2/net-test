@@ -2,6 +2,7 @@
 // the extra Hinweise lines must appear in every template, and wording rules must also
 // reach the template's own fixed sentences.
 import { jest } from '@jest/globals';
+import { SaxesParser } from 'saxes';
 import path from 'path';
 import PizZip from 'pizzip';
 import { renderDocx } from '../../src/routes/docx-template.js';
@@ -83,4 +84,43 @@ test('signing page: Eigenanteil amount in <b>', async () => {
   const { buildAngebotHtml } = await import('../../src/templates/signing-docs.js');
   const html = buildAngebotHtml({ PayerKind: 'KK', hasSubsidyLine: true, SelbstkostenanteilFmt: '0,00 €', Zuschusskrankenkasse: '4.180,00 €', Totals: [] });
   expect(html).toContain('Ihr Eigenanteil beträgt <b>0,00 €</b> unter');
+});
+
+// Regression (test offer ANG-BU-Stefan-Wolfrum-05112026-111915): a rule whose replacement
+// contains its own search text produced invalid XML (LibreOffice: "PDF file not found")
+// and was applied several times.
+describe('wording rule that contains its own search text', () => {
+  const rules = [{ from: 'Wannenaufsatz', to: 'Wannenaufsatz 2' }];
+  const withWord = () => ({
+    ...data(),
+    MaterialsLines: [{ MaterialLine: '- 1 Stk Wannenaufsatz 90 cm', IsSub: false }],
+    PrimaryServiceLines: [{ ServiceLine: '- Wannenaufsatz montieren' }],
+    ExtraHinweise: [{ Text: 'Wannenaufsatz wird gestellt' }],
+  });
+
+  test.each(TEMPLATES)('%s: valid XML, replaced exactly once, in data text too', async (name) => {
+    const buf = await renderDocx(tpl(name), withWord(), rules);
+    const xml = new PizZip(buf).file('word/document.xml').asText();
+    expect(xml).not.toMatch(/<w:t\b[^>]*\sxml:space="preserve"[^>]*\sxml:space=/); // no duplicate attribute
+    const parse = () => { const sax = new SaxesParser(); sax.on('error', (e) => { throw e; }); sax.write(xml).close(); };
+    expect(parse).not.toThrow(); // well-formed (LibreOffice opens it)
+    const txt = textOf(buf);
+    expect(txt).toContain('- 1 Stk Wannenaufsatz 2 90 cm');
+    expect(txt).toContain('- Wannenaufsatz 2 montieren');
+    expect(txt).toContain('Wannenaufsatz 2 wird gestellt');
+    expect(txt).not.toContain('Wannenaufsatz 2 2');
+  });
+
+  test('HTML pass: once as well', () => {
+    expect(replaceTextInHtml('<p>Wannenaufsatz 90</p>', rules)).toBe('<p>Wannenaufsatz 2 90</p>');
+  });
+
+  test('rule split across runs inside a paragraph that already has xml:space', async () => {
+    const buf = await renderDocx(tpl('Angebot-10'), data(), [
+      { from: 'Für eine Teilbeauftragung wäre ein neues Angebot erforderlich', to: 'Für eine Teilbeauftragung wäre ein neues Angebot erforderlich (Stand 11/2026)' },
+    ]);
+    const xml = new PizZip(buf).file('word/document.xml').asText();
+    expect(xml).not.toMatch(/xml:space="preserve"\s+xml:space=/);
+    expect(textOf(buf).match(/Stand 11\/2026/g)).toHaveLength(1);
+  });
 });
