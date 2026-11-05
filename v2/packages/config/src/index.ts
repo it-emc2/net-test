@@ -79,6 +79,15 @@ const EnvSchema = z.object({
   OB24_API_KEY: z.string().optional(),
   OB24_API_SECRET: z.string().optional(),
   OB24_MODE: z.string().optional(),
+  /** Distance suggestion (read-only public services; base URLs configurable for tests). */
+  ORS_API_KEY: z.string().optional().transform((v) => v || undefined),
+  COMPANY_ADDRESS: z.string().default("Kornhausacker 10, Hof"),
+  COMPANY_LAT: z.string().optional(),
+  COMPANY_LNG: z.string().optional(),
+  GEO_PHOTON_URL: z.string().url().default("https://photon.komoot.io"),
+  GEO_NOMINATIM_URL: z.string().url().default("https://nominatim.openstreetmap.org"),
+  GEO_ORS_URL: z.string().url().default("https://api.openrouteservice.org"),
+  ROUTE_OSRM_URL: z.string().url().default("https://router.project-osrm.org"),
   /** Static assets (email presets, signature picture). Default: the legacy app's assets. */
   ASSETS_DIR: z.string().optional(),
 });

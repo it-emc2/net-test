@@ -50,3 +50,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-05 | phase 4 (group 4b) | Bitrix writes (timeline, uploads, stage moves incl. AH fields, planner notify, admin retry) identical incl. outgoing calls; AH deal fields = legacy on 572 cases; v2 1,201 tests | 4c: SMTP/IMAP + email send |
 | 2026-11-05 | phase 4 (group 4c) | Offer email identical (mail, attachments, lock, logs, Bitrix) via local SMTP sink; test env pins all external endpoints; found local Node 25.9 UTF-8 decode corruption (CI = truth); v2 1,209 tests | 4d: OB24 (post) |
 | 2026-11-05 | phase 4 (group 4d) | Letters by post (onlinebrief24) identical incl. outgoing request, A4 fitting, lock, rejection, Bitrix; v2 1,224 tests | 4e: routing/planning/todayscustomers |
+| 2026-11-05 | phase 4 (group 4e) | Distance suggestion, planning proxy (incl. live stream), today's customers identical incl. outgoing requests; v2 1,234 tests | 4f: magic API |

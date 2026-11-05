@@ -43,6 +43,30 @@ export const BITRIX_HANDLERS: Record<string, Handler> = {
     if (String(letter.notice || "").includes("FAIL")) return { __status: 422, body: { status: 422, message: "Das PDF ist verschlüsselt oder liegt nicht im richtigen Format vor" } };
     return { status: 200, data: { id: 555001, status: "cart", items: [{ pages: 3, status: "cart" }] } };
   },
+  "plan:/api/planning/current": () => ({ ok: true, days: [{ date: "2026-11-05", entries: [{ dealId: "9001", startMinutes: 600 }] }] }),
+  "plan:/api/planning/stream": () => ({ __sse: ["event: plan\ndata: {\"v\":1}\n\n", "event: plan\ndata: {\"v\":2}\n\n"] }),
+  // geocoders/routers: the display name echoes the query, so the postcode/city check passes
+  "ext:photon/api/": (q) => {
+    const text = q.get("q") ?? "";
+    if (/Nirgendwo/.test(text)) return { features: [] };
+    if (/Falschort/.test(text)) return { features: [{ geometry: { coordinates: [11.1, 49.4] }, properties: { name: "Ganz woanders", city: "Andersstadt" } }] };
+    const coords = /OSRM/.test(text) ? [12.0, 50.0] : [11.9, 50.3];
+    return { features: [{ geometry: { coordinates: coords }, properties: { name: text, country: "Deutschland" } }] };
+  },
+  "ext:ors/geocode/search": () => ({ features: [] }),
+  "ext:ors/v2/directions/driving-car/geojson": (_q, _app, raw) => JSON.parse(raw || "{}").coordinates?.[1]?.[0] === 12.0
+    ? { __status: 500, body: { error: "route not found" } }
+    : { features: [{ properties: { summary: { distance: 12345.6, duration: 987.4 } } }] },
+  "ext:osrm/route/v1/driving/11.9,50.3;12,50": () => ({ code: "Ok", routes: [{ distance: 20111, duration: 1500.6 }] }),
+  "ext:nominatim/search": () => [],
+  // today's customers (POST, form-encoded)
+  "crm.item.list": (p) => p.get("filter[stageId]") === "C72:LEER" ? { result: { items: [] } } : { result: { items: [
+    { id: 8001, title: "Termin A", stageId: "C72:UC_YOESDE", contactId: 101, createdTime: "2026-11-05T08:00:00+01:00", ufCrm_1711018687: "" },
+    { id: 8002, title: "Termin B", stageId: "C72:UC_YOESDE", contactId: 102, createdTime: "2026-11-05T07:00:00+01:00", ufCrm_1711018687: "Name: Herr Vorname0102 Kunde0102\nMobil: 0000 222\nBedarfsort: 95028 Hof-DE\nPflegegrad: 3\nWohnsituation: Miete" },
+    { id: 8003, title: "Termin C", stageId: "C72:UC_YOESDE", contactId: 103, createdTime: "2026-11-04T09:00:00+01:00", ufCrm_1711018687: "Anschrift: Musterweg 3 DE-95030 Ort3" },
+    { id: 8004, title: "Ohne Kontakt", stageId: "C72:UC_YOESDE", contactId: null, createdTime: "2026-11-04T08:00:00+01:00" },
+  ] } },
+  "calendar.event.get": () => ({ result: [{ ID: "1", NAME: "Teamtermin", DATE_FROM: "05.11.2026 09:00:00" }] }),
   "ob24:/balance": () => ({ status: 200, data: { balance: 12.34, currency: "EUR" } }),
   "crm.activity.list": (p) => p.get("filter[TYPE_ID]") === "3"
     ? { result: [

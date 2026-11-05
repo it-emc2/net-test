@@ -19,10 +19,25 @@ export class BitrixStub {
   planningBase(app: string) { return `http://127.0.0.1:${this.port}/plan/${app}`; }
   /** onlinebrief24 API base for <app>; recorded as method "ob24:<path>", params = JSON body. */
   ob24Base(app: string) { return `http://127.0.0.1:${this.port}/ob24/${app}/v1`; }
+  /** public read-only services (geocoders/routers) for <app>; recorded as "ext:<service><path>", params = query or body */
+  extBase(app: string, service: string) { return `http://127.0.0.1:${this.port}/ext/${app}/${service}`; }
   take(app: string) { const c = this.calls[app] ?? []; this.calls[app] = []; return c; }
 
   async start() {
     this.server = createServer(async (req, res) => {
+      const e = /^\/ext\/([^/]+)\/([^/]+)(\/[^?]*)(?:\?(.*))?$/.exec(req.url ?? "");
+      if (e) {
+        const [, app, service, path, query] = e as unknown as [string, string, string, string, string | undefined];
+        const raw = req.method === "POST" ? await body(req) : (query ?? "");
+        (this.calls[app] ??= []).push({ http: req.method ?? "", method: `ext:${service}${path}`, params: raw });
+        const h = this.handlers[`ext:${service}${path}`];
+        if (!h) { res.socket?.destroy(); return; }
+        const out: any = h(new URLSearchParams(query ?? ""), app, raw);
+        res.statusCode = out?.__status ?? 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(out?.__status ? out.body : out));
+        return;
+      }
       const p = /^\/(plan|ob24)\/([^/]+)(?:\/v1)?(\/[^?]*)$/.exec(req.url ?? "");
       if (p) {
         const [, kind, app, path] = p as unknown as [string, string, string, string];
@@ -31,6 +46,12 @@ export class BitrixStub {
         const h = this.handlers[`${kind}:${path}`];
         if (!h) { res.socket?.destroy(); return; }
         const out: any = h(new URLSearchParams(), app, raw);
+        if (out?.__sse) { // server-sent events: write chunks, then end
+          res.writeHead(200, { "content-type": "text/event-stream" });
+          for (const chunk of out.__sse as string[]) res.write(chunk);
+          res.end();
+          return;
+        }
         res.statusCode = out?.__status ?? 200;
         res.setHeader("content-type", "application/json");
         res.end(JSON.stringify(out?.__status ? out.body : out));

@@ -24,6 +24,9 @@ import { fileURLToPath } from "node:url";
 import { Mailer, type MailConfig } from "../integrations/mail.js";
 import { registerEmail } from "./email.js";
 import { registerPost } from "./post.js";
+import { registerRouting, registerTodaysCustomers } from "./routing.js";
+import { RoutingService } from "../routing/providers.js";
+import { todaysCustomers } from "../integrations/todays-customers.js";
 import { Onlinebrief24 } from "../integrations/onlinebrief24.js";
 import { UNAVAILABLE_DOCUMENTS, UNAVAILABLE_SIGNING, type OfferDocuments, type SigningPort } from "../email/ports.js";
 
@@ -162,6 +165,15 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
     smtpTestPort: cfg.SMTP_PORT, smtpHost: cfg.SMTP_HOST,
   });
+  const num = (v?: string) => parseFloat(v ?? "") || null; // legacy parseFloat(env) || null
+  await registerRouting(app, {
+    routing: new RoutingService({
+      orsApiKey: cfg.ORS_API_KEY, photonUrl: cfg.GEO_PHOTON_URL, nominatimUrl: cfg.GEO_NOMINATIM_URL, orsUrl: cfg.GEO_ORS_URL, osrmUrl: cfg.ROUTE_OSRM_URL,
+      companyAddress: cfg.COMPANY_ADDRESS, companyLat: num(cfg.COMPANY_LAT), companyLng: num(cfg.COMPANY_LNG), log: app.log,
+    }),
+    planning: new PlanningClient({ baseUrl: cfg.PLANNING_API_BASE_URL, apiKey: cfg.PLANNING_API_KEY }),
+  });
+  await registerTodaysCustomers(app, todaysCustomers({ baseUrl: cfg.BITRIX_WEBHOOK_BASE }));
   await registerPost(app, {
     ob24: new Onlinebrief24({ baseUrl: cfg.OB24_BASE_URL, apiKey: cfg.OB24_API_KEY, apiSecret: cfg.OB24_API_SECRET, mode: cfg.OB24_MODE, allowProductionDefault: cfg.NODE_ENV === "production" }),
     deals, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS,

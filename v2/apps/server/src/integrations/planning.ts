@@ -9,6 +9,24 @@ export class PlanningClient {
   private url(path: string) { return `${(this.opts.baseUrl ?? "").replace(/\/+$/, "")}${path}`; }
   private headers(): Record<string, string> { return this.opts.apiKey ? { "X-Api-Key": this.opts.apiKey } : {}; }
 
+  private base() {
+    if (!this.opts.baseUrl) throw new Error("PLANNING_API_BASE_URL is not configured");
+    return this.url("");
+  }
+
+  /** GET /api/planning/current — status + body passed through (non-JSON → { ok, status, raw }). */
+  async current(): Promise<{ status: number; body: unknown }> {
+    const up = await this.fetchImpl(`${this.base()}/api/planning/current`, { headers: { Accept: "application/json", ...this.headers() } });
+    const contentType = up.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) return { status: up.status, body: await up.json() };
+    return { status: up.status, body: { ok: up.ok, status: up.status, raw: await up.text() } };
+  }
+
+  /** GET /api/planning/stream — server-sent events, piped through by the route. */
+  stream(signal: AbortSignal) {
+    return this.fetchImpl(`${this.base()}/api/planning/stream`, { headers: { Accept: "text/event-stream", "Cache-Control": "no-cache", ...this.headers() }, signal });
+  }
+
   /** Best-effort, never throws: { ok, found } or { ok:false, error }. */
   async notifyTerminNotHeld(a: { dealId: string; reason: string; by: string | null }) {
     if (!this.opts.baseUrl) return { ok: false as const, error: "PLANNING_API_BASE_URL is not configured" };

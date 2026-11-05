@@ -99,8 +99,12 @@ beforeAll(async () => {
       ...process.env, NODE_ENV: "test", PORT: String(LEGACY_PORT), MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB",
       VIGOR_MONGODB_URI: uri, AUTH_SECRET: SECRET, BITRIX_WEBHOOK_BASE: bx.base("legacy"), SMTP_HOST: "127.0.0.1",
       ...MAIL, IMAP_PORT: "9", NODE_TLS_REJECT_UNAUTHORIZED: "0", PATH: PATH_WITH_FAKE_SOFFICE,
+      OC_TEST_FETCH_REWRITE: JSON.stringify({
+        "https://photon.komoot.io": bx.extBase("legacy", "photon"), "https://nominatim.openstreetmap.org": bx.extBase("legacy", "nominatim"),
+        "https://api.openrouteservice.org": bx.extBase("legacy", "ors"), "https://router.project-osrm.org": bx.extBase("legacy", "osrm"),
+      }),
       OC_TEST_SMTP_PORT: String(smtp.port), OB24_BASE_URL: bx.ob24Base("legacy"), ...OB24, NODE_OPTIONS: `--import=${new URL("./helpers/legacy-smtp-port-shim.mjs", import.meta.url).href}`,
-      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, ORS_API_KEY: "",
+      SMTP_PORT: "9", PLANNING_API_BASE_URL: bx.planningBase("legacy"), EXTERNAL_API_BASE: DEAD, ORS_API_KEY: "ors-test-key",
     },
     stdio: "ignore",
   });
@@ -111,7 +115,8 @@ beforeAll(async () => {
   const cfg = loadConfig({
     NODE_ENV: "test", LOG_LEVEL: "silent", MONGODB_URI: uri, MONGODB_DB: "KonfiguratorDB", AUTH_SECRET: SECRET,
     BITRIX_WEBHOOK_BASE: bx.base("v2"), BITRIX_MIN_GAP_MS: "0", PLANNING_API_BASE_URL: bx.planningBase("v2"), OFFER_LINK_BASE: "http://oc.test", // throttle itself: unit test (bitrix.test.ts)
-    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24,
+    OB24_BASE_URL: bx.ob24Base("v2"), ...OB24, ORS_API_KEY: "ors-test-key",
+    GEO_PHOTON_URL: bx.extBase("v2", "photon"), GEO_NOMINATIM_URL: bx.extBase("v2", "nominatim"), GEO_ORS_URL: bx.extBase("v2", "ors"), ROUTE_OSRM_URL: bx.extBase("v2", "osrm"),
     SMTP_HOST: "127.0.0.1", SMTP_SEND_PORT: String(smtp.port), IMAP_HOST: "127.0.0.1", IMAP_PORT: "9", ...MAIL,
   });
   await connectDb(cfg, { info: () => {} });
@@ -968,5 +973,62 @@ describe("contract: post/send — same onlinebrief24 request, same Bitrix calls,
     const call = bx.take("v2")[0]!;
     expect(call).toMatchObject({ http: "GET", method: "ob24:/balance" });
     expect(JSON.parse(call.params).auth.mode).toBe("test");
+  }, 60000);
+});
+
+// ---------------- group 4e: routing, planning proxy, today's customers ----------------
+describe("contract: routing / planning / today's customers — same responses, same outgoing requests", () => {
+  const run = async (method: "GET" | "POST", url: string, body?: unknown, { sortCalls = false } = {}) => {
+    const out: Record<string, any> = {};
+    for (const app of ["legacy", "v2"] as const) {
+      bx.take(app);
+      const res = await callApp(app, method, url, body);
+      const calls = bx.take(app).map((c) => ({ ...c, params: decodeURIComponent(c.params.replace(/\+/g, " ")) }));
+      out[app] = { res, calls: sortCalls ? calls.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : calls };
+    }
+    const { legacy: l, v2: v } = out as Record<string, { res: { status: number; body: any }; calls: any[] }>;
+    expect(v!.res.status, `${url} ${JSON.stringify(v!.res.body).slice(0, 300)}`).toBe(l!.res.status);
+    if (l!.res.status >= 400 && typeof l!.res.body?.error === "string") expect(v!.res.body.error.message, url).toBe(l!.res.body.error);
+    else expect(v!.res.body, url).toEqual(l!.res.body);
+    expect(v!.calls, url).toEqual(l!.calls);
+    return v!;
+  };
+
+  it.each([
+    ["full address → photon + ORS route", { Kundendaten: { street: "Musterweg 1", postalCode: "95028", city: "Hof", state: "Bayern" } }],
+    ["compound city name", { Kundendaten: { street: "Hauptstr. 2", postalCode: "08606", city: "Triebel/Vogtland" } }],
+    ["ORS route fails → OSRM fallback", { Kundendaten: { street: "OSRM-Weg 5", postalCode: "95030", city: "Hof" } }],
+    ["geocode mismatch on every variant → 500 with all reasons", { Kundendaten: { street: "Falschort 1", postalCode: "95032", city: "Hof" } }],
+    ["no address → 400", { Kundendaten: {} }],
+    ["bereich/PLZ/Stadt aliases", { bereich: { PLZ: "95028", Stadt: "Hof" } }],
+  ])("suggest-distance: %s", async (_name, body) => {
+    await run("POST", "/api/routing/suggest-distance", body);
+  }, 60000);
+
+  it("suggest-distance: unknown address walks photon → ORS → Nominatim (1.1 s pause) per variant", async () => {
+    const v = await run("POST", "/api/routing/suggest-distance", { Kundendaten: { postalCode: "99999", city: "Nirgendwo" } });
+    expect(v.res.status).toBe(500);
+    expect(v.calls.map((c) => c.method.split("/")[0])).toEqual(expect.arrayContaining(["ext:photon", "ext:ors", "ext:nominatim"]));
+  }, 60000);
+
+  it("routing/health identical", async () => { await run("GET", "/api/routing/health"); });
+
+  it("planning: current proxied; stream passes the events through", async () => {
+    await run("GET", "/api/planning/current");
+    const [l, v] = [
+      await fetch(`http://127.0.0.1:${LEGACY_PORT}/api/planning/stream`, { headers: { authorization: `Bearer ${token}` } }),
+      await v2.inject({ url: "/api/planning/stream", headers: { authorization: `Bearer ${token}` } }),
+    ];
+    expect(v.statusCode).toBe(l.status);
+    expect(v.headers["content-type"]).toBe(l.headers.get("content-type"));
+    expect(v.body).toBe(await l.text());
+    bx.take("legacy"); bx.take("v2");
+  }, 60000);
+
+  it("today's customers: same merged Kundendaten (contact → import text → requisite fallback), same Bitrix reads", async () => {
+    const v = await run("GET", "/api/bitrix/kundendaten", undefined, { sortCalls: true });
+    expect(v.res.body).toHaveLength(4);
+    await run("GET", "/api/bitrix/kundendaten?stageId=C72:LEER");
+    await run("POST", "/api/calendar/today", {});
   }, 60000);
 });
