@@ -51,6 +51,13 @@ jobs:
     name: v2 (TypeScript rewrite) — typecheck, tests, build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      # PDF engine (ADR 008) — real DOCX→PDF / HTML→PDF conversions in the document tests
+      gotenberg:
+        image: gotenberg/gotenberg:8.40.0
+        ports: ["3000:3000"]
+    env:
+      OC_TEST_GOTENBERG_URL: http://127.0.0.1:3000
     defaults:
       run:
         working-directory: v2

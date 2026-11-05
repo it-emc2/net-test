@@ -95,3 +95,8 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
   - `test/route-parity.test.ts` (+ `v2/scripts/route-parity.mjs`): every legacy endpoint must be in v2 or assigned to a phase; stale assignments fail too.
   - `test/verbatim-ports.test.ts` (+ `v2/scripts/port-verbatim.mjs`): fast-changing legacy data modules (`wanneSets.js`, `wanneDescribe.js`) are copied verbatim into `apps/server/src/catalog/ported/`; the test fails when main changes them → re-run the script.
 - Local-only artifact: legacy `res.sendFile` returns 404 when the checkout path contains a dot-folder (worktrees under `.claude/`). The DA-model contract test compares v2 against the file directly in that case; CI compares against legacy.
+
+## Documents (phase 5)
+- `test/documents-golden.test.ts`: the legacy DOCX golden master (25 cases × offer + Materialübersicht) runs against v2's ported module — identical.
+- Real PDFs: set `OC_TEST_GOTENBERG_URL` (CI does). Locally: `docker run --rm -p 127.0.0.1:3000:3000 gotenberg/gotenberg:8.40.0`. Without it the PDF word checks are skipped.
+- Ported modules write the legacy debug copies `out-Angebot.docx` / `out-Materialuebersicht.docx` into `DOCUMENTS_ROOT` (gitignored); the test removes them.

@@ -63,8 +63,12 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
   - Done: route-level allowlist (no path patterns), fail-closed external API key (4h), escaped regex. admin-only catalog writes (owner decision 2026-11-05, ADR 018).
 
 ## Phase 5 — Documents
-- [ ] docxtemplater kept; DOCX golden master green.
-- [ ] Gotenberg container replaces soffice/Puppeteer/Adobe; PDF comparison per type (ADR 008).
+- [x] docxtemplater kept; DOCX golden master green **against v2** (50 snapshots, ADR 019) — 2026-11-05
+- [ ] Gotenberg container replaces soffice/Puppeteer/Adobe; PDF comparison per type (ADR 008, accepted 2026-11-05).
+  - [x] 5a/5b Offer DOCX, Materialübersicht, offer PDF (`/docx-template`, `/material-overview`, `/pdf`) via mechanical port + Gotenberg; send-offer uses v2's own documents in production (product-image PDF still pending) — 2026-11-05
+  - [ ] 5c Signing documents (HTML templates + HTML→PDF)
+  - [ ] 5d Kalkulation, Arbeitsbericht, product-image PDF, PDF preview
+  - [ ] 5e Adobe, LaTeX, `/pdf-template`: retire or port (usage check, owner OK)
 - [ ] Single offer rendering source for DOCX + signing HTML (fills `SigningRenderer`, `v2/apps/server/src/signing/documents.ts`; until then signing documents are unavailable in v2 production).
 - [ ] Wording rules (`offerOverrides.textReplacements`) applied once on the finished output (rendered DOCX via `lib/docxTextReplace.js`, signing HTML), not on render data — main #314, 2026-11-05.
 

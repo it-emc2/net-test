@@ -35,6 +35,11 @@ export function v2Routes() {
   for (const f of files) {
     for (const m of read(f).matchAll(new RegExp(`app\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${m[2]}`);
   }
+  // legacy routers ported mechanically (documents/ported) are mounted by v2 under these prefixes
+  const PORTED_ROUTERS = { "v2/apps/server/src/documents/ported/docx-template.ts": "/docx-template" };
+  for (const [f, prefix] of Object.entries(PORTED_ROUTERS)) {
+    for (const m of read(f).matchAll(new RegExp(`router\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${(prefix + (m[2] === "/" ? "" : m[2])).replace(/\/+/g, "/")}`);
+  }
   return out;
 }
 

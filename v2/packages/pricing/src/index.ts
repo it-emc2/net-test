@@ -11,6 +11,7 @@ import createPricingCore, {
 
 export type { PricingDeps, PricingProductModel, PricingSnapshotModel };
 export { computeFingerprint, NO_MARKUP_IDS, sumPriceAdjustments };
+export { SUPPLIER_QUALITY, supplierCodes } from "./core.js";
 export * from "./tray-search.js";
 
 /** One priced line (materials or services). Extra legacy fields are kept as-is. */

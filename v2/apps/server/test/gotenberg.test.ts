@@ -1,0 +1,41 @@
+// Gotenberg client: units + request shape (fake fetch). Real conversions: documents-golden.test.ts.
+import { describe, expect, it } from "vitest";
+import { Gotenberg, toInches } from "../src/integrations/gotenberg.js";
+import { runLegacy } from "../src/documents/express-adapter.js";
+import Fastify from "fastify";
+
+describe("Gotenberg client", () => {
+  it("margins: mm/cm/in/px → inches; default 18 mm", () => {
+    expect(toInches("25.4mm")).toBeCloseTo(1); expect(toInches("2.54cm")).toBeCloseTo(1); expect(toInches("1in")).toBe(1);
+    expect(toInches("96px")).toBe(1); expect(toInches(undefined)).toBeCloseTo(18 / 25.4); expect(toInches("bogus")).toBeCloseTo(18 / 25.4);
+  });
+  it("HTML → A4 chromium route with margins, background and optional footer; errors carry the status", async () => {
+    const seen: any[] = [];
+    const fetchImpl = (async (url: string, init: any) => {
+      seen.push({ url, form: Object.fromEntries([...(init.body as FormData).entries()].map(([k, v]) => [k, typeof v === "string" ? v : (v as File).name])) });
+      return seen.length === 1 ? new Response("%PDF-1") : new Response("boom", { status: 503 });
+    }) as unknown as typeof fetch;
+    const g = new Gotenberg({ baseUrl: "http://pdf.test/", fetchImpl });
+    expect((await g.htmlToPdf("<p>x</p>", { footerTemplate: "<span>1</span>", margin: { top: "10mm" } })).toString()).toBe("%PDF-1");
+    expect(seen[0].url).toBe("http://pdf.test/forms/chromium/convert/html");
+    expect(seen[0].form).toMatchObject({ paperWidth: "8.27", paperHeight: "11.7", printBackground: "true", files: "footer.html" });
+    expect(Number(seen[0].form.marginTop)).toBeCloseTo(10 / 25.4);
+    await expect(g.docxToPdf(Buffer.from("x"))).rejects.toThrow("PDF engine error: HTTP 503 - boom");
+    expect(seen[1].url).toBe("http://pdf.test/forms/libreoffice/convert");
+  });
+});
+
+describe("legacy handler adapter", () => {
+  it("passes status/headers/body through; legacy { error } becomes the v2 envelope", async () => {
+    const app = Fastify();
+    app.post("/ok", (req, reply) => runLegacy((_q, res) => { res.setHeader("X-T", "1"); res.status(201).send(Buffer.from("doc")); }, req, reply));
+    app.post("/bad", (req, reply) => runLegacy((_q, res) => res.status(500).json({ error: "DOCX generation failed", detail: "x" }), req, reply));
+    app.post("/throw", (req, reply) => runLegacy(async () => { throw new Error("kaputt"); }, req, reply));
+    const ok = await app.inject({ method: "POST", url: "/ok" });
+    expect([ok.statusCode, ok.headers["x-t"], ok.body]).toEqual([201, "1", "doc"]);
+    const bad = await app.inject({ method: "POST", url: "/bad" });
+    expect(bad.statusCode).toBe(500);
+    expect(bad.json()).toMatchObject({ error: { code: "DOCUMENT_ERROR", message: "DOCX generation failed" }, detail: "x" });
+    expect((await app.inject({ method: "POST", url: "/throw" })).statusCode).toBe(500);
+  });
+});

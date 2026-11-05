@@ -29,6 +29,8 @@ import { registerMagic } from "./magic.js";
 import { registerSigning } from "./signing.js";
 import { registerMisc } from "./misc.js";
 import { registerCatalog } from "./catalog.js";
+import { registerDocuments } from "./documents.js";
+import { Gotenberg, type PdfEngine } from "../integrations/gotenberg.js";
 import { UNAVAILABLE_SIGNING_RENDERER, type SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
@@ -38,6 +40,7 @@ import { UNAVAILABLE_DOCUMENTS, type OfferDocuments, type SigningPort } from "..
 
 /** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
 const LEGACY_ASSETS = fileURLToPath(new URL("../../../../../src/public/assets", import.meta.url));
+const LEGACY_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 const LEGACY_PUBLIC = fileURLToPath(new URL("../../../../../src/public", import.meta.url));
 const LEGACY_SIGN_PAGE = fileURLToPath(new URL("../../../../../src/public/signpage/index.html", import.meta.url));
 
@@ -55,6 +58,8 @@ export interface ApiDeps {
   documents?: OfferDocuments; signing?: SigningPort; mailTls?: MailConfig["tls"];
   /** signing document rendering (phase 5); default: unavailable */
   signingRenderer?: SigningRenderer;
+  /** PDF engine (default: Gotenberg at GOTENBERG_URL) */
+  pdfEngine?: PdfEngine;
 }
 
 export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
@@ -152,6 +157,14 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
 
   await registerOffersRead(app);
+  // ---------------- documents (phase 5) ----------------
+  const pdfEngine = deps.pdfEngine ?? new Gotenberg({ baseUrl: cfg.GOTENBERG_URL, timeoutMs: cfg.GOTENBERG_TIMEOUT_MS });
+  const vigorPrices = vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI);
+  const { offerDocuments } = await registerDocuments(app, {
+    businessConfig, fetchVigourNetPrices: vigorPrices, root: cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT, pdf: pdfEngine,
+    log: { debug: (o, m) => app.log.debug(o, m), warn: (o, m) => app.log.warn(o, m), error: (o, m) => app.log.error(o, m) },
+  });
+  const ownDocuments: OfferDocuments = { ...offerDocuments, productImagePdf: UNAVAILABLE_DOCUMENTS.productImagePdf };
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
     badoluxDiscount: () => businessConfig.get("BU_BADOLUX_DISCOUNT", 0.25),
@@ -175,7 +188,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerBitrixRead(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   const signingSvc = await registerSigning(app, {
-    deals, renderer: deps.signingRenderer ?? UNAVAILABLE_SIGNING_RENDERER,
+    deals, renderer: deps.signingRenderer ?? { ...UNAVAILABLE_SIGNING_RENDERER, renderData: (p) => offerDocuments.getOfferRenderData(p), offerPdf: async (p) => (await offerDocuments.renderOfferPdf(p)).pdfBuffer },
     mailer: new Mailer({
       smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_PORT || 587, secure: cfg.SMTP_SECURE === "true", requirePass: false,
       smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS, replyTo: cfg.SMTP_REPLY_TO,
@@ -196,7 +209,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
       replyTo: cfg.SMTP_REPLY_TO, imapHost: cfg.IMAP_HOST, imapPort: cfg.IMAP_PORT, imapPass: cfg.IMAP_PASS, imapSentFolder: cfg.IMAP_SENT_FOLDER,
       ...(deps.mailTls ? { tls: deps.mailTls } : {}),
     }),
-    deals, documents: deps.documents ?? UNAVAILABLE_DOCUMENTS, signing: deps.signing ?? ownSigning, businessConfig,
+    deals, documents: deps.documents ?? ownDocuments, signing: deps.signing ?? ownSigning, businessConfig,
     assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
     smtpTestPort: cfg.SMTP_PORT || 465, smtpHost: cfg.SMTP_HOST,
   });
