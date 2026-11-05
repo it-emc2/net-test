@@ -1348,6 +1348,22 @@ describe("contract: vigor prices, catalog bulk, submissions, external lookup", (
     await db().collection("Services").deleteMany({ serviceId: /^T-BULK/ });
   });
 
+  it("v2 by design (ADR 018): catalog bulk writes need an admin; a normal user gets 403 and nothing is written", async () => {
+    const email = "catalog-user@test.local";
+    await db().collection("users").deleteMany({ email });
+    await db().collection("users").insertOne({ email, name: "Normal", passwordHash: await hashPassword("pw-normal"), role: "user", active: true });
+    const userTok = (await v2.inject({ method: "POST", url: "/api/auth/login", payload: { email, password: "pw-normal" } })).json().token;
+    const H = { authorization: `Bearer ${userTok}` };
+    const p = await raw("v2", "POST", "/api/products/bulk", [{ productId: "T-BULK-NO", name: "X", price: 1 }], H);
+    const sv = await raw("v2", "POST", "/api/services/bulk", [{ serviceId: "T-BULK-NO", name: "X", price: 1 }], H);
+    expect([p.status, sv.status]).toEqual([403, 403]);
+    expect(p.body.error.message).toBe("Admin-Zugriff erforderlich");
+    expect(await db().collection("Products").countDocuments({ productId: "T-BULK-NO" })).toBe(0);
+    expect(await db().collection("Services").countDocuments({ serviceId: "T-BULK-NO" })).toBe(0);
+    expect((await raw("v2", "POST", "/api/products/bulk", [{ productId: "T-BULK-NO", name: "X", price: 1 }], {})).status).toBe(401);
+    await db().collection("users").deleteMany({ email });
+  });
+
   it("submissions: same computed price, same stored row", async () => {
     const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
     const payload = JSON.parse(JSON.stringify(offers[0].payload));

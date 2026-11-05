@@ -141,3 +141,9 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Post errors no longer echo `debug` (legacy returned the raw request incl. recipient and file contents); message, stage, details and status unchanged.
 - Small intended differences: unknown upload type `constructor`/`__proto__` → 400 (legacy: prototype lookup).
 - **Proof:** the contract test points legacy AND v2 at a recording stub (`test/helpers/bitrix-stub.ts`); responses AND the outgoing calls (verb, method, encoded params in order) must be identical.
+
+## 018 — Catalog edits only for admins (ACCEPTED by owner, 2026-11-05)
+- `POST /api/products/bulk` and `/api/services/bulk` (catalog editor tab, product/service prices) require a user with role `admin` in v2 — same check as the admin panel. Normal users get 403 "Admin-Zugriff erforderlich", nothing is written. Legacy: any logged-in user.
+- For admins the endpoints behave exactly like today (contract test). v2-only test proves 403/401 and that nothing is stored.
+- Frontend (phase 6): show the catalog editor only to admins (UX-CHANGES U-005), so normal users never see a save that fails.
+- Cut-over: make sure everyone who maintains the catalog has the admin role.

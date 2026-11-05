@@ -1,9 +1,10 @@
 // Remaining small endpoints from legacy src/app.js + src/routes/offers.js (external lookup):
 // /health, /api/vigor-prices, catalog bulk upserts, /api/submissions,
 // /api/offers/external/* (bau-formular, shared API key). Responses identical (contract test).
-// Difference (secure by design): the external routes are closed when EXTERNAL_API_KEY is
+// Differences (secure by design): the external routes are closed when EXTERNAL_API_KEY is
 // unset (legacy left them open until the key was configured); the key is compared in
-// constant time.
+// constant time. Catalog bulk writes need an admin account (owner decision 2026-11-05,
+// ADR 018; legacy: any logged-in user).
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildExternalSearchResult, mapSearchResult, nameSearchRegex } from "../legacy/search.js";
@@ -56,8 +57,9 @@ export async function registerMisc(app: FastifyInstance, d: MiscDeps) {
     }
   });
 
-  // ---- catalog bulk upserts (admin tab in the app; legacy: any logged-in user) ----
-  app.post("/api/products/bulk", async (req, reply) => {
+  // ---- catalog bulk upserts: admins only (ADR 018) ----
+  const ADMIN_ONLY = { config: { admin: true } };
+  app.post("/api/products/bulk", ADMIN_ONLY, async (req, reply) => {
     try {
       const items = Array.isArray(req.body) ? (req.body as any[]) : [];
       if (!items.length) return fail(req, reply, 400, "BAD_REQUEST", "Body must be an array of products");
@@ -79,7 +81,7 @@ export async function registerMisc(app: FastifyInstance, d: MiscDeps) {
     }
   });
 
-  app.post("/api/services/bulk", async (req, reply) => {
+  app.post("/api/services/bulk", ADMIN_ONLY, async (req, reply) => {
     try {
       const items = Array.isArray(req.body) ? (req.body as any[]) : [];
       if (!items.length) return fail(req, reply, 400, "BAD_REQUEST", "Body must be an array of services");

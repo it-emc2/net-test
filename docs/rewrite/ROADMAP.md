@@ -58,8 +58,8 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
   - Phase 5 (documents): `/docx-template` (+`/pdf`, `/material-overview`), `/api/docx/pdf-preview`, `/pdf-preview/pdf-preview`, `/kalkulation/*` (preview, debug, docx, pdf, pdf-v2), `/arbeitsbericht/*` + `/api/arbeitsbericht/*` (docx, pdf, external/pdf), `/api/adobe-pdf/*`, `/latex-template/pdf`, `/pdf-template` (always 500 in legacy → retire), `/api/email/product-image-list`, `/api/email/preview-product-image-pdf`.
   - Phase 6 (frontend): `/login` page, `/logic/{pricing-core,tray-search-core,aufschlag-rules}.js` (the new web app imports `@oc/pricing` directly; offline cache follows).
 - [ ] Integrations behind interfaces with test doubles (Bitrix, SMTP/IMAP, OB24, routing, planning, magic, vigor).
-- [ ] Fix security findings (see local `~/emc2-local/SECURITY-FINDINGS.md`) by design: case-insensitive allowlist, no asset bypass, fail-closed API key, admin-only catalog writes, escaped regex.
-  - Done: route-level allowlist (no path patterns), fail-closed external API key (4h), escaped regex. **Open — owner decision:** admin-only catalog writes. The catalog editor tab (`AdminManager`) is shown to every logged-in user when its feature flag is on, so restricting `/api/*/bulk` to admins changes what staff can do. v2 keeps legacy behaviour until decided.
+- [x] Fix security findings (see local `~/emc2-local/SECURITY-FINDINGS.md`) by design: case-insensitive allowlist, no asset bypass, fail-closed API key, admin-only catalog writes, escaped regex.
+  - Done: route-level allowlist (no path patterns), fail-closed external API key (4h), escaped regex. admin-only catalog writes (owner decision 2026-11-05, ADR 018).
 
 ## Phase 5 — Documents
 - [ ] docxtemplater kept; DOCX golden master green.
@@ -84,5 +84,6 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] Staging against a **copy** of prod data; parallel run vs current app (same inputs → same prices/docs).
 - [ ] Deal drafts: wrap draft update + revision insert in a transaction (replica set) — see ADR 007
 - [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup
+- [ ] Everyone who maintains the catalog has role `admin` (ADR 018).
 - [ ] `EXTERNAL_API_KEY` set in production and in the bau-formular (v2 closes `/api/offers/external/*` without it).
 - [ ] Cut-over plan with rollback; owner OK.
