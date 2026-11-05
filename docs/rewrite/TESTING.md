@@ -88,3 +88,10 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
 - Legacy prints signing PDFs with Puppeteer. In the spawned legacy app, `OC_TEST_FAKE_PUPPETEER=1` (preload `legacy-smtp-port-shim.mjs`) resolves `puppeteer` to `test/helpers/fake-puppeteer.mjs`: no browser starts, the "PDF" is a hash of the printed HTML with dates/tokens normalised (`fake-pdf.mjs`). v2's test renderer uses the same function, so equal bytes = equal document content.
 - Each scenario runs fully on legacy, then (signing requests cleared) on v2; every step's response, Bitrix calls and mails, and the stored `signingrequests` documents must match. Sanity asserts make sure the flow really completed.
 - Scenarios: Selbstzahler, Kassenkunde (required fields, carry-over, postal download, admin list/PDF), reuse/force/expiry/admin send-bitrix, two persons (partner contact created / ambiguous), AH Kasse + Selbstzahler.
+
+## Main sync 2026-11-05 #2 (main@95fc920d: bathtub wizard, Kalkulation v2)
+- Pricing drift guard caught the `pricing-core.js` change (Wanne accessories, brand-free descriptions) → re-ported with `node v2/scripts/port-pricing-core.mjs 95fc920d`, 933 pricing tests green. Legacy golden masters unchanged (168 tests).
+- New drift guards:
+  - `test/route-parity.test.ts` (+ `v2/scripts/route-parity.mjs`): every legacy endpoint must be in v2 or assigned to a phase; stale assignments fail too.
+  - `test/verbatim-ports.test.ts` (+ `v2/scripts/port-verbatim.mjs`): fast-changing legacy data modules (`wanneSets.js`, `wanneDescribe.js`) are copied verbatim into `apps/server/src/catalog/ported/`; the test fails when main changes them → re-run the script.
+- Local-only artifact: legacy `res.sendFile` returns 404 when the checkout path contains a dot-folder (worktrees under `.claude/`). The DA-model contract test compares v2 against the file directly in that case; CI compares against legacy.

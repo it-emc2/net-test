@@ -1392,3 +1392,81 @@ describe("contract: vigor prices, catalog bulk, submissions, external lookup", (
     ]) await same("GET", url, undefined, K);
   });
 });
+
+// ---------------- group 4i: product pickers (trays, DA model, curtains, bathtubs) ----------------
+describe("contract: product pickers — same responses from the same vigor data", () => {
+  const vdb = () => mongoose.connection.getClient().db("vigor");
+  const same = async (url: string, auth = true) => {
+    const h: Record<string, string> = auth ? { authorization: `Bearer ${token}` } : {};
+    const lr = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { headers: h });
+    const l = { status: lr.status, type: (lr.headers.get("content-type") ?? "").toLowerCase(), body: await lr.json().catch(() => null) };
+    const vr = await v2.inject({ url, headers: h });
+    const v = { status: vr.statusCode, type: String(vr.headers["content-type"] ?? "").toLowerCase(), body: vr.json() };
+    expect(v.status, url).toBe(l.status);
+    if (l.status >= 400 && typeof l.body?.error === "string") expect(v.body.error.message, url).toBe(l.body.error);
+    else expect(v.body, url).toEqual(l.body);
+    if (l.status < 400) expect(v.type, url).toBe(l.type);
+    return v;
+  };
+
+  beforeAll(async () => {
+    await vdb().collection("products").deleteMany({ $or: [{ category: "badewanne" }, { "configContext.category": { $exists: true } }, { articleNumber: /^(SLA|DW|T-DA)/ }] });
+    await vdb().collection("models").deleteMany({});
+    await vdb().collection("products").insertMany([
+      // tray stock (freshest reading with stock data wins)
+      { articleNumber: "SLA100", stockQuantity: 4, stockText: "auf Lager", stockSymbol: "green", lastSeenAt: new Date("2026-10-01") },
+      { articleNumber: "SLA100", stockQuantity: 1, stockText: "wenige", stockSymbol: "yellow", lastSeenAt: new Date("2026-11-01") },
+      { articleNumber: "SLA120100", lastSeenAt: new Date("2026-11-02") },
+      // DA model images
+      { articleNumber: "T-DA1", images: ["https://cdn.test/da1.jpg"] }, { articleNumber: "T-DA2", images: [] },
+      // curtains (committed images or none → no download)
+      { articleNumber: "DEPDS30", name: "Deckenstütze 300mm", netPrice: 9.5, configContext: { category: "vorhangstange" }, images: ["https://cdn.test/x.jpg"] },
+      { articleNumber: "DEPVS150", name: "Stange", netPrice: 30, grosPrice: 40, configContext: { category: "vorhangstange" } },
+      { articleNumber: "DEPVS90", name: "Stange kurz", netPrice: 20, configContext: { category: "vorhangstange" } },
+      { articleNumber: "DEPVSROS", name: "Rosettenpaar", netPrice: 5, configContext: { category: "vorhangstange" } },
+      { articleNumber: "HEWIDV140200W", name: "Vorhang 140", netPrice: 25, unit: "Stück", configContext: { category: "duschvorhang" }, stockQuantity: 2 },
+      { articleNumber: "HEWIDV120200W", name: "Vorhang 120", netPrice: 22, configContext: { category: "duschvorhang" } },
+      { articleNumber: "HEWIDV120200W", name: "Duplikat", netPrice: 99, configContext: { category: "duschvorhang" } },
+      { articleNumber: "DERING10", name: "Ringe", finish: "VPE = 10 Stück", netPrice: 3, configContext: { category: "vorhangringe" } },
+      // bathtubs (free-text attributes)
+      { articleNumber: "IRIS160L2SWE", category: "badewanne", name: "Badewanne Acryl Iris 160x70/80cm weiß li", finish: "m.2 Schürzen weiß m.Abl. Novellini", netPrice: 1200, grosPrice: 1500, images: ["https://cdn.test/iris.jpg"], lastSeenAt: new Date("2026-10-01") },
+      { articleNumber: "IRIS160L2SWE", category: "badewanne", name: "Badewanne Acryl Iris 160x70/80cm weiß li", finish: "m.2 Schürzen weiß m.Abl. Novellini", netPrice: 1250, lastSeenAt: new Date("2026-11-01") },
+      { articleNumber: "IRIS170R3S", category: "badewanne", name: "Badewanne Acryl Iris 170x75/85x62cm weiß re", finish: "m.3 Sch.m.Ab-u.Ül.Grt.u.WE", netPrice: 1400 },
+      { articleNumber: "IRIS170LFS", category: "badewanne", name: "Badewanne Iris 170x75cm li", finish: "m.Frontschürze u.WE", netPrice: 1300 },
+      { articleNumber: "IRISNS", category: "badewanne", name: "Nackenstütze Nische", netPrice: 80 },
+      { articleNumber: "IRISWA140L", category: "badewanne", name: "NOV Iris COMBY Wannenaufsatz für Iris li", finish: "24/60x140cm ESG klar chrom.m.S70", netPrice: 600 },
+      { articleNumber: "IRISWAK140R", category: "badewanne", name: "Wannenaufsatz für Iris rechts Höhe 140cm", finish: "24/60cm klappb. ESG klar chrom Novellini", netPrice: 550 },
+      { articleNumber: "IRISWA0", category: "badewanne", name: "ohne Preis", netPrice: 0 },
+    ]);
+    await vdb().collection("models").insertOne({ _id: "vigour" as any, model: { version: 1, leaves: [{ id: "l1", components: [{ id: "c1", articles: [{ articleNumber: "T-DA1", price: 10 }, { articleNumber: "T-DA2", price: 12 }] }] }] } });
+  });
+
+  it.each([
+    "/api/trays/suggest?w=100&l=100", "/api/trays/suggest?b=120&l=100,0&budget=1", "/api/trays/suggest?h=3&series=dw",
+    "/api/trays/suggest?w=90&source=Badolux", "/api/trays/suggest?widthCm=1.000", "/api/trays/suggest",
+  ])("trays: %s", async (url) => { await same(url); });
+
+  it("DA model: vigour (with product images), badolux static file, unknown supplier — public like legacy", async () => {
+    const v = await same("/api/da-config/model/vigour", false);
+    expect(v.body.leaves[0].components[0].articles[0].image).toBe("https://cdn.test/da1.jpg");
+    // legacy res.sendFile refuses paths with a dot-folder (local worktrees live under .claude/) → 404 there;
+    // production/CI paths have none. v2 must serve the file unchanged either way.
+    if (ROOT.includes("/.")) {
+      const vb = await v2.inject({ url: "/api/da-config/model/badolux" });
+      expect(vb.statusCode).toBe(200);
+      expect(vb.json()).toEqual(JSON.parse(readFileSync(ROOT + "src/public/configurator/badolux-model.json", "utf8")));
+    } else await same("/api/da-config/model/badolux", false);
+    await same("/api/da-config/model/other", false);
+  });
+
+  it("curtains: grouping, sizes, dedup, ring packs, cached image paths", async () => {
+    const v = await same("/api/vorhang/products");
+    expect(v.body.curtains.map((c: any) => c.articleNumber)).toEqual(["HEWIDV120200W", "HEWIDV140200W"]);
+  });
+
+  it("bathtubs: Iris parsing, freshest price, IRISNS accessory, online sets, sort order", async () => {
+    const v = await same("/api/bathtubs/catalog");
+    expect(v.body.items.find((x: any) => x.articleNumber === "IRIS160L2SWE").netPrice).toBe(1250);
+    expect(v.body.items.find((x: any) => x.articleNumber === "IRIS170LFS").requires[0]).toMatchObject({ articleNumber: "IRISNS", netPrice: 80 });
+  });
+});

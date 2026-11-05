@@ -28,6 +28,7 @@ import { registerRouting, registerTodaysCustomers } from "./routing.js";
 import { registerMagic } from "./magic.js";
 import { registerSigning } from "./signing.js";
 import { registerMisc } from "./misc.js";
+import { registerCatalog } from "./catalog.js";
 import { UNAVAILABLE_SIGNING_RENDERER, type SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
@@ -37,6 +38,7 @@ import { UNAVAILABLE_DOCUMENTS, type OfferDocuments, type SigningPort } from "..
 
 /** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
 const LEGACY_ASSETS = fileURLToPath(new URL("../../../../../src/public/assets", import.meta.url));
+const LEGACY_PUBLIC = fileURLToPath(new URL("../../../../../src/public", import.meta.url));
 const LEGACY_SIGN_PAGE = fileURLToPath(new URL("../../../../../src/public/signpage/index.html", import.meta.url));
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
@@ -150,6 +152,12 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
 
   await registerOffersRead(app);
+  await registerCatalog(app, {
+    vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
+    badoluxDiscount: () => businessConfig.get("BU_BADOLUX_DISCOUNT", 0.25),
+    badoluxModelFile: `${LEGACY_PUBLIC}/configurator/badolux-model.json`,
+    vorhangAssetsDir: `${cfg.ASSETS_DIR ?? LEGACY_ASSETS}/vorhang`,
+  });
   await registerMisc(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI, computePrices: (p) => pricing.computePrices(p), externalApiKey: cfg.EXTERNAL_API_KEY,
   });

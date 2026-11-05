@@ -37,3 +37,27 @@ export function vigorPriceFetcher(uri: string) {
     return pickFreshestNetPrices(docs as any);
   };
 }
+
+/** Freshest stock reading per article (legacy pickFreshestStock): only docs with stock data take part. */
+export function pickFreshestStock(docs: Array<{ articleNumber?: string; stockQuantity?: unknown; stockText?: unknown; stockSymbol?: unknown; lastSeenAt?: unknown }>) {
+  const best = new Map<string, { seen: number; stockQuantity: unknown; stockText: unknown; stockSymbol: unknown }>();
+  for (const d of docs || []) {
+    if (d?.stockQuantity == null && d?.stockText == null) continue;
+    const seen = d.lastSeenAt ? new Date(d.lastSeenAt as string).getTime() || 0 : 0;
+    const prev = best.get(d.articleNumber as string);
+    if (prev && seen < prev.seen) continue;
+    best.set(d.articleNumber as string, { seen, stockQuantity: d.stockQuantity ?? null, stockText: d.stockText ?? null, stockSymbol: d.stockSymbol ?? null });
+  }
+  return new Map([...best].map(([id, v]) => [id, { stockQuantity: v.stockQuantity, stockText: v.stockText, stockSymbol: v.stockSymbol }]));
+}
+
+/** Map<articleNumber, stock>; throws when the vigor DB is unreachable (callers treat as "no data"). */
+export async function fetchVigourStock(uri: string, articleNumbers: unknown[]) {
+  const ids = [...new Set((articleNumbers || []).map((a) => String(a || "").trim()).filter(Boolean))];
+  if (!ids.length) return new Map();
+  const db = await getVigorDb(uri);
+  const docs = await db.collection("products")
+    .find({ articleNumber: { $in: ids } }, { projection: { articleNumber: 1, stockQuantity: 1, stockText: 1, stockSymbol: 1, lastSeenAt: 1 } })
+    .toArray();
+  return pickFreshestStock(docs as any);
+}
