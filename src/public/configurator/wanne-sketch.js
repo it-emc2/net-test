@@ -1,90 +1,110 @@
 // wanne-sketch.js — drawings for the Wanne picker (Optional tab → Wanne).
 // Same look and projection as the Duschabtrennung sketches (badolux-sketch.js):
 // our own axonometric drawing of the tub, the walls that define the
-// installation (corner / niche / wall-mount), the entry door and, optionally,
-// the glass screen. Door and screen swing open on hover or tap.
+// installation, the entry door and, optionally, the glass screen (Aufsatz).
+// Door and screen swing open on hover or tap.
 //
-// Every tub we sell has its entry door at the WALL end: Megabad lists
-// Steinkamp "Einbau Ecke links" with "Glastür links" and the side apron on the
-// RIGHT (the open end); Novellini Iris "li" with 2 aprons = front + right end.
-// So the drawing is built once with door + wall on the left and mirrored for
-// "rechts" — the corner wall then always stands at the far end of the view and
-// never covers the tub. Pure functions apart from attachWanneSketch().
+// Wall side and door side are independent (Steinkamp sells every combination),
+// so both are drawn from the spec. The view is mirrored when the corner wall
+// is on the right, so the corner wall always stands at the far end and never
+// covers the tub. Pure functions apart from attachWanneSketch().
 
 const H_WALL = 105; // cm, drawn wall height (low, so the tub stays the hero)
 const DOOR_W = 55; // cm, entry door width (Steinkamp easy entry)
 const DOOR_Y0 = 19.5; // cm, entry height above the floor
-const VORWAND = 20; // cm, depth of the installation wall
-const FREE = 34; // cm, open floor drawn beyond the open end of the tub
+const FREE = 34; // cm, open floor drawn beyond an open end of the tub
 
-// View from front-left like the Duschabtrennung drawings.
+// View from front-left like the Duschabtrennung drawings (+x and +z are nearer).
 const AX = [0.95, 0.3];
 const AZ = [-0.62, 0.42];
 const proj = (x, y, z) => [x * AX[0] + z * AZ[0], x * AX[1] + z * AZ[1] - y];
+const flip = (s) => (s === "links" ? "rechts" : s === "rechts" ? "links" : s);
 
 /**
- * spec = { einbau: "ecke"|"nische"|"vorwand", side: "links"|"rechts",
- *          screen: bool, L, Wd, H, screenH, label }
+ * spec = { einbau: "ecke"|"nische"|"vorwand", wall: "links"|"rechts"|null,
+ *          door: "links"|"rechts"|null,
+ *          screen: null | { side, kind: "falt"|"pendel"|"klapp"|"comby", h, panel },
+ *          L, Wd, H, label }
  */
 export function wanneSketchSVG(spec, { open = 0, small = false } = {}) {
   if (!spec) return "";
   const L = spec.L || 170, Wd = spec.Wd || 75, H = spec.H || 58;
   const einbau = spec.einbau || "ecke";
-  const vor = einbau === "vorwand" ? VORWAND : 0;
+  const mirror = einbau === "ecke" && spec.wall === "rechts";
+  const door = mirror ? flip(spec.door) : spec.door; // in the drawing's own frame
+  const sc = spec.screen ? { ...spec.screen, side: mirror ? flip(spec.screen.side) : spec.screen.side } : null;
   const D = Wd + 22;
-  const W = einbau === "nische" ? L : L + FREE; // tub runs x = 0..L, wall at x = 0
+  // tub runs x = a..b; corner wall (if any) at x = 0
+  let a = 0, b = L, W = L + FREE;
+  if (einbau === "nische") W = L;
+  if (einbau === "vorwand") { a = FREE * 0.7; b = a + L; W = b + FREE * 0.7; }
   const o = Math.max(0, Math.min(1, open));
   const items = [];
   const poly = (pts, cls) => items.push({ pts, cls });
   const line = (p, q, cls) => items.push({ line: [p, q], cls });
   const text = (t, at, cls) => items.push({ text: t, at, cls });
-  const wallX = (x, cls = "w") => poly([[x, 0, -vor], [x, 0, D], [x, H_WALL, D], [x, H_WALL, -vor]], cls);
+  const wallX = (x, cls = "w") => poly([[x, 0, 0], [x, 0, D], [x, H_WALL, D], [x, H_WALL, 0]], cls);
   const pane = (p, q, y0, y1, cls) =>
     poly([[p[0], y0, p[1]], [q[0], y0, q[1]], [q[0], y1, q[1]], [p[0], y1, p[1]]], cls);
+  // a pane hinged at x=hx (on the line z=zf) of width w, running in direction dir,
+  // swung out of the tub by angle deg
+  const swing = (hx, zf, dir, w, deg, y0, y1, cls) => {
+    const th = (deg * Math.PI) / 180;
+    const end = [hx + dir * w * Math.cos(th), zf + w * Math.sin(th)];
+    pane([hx, zf], end, y0, y1, cls);
+    return end;
+  };
 
-  poly([[-18, 0, -vor - 6], [W + 18, 0, -vor - 6], [W + 18, 0, D + 30], [-18, 0, D + 30]], "fl");
-  poly([[0, 0, -vor], [W, 0, -vor], [W, H_WALL, -vor], [0, H_WALL, -vor]], "w");
-  wallX(0); // the corner wall, at the door end
+  poly([[-18, 0, -6], [W + 18, 0, -6], [W + 18, 0, D + 30], [-18, 0, D + 30]], "fl");
+  poly([[0, 0, 0], [W, 0, 0], [W, H_WALL, 0], [0, H_WALL, 0]], "w"); // back wall
+  if (einbau !== "vorwand") wallX(0); // corner wall / first niche wall
 
-  if (vor) {
-    const vh = 95;
-    poly([[0, vh, -vor], [L, vh, -vor], [L, vh, 0], [0, vh, 0]], "vw");
-    poly([[0, 0, 0], [L, 0, 0], [L, vh, 0], [0, vh, 0]], "vw");
+  // tub: rim, basin, front panel, visible (near) end panel
+  poly([[a, H, 0], [b, H, 0], [b, H, Wd], [a, H, Wd]], "tb");
+  poly([[a + 7, H, 7], [b - 7, H, 7], [b - 7, H, Wd - 7], [a + 7, H, Wd - 7]], "tbi");
+  poly([[a, 0, Wd], [b, 0, Wd], [b, H, Wd], [a, H, Wd]], "tb");
+  poly([[b, 0, 0], [b, 0, Wd], [b, H, Wd], [b, H, 0]], "tb");
+
+  if (door) {
+    // entry door in the front panel near its end, hinged on the end side,
+    // swinging out into the room
+    const left = door === "links";
+    const d0 = left ? a + 12 : b - 12 - DOOR_W;
+    pane([d0, Wd], [d0 + DOOR_W, Wd], DOOR_Y0, H, "op");
+    const hx = left ? d0 : d0 + DOOR_W;
+    const end = swing(hx, Wd, left ? 1 : -1, DOOR_W, o * 78, DOOR_Y0, H, "g gd");
+    if (!small) {
+      const at = (y) => [hx + (end[0] - hx) * 0.85, y, Wd + (end[1] - Wd) * 0.85];
+      line(at(DOOR_Y0 + 14), at(DOOR_Y0 + 30), "hd");
+    }
   }
 
-  // tub: rim, basin, front apron, open end (the open end faces the viewer)
-  poly([[0, H, 0], [L, H, 0], [L, H, Wd], [0, H, Wd]], "tb");
-  poly([[7, H, 7], [L - 7, H, 7], [L - 7, H, Wd - 7], [7, H, Wd - 7]], "tbi");
-  poly([[0, 0, Wd], [L, 0, Wd], [L, H, Wd], [0, H, Wd]], "tb");
-  poly([[L, 0, 0], [L, 0, Wd], [L, H, Wd], [L, H, 0]], "tb");
-
-  // entry door in the front, next to the wall; hinged on the wall side,
-  // swings out into the room
-  const d0 = 12;
-  pane([d0, Wd], [d0 + DOOR_W, Wd], DOOR_Y0, H, "op");
-  const th = (o * 78 * Math.PI) / 180;
-  const free = [d0 + DOOR_W * Math.cos(th), Wd + DOOR_W * Math.sin(th)];
-  pane([d0, Wd], free, DOOR_Y0, H, "g gd");
-  if (!small) {
-    const at = (y) => [d0 + (free[0] - d0) * 0.85, y, Wd + (free[1] - Wd) * 0.85];
-    line(at(DOOR_Y0 + 14), at(DOOR_Y0 + 30), "hd");
-  }
-
-  if (spec.screen) {
-    // glass screen on the rim at the wall end: fixed part + folding leaf
-    const sh = spec.screenH || 140, y1 = H + sh, zf = Wd - 3;
-    const F = Math.min(60, L * 0.36), LW = 40;
-    pane([0, zf], [F, zf], H, y1, "g");
-    const ts = (o * 85 * Math.PI) / 180;
-    pane([F, zf], [F + LW * Math.cos(ts), zf + LW * Math.sin(ts)], H, y1, "g gd");
-    if (!small) text(`Höhe ${sh} cm`, [F / 2, y1 + 8, zf], "dim");
+  if (sc) {
+    const sh = sc.h || 140, y1 = H + sh, zf = Wd - 3;
+    const left = sc.side === "links";
+    const hx = left ? a : b, dir = left ? 1 : -1;
+    if (sc.kind === "pendel") {
+      swing(hx, zf, dir, 88, o * 70, H, y1, "g gd");
+    } else {
+      // fixed part on the wall side + folding leaf (Steinkamp 53 + 44 cm,
+      // Iris 24 + 60 cm)
+      const [F, LW] = sc.kind === "falt" ? [53, 44] : [24, 60];
+      pane([hx, zf], [hx + dir * F, zf], H, y1, "g");
+      swing(hx + dir * F, zf, dir, LW, o * 80, H, y1, "g gd");
+      if (sc.panel) {
+        // Iris COMBY: fixed side panel across the tub at the end of the screen
+        const xs = hx + dir * (F + LW);
+        pane([xs, zf], [xs, 4], H, y1, "g");
+      }
+    }
+    if (!small) text(`Höhe ${sh} cm`, [hx + dir * 45, y1 + 8, zf], "dim");
   }
 
   // niche: the second wall stands between viewer and tub → faint, drawn last
   if (einbau === "nische") wallX(W, "w wb");
 
-  if (!small) text(spec.label || `${L} × ${Wd} cm`, [L / 2, 0, Wd + 22], "dim");
-  return render(items, small, spec.side === "rechts");
+  if (!small) text(spec.label || `${L} × ${Wd} cm`, [(a + b) / 2, 0, Wd + 22], "dim");
+  return render(items, small, mirror);
 }
 
 // Same output as badolux-sketch.js render(), plus `mirror` (view from the

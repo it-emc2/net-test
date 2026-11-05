@@ -68,10 +68,13 @@ export function parseWanneDoc(doc) {
       // Trade logic, not in the Vigor data: apron on front + one end = corner
       // installation, front apron only = between two walls (niche).
       einbau: schuerze === "2 Schürzen" ? "Ecke" : schuerze === "Frontschürze" ? "Nische" : null,
-      // Iris is a tub with an entry door (product photo) and takes the Iris
-      // Wannenaufsätze on its rim.
+      // Iris "li" with 2 aprons = front + RIGHT end → the wall is at the door
+      // end. Front apron only → between two walls.
+      wall: schuerze === "2 Schürzen" ? side : schuerze === "Frontschürze" ? "beide" : null,
+      // Iris is a tub with an entry door (product photo); the Iris Wannenaufsätze
+      // fit it (public/configurator/wanne-rules.js).
       hasDoor: true,
-      acceptsScreen: true,
+      screenFamily: "iris",
       lengthCm: num(m?.[1]),
       widthCm: num(m?.[2]),
       widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
@@ -100,6 +103,8 @@ export function parseWanneDoc(doc) {
       ? `S${finish.match(/m\.\s*S(\d+)/i)[1]}`
       : "ohne",
     klappbar: /klappb/i.test(text),
+    screenKind: /klappb/i.test(text) ? "klapp" : "comby",
+    screenFamily: "iris",
     glas: /ESG\s*klar/i.test(finish) ? "ESG klar" : null,
     rahmen: /chrom/i.test(finish) ? "chrom" : null,
   };

@@ -14,15 +14,39 @@ const dims = (p) => {
   return `${p.lengthCm} × ${w}${p.tubHeightCm ? ` × ${de(p.tubHeightCm)}` : ""} cm`;
 };
 
+// "Ecke" with a known wall side says where the wall is; door side is separate.
+const mountText = (p) =>
+  p.einbau === "Ecke"
+    ? p.wall === "links" || p.wall === "rechts"
+      ? `Einbau Ecke, Wand ${p.wall}`
+      : "Einbau Ecke"
+    : p.einbau === "Nische"
+      ? "Nischeneinbau"
+      : p.einbau === "Vorwand"
+        ? "Vorwandmontage, Verkleidung vorn und an beiden Enden"
+        : null;
+
 export function describeWanne(p) {
   if (!p) return "";
   if (p.type === "screen") {
+    const kind =
+      p.screenKind === "pendel"
+        ? "Wannenaufsatz Pendeltür, 1-teilig"
+        : p.screenKind === "falt"
+          ? "Wannenaufsatz, 2-teilig faltbar"
+          : p.klappbar
+            ? "Wannenaufsatz, klappbar"
+            : "Wannenaufsatz, 2-teilig";
     const parts = [
-      p.klappbar ? "Wannenaufsatz, klappbar" : "Wannenaufsatz, 2-teilig",
+      kind,
       p.side ? `Anschlag ${p.side}` : null,
-      p.heightCm ? `Höhe ${p.heightCm} cm` : null,
+      p.screenFamily === "steinkamp" && p.widthCm && p.heightCm
+        ? `${p.widthCm} × ${p.heightCm} cm`
+        : p.heightCm
+          ? `Höhe ${p.heightCm} cm`
+          : null,
       /^S\d+/.test(p.seitenwand || "") ? `mit Seitenwand ${p.seitenwand.slice(1)} cm` : null,
-      "ESG-Glas klar, Profile chrom",
+      p.screenFamily === "steinkamp" ? "ESG-Glas klar" : "ESG-Glas klar, Profile chrom",
     ];
     return parts.filter(Boolean).join(", ");
   }
@@ -30,7 +54,7 @@ export function describeWanne(p) {
     p.hasDoor
       ? `Badewanne mit Einstiegstür${p.side ? ` ${p.side}` : ""}`
       : `Badewanne${p.side ? ` ${p.side}` : ""}`,
-    p.einbau ? `Einbau ${p.einbau}` : null,
+    mountText(p),
     dims(p),
     p.schuerze || null,
     p.zulauf === "Wanneneinlauf" ? "Wanneneinlauf" : null,
