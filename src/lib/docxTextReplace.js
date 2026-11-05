@@ -18,29 +18,35 @@ function cleanRules(rules) {
 }
 const apply = (text, rules) => rules.reduce((s, r) => s.replace(r.re, () => r.to), text);
 
+const preserve = (open) => (/\sxml:space=/.test(open) ? open : open.replace(/>$/, ' xml:space="preserve">'));
+
+// Each rule is applied exactly once per paragraph — a replacement that contains its own
+// search text ("Wannenaufsatz" → "Wannenaufsatz 2") must not be replaced again.
 function fixParagraph(p, rules) {
-  // 1) lossless: a match inside a single run
-  let changed = false;
-  let out = p.replace(T_RE, (m, open, txt, close) => {
-    const next = apply(unxml(txt), rules);
-    if (next === unxml(txt)) return m;
-    changed = true;
-    return `${open.replace(/>$/, ' xml:space="preserve">').replace(/ xml:space="preserve"(\s[^>]*)? xml:space="preserve"/, ' xml:space="preserve"')}${toxml(next)}${close}`;
-  });
+  const runs = [...p.matchAll(T_RE)];
+  if (!runs.length) return p;
+  const joined = runs.map((m) => unxml(m[2])).join("");
+  const target = apply(joined, rules);
+  if (target === joined) return p;
+
+  // 1) lossless: every match sits inside a single run
+  const perRun = runs.map((m) => apply(unxml(m[2]), rules));
+  if (perRun.join("") === target) {
+    let i = 0;
+    return p.replace(T_RE, (m, open, _t, close) => {
+      const next = perRun[i++];
+      return `${preserve(open)}${toxml(next)}${close}`;
+    });
+  }
   // 2) a match split across runs: merge the paragraph text into its first run — only when
   //    the paragraph holds nothing but text runs (no breaks, tabs, images).
-  const joined = [...out.matchAll(T_RE)].map((m) => unxml(m[2])).join("");
-  const merged = apply(joined, rules);
-  if (merged !== joined && !/<w:(br|tab|drawing|pict)\b/.test(out)) {
-    let first = true;
-    out = out.replace(T_RE, (m, open, _t, close) => {
-      if (!first) return `${open}${close}`;
-      first = false;
-      return `${open.replace(/>$/, ' xml:space="preserve">')}${toxml(merged)}${close}`;
-    });
-    changed = true;
-  }
-  return changed ? out : p;
+  if (/<w:(br|tab|drawing|pict)\b/.test(p)) return p;
+  let first = true;
+  return p.replace(T_RE, (m, open, _t, close) => {
+    if (!first) return `${open}${close}`;
+    first = false;
+    return `${preserve(open)}${toxml(target)}${close}`;
+  });
 }
 
 export function replaceTextInDocx(buffer, replacements) {

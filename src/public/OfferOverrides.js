@@ -61,6 +61,9 @@ function line(label, control) {
   return el;
 }
 
+// The preview listens for input/change on the page; removing a row fires neither.
+const notifyPreview = () => document.getElementById("offerOverridesCard")?.dispatchEvent(new Event("change", { bubbles: true }));
+
 function removeButton(onClick) {
   const del = document.createElement("button");
   del.type = "button";
@@ -68,7 +71,7 @@ function removeButton(onClick) {
   del.textContent = "✕";
   del.title = "Entfernen";
   del.disabled = locked();
-  del.addEventListener("click", onClick);
+  del.addEventListener("click", () => { onClick(); notifyPreview(); });
   return del;
 }
 

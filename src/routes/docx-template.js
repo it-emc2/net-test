@@ -165,33 +165,12 @@ function getAngebotTemplatePath(body) {
   return fallbackPath;
 }
 
-// Per-offer wording changes the user makes in OC (payload.offerOverrides.textReplacements
-// = [{ from, to }]), applied to every customer-facing string of the render data. Same
-// seam as the blocklist, so DOCX, PDF, mail PDF and the signing page all agree.
-function applyTextReplacements(value, replacements) {
-  const list = (Array.isArray(replacements) ? replacements : [])
-    .map((r) => ({ from: String(r?.from ?? "").trim(), to: String(r?.to ?? "") }))
-    .filter((r) => r.from);
-  if (!list.length) return value;
-  const walk = (v) => {
-    if (typeof v === "string") {
-      return list.reduce((s, r) => s.replace(new RegExp(escapeRegExpDocx(r.from), "gi"), () => r.to), v);
-    }
-    if (Array.isArray(v)) return v.map(walk);
-    if (v && typeof v === "object") {
-      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
-    }
-    return v;
-  };
-  return walk(value);
-}
-
-// Blocklist first, then the offer's own overrides.
-function sanitizeRenderData(dataRaw, body) {
-  return applyTextReplacements(
-    deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST),
-    body?.offerOverrides?.textReplacements,
-  );
+// Blocklist for the render data. The offer's own wording rules (payload.offerOverrides
+// .textReplacements) are NOT applied here: they run once on the finished output — the
+// rendered DOCX (lib/docxTextReplace.js) or the signing page HTML — so a rule is never
+// applied twice and also reaches the template's fixed sentences.
+function sanitizeRenderData(dataRaw) {
+  return deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
 }
 
 const pricing = pricingFactory(ProductModel);
@@ -669,9 +648,8 @@ async function convertDocxToPdfUnqueued(docxBuffer) {
 async function getOfferRenderData(body) {
   const computed = await pricing.computePrices(body || {});
   const dataRaw = await mapData(body || {}, computed);
-  const data = sanitizeRenderData(dataRaw, body);
-  // The raw rules (not run through the replacement above) — for pages that render
-  // their own fixed text, e.g. the signing page.
+  const data = sanitizeRenderData(dataRaw);
+  // The wording rules, for pages that render their own HTML, e.g. the signing page.
   data.TextReplacements = body?.offerOverrides?.textReplacements || [];
   return { data, computed };
 }
@@ -2555,7 +2533,7 @@ router.post("/", async (req, res) => {
     });
 
     const dataRaw = await mapData(req.body || {}, computed);
-    const data = sanitizeRenderData(dataRaw, req.body);
+    const data = sanitizeRenderData(dataRaw);
 
     if (STATIC_DOCX_WORD_BLOCKLIST.length) {
       console.log(
@@ -2725,7 +2703,6 @@ export {
   generateOfferPdfBuffer,
   getOfferRenderData,
   deepSanitizeDocxPayload,
-  applyTextReplacements,
   sanitizeRenderData,
   STATIC_DOCX_WORD_BLOCKLIST,
   buildAhData,

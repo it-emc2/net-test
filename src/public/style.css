@@ -188,6 +188,8 @@ header {
   position: sticky;
   top: 0;
   z-index: 50;
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
 }
 
 .header-left {
@@ -10945,7 +10947,9 @@ details.az-group[open] > summary.az-group-title::before {
 }
 
 /* ── 33. Drop-down / select native ──────────────────────────── */
-[data-mode="dark"] select {
+[data-mode="dark"] select,
+[data-mode="dark"] input,
+[data-mode="dark"] textarea {
   color-scheme: dark;
 }
 
@@ -11946,7 +11950,7 @@ details.az-group[open] > summary.az-group-title::before {
 .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
 .wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: 2px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
 body.ui-classic #page-Wandverkleidung .wv-row.is-active { background: var(--cl-weak); border-color: var(--cl-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cl-accent) 30%, transparent); }
-body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--cl-accent); }
+body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px var(--cl-accent); }
 body.ui-classic #page-Wandverkleidung .wv-row.is-active::after { background: var(--cl-accent); }
 /* Colour overview as a picker: ring = colour is in a row, blue = the marked row. */
 #wvColors label.image-check:has(input:checked) { border-color: transparent; box-shadow: none; }
@@ -12027,7 +12031,7 @@ body.ui-classic #page-Duschwanne .sec-switch:has(input:checked),
 body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"] { border-color: var(--cl-accent); background: var(--cl-weak); }
 /* Schalter-Spur wird zur Checkbox */
 body.ui-classic #page-Duschwanne .sec-switch__track {
-  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box;
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--muted, #9ca3af); background: var(--panel, #fff); box-sizing: border-box;
   display: grid; place-items: center; order: -1;
 }
 body.ui-classic #page-Duschwanne .sec-switch__track::after {
@@ -12051,9 +12055,9 @@ body.ui-classic #page-Duschwanne .tier-seg__btn { min-width: 0; align-items: fle
 body.ui-classic #page-Duschwanne .tier-seg__btn[data-tier="premium"] { order: -1; }
 body.ui-classic #page-Duschwanne .tier-seg__btn::before {
   content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
-  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+  border: 2px solid var(--muted, #9ca3af); border-radius: 50%; background: var(--panel, #fff); box-sizing: border-box;
 }
-body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"]::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+body.ui-classic #page-Duschwanne .tier-seg__btn[aria-pressed="true"]::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, var(--panel, #fff) 50%); }
 body.ui-classic #page-Duschwanne .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
 /* Hinweis-Karte: Überschrift über der Karte, Karte so hoch wie die Produktlinien-Karten */
 body.ui-classic #page-Duschwanne .sec-settings:has(.tier-seg) .sec-settings__row:last-child { margin-top: 28px; }
@@ -12080,7 +12084,7 @@ body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-name { font-weight: 500; }
 body.ui-classic #page-Duschwanne .dw-dim-row .dw-dim-input { display: flex; align-items: center; gap: 8px; }
 body.ui-classic #page-Duschwanne #form-duschwanne .dw-dim-row input[type="number"],
 body.ui-classic #page-Duschwanne .dw-dim-row input[type="number"] {
-  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; background: var(--panel, #fff);
 }
 body.ui-classic #page-Duschwanne .dw-dim-row:focus-within { background: none; }
 
@@ -12095,6 +12099,10 @@ body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card {
 body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card + .suggestion-card { border-top: 2px solid var(--cl-border); }
 body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card.is-selected { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
 body.ui-classic #page-Duschwanne #tray-suggestions .sc-price { color: var(--cl-accent); font-weight: 700; }
+/* Tile too narrow for text + price side by side: stack, price at the bottom. */
+body.ui-classic #page-Duschwanne #tray-suggestions .suggestion-card { flex-direction: column; align-items: stretch; gap: 8px; }
+body.ui-classic #page-Duschwanne #tray-suggestions .sc-body { grid-template-columns: minmax(0, 1fr); flex: 0 0 auto; }
+body.ui-classic #page-Duschwanne #tray-suggestions .sc-check { display: none; }
 
 /* Farbe: rechteckige Farbfelder */
 body.ui-classic #page-Duschwanne .dw-color-grid { padding: 0; }
@@ -12111,7 +12119,7 @@ body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 2px solid var(-
 body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
 body.ui-classic #page-Duschwanne .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
 body.ui-classic #page-Duschwanne .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
-body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; }
+body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); }
 body.ui-classic #page-Duschwanne .dw-acc > .img-wrap img { object-fit: contain; }
 body.ui-classic #page-Duschwanne .dw-acc__text { grid-column: 1; grid-row: 2; }
 body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
@@ -12123,8 +12131,8 @@ body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { vi
 body.ui-classic #page-Duschwanne .stelzlager-qty-row {
   grid-column: 1; grid-row: 3; position: relative; z-index: 1; background: none; gap: 6px; justify-self: start;
 }
-body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
+body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 
 /* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
 body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
@@ -12138,7 +12146,7 @@ body.ui-classic #page-Duschwanne #dw-custom-details .da-label {
   font-size: 0.82rem; font-weight: 500; color: var(--muted, #6b7280);
 }
 body.ui-classic #page-Duschwanne #dw-custom-details .da-label input {
-  flex: none; max-width: none; width: 100%; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff); font-size: 1rem;
+  flex: none; max-width: none; width: 100%; text-align: left; padding: 10px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; background: var(--panel, #fff); font-size: 1rem;
 }
 body.ui-classic #page-Duschwanne #dw-custom-details .da-label:focus-within { background: none; }
 @media (max-width: 700px) {
@@ -12165,7 +12173,7 @@ body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch 
 body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
 body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track,
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track {
-  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box; display: grid; place-items: center; order: -1;
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--muted, #9ca3af); background: var(--panel, #fff); box-sizing: border-box; display: grid; place-items: center; order: -1;
 }
 body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field .sec-switch__track::after,
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .sec-switch__track::after {
@@ -12197,7 +12205,7 @@ body.ui-classic #page-Fussboden #fbTabFloor .sec-divider > span { padding: 0; ba
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) > .sec-settings__group { display: flex; flex-direction: column; gap: 12px; }
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row {
   display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 14px;
-  border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+  border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe);
 }
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row + .sec-settings__row { border-top: 1px solid var(--cl-border); }
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings__text strong { font-size: 0.95rem; }
@@ -12208,7 +12216,7 @@ body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-se
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn,
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span {
   position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px;
-  background: #fff; box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  background: var(--panel, #fff); box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   font-weight: 600; white-space: nowrap;
 }
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[data-tier="premium"] { order: -1; }
@@ -12216,12 +12224,12 @@ body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn span { font-size: 0.8
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn::before,
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span::before {
   content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
-  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+  border: 2px solid var(--muted, #9ca3af); border-radius: 50%; background: var(--panel, #fff); box-sizing: border-box;
 }
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"],
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span { border-color: var(--cl-accent); background: var(--cl-weak); }
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[aria-pressed="true"]::before,
-body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg input:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, var(--panel, #fff) 50%); }
 @media (max-width: 700px) {
   body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .sec-settings__row { grid-template-columns: 1fr; }
 }
@@ -12232,17 +12240,17 @@ body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-di
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-name { font-weight: 500; }
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(#floorArea) .dw-dim-input { display: flex; align-items: center; gap: 8px; }
 body.ui-classic #page-Fussboden #fbTabFloor #floorArea {
-  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; background: var(--panel, #fff);
 }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-dim-row:focus-within { background: none; }
 body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle {
-  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: var(--panel, #fff); color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
 }
 body.ui-classic #page-Fussboden #fbTabFloor #floorCalcToggle::after { display: none; }
 
 /* Flächenrechner: Kopfzeile, gleich breite Felder, +/− Tag, rechtsbündige Ergebnisse */
 body.ui-classic #page-Fussboden #floorCalcPanel {
-  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe);
 }
 body.ui-classic #page-Fussboden #floorCalcPanel[hidden] { display: none; }
 body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-card__hint { margin-bottom: 14px; }
@@ -12257,7 +12265,7 @@ body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(1) 
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field:nth-of-type(2) { grid-column: 3; grid-row: 1; }
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-times { display: none; }
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-area { grid-column: 4; grid-row: 1; min-width: 0; padding: 0 0 10px; text-align: right; }
-body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-field input { height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; }
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result { font-variant-numeric: tabular-nums; }
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row-result::before { content: none; }
@@ -12271,7 +12279,7 @@ body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floo
 body.ui-classic #page-Fussboden #floorCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { display: block; margin-bottom: 6px; }
 body.ui-classic #page-Fussboden #floorCalcAddRow,
 body.ui-classic #page-Fussboden #floorCalcApply {
-  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: var(--panel, #fff); color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
 }
 body.ui-classic #page-Fussboden #floorCalcApply { background: var(--cl-accent); color: #fff; margin: 0; }
 body.ui-classic #page-Fussboden #floorCalcPanel .floor-calc-result-row { border-top: 1px solid var(--cl-border); margin-top: 10px; padding: 12px 0 0; }
@@ -12283,7 +12291,7 @@ body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check {
   position: relative; display: grid; align-content: start; justify-items: stretch; gap: 8px; width: auto; padding: 10px;
   border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); box-shadow: none; cursor: pointer;
 }
-body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .img-wrap { width: 100%; height: 96px; aspect-ratio: auto; border-radius: 8px; border: 0; background: #f1f1f5; box-shadow: none; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .img-wrap { width: 100%; height: 96px; aspect-ratio: auto; border-radius: 8px; border: 0; background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); box-shadow: none; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .caption { font-size: 0.82rem; font-weight: 600; color: var(--text, #1f2937); text-align: left; max-width: none; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-color-grid .image-check:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
@@ -12306,7 +12314,7 @@ body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input)) { border-co
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc > .img-wrap,
-body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: #f1f1f5; padding: 0; }
+body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .image-check > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); padding: 0; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc .img-wrap img { object-fit: cover; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text { grid-column: 1; grid-row: 2; }
 body.ui-classic #page-Fussboden #fbTabFloor .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
@@ -12323,7 +12331,7 @@ body.ui-classic #page-Fussboden #fbTabFloor .dw-acc:not(:has(input))::after {
 }
 
 /* Ihre Auswahl: Karte mit kleinem Bild, ohne Summe */
-body.ui-classic #page-Fussboden #floorSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: #fafafe; }
+body.ui-classic #page-Fussboden #floorSummaryBody { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fafafe); }
 body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__hero { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 12px 14px; }
 body.ui-classic #page-Fussboden #floorSummaryBody .dw-summary__pic { width: 72px; height: 72px; border-radius: 10px; }
 body.ui-classic #page-Fussboden #form-fussboden > .sec-switch-field { margin-bottom: 0; }
@@ -12334,7 +12342,7 @@ body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field 
 body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
 body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch__track,
 body.ui-classic #page-Wandverkleidung .dw-acc .sec-switch__track {
-  width: 20px; height: 20px; border-radius: 5px; border: 2px solid #9ca3af; background: #fff; box-sizing: border-box; display: grid; place-items: center; order: -1;
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--muted, #9ca3af); background: var(--panel, #fff); box-sizing: border-box; display: grid; place-items: center; order: -1;
 }
 body.ui-classic #page-Wandverkleidung #form-wandverkleidung > .sec-switch-field .sec-switch__track::after,
 body.ui-classic #page-Wandverkleidung .dw-acc .sec-switch__track::after {
@@ -12361,17 +12369,17 @@ body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-row { d
 body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-name { font-weight: 500; }
 body.ui-classic #page-Wandverkleidung .sec-settings:has(#wvArea) .dw-dim-input { display: flex; align-items: center; gap: 8px; }
 body.ui-classic #page-Wandverkleidung #wvArea {
-  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; background: var(--panel, #fff);
+  flex: 1; width: 100%; min-width: 0; text-align: left; padding: 10px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; background: var(--panel, #fff);
 }
 body.ui-classic #page-Wandverkleidung .dw-dim-row:focus-within { background: none; }
 body.ui-classic #page-Wandverkleidung #wvaCalcToggle {
-  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: var(--panel, #fff); color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; width: auto; justify-content: center;
 }
 body.ui-classic #page-Wandverkleidung #wvaCalcToggle::after { display: none; }
 
 /* Flächenrechner: Kopfzeile, gleich breite Felder, +/− Tag, rechtsbündige Ergebnisse */
 body.ui-classic #page-Wandverkleidung #wvaCalcPanel {
-  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+  grid-column: 1 / -1; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe);
 }
 body.ui-classic #page-Wandverkleidung #wvaCalcPanel[hidden] { display: none; }
 body.ui-classic #page-Wandverkleidung #wvaCalcPanel .floor-calc-card__hint { margin-bottom: 14px; }
@@ -12386,7 +12394,7 @@ body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field:nth-of-type
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field:nth-of-type(2) { grid-column: 3; grid-row: 1; }
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-times { display: none; }
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-area { grid-column: 4; grid-row: 1; min-width: 0; padding: 0 0 10px; text-align: right; }
-body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-remove-row { grid-column: 5; grid-row: 1; width: 32px; height: 32px; margin-bottom: 4px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-field input { height: 40px; text-align: left; padding: 0 12px; border-radius: 10px; }
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-result { font-variant-numeric: tabular-nums; }
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row-result::before { content: none; }
@@ -12400,7 +12408,7 @@ body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:first-child .
 body.ui-classic #page-Wandverkleidung #wvaCalcRows .floor-calc-row:first-child .floor-calc-row-area__label { display: block; margin-bottom: 6px; }
 body.ui-classic #page-Wandverkleidung #wvaCalcAddRow,
 body.ui-classic #page-Wandverkleidung #wvaCalcApply {
-  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
+  padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: var(--panel, #fff); color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; margin-top: 6px;
 }
 body.ui-classic #page-Wandverkleidung #wvaCalcApply { background: var(--cl-accent); color: #fff; margin: 0; }
 body.ui-classic #page-Wandverkleidung #wvaCalcPanel .floor-calc-result-row { border-top: 1px solid var(--cl-border); margin-top: 10px; padding: 12px 0 0; }
@@ -12415,23 +12423,23 @@ body.ui-classic #page-Wandverkleidung {
 /* Produktlinie: drei Optionskarten */
 body.ui-classic #page-Wandverkleidung .sec-settings:has(.tier-seg) > .sec-settings__group { display: block; }
 body.ui-classic #page-Wandverkleidung .sec-settings:has(.tier-seg) .sec-settings__row {
-  display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe;
+  display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe);
 }
 body.ui-classic #page-Wandverkleidung .sec-settings__text strong { font-size: 0.95rem; }
 body.ui-classic #page-Wandverkleidung .tier-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0; background: none; width: 100%; }
 body.ui-classic #page-Wandverkleidung .tier-seg__btn {
-  position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px; background: #fff;
+  position: relative; min-width: 0; min-height: 62px; padding: 10px 14px 10px 42px; border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
   box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
 }
 body.ui-classic #page-Wandverkleidung .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
 body.ui-classic #page-Wandverkleidung .tier-seg__btn::before,
 body.ui-classic #page-Wandverkleidung .ios-check-row > input[type="radio"] + span::before {
   content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
-  border: 2px solid #9ca3af; border-radius: 50%; background: #fff; box-sizing: border-box;
+  border: 2px solid var(--muted, #9ca3af); border-radius: 50%; background: var(--panel, #fff); box-sizing: border-box;
 }
 body.ui-classic #page-Wandverkleidung .tier-seg__btn[aria-pressed="true"] { border-color: var(--cl-accent); background: var(--cl-weak); }
 body.ui-classic #page-Wandverkleidung .tier-seg__btn[aria-pressed="true"]::before,
-body.ui-classic #page-Wandverkleidung .ios-check-row > input[type="radio"]:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, #fff 50%); }
+body.ui-classic #page-Wandverkleidung .ios-check-row > input[type="radio"]:checked + span::before { border-color: var(--cl-accent); background: radial-gradient(var(--cl-accent) 0 45%, var(--panel, #fff) 50%); }
 @media (max-width: 700px) { body.ui-classic #page-Wandverkleidung .tier-seg { grid-template-columns: 1fr; } }
 
 /* Ausführung: fünf Radio-Karten + Höhenzeile */
@@ -12466,20 +12474,20 @@ body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size .dw-acc { margin: 0; }
 body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff); padding: 12px 14px; }
 body.ui-classic #page-Wandverkleidung .wv-sizes .wv-size .dw-acc { border: 0; padding: 0; }
 body.ui-classic #page-Wandverkleidung #wvWwPanelsSection .sec-settings__row:last-child { border: 0; background: none; padding: 6px; }
-body.ui-classic #page-Wandverkleidung .ios-stepper button { width: 32px; height: 32px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-body.ui-classic #page-Wandverkleidung .ios-stepper input { border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-body.ui-classic #page-Wandverkleidung .wv-row-add { margin-top: 10px; padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: #fff; color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; }
+body.ui-classic #page-Wandverkleidung .ios-stepper button { width: 32px; height: 32px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
+body.ui-classic #page-Wandverkleidung .ios-stepper input { border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
+body.ui-classic #page-Wandverkleidung .wv-row-add { margin-top: 10px; padding: 11px 16px; border: 1px solid var(--cl-accent); border-radius: 10px; background: var(--panel, #fff); color: var(--cl-accent); font: inherit; font-weight: 600; cursor: pointer; }
 
 /* Dekor-Raster: acht Muster je Reihe */
 body.ui-classic #page-Wandverkleidung .dw-color-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; padding: 0; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check {
   position: relative; display: grid; align-content: start; justify-items: stretch; gap: 4px; width: auto; padding: 0; border: 0; background: none; box-shadow: none; cursor: pointer;
 }
-body.ui-classic #page-Wandverkleidung .dw-color-grid .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid var(--cl-border); background: #f1f1f5; box-shadow: none; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid .img-wrap { width: 100%; height: auto; aspect-ratio: 3 / 4; border-radius: 10px; border: 2px solid var(--cl-border); background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); box-shadow: none; }
 /* Hochformat-Kacheln; min-width:0, damit das Eigenes-Lager-Badge die Spalte nicht sprengt und Nachbarkacheln überdeckt. */
 body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check { min-width: 0; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .wv-tile-own-badge { white-space: normal; text-align: center; font-size: 0.58rem; line-height: 1.25; padding: 1px 4px; letter-spacing: -0.01em; justify-self: center; max-width: 100%; }
-body.ui-classic #page-Wandverkleidung .dw-color-grid img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
+body.ui-classic #page-Wandverkleidung .dw-color-grid img[src$="sonder.jpg"] { object-fit: contain; background: var(--panel, #fff); }
 body.ui-classic #page-Wandverkleidung .dw-color-grid img { width: 100%; height: 100%; object-fit: cover; transform: none; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .caption { font-size: 0.7rem; font-weight: 500; color: var(--muted, #6b7280); text-align: center; max-width: none; line-height: 1.2; }
 body.ui-classic #page-Wandverkleidung .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
@@ -12493,19 +12501,19 @@ body.ui-classic #page-Wandverkleidung #wvAreaCards .wvc-card + .wvc-card { borde
 body.ui-classic #page-Wandverkleidung #wvAreaCards .wvc-card.wvc-selected { border-color: var(--cl-accent); background: var(--cl-weak); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
 
 /* Bedarfsrechner */
-body.ui-classic #page-Wandverkleidung .kc { border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe; }
+body.ui-classic #page-Wandverkleidung .kc { border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe); }
 body.ui-classic #page-Wandverkleidung .kc-chip,
-body.ui-classic #page-Wandverkleidung .kc-view-chip { border: 1px solid #d1d5db; background: #fff; color: var(--text, #1f2937); font-weight: 600; }
+body.ui-classic #page-Wandverkleidung .kc-view-chip { border: 1px solid var(--input-border, #d1d5db); background: var(--panel, #fff); color: var(--text, #1f2937); font-weight: 600; }
 body.ui-classic #page-Wandverkleidung .kc-chip[aria-pressed="true"],
 body.ui-classic #page-Wandverkleidung .kc-view-chip[aria-pressed="true"] { background: var(--cl-weak); border-color: var(--cl-accent); color: var(--cl-accent); }
-body.ui-classic #page-Wandverkleidung .kc-stat { padding: 8px 12px; border: 1px solid var(--cl-border); border-radius: 10px; background: #fff; }
-body.ui-classic #page-Wandverkleidung .kc-row input { border: 1px solid #d1d5db; border-radius: 10px; }
+body.ui-classic #page-Wandverkleidung .kc-stat { padding: 8px 12px; border: 1px solid var(--cl-border); border-radius: 10px; background: var(--panel, #fff); }
+body.ui-classic #page-Wandverkleidung .kc-row input { border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; }
 
 /* Ihre Auswahl + Reste */
-body.ui-classic #page-Wandverkleidung #wvProductCard { border: 1px solid var(--cl-border); border-radius: 12px; background: #fafafe; }
-body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__group { border: 1px solid var(--cl-border); border-radius: 14px; background: #fcfcfe; }
+body.ui-classic #page-Wandverkleidung #wvProductCard { border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fafafe); }
+body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__group { border: 1px solid var(--cl-border); border-radius: 14px; background: var(--panel, #fcfcfe); }
 body.ui-classic #page-Wandverkleidung #wvLeftoverBox .sec-settings__row { padding: 12px 14px; }
-body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color: var(--cl-accent); border: 1px solid var(--cl-accent); border-radius: 10px; padding: 11px 16px; }
+body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel, #fff); color: var(--cl-accent); border: 1px solid var(--cl-accent); border-radius: 10px; padding: 11px 16px; }
 
 /* Produktlinie im Tab Wandverkleidung als Fußboden (wie .tier-seg__btn, aber ohne die globale Linien-Umschaltung) */
 /* Touch targets sized for the tablet this is used on. */
@@ -12602,7 +12610,7 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: #fff; color
 .aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--foreground, #1f2937); }
 .aufschlag-reason label span { color: #b91c1c; }
 .aufschlag-reason textarea {
-  width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; resize: vertical; background: #fff; box-sizing: border-box;
+  width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; font: inherit; resize: vertical; background: var(--panel, #fff); box-sizing: border-box;
 }
 .aufschlag-reason textarea.empty { border-color: #ef4444; }
 .aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: #b91c1c; }
@@ -12632,7 +12640,7 @@ body.ui-classic #page-Wandverkleidung .wv-row.is-active .wv-row__sw { box-shadow
 /* Neu: Panel hat dieselbe Tönung wie der Zeilenkopf; Kachel-Raster ohne weiße Box, Auswahlrahmen nicht abgeschnitten */
 .wv-row__body { background: rgba(10, 132, 255, 0.1); }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors { background: transparent; border: 0; box-shadow: none; overflow: visible; padding: 4px; }
-#page-Wandverkleidung #wvColorSection.in-row #wvColors img[src$="sonder.jpg"] { object-fit: contain; background: #fff; }
+#page-Wandverkleidung #wvColorSection.in-row #wvColors img[src$="sonder.jpg"] { object-fit: contain; background: var(--panel, #fff); }
 /* Nur EINE Kachel markiert: die Farbe der offenen Zeile. Das gecheckte Radio (= Farbe der 1. Zeile) bleibt neutral. */
 #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check { border-color: transparent; box-shadow: none; }
 #page-Wandverkleidung #wvColorSection.in-row #wvColors label.image-check .caption { color: var(--muted, #6b7280); font-weight: 500; }
@@ -12657,10 +12665,10 @@ body.ui-classic #page-Wandverkleidung #wvBudgetColorSection.in-row #wvBudgetColo
 #wvBudgetColors .image-check .caption { color: var(--muted, #6b7280); }
 .wv-krow-sonder { margin: 0 0 14px; padding: 12px; background: var(--panel, #fff); border: 1px solid var(--input-border, #e5e7eb); border-radius: 12px; }
 .wv-krow-sonder p { margin: 6px 0 10px; font-size: 0.82rem; }
-.wv-krow-link { display: inline-block; padding: 9px 14px; border: 1.5px solid #0a84ff; border-radius: 10px; color: #0a84ff; font-weight: 700; text-decoration: none; background: #fff; }
+.wv-krow-link { display: inline-block; padding: 9px 14px; border: 1.5px solid #0a84ff; border-radius: 10px; color: #0a84ff; font-weight: 700; text-decoration: none; background: var(--panel, #fff); }
 .wv-krow-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-top: 12px; }
 .wv-krow-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--muted, #6b7280); }
-.wv-krow-fields input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 10px; font: inherit; color: var(--text, #1f2937); }
+.wv-krow-fields input { width: 100%; padding: 10px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; font: inherit; color: var(--text, #1f2937); }
 .wv-krow-eur { position: relative; display: block; }
 .wv-krow-eur input { padding-right: 26px; text-align: right; }
 .wv-krow-eur em { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted, #6b7280); }
@@ -12700,3 +12708,11 @@ body.ui-classic #page-Wandverkleidung #wvWwRows > * { border: 1px solid var(--cl
 /* Klassisch: Zubehör-Häkchen zeigen "an" deutlich (gefülltes Feld + Haken) */
 body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
 body.ui-classic #page-Wandverkleidung .dw-acc input:checked + .sec-switch__track::after { transform: none; opacity: 1; }
+
+/* Dokumentenvorschau (Zusammenfassung): the shell's near-white gradient is defined inline in
+   index.html; in dark mode the light title/status text sat on it and was hardly visible. */
+[data-mode="dark"] #page-Zusammenfassung .document-preview-shell {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.92));
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+}
