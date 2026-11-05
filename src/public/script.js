@@ -15052,11 +15052,16 @@ function initWannePicker() {
         <div class="wanne-title">${esc(head.title)}</div>
         <div class="wanne-pills">${head.pills.filter(Boolean).map((x) => `<span class="wanne-pill">${esc(x)}</span>`).join("")}</div>
         ${extras.map((z) => z.netPrice > 0
-          ? `<div class="wanne-note">inkl. ${esc(z.desc)} (+${eur(z.netPrice)})</div>`
+          ? `<div class="wanne-note">inkl. ${esc(z.desc)} (+${eur(z.netPrice)}) ${link(z, z.articleNumber)}</div>`
           : `<div class="wanne-note" style="color:#b42318">Pflichtzubehör ${esc(z.articleNumber)} fehlt im Vigor-Katalog – Preis fehlt, bitte nachtragen.</div>`).join("")}
         <div class="wanne-name" title="So steht es im Angebot">${esc(p.desc || p.name)}</div>
-        <div class="wanne-price">${eur(total)}</div></span></button>`;
+        <div class="wanne-foot"><span class="wanne-price">${eur(total)}</span>${link(p, `Bei ${p.urlLabel || "Händler"} ansehen`)}</div></span></button>`;
   };
+  // Product page (photos, price) in a new tab. A span, not <a>: the card is a
+  // <button> and must not contain a link; the panel click handler opens it.
+  const link = (p, label) => p?.url
+    ? `<span class="wanne-link" role="link" tabindex="0" data-href="${esc(p.url)}" title="${esc(p.url)}">${esc(label)} ↗</span>`
+    : "";
   const tubSpec = (p, screen = null) => specFor({
     einbau: lc(p.einbau || "Ecke"), wall: p.einbau === "Ecke" ? p.wall : null, door: p.side, screen,
     L: p.lengthCm, Wd: p.widthCm, H: p.tubHeightCm || 58,
@@ -15169,10 +15174,25 @@ function initWannePicker() {
       else st[k] = val;
       return render();
     }
+    const lk = e.target.closest(".wanne-link");
+    if (lk) {
+      e.preventDefault();
+      window.open(lk.dataset.href, "_blank", "noopener");
+      return;
+    }
     const c = e.target.closest(".wanne-card");
     if (c) {
       const p = items.find((x) => x.articleNumber === c.dataset.art);
       if (p) applySelection(p);
+    }
+  });
+
+  panel.addEventListener("keydown", (e) => {
+    const lk = e.target.closest?.(".wanne-link");
+    if (lk && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(lk.dataset.href, "_blank", "noopener");
     }
   });
 

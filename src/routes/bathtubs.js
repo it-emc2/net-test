@@ -7,8 +7,15 @@
 // once, server-side. The client only renders what this returns.
 import { Router } from "express";
 import { getVigorDb, pickFreshestNetPrices } from "../external/vigorDb.js";
-import { WANNE_SETS, WANNE_ACCESSORIES } from "../lib/wanneSets.js";
+import { WANNE_SETS, WANNE_ACCESSORIES, WANNE_SET_ORDER } from "../lib/wanneSets.js";
 import { describeWanne } from "../lib/wanneDescribe.js";
+
+/** { url, urlLabel } of the page that shows the product's photos and price. */
+export function productLink(articleNumber) {
+  const o = WANNE_SET_ORDER.get(articleNumber);
+  if (o?.url) return { url: o.url, urlLabel: o.shop.split(" /")[0] };
+  return { url: `https://gconlineplus.de/p/search/${encodeURIComponent(articleNumber)}`, urlLabel: "GC" };
+}
 
 const r = Router();
 
@@ -192,7 +199,14 @@ r.get("/catalog", async (_req, res) => {
     const items = [...best.values()]
       .map((v) => v.parsed)
       .concat(WANNE_SETS)
-      .map((p) => ({ ...p, desc: describeWanne(p) }))
+      .map((p) => ({
+        ...p,
+        desc: describeWanne(p),
+        // product page with photos + price: the online shop for the sets, GC
+        // (needs the GC login) for the vigor/GC articles
+        ...productLink(p.articleNumber),
+        requires: (p.requires || []).map((z) => ({ ...z, ...productLink(z.articleNumber) })),
+      }))
       .sort(
         (a, b) =>
           a.type.localeCompare(b.type) ||
