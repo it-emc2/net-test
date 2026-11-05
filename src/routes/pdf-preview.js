@@ -20,7 +20,7 @@ router.post("/pdf-preview", async (req, res) => {
     const templatePath = getAngebotTemplatePath(req.body);
     const computed = await pricing.computePrices(req.body || {});
     const dataRaw = await mapData(req.body || {}, computed);
-    const data = sanitizeRenderData(dataRaw, req.body);
+    const data = sanitizeRenderData(dataRaw);
 
     const docxBuffer = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
     const pdfBuffer = await convertDocxToPdf(docxBuffer);
