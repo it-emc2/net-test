@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "oc-v2-preview",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["v2/scripts/preview.sh"],
+      "port": 3001
+    }
+  ]
+}
