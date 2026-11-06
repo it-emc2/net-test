@@ -158,3 +158,4 @@ test-results-parity-*.log
 
 # v2 production settings (never commit)
 v2/deploy/.env
+v2/scripts/.preview-login

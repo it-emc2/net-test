@@ -101,3 +101,26 @@ test("P7-5: save buttons gone; „An Planung übergeben“ only for a deal on to
   await moved; // same Bitrix call as today's quick save (Bitrix is a dead port here → plain notice)
   await expect(page.locator(".oc-notice").last()).toContainText("Übergabe an die Planung hat nicht geklappt");
 });
+
+test("U-008 clean header: save status + Versionen in the header only while an offer is open; settings in the user menu", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  // Hauptmenü: no save status, no box at the bottom
+  await expect(page.locator("#ocAutosave")).toBeHidden();
+  // user menu holds theme, light/dark, Klassisch/Neu, reload, logout — the original controls
+  await page.locator("#ocUserMenuBtn").click();
+  const menu = page.locator("#ocUserMenu");
+  await expect(menu).toBeVisible();
+  await expect(menu.locator("#themeSelect")).toBeVisible();
+  await expect(menu.locator(".ui-view-seg")).toBeVisible();
+  await expect(menu.getByText("App neu laden")).toBeVisible();
+  await expect(menu.getByText("Abmelden")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  // in an offer, after the first entry: status + Versionen sit in the header
+  await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
+  await page.locator("#firstName").fill("Kopfzeile");
+  const pill = page.locator("header #ocSaveSlot #ocAutosave");
+  await expect(pill).toBeVisible({ timeout: 15000 });
+  await expect(pill).toContainText("gespeichert");
+  await expect(pill.getByRole("button", { name: "Versionen" })).toBeVisible();
+});

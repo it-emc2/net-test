@@ -24,6 +24,11 @@ export interface WebDeps {
   indexInjections?: string[];
 }
 
+/** Loaded first in every page v2 serves: v2 error objects → the text today's screens expect. */
+export const HEAD_SHIM = '<script src="/v2/addons/error-compat.js"></script>';
+export function injectHead(html: string): string {
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => `${m}\n${HEAD_SHIM}`) : `${HEAD_SHIM}\n${html}`;
+}
 const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const LOGIC_FILES = ["pricing-core.js", "tray-search-core.js", "aufschlag-rules.js"];
 
@@ -42,15 +47,17 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   };
   const injected = (d.indexInjections ?? []).join("\n");
   const rewritten: Record<string, string> = {};
-  const sendIndex = (reply: FastifyReply) => {
+  /** any page from today's UI: shim first in <head>; the main page also gets the add-ons */
+  const sendHtml = (reply: FastifyReply, file: string) => {
     (reply.request as any).ocType = "text/html; charset=utf-8";
-    if (!injected) return reply.sendFile("index.html", d.publicDir);
-    const html = fs.readFileSync(path.join(d.publicDir, "index.html"), "utf8").replace("</body>", `${injected}\n</body>`);
+    let html = injectHead(fs.readFileSync(path.join(d.publicDir, file), "utf8"));
+    if (file === "index.html" && injected) html = html.replace("</body>", `${injected}\n</body>`);
     return reply.type("text/html; charset=UTF-8").send(html);
   };
+  const sendIndex = (reply: FastifyReply) => sendHtml(reply, "index.html");
 
   // ---- login page (public) and offline pricing sources (login required, like legacy)
-  app.get("/login", { config: { public: true } }, (_req, reply) => reply.sendFile("login.html", d.publicDir));
+  app.get("/login", { config: { public: true } }, (_req, reply) => sendHtml(reply, "login.html"));
   const logic = Object.fromEntries(LOGIC_FILES.map((f) => [f, fs.readFileSync(path.join(d.logicDir, f), "utf8")]));
   const js = (f: string) => async (_req: FastifyRequest, reply: FastifyReply) => reply.type("application/javascript; charset=utf-8").send(logic[f]);
   app.get("/logic/pricing-core.js", js("pricing-core.js"));
@@ -61,7 +68,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   // source folder (works from src/ and from the built dist/; tsc does not copy .js assets)
   const ADDONS = new URL("../../src/web/addons/", import.meta.url);
   const addonSrc = (f: string) => fs.readFileSync(new URL(f, ADDONS), "utf8");
-  for (const f of ["deal-link.js", "deal-draft.js", "ux.js"]) {
+  for (const f of ["error-compat.js", "deal-link.js", "deal-draft.js", "ux.js", "header.js"]) {
     app.get(`/v2/addons/${f}`, { config: { public: true } }, async (_req, reply) =>
       reply.type("text/javascript; charset=utf-8").header("Cache-Control", "no-cache").send(addonSrc(f)));
   }
@@ -136,6 +143,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
         rewritten[file] ??= applyRewrites(file, fs.readFileSync(path.join(d.publicDir, file), "utf8"));
         return reply.header("Cache-Control", "public, max-age=0").send(rewritten[file]);
       }
+      if (/\.html?$/i.test(file)) return sendHtml(reply, file);
       return reply.sendFile(file, d.publicDir);
     }
     return sendIndex(reply); // SPA fallback

@@ -35,16 +35,31 @@
   var BTN = "min-height:44px;padding:8px 14px;font-size:16px;border-radius:8px;cursor:pointer;";
   var badgeText = h("span", { id: "ocAutosaveText", "aria-live": "polite", text: "" });
   var badge = h("div", {
-    id: "ocAutosave", hidden: "",
+    id: "ocAutosave",
     style: "position:fixed;left:12px;bottom:12px;z-index:9000;display:flex;gap:10px;align-items:center;padding:8px 12px;" +
       "background:var(--surface,#fff);color:var(--text,#111);border:1px solid var(--border,#ccc);border-radius:10px;" +
       "box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:16px;max-width:calc(100vw - 24px)",
   }, [badgeText, h("button", { type: "button", id: "ocVersionsBtn", class: "secondary", style: BTN, text: "Versionen", onclick: openVersions })]);
 
+  badge.style.display = "none";
+  // lives in the header (header.js creates #ocSaveSlot); bottom-left fallback if there is none
+  function mount() {
+    var slot = document.getElementById("ocSaveSlot");
+    var parent = slot || document.body;
+    if (badge.parentNode !== parent) parent.appendChild(badge);
+  }
+  function hideBadge() { badge.style.display = "none"; }
+  var lastWarn = "";
   function show(text, warn) {
-    badgeText.textContent = text;
-    badge.style.borderColor = warn ? "#d97706" : "var(--border,#ccc)";
-    badge.hidden = false;
+    mount();
+    // the header pill stays short; the full sentence is in the tooltip and, for problems, a notice
+    var short = warn ? "⚠ Nicht gespeichert" : text.replace(/\s*\(noch ohne Deal-Nummer\)/, "");
+    badgeText.textContent = (warn || /^Speichert/.test(short) ? "" : "✓ ") + short;
+    badgeText.title = text;
+    badge.style.borderColor = warn ? "#d97706" : "";
+    badge.style.display = "flex";
+    if (warn && text !== lastWarn && window.ocNotify) window.ocNotify(text);
+    lastWarn = warn ? text : "";
   }
   function hhmm(d) { return new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); }
   function when(d) { return new Date(d).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -244,11 +259,11 @@
   // ---------- wiring ----------
   function onReady(fn) { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn); else fn(); }
   onReady(function () {
-    document.body.appendChild(badge);
+    mount();
     ["input", "change"].forEach(function (t) { document.addEventListener(t, function () { if (active()) schedule(); }, true); });
     document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest("button, [role=button], input[type=checkbox], input[type=radio]") && active()) schedule(); }, true);
     window.addEventListener("hashchange", function () {
-      if (atHome()) { badge.hidden = true; closeVersions(); if (tempKey()) setTempKey(""); st.dealId = null; st.revision = null; st.lastJson = null; st.conflict = false; }
+      if (atHome()) { hideBadge(); closeVersions(); if (tempKey()) setTempKey(""); st.dealId = null; st.revision = null; st.lastJson = null; st.conflict = false; }
       else if (active() && (dealNumber() || tempKey())) save(); // step change saves; opening a tile alone creates nothing
     });
     window.addEventListener("online", function () { if (st.offline) save(); });

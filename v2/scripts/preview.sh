@@ -11,4 +11,9 @@ DEAD=http://127.0.0.1:9
 export BITRIX_WEBHOOK_BASE="$DEAD/rest/0/blocked" PLANNING_API_BASE_URL=$DEAD OB24_BASE_URL=$DEAD EXTERNAL_API_BASE=$DEAD
 export SMTP_HOST=127.0.0.1 SMTP_PORT=9 SMTP_SEND_PORT=9 IMAP_HOST=127.0.0.1 IMAP_PORT=9
 export OFFER_LINK_BASE=http://localhost:3001 PUBLIC_BASE_URL=http://localhost:3001
-exec node v2/apps/server/dist/server.js
+# Node 25.9 on this Mac corrupts request text (docs/rewrite/TESTING.md) → prefer a stable Node
+NODE_BIN="${NODE_BIN:-}"
+for c in /usr/local/opt/node@24/bin/node /opt/homebrew/opt/node@24/bin/node /usr/local/opt/node@22/bin/node /opt/homebrew/opt/node@22/bin/node; do
+  [ -z "$NODE_BIN" ] && [ -x "$c" ] && NODE_BIN="$c"
+done
+exec "${NODE_BIN:-node}" v2/apps/server/dist/server.js

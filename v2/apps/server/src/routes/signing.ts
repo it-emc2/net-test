@@ -15,6 +15,7 @@ import type { Mailer } from "../integrations/mail.js";
 import { buildEmailHtml } from "../email/template.js";
 import { resolveAnsprechpartner } from "./offers-write.js";
 import { tokenFromHeaders, verifyToken } from "../auth.js";
+import { injectHead } from "../web/register.js";
 import {
   DEFAULT_EXPIRY_DAYS, REQUIRED_FIELDS_BY_KEY, baseDocKey, buildGreetingLine, deriveBitrixTarget, deriveCustomerType,
   docKeysFor, docLabel, extractPrefill, hasPaymentChoice, isAhOffer, isExpired, isPartnerKey, recomputeStatus, resolveFields,
@@ -418,7 +419,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
   // A logged-in rep (session cookie) gets a "back to OC" link; a customer never has the cookie.
   app.get("/sign/:token", PUBLIC, async (req, reply) => {
     const internal = !!verifyToken(tokenFromHeaders(req.headers), d.authSecret);
-    const html = fs.readFileSync(d.signPageFile, "utf8").replace('data-internal-user="false"', `data-internal-user="${internal}"`);
+    const html = injectHead(fs.readFileSync(d.signPageFile, "utf8").replace('data-internal-user="false"', `data-internal-user="${internal}"`));
     return reply.type("text/html; charset=utf-8").send(html);
   });
 

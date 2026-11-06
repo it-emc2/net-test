@@ -109,3 +109,5 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
 - `PARITY_TARGET=v2` switches both Playwright stacks (parity: `tests/e2e/parity/global-setup.cjs`, offline: `tests/e2e/offline-sync/global-setup.cjs`) from the legacy app to `v2/apps/server/dist/server.js` (build first: `cd v2 && npx tsc -b`). CI job `parity-v2` runs both.
 - v2-only specs (skipped for legacy): `v2-deal-link.spec.cjs` (6b), `v2-deal-draft.spec.cjs` (6c).
 - Web layer contract (`contract.test.ts` "web layer"): headers/CSP/CORS/files/redirects vs legacy; index differs only by the injected add-on script tags.
+- 2026-11-06: v2 serves every page with `web/addons/error-compat.js` first in `<head>`: v2 error objects `{error:{code,message,requestId}}` become the plain `error` text today's screens display (found in the preview: the login page showed "[object Object]"). Contract tests expect exactly that one line extra.
+- Local preview: `v2/scripts/preview.sh` (localhost:3001, DB `oc_preview`, integrations blocked) prefers Node 24/22 over the faulty local Node 25.9.

@@ -20,6 +20,7 @@ import { hashPassword } from "../src/auth.js";
 import { connectDb, disconnectDb } from "../src/db.js";
 import { registerApi } from "../src/routes/api.js";
 import { applyRewrites } from "../src/web/rewrites.js";
+import { injectHead } from "../src/web/register.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
@@ -1102,6 +1103,8 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   /** v2 error envelope vs legacy {error:"…"} — same status, same message, same extra fields */
   const view = (r: Res, app: string) => {
     let body = r.body;
+    // v2 adds the error-compat shim to every full page it serves (ADR 021); fragments are unchanged
+    if (app === "legacy" && !body && r.type.includes("html") && /<head/i.test(r.text)) r = { ...r, text: injectHead(r.text) };
     if (body && app === "v2" && body.error && typeof body.error === "object") body = { ...body, error: body.error.message };
     if (r.status === 401) body = { error: "<login required>" }; // auth-gate wording differs by design (see security section)
     return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(r.text) };
@@ -1612,7 +1615,10 @@ describe("contract: web layer — same pages, files, redirects, security headers
     await same("/", HTML);
     await same("/?offer=ANG2026-1", HTML);
     await same("/irgendwo/tief", HTML);
-    await same("/login", HTML);
+    { // login page: identical except the error-compat shim at the top of <head> (ADR 021)
+      const l = await get("legacy", "/login", HTML), v = await get("v2", "/login", HTML);
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()) });
+    }
     for (const f of ["/style.css", "/sw.js", "/manifest.webmanifest", "/login.js", "/configurator/boot.js", "/assets/logo.png"]) await same(f);
     // script.js: v2 serves it with the P7-4 confirm rewrites (ADR 022) — exactly legacy + rewrites
     {
@@ -1624,14 +1630,17 @@ describe("contract: web layer — same pages, files, redirects, security headers
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
     { // index: identical except v2's one add-on script tag before </body> (ADR 021)
       const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
-      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n</body>') });
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n</body>') });
     }
-    await same("/admin/", COOKIE());
+    { // admin page: + shim
+      const l = await get("legacy", "/admin/", COOKIE()), v = await get("v2", "/admin/", COOKIE());
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()) });
+    }
     // SPA fallback (any unknown app path) — legacy res.sendFile refuses dot-folder paths
     // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
     {
       const v = await get("v2", "/irgendwo/tief", COOKIE());
-      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n</body>');
+      const html = injectHead(readFileSync(ROOT + "src/public/index.html", "utf8")).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n</body>');
       expect([v.status, v.body.toString()]).toEqual([200, html]);
     }
     // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>
