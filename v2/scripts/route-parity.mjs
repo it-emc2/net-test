@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+// comments stripped so commented-out mounts/routes don't count
+const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/^\s*\/\*[\s\S]*?\*\//gm, "");
 const M = "get|post|put|delete|patch";
 
 export function legacyRoutes() {
@@ -36,9 +37,14 @@ export function v2Routes() {
     for (const m of read(f).matchAll(new RegExp(`app\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${m[2]}`);
   }
   // legacy routers ported mechanically (documents/ported) are mounted by v2 under these prefixes
-  const PORTED_ROUTERS = { "v2/apps/server/src/documents/ported/docx-template.ts": "/docx-template" };
-  for (const [f, prefix] of Object.entries(PORTED_ROUTERS)) {
-    for (const m of read(f).matchAll(new RegExp(`router\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${(prefix + (m[2] === "/" ? "" : m[2])).replace(/\/+/g, "/")}`);
+  const P = "v2/apps/server/src/documents/ported/";
+  const PORTED_ROUTERS = {
+    [`${P}docx-template.ts`]: ["/docx-template"], [`${P}kalkulation.ts`]: ["/kalkulation"], [`${P}pdf-preview.ts`]: ["/api/docx"],
+    [`${P}arbeitsbericht.ts`]: ["/arbeitsbericht", "/api/arbeitsbericht"],
+  };
+  for (const [f, prefixes] of Object.entries(PORTED_ROUTERS)) {
+    for (const m of read(f).matchAll(new RegExp(`router\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g")))
+      for (const prefix of prefixes) out.add(`${m[1].toUpperCase()} ${(prefix + (m[2] === "/" ? "" : m[2])).replace(/\/+/g, "/")}`);
   }
   return out;
 }

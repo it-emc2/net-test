@@ -15,7 +15,7 @@ let tpl: any;
 
 beforeAll(async () => {
   configureDocuments({
-    businessConfig: { get: (_k: string, f?: unknown) => f }, fetchVigourNetPrices: async () => new Map(), root: ROOT,
+    businessConfig: { get: (_k: string, f?: unknown) => f }, fetchVigourNetPrices: async () => new Map(), vigorUri: "mongodb://127.0.0.1:9/none", root: ROOT,
     log: { debug: quiet, warn: quiet, error: quiet }, pdf: { docxToPdf: async () => Buffer.alloc(0), htmlToPdf: async () => Buffer.alloc(0) },
   });
   tpl = await import("../src/documents/ported/signing-docs.js");

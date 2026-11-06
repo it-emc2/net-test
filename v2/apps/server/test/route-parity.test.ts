@@ -9,11 +9,7 @@ const ASSIGNED: Record<string, string> = {
   // phase 5 — documents
   "GET /api/adobe-pdf/status": "5", "POST /api/adobe-pdf/batch": "5", "POST /api/adobe-pdf/document-merge": "5",
   "POST /api/adobe-pdf/docx": "5", "POST /api/adobe-pdf/pdf": "5",
-  "POST /api/arbeitsbericht/docx": "5", "POST /api/arbeitsbericht/external/pdf": "5", "POST /api/arbeitsbericht/pdf": "5",
-  "POST /arbeitsbericht/docx": "5", "POST /arbeitsbericht/external/pdf": "5", "POST /arbeitsbericht/pdf": "5",
-  "POST /api/docx/pdf-preview": "5", "POST /api/docx/pdf-preview/pdf-preview": "5", "POST /pdf-preview/pdf-preview": "5",
-  "POST /api/email/preview-product-image-pdf": "5", "POST /api/email/product-image-list": "5",
-  "POST /kalkulation/debug": "5", "POST /kalkulation/docx": "5", "POST /kalkulation/pdf": "5", "POST /kalkulation/pdf-v2": "5", "POST /kalkulation/preview": "5",
+    
   "POST /latex-template/pdf": "5",
   "POST /pdf-template": "retire (always 500 in legacy)",
   // phase 6 — frontend

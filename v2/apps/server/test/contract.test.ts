@@ -21,9 +21,10 @@ import { registerApi } from "../src/routes/api.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
-import type { OfferDocuments } from "../src/email/ports.js";
 // @ts-expect-error plain .mjs test helper
 import { fakePdf, normaliseHtml } from "./helpers/fake-pdf.mjs";
+// @ts-expect-error plain .mjs harness from the legacy golden suite
+import { normaliseDocx } from "../../../../tests/golden/docs-harness.mjs";
 import { PDFDocument } from "pdf-lib";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -58,8 +59,6 @@ printf '%%PDF-1.4\\n%% OC contract-test fake PDF\\n%%%%EOF\\n' > "$out/$(basenam
 `);
 chmodSync(join(FAKE_SOFFICE_DIR, "soffice"), 0o755);
 const PATH_WITH_FAKE_SOFFICE = `${FAKE_SOFFICE_DIR}:${process.env.PATH}`;
-let documentsBridge: OfferDocuments;
-let ORIGINAL_CWD = "";
 
 const MAGIC = { EXTERNAL_API_USER: "magic@test.local", EXTERNAL_API_PASSWORD: "magic-test-pass" };
 
@@ -124,32 +123,13 @@ beforeAll(async () => {
   });
   await connectDb(cfg, { info: () => {} });
 
-  // Bridges for the parts of the email flow that belong to later phases (PDF = phase 5,
-  // signing = 4g): v2 calls the LEGACY implementations in-process, so this test compares the
-  // email flow only. SAFETY: env first (legacy modules read endpoints at import time).
-  Object.assign(process.env, {
-    BITRIX_WEBHOOK_BASE: bx.base("v2"), MONGODB_URI: uri, VIGOR_MONGODB_URI: uri, PATH: PATH_WITH_FAKE_SOFFICE, ...MAIL,
-  });
-  if (!process.env.BITRIX_WEBHOOK_BASE!.startsWith("http://127.0.0.1:")) throw new Error("unsafe Bitrix base for in-process legacy import");
-  // legacy resolves templates/assets from process.cwd() → run the worker from the repo root
-  ORIGINAL_CWD = process.cwd();
-  process.chdir(ROOT);
-  const { default: rootMongoose } = await import(ROOT + "node_modules/mongoose/index.js");
-  await rootMongoose.connect(uri, { dbName: "KonfiguratorDB" });
-  const { default: legacyCfg } = await import(ROOT + "src/services/configService.js");
-  legacyCfg._cache = new Map(Object.entries(fx("pricing/config.json")));
-  const docx = await import(ROOT + "src/routes/docx-template.js");
-  documentsBridge = {
-    renderOfferPdf: (p) => docx.generateOfferPdfBuffer(p),
-    convertDocxToPdf: (b) => docx.convertDocxToPdf(b),
-    getOfferRenderData: (p) => docx.getOfferRenderData(p),
-    productImagePdf: async () => null,
-  };
+  // v2 needs no legacy code in-process any more (phase 5: own documents + signing). The legacy
+  // app still runs as its own process above; v2's ported document code reads templates from ROOT.
 
 
   v2 = await buildApp(cfg, {
     register: (a) => registerApi(a, {
-      cfg, documents: documentsBridge, mailTls: { rejectUnauthorized: false },
+      cfg, mailTls: { rejectUnauthorized: false }, // v2's own documents (phase 5) — no legacy bridge
       // v2's OWN signing templates (ported, 5c) + the same fake PDF engine as the legacy side:
       // DOCX→PDF = the fake soffice bytes, HTML→PDF = hash of the HTML (fake-pdf.mjs)
       pdfEngine: { docxToPdf: async () => Buffer.from("%PDF-1.4\n% OC contract-test fake PDF\n%%EOF\n"), htmlToPdf: async (html: string) => fakePdf(html) },
@@ -171,8 +151,6 @@ afterAll(async () => {
   await bx.stop();
   await smtp.stop();
   rmSync(FAKE_SOFFICE_DIR, { recursive: true, force: true });
-  if (ORIGINAL_CWD) process.chdir(ORIGINAL_CWD);
-  try { const { default: m } = await import(ROOT + "node_modules/mongoose/index.js"); await m.disconnect(); } catch { /* not connected */ }
 });
 
 async function both(method: "GET" | "POST", url: string, body?: unknown) {
@@ -1463,4 +1441,67 @@ describe("contract: product pickers — same responses from the same vigor data"
     expect(v.body.items.find((x: any) => x.articleNumber === "IRIS160L2SWE").netPrice).toBe(1250);
     expect(v.body.items.find((x: any) => x.articleNumber === "IRIS170LFS").requires[0]).toMatchObject({ articleNumber: "IRISNS", netPrice: 80 });
   });
+});
+
+// ---------------- group 5d: Kalkulation, Arbeitsbericht, PDF preview, product images ----------------
+describe("contract: Kalkulation, Arbeitsbericht, PDF preview, product images (ported, fake PDF engine on both sides)", () => {
+  const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+  const payloads = [offers.find((o) => o.offerType === "bu" && o.payload?.Kundendaten?.payer === "Kassenkunde"), offers.find((o) => o.offerType === "bu" && o.payload?.Kundendaten?.payer === "Selbstzahler"), offers.find((o) => o.offerType === "bwt")]
+    .filter(Boolean).map((o) => JSON.parse(JSON.stringify(o.payload)));
+  const ids = (s: string) => s.replace(/CALC[-_]\d{4}/g, "<CALC>").replace(/ARB[-_]\d{6}/g, "<ARB>");
+  const call = async (app: "legacy" | "v2", url: string, body: unknown, headers: Record<string, string> = { authorization: `Bearer ${token}` }) => {
+    const h = { ...headers, "content-type": "application/json" };
+    let status: number, type: string, disp: string, raw: Buffer;
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method: "POST", headers: h, body: JSON.stringify(body) });
+      status = r.status; type = r.headers.get("content-type") ?? ""; disp = r.headers.get("content-disposition") ?? ""; raw = Buffer.from(await r.arrayBuffer());
+    } else {
+      const r = await v2.inject({ method: "POST", url, headers: h, payload: body as any });
+      status = r.statusCode; type = String(r.headers["content-type"] ?? ""); disp = String(r.headers["content-disposition"] ?? ""); raw = r.rawPayload;
+    }
+    const base = type.split(";")[0]!.toLowerCase();
+    let view: unknown;
+    if (base.includes("wordprocessingml")) view = JSON.parse(ids(JSON.stringify(normaliseDocx(raw))));
+    else if (base === "application/json") { const j = JSON.parse(raw.toString("utf8")); view = app === "v2" && j?.error && typeof j.error === "object" ? { ...j, error: j.error.message } : j; view = JSON.parse(ids(JSON.stringify(view))); }
+    else view = ids(raw.toString("utf8"));
+    return { status, type: base, disp: ids(disp), view };
+  };
+  const same = async (url: string, body: unknown, headers?: Record<string, string>) => {
+    const l = await call("legacy", url, structuredClone(body), headers), v = await call("v2", url, structuredClone(body), headers);
+    expect(v, url).toEqual(l);
+    return v;
+  };
+
+  it.each(payloads.map((p, i) => [i, p]))("Kalkulation preview/debug/docx/pdf/pdf-v2 (payload %s)", async (_i, p) => {
+    for (const ep of ["/kalkulation/preview", "/kalkulation/debug", "/kalkulation/docx", "/kalkulation/pdf", "/kalkulation/pdf-v2"]) {
+      const v = await same(ep, p);
+      expect(v.status, ep).toBe(200);
+    }
+  }, 180000);
+
+  it.each(payloads.map((p, i) => [i, p]))("Arbeitsbericht docx/pdf on both mounts (payload %s)", async (_i, p) => {
+    for (const ep of ["/api/arbeitsbericht/docx", "/api/arbeitsbericht/pdf", "/arbeitsbericht/docx"]) expect((await same(ep, p)).status, ep).toBe(200);
+  }, 180000);
+
+  it("Arbeitsbericht external: API key on /api mount, selectors, not found", async () => {
+    const K = { "x-api-key": "ext-test-key" };
+    const offerNo = offers.find((o) => o.offerNumber)!.offerNumber;
+    const draftId = String((await mongoose.connection.db!.collection("drafts").findOne({}))!._id);
+    await same("/api/arbeitsbericht/external/pdf", { kind: "offer", offerNumber: offerNo }, {});
+    for (const sel of [{ kind: "offer", offerNumber: offerNo }, { kind: "draft", id: draftId }, { kind: "offer" }, { kind: "offer", offerNumber: "NOPE" }, { kind: "x" }])
+      await same("/api/arbeitsbericht/external/pdf", sel, K);
+  }, 180000);
+
+  it("PDF preview", async () => { expect((await same("/api/docx/pdf-preview", payloads[0])).status).toBe(200); }, 120000);
+
+  it("product images: list, preview (with exclusions), empty → 204", async () => {
+    for (const p of payloads) {
+      const list = await same("/api/email/product-image-list", { payload: p });
+      expect(list.status).toBe(200);
+      const first = (list.view as any).products?.[0]?.productId;
+      await same("/api/email/preview-product-image-pdf", { payload: p });
+      if (first) await same("/api/email/preview-product-image-pdf", { payload: p, excludeProductImageIds: [first] });
+    }
+    await same("/api/email/preview-product-image-pdf", { payload: {} });
+  }, 180000);
 });

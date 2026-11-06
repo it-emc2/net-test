@@ -1,0 +1,1133 @@
+// @ts-nocheck
+// GENERATED copy of src/routes/kalkulation.js with 7 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// Drift guard: apps/server/test/verbatim-ports.test.ts
+/* eslint-disable no-unused-vars */
+import express from "../shims/express.js";
+import { docsRoot, docsLog } from "../shims/runtime.js";
+import path from "path";
+import dayjs from "dayjs";
+import { randomBytes } from "crypto";
+import mongoose from "mongoose";
+
+import ProductModel from "../shims/product-model.js";
+import pricingFactory, { NO_MARKUP_IDS } from "../shims/pricing.js";
+
+// Reuse the same helpers you already have
+import { renderDocx, convertDocxToPdf, mapData } from "./docx-template.js";
+import { htmlToPdfBuffer } from "../shims/html-to-pdf.js";
+import { buildKalkulationV2Html, KALKULATION_V2_FOOTER } from "./kalkulation-v2.js";
+
+export const router = express.Router();
+const pricing = pricingFactory(ProductModel);
+
+/* ===========================
+   DEBUG helpers
+   =========================== */
+
+// enable with: ?debug=1 OR env DEBUG_KALK=1
+function isDebug(req) {
+  return (
+    String(req?.query?.debug || "") === "1" ||
+    String(process.env.DEBUG_KALK || "") === "1"
+  );
+}
+
+function dlog(req, ...args) {
+  if (isDebug(req)) docsLog.log("[kalkulation][debug]", ...args);
+}
+
+/* ===========================
+   DB-backed uniqueness for CALC IDs (minimal queries)
+   =========================== */
+
+const CalcIdSchema = new mongoose.Schema(
+  { id: { type: String, required: true, unique: true, index: true } },
+  { timestamps: true, collection: "calc_ids" },
+);
+
+// Avoid OverwriteModelError in dev/hot reload
+const CalcId = mongoose.models.CalcId || mongoose.model("CalcId", CalcIdSchema);
+
+function randomCalcId4() {
+  const n = randomBytes(2).readUInt16BE(0) % 10_000;
+  return `CALC-${String(n).padStart(4, "0")}`;
+}
+
+async function generateUniqueCalcId(maxAttempts = 12) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const id = randomCalcId4();
+    try {
+      await CalcId.create({ id }); // ✅ single DB op
+      return id;
+    } catch (e) {
+      if (e?.code === 11000) continue; // duplicate => retry
+      throw e;
+    }
+  }
+
+  // Extremely unlikely fallback: widen space
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    const n = randomBytes(3).readUIntBE(0, 3) % 1_000_000;
+    const id = `CALC-${String(n).padStart(6, "0")}`;
+    try {
+      await CalcId.create({ id });
+      return id;
+    } catch (e) {
+      if (e?.code === 11000) continue;
+      throw e;
+    }
+  }
+
+  throw new Error("Could not generate unique CALC id after multiple attempts");
+}
+
+/* ===========================
+   Helpers
+   =========================== */
+
+function round2(n) {
+  const num = Number(n || 0);
+  return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
+function fmtDateDE(input) {
+  const d = input ? dayjs(input) : dayjs();
+  return d.isValid() ? d.format("DD.MM.YYYY") : "";
+}
+
+function fmtCurrency(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+  }).format(num);
+}
+
+function fmtNumberDE(n, decimals = 2) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "";
+  return num.toFixed(decimals).replace(".", ",");
+}
+
+function fmtPercentDE(p, decimals = 2) {
+  const num = Number(p);
+  if (!Number.isFinite(num)) return "";
+  return `${fmtNumberDE(num, decimals)} %`;
+}
+
+function safeOfferNumber(body) {
+  return (body?.offerNumber && String(body.offerNumber).trim()) || `ANG-${Date.now()}`;
+}
+
+function pickCustomerNumber(body) {
+  const b = body?.Kundendaten || {};
+  return String(b.customerNumber || b.kundennummer || "").trim();
+}
+
+function safeFileName(s, fallback = "Kalkulation") {
+  const raw = String(s || "").trim() || fallback;
+  return raw.replace(/[^a-zA-Z0-9_]/g, "_") || fallback;
+}
+
+function cleanLabel(s) {
+  return String(s ?? "")
+    .replace(/^\s*-\s*/g, "")
+    .replace(/^\s*[•·]\s*/g, "")
+    .trim();
+}
+
+function guessUnitForLine(line) {
+  const label = String(line?.label || "").toLowerCase();
+  const key = String(line?.key || "").toLowerCase();
+
+  if (line?.unit) return String(line.unit);
+  if (/kilometerpauschale/.test(label) || key === "km" || /\bkm\b/.test(label))
+    return "km";
+  if (/facharbeiter|reisezeit|anfahrt/.test(label) || key === "facharbeiter" || key === "reisezeit")
+    return "Std";
+  return "Stk";
+}
+
+function classifyCostType(line) {
+  const label = String(line?.label || "").toLowerCase();
+  const key = String(line?.key || "").toLowerCase();
+  if (
+    key === "facharbeiter" ||
+    key === "reisezeit" ||
+    /facharbeiter|reisezeit|anfahrt/.test(label)
+  )
+    return "Lohn";
+  return "Material";
+}
+
+function secondsToHhMm(totalSeconds) {
+  const s = Math.max(0, Math.floor(Number(totalSeconds || 0)));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  return { hh, mm };
+}
+
+function hoursToHhMmLabel(hours) {
+  const h = Number(hours || 0);
+  const totalSeconds = Math.round(h * 3600);
+  const { hh, mm } = secondsToHhMm(totalSeconds);
+  return `${hh} Std ${mm.toString().padStart(2, "0")} Min`;
+}
+
+function hoursToColon(hours) {
+  const h = Number(hours || 0);
+  const totalSeconds = Math.round(h * 3600);
+  const { hh, mm } = secondsToHhMm(totalSeconds);
+  return `${hh}:${mm.toString().padStart(2, "0")} Std`;
+}
+
+/* ===========================
+   Build PDF-like cost lines
+   =========================== */
+
+function buildCostLinesFromServices(svcLines = [], laborRateFallback = 0) {
+  const out = [];
+
+  // Note: unlike the customer Angebot, the internal Kalkulation must show
+  // Facharbeiter/Reisezeit lines even though pricing-core flags them
+  // docxHide:true (that flag only means "hide from the customer document").
+  for (const s of svcLines) {
+    if (!s) continue;
+
+    const label = cleanLabel(s.label || s.name || "");
+    if (!label) continue;
+
+    const qty = Number(s.qty ?? 1);
+    const unit = guessUnitForLine(s);
+
+    const isFacharbeiter =
+      String(s.key || "").toLowerCase() === "facharbeiter" ||
+      /facharbeiter/i.test(label);
+
+    const ekUnit = isFacharbeiter
+      ? Number(laborRateFallback || 0)
+      : Number(s.unitPrice ?? s.amount ?? 0);
+
+    const total =
+      Number.isFinite(Number(s.amount)) && s.amount !== undefined
+        ? Number(s.amount)
+        : round2((Number(qty) || 0) * (Number(ekUnit) || 0));
+
+    out.push({
+      Kostenart: classifyCostType(s),
+      Menge: fmtNumberDE(qty, 2),
+      Einheit: unit,
+      Beschreibung: label,
+      EK_je_Einheit: fmtCurrency(ekUnit),
+      Gesamt: fmtCurrency(total),
+      _totalNum: Number(total) || 0,
+    });
+  }
+
+  return out;
+}
+
+function buildCostLinesFromMaterials(matLines = []) {
+  const out = [];
+
+  for (const m of matLines) {
+    if (!m || m.docxHide) continue;
+
+    const label = cleanLabel(m.label || m.name || m.productId || m.id || "");
+    if (!label) continue;
+
+    const qty = Number(m.qty ?? 0) || 0;
+    if (qty <= 0) continue;
+
+    const unit = m.unit ? String(m.unit) : "Stk";
+    const ekUnit = Number(m.unitPrice ?? 0) || 0;
+    const total = Number(m.lineTotal ?? 0) || round2(qty * ekUnit);
+
+    out.push({
+      Kostenart: "Material",
+      Menge: fmtNumberDE(qty, 2),
+      Einheit: unit,
+      Beschreibung: label,
+      EK_je_Einheit: fmtCurrency(ekUnit),
+      Gesamt: fmtCurrency(total),
+      _totalNum: Number(total) || 0,
+      _id: String(m.productId || m.id || "").trim(),
+    });
+  }
+
+  return out;
+}
+
+function buildSurchargeLines(costLines = [], markupPct = 0, excludeIds = new Set()) {
+  const out = [];
+  const pct = Number(markupPct || 0);
+
+  for (const row of costLines) {
+    if (String(row.Kostenart || "") !== "Material") continue;
+
+    const id = row?._id ? String(row._id) : "";
+    if (id && excludeIds.has(id)) {
+      out.push({
+        ZuschlagPct: fmtPercentDE(0, 2),
+        ZuschlagText: row.Beschreibung,
+        ZuschlagValue: fmtCurrency(0),
+      });
+      continue;
+    }
+
+    const ekTotal = Number(row._totalNum || 0);
+    const z = round2(ekTotal * pct);
+    const pctLine = ekTotal > 0 ? (z / ekTotal) * 100 : 0;
+
+    out.push({
+      ZuschlagPct: fmtPercentDE(pctLine, 2),
+      ZuschlagText: row.Beschreibung,
+      ZuschlagValue: fmtCurrency(z),
+    });
+  }
+
+  return out;
+}
+
+function sumTotals(costLines = []) {
+  return round2(costLines.reduce((a, r) => a + (Number(r._totalNum) || 0), 0));
+}
+
+/* ===========================
+   Bonus picking (003/004)
+   =========================== */
+
+function pickBonusRows(angebotData) {
+  const rows = Array.isArray(angebotData?.BonusRows) ? angebotData.BonusRows : [];
+
+  const isBonus300 = (r) => {
+    const lbl = String(r?.BonusLabel || "").toLowerCase();
+    const det = String(r?.BonusDetail || "").toLowerCase();
+    return (
+      lbl.includes("bestandskundenbonus") ||
+      lbl.includes("neukundenbonus") ||
+      det.includes("rabatt von 300") ||
+      det.includes("300")
+    );
+  };
+
+  const isGrab = (r) => {
+    const lbl = String(r?.BonusLabel || "").toLowerCase();
+    const det = String(r?.BonusDetail || "").toLowerCase();
+    return lbl.includes("haltegriff") || det.includes("haltegriff");
+  };
+
+  const bonus300Row = rows.find(isBonus300) || null;
+  const bonusGrabRow = rows.find((r) => isGrab(r) && !isBonus300(r)) || null;
+
+  return { bonus300Row, bonusGrabRow };
+}
+
+function buildBonusPos(posNo, row) {
+  const label = String(row?.BonusLabel || "").trim() || "Bonus";
+  const detail = String(row?.BonusDetail || "").trim();
+  const amount = String(row?.gesamt || row?.preis || "0,00 €");
+
+  return {
+    PosNo: posNo,
+    PosTitle: label,
+    PosHoursLabel: "",
+    PosHoursColon: "",
+    PosQty: "1,00",
+    PosUnit: "Stk",
+    PosUnitPrice: amount,
+    PosLineTotal: amount,
+    CostLines: [
+      {
+        Kostenart: "Material",
+        Menge: "1,00",
+        Einheit: "Stk",
+        Beschreibung: detail ? `${label} ${detail}`.trim() : label,
+        EK_je_Einheit: amount,
+        Gesamt: amount,
+      },
+    ],
+    CostSum: amount,
+    SurchargeLines: [
+      {
+        ZuschlagPct: fmtPercentDE(0, 2),
+        ZuschlagText: label,
+        ZuschlagValue: fmtCurrency(0),
+      },
+    ],
+    UnitPriceLabel: amount,
+  };
+}
+
+/* ===========================
+   Mapping for Kalkulation.docx
+   NOTE: returns FLAT placeholder keys (no dot nesting)
+   =========================== */
+
+// Locked offers return their send-time pricing snapshot verbatim. Snapshots
+// older than 2026-08 lack the reporting-only fields below, so the Kalkulation
+// showed 0 Reisezeit / 0 Mitarbeiter / "Aufschlag auf 0,00 €". Fill them in
+// without touching any priced value.
+function backfillLegacySnapshot(body, computed) {
+  const svc = computed?.services;
+  if (svc && !svc.timeBreakdown) {
+    try {
+      // ponytail: uses current admin rates for the per-employee costs; only
+      // differs from the locked Lohn line if LABOR_RATE_* changed since send.
+      const fresh = pricing.computeServiceCosts(body);
+      svc.timeBreakdown = fresh.timeBreakdown;
+      svc.reiseHours ??= fresh.reiseHours;
+      svc.isBwt ??= fresh.isBwt;
+      svc.travelSecondWorkerRate ??= fresh.travelSecondWorkerRate;
+    } catch (e) {
+      docsLog.warn("[kalkulation] time backfill failed:", e?.message || e);
+    }
+  }
+  const pct = Number(computed?.markupPct || 0);
+  if (computed && computed.markupBase == null && pct > 0) {
+    // Exact base that produced the stored markup (markup = base × pct).
+    computed.markupBase = round2(Number(computed.markup || 0) / pct);
+  }
+}
+
+async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
+  backfillLegacySnapshot(body, computed);
+  const b = body?.Kundendaten || {};
+  const offerNumber = safeOfferNumber(body);
+
+  const dokumentnummer = await generateUniqueCalcId();
+  const angebotData = mapData(body, computed);
+
+  const { bonus300Row, bonusGrabRow } = pickBonusRows(angebotData);
+  const HasBonus300 = !!bonus300Row;
+  const HasBonusGrab = !!bonusGrabRow;
+
+  // Internal Kalkulation uses the full (unfiltered) service lines, not the
+  // customer-facing servicesDisplayDocx (which drops Facharbeiter/Reisezeit).
+  const svcLines = computed?.services?.lines || [];
+  const matLines =
+    computed?.materialsDisplayDocx?.lines || computed?.materials?.lines || [];
+  const laborRate = Number(computed?.services?.laborRate || 0);
+
+  const markupPct = Number(computed?.markupPct || 0);
+  const markup = Number(computed?.markup || 0);
+
+  const materialEK = Number(computed?.productsSubtotal ?? 0);
+  const materialZuschlag = Number.isFinite(markup) ? markup : 0;
+  const materialVerkauf = round2(materialEK + materialZuschlag);
+
+  const svcCostLines = buildCostLinesFromServices(svcLines, laborRate);
+  const servicesLohnEK = round2(
+    svcCostLines
+      .filter((x) => x.Kostenart === "Lohn")
+      .reduce((a, x) => a + (Number(x._totalNum) || 0), 0),
+  );
+
+  const lohnEK = servicesLohnEK;
+  const lohnZuschlag = 0;
+  const lohnVerkauf = round2(lohnEK + lohnZuschlag);
+
+  const netEK = round2(materialEK + lohnEK);
+  const netZuschlag = round2(materialZuschlag + lohnZuschlag);
+  const netVerkauf = round2(netEK + netZuschlag);
+
+  const vatOnNet = Number(computed?.vatOnNet ?? 0);
+  const total = Number(computed?.total ?? 0);
+
+  const laborHours = Number(computed?.services?.laborHours || 0);
+  const totalHoursLabel = hoursToHhMmLabel(laborHours);
+
+  const timeBreakdown = computed?.services?.timeBreakdown || {};
+  const isBwt = !!computed?.services?.isBwt;
+  const reiseHours = Number(computed?.services?.reiseHours || 0);
+  const travelSecondWorkerRate = Number(computed?.services?.travelSecondWorkerRate || 0);
+
+  const Employees = (timeBreakdown.employees || []).map((e, i) => ({
+    Index: i + 1,
+    Label: e.label,
+    OnSiteHoursLabel: hoursToHhMmLabel(e.onSiteHours),
+    TravelHoursLabel: hoursToHhMmLabel(e.travelHours),
+    TotalHoursLabel: hoursToHhMmLabel(e.totalHours),
+    OnSiteCostLabel: fmtCurrency(e.onSiteCost),
+    TravelCostLabel: fmtCurrency(e.travelCost),
+    TotalCostLabel: fmtCurrency(e.totalCost),
+  }));
+  const gesamtkostenAusZeiten = round2(
+    (timeBreakdown.employees || []).reduce((a, e) => a + (Number(e.totalCost) || 0), 0),
+  );
+
+  const Zeiterfassung = {
+    ArbeitszeitGesamtLabel: hoursToHhMmLabel(timeBreakdown.workHoursOverall || 0),
+    ReisezeitGesamtLabel: hoursToHhMmLabel(timeBreakdown.travelHoursOverall || 0),
+    GesamtzeitLabel: hoursToHhMmLabel(timeBreakdown.totalHoursOverall || 0),
+    Employees,
+    // Fields mirroring the BU Arbeitszeit tab's "Reisezeit Kosten" debug
+    // panel (script.js renderTravelCostDebug), reused verbatim for the
+    // Kalkulation's Pos001 box.
+    OfferBadge: isBwt ? "BWT" : "BU",
+    ArbeitszeitDezimalLabel: `${fmtNumberDE(laborHours, 2)} h`,
+    ReisezeitDezimalLabel: `${fmtNumberDE(reiseHours, 2)} h`,
+    VollerSatzLabel: `${fmtCurrency(laborRate)}/h`,
+    ZweiterMitarbeiterSatzLabel: `${fmtCurrency(travelSecondWorkerRate)}/h`,
+    GesamtkostenAusZeitenLabel: fmtCurrency(gesamtkostenAusZeiten),
+    ZeitenHinweisText: isBwt
+      ? `BWT aktiv: 1 Facharbeiter, ${fmtCurrency(laborRate)}/h für Arbeitszeit und Reisezeit.`
+      : "BU aktiv: Reisezeit wird hier separat mit Fahrer + 2. Mitarbeiter visualisiert.",
+  };
+
+  const Greeting =
+    b.salutation === "Frau"
+      ? "Sehr geehrte Frau"
+      : b.salutation === "Herr"
+        ? "Sehr geehrter Herr"
+        : b.salutation === "Familie"
+          ? "Sehr geehrte Familie"
+          : "Guten Tag";
+
+  const SummaryRows = [
+    {
+      Kostenart: "Material",
+      EK: fmtCurrency(materialEK),
+      ZuschlagEuro: fmtCurrency(materialZuschlag),
+      ZuschlagPct: fmtPercentDE(markupPct * 100, 2),
+      Verkauf: fmtCurrency(materialVerkauf),
+    },
+    {
+      Kostenart: "Lohn / Maschinenkosten",
+      EK: fmtCurrency(lohnEK),
+      ZuschlagEuro: fmtCurrency(lohnZuschlag),
+      ZuschlagPct: fmtPercentDE(0, 2),
+      Verkauf: fmtCurrency(lohnVerkauf),
+    },
+    {
+      Kostenart: "Nettosumme",
+      EK: fmtCurrency(netEK),
+      ZuschlagEuro: fmtCurrency(netZuschlag),
+      ZuschlagPct:
+        netEK > 0
+          ? fmtPercentDE((netZuschlag / netEK) * 100, 2)
+          : fmtPercentDE(0, 2),
+      Verkauf: fmtCurrency(netVerkauf),
+      IsNet: true,
+    },
+  ];
+
+  // -------- Pos 0.001 Services --------
+  const servicesTitle = (
+    computed?.services?.title ||
+    angebotData?.ServicePosTitle ||
+    "Auszuführende Arbeiten"
+  )
+    .toString()
+    .trim();
+
+  const serviceSum = Number(computed?.services?.sum ?? 0) || 0;
+
+  const Pos001 = {
+    PosNo: "0.001",
+    PosTitle: servicesTitle,
+    PosHoursLabel: laborHours > 0 ? hoursToHhMmLabel(laborHours) : "0 Std 00 Min",
+    PosHoursColon: laborHours > 0 ? hoursToColon(laborHours) : "0:00 Std",
+    PosQty: fmtNumberDE(1, 2),
+    PosUnit: "Stk",
+    PosUnitPrice: fmtCurrency(serviceSum),
+    PosLineTotal: fmtCurrency(round2(serviceSum)),
+    CostLines: svcCostLines.map((x) => ({
+      Kostenart: x.Kostenart,
+      Menge: x.Menge,
+      Einheit: x.Einheit,
+      Beschreibung: x.Beschreibung,
+      EK_je_Einheit: x.EK_je_Einheit,
+      Gesamt: x.Gesamt,
+      _totalNum: x._totalNum,
+    })),
+    CostSum: fmtCurrency(sumTotals(svcCostLines)),
+    SurchargeLines: svcCostLines.map((x) => ({
+      ZuschlagPct: fmtPercentDE(0, 2),
+      ZuschlagText: x.Beschreibung,
+      ZuschlagValue: fmtCurrency(0),
+    })),
+    UnitPriceLabel: fmtCurrency(serviceSum),
+  };
+
+  // -------- Pos 0.002 Materials --------
+  const materialsTitle = (
+    computed?.materials?.title ||
+    angebotData?.MaterialsPosTitle ||
+    "Material für Badumbau"
+  )
+    .toString()
+    .trim();
+
+  const costLinesRaw = buildCostLinesFromMaterials(matLines);
+  const costSumNum = sumTotals(costLinesRaw);
+
+  const excludeIds = new Set(["KM02", ...NO_MARKUP_IDS]);
+  const surchargeLines = buildSurchargeLines(costLinesRaw, markupPct, excludeIds);
+
+  const posUnitPrice =
+    Number(computed?.material_plus_aufschlag ?? costSumNum) || costSumNum;
+
+  const Pos002 = {
+    PosNo: "0.002",
+    PosTitle: materialsTitle,
+    PosHoursLabel: "0 Std 00 Min",
+    PosHoursColon: "0:00 Std",
+    PosQty: fmtNumberDE(1, 2),
+    PosUnit: "Stk",
+    PosUnitPrice: fmtCurrency(posUnitPrice),
+    PosLineTotal: fmtCurrency(round2(posUnitPrice)),
+    CostLines: costLinesRaw.map((x) => ({
+      Kostenart: x.Kostenart,
+      Menge: x.Menge,
+      Einheit: x.Einheit,
+      Beschreibung: x.Beschreibung,
+      EK_je_Einheit: x.EK_je_Einheit,
+      Gesamt: x.Gesamt,
+      _totalNum: x._totalNum,
+    })),
+    CostSum: fmtCurrency(costSumNum),
+    SurchargeLines: surchargeLines,
+    UnitPriceLabel: fmtCurrency(posUnitPrice),
+  };
+
+  // -------- Bonus blocks 0.003 / 0.004 --------
+  const Pos003 = bonus300Row ? buildBonusPos("0.003", bonus300Row) : null;
+  const Pos004 = bonusGrabRow ? buildBonusPos("0.004", bonusGrabRow) : null;
+
+  // ---------- FLAT keys for DOCX ----------
+  const data = {
+    // Header fields
+    Anrede: b.salutation || "",
+    Vorname: b.firstName || "",
+    Nachname: b.lastName || "",
+    Adresse: b.street || "",
+    PLZ: b.postalCode || "",
+    Stadt: b.city || "",
+
+    Greeting,
+    Kundennummer: pickCustomerNumber(body),
+    Dokumentennummer: dokumentnummer,
+    Datum: fmtDateDE(b.date),
+
+    // Angebotsnummer placeholder
+    Angebotsnummer: offerNumber,
+
+    Projektnummer: offerNumber,
+    TitleLine: `Kalkulation zu ${offerNumber}`,
+    TotalHoursLabel: totalHoursLabel,
+
+    // Per-employee on-site/travel time reporting (Kalkulation only). All crew
+    // members log identical on-site/travel hours (they work together), so
+    // the template shows one employee's hours + a headcount, not a repeated
+    // per-row table.
+    ArbeitszeitGesamtLabel: Zeiterfassung.ArbeitszeitGesamtLabel,
+    ReisezeitGesamtLabel: Zeiterfassung.ReisezeitGesamtLabel,
+    GesamtzeitLabel: Zeiterfassung.GesamtzeitLabel,
+    MitarbeiterCount: Zeiterfassung.Employees.length,
+    Employees: Zeiterfassung.Employees,
+    Employee1_Label: Zeiterfassung.Employees[0]?.Label || "",
+    Employee1_OnSiteHoursLabel: Zeiterfassung.Employees[0]?.OnSiteHoursLabel || "",
+    Employee1_TravelHoursLabel: Zeiterfassung.Employees[0]?.TravelHoursLabel || "",
+    Employee1_TotalHoursLabel: Zeiterfassung.Employees[0]?.TotalHoursLabel || "",
+    Employee1_OnSiteCostLabel: Zeiterfassung.Employees[0]?.OnSiteCostLabel || "",
+    Employee1_TravelCostLabel: Zeiterfassung.Employees[0]?.TravelCostLabel || "",
+    Employee1_TotalCostLabel: Zeiterfassung.Employees[0]?.TotalCostLabel || "",
+    Employee2_Label: Zeiterfassung.Employees[1]?.Label || "",
+    Employee2_OnSiteHoursLabel: Zeiterfassung.Employees[1]?.OnSiteHoursLabel || "",
+    Employee2_TravelHoursLabel: Zeiterfassung.Employees[1]?.TravelHoursLabel || "",
+    Employee2_TotalHoursLabel: Zeiterfassung.Employees[1]?.TotalHoursLabel || "",
+    Employee2_OnSiteCostLabel: Zeiterfassung.Employees[1]?.OnSiteCostLabel || "",
+    Employee2_TravelCostLabel: Zeiterfassung.Employees[1]?.TravelCostLabel || "",
+    Employee2_TotalCostLabel: Zeiterfassung.Employees[1]?.TotalCostLabel || "",
+
+    // "Reisezeit Kosten" panel fields (mirrors BU Arbeitszeit tab's debug view)
+    OfferBadge: Zeiterfassung.OfferBadge,
+    ArbeitszeitDezimalLabel: Zeiterfassung.ArbeitszeitDezimalLabel,
+    ReisezeitDezimalLabel: Zeiterfassung.ReisezeitDezimalLabel,
+    VollerSatzLabel: Zeiterfassung.VollerSatzLabel,
+    ZweiterMitarbeiterSatzLabel: Zeiterfassung.ZweiterMitarbeiterSatzLabel,
+    GesamtkostenAusZeitenLabel: Zeiterfassung.GesamtkostenAusZeitenLabel,
+    ZeitenHinweisText: Zeiterfassung.ZeitenHinweisText,
+
+    SummaryRows,
+
+    UstLabel: "Ust. 19 %",
+    UstValue: fmtCurrency(vatOnNet),
+    BruttoLabel: "Bruttosumme",
+    BruttoValue: fmtCurrency(total),
+    // Derived from the same total/vatOnNet the Brutto/Ust rows use, so this
+    // always reconciles (Netto + Ust = Brutto) regardless of the separate
+    // Material/Lohn EK breakdown above.
+    NettoLabel: "Nettosumme",
+    NettoValue: fmtCurrency(round2(total - vatOnNet)),
+
+    // --- Pos001 flat ---
+    Pos001_No: Pos001.PosNo,
+    Pos001_Title: Pos001.PosTitle,
+    Pos001_HoursLabel: Pos001.PosHoursLabel,
+    Pos001_HoursColon: Pos001.PosHoursColon,
+    Pos001_Qty: Pos001.PosQty,
+    Pos001_Unit: Pos001.PosUnit,
+    Pos001_UnitPrice: Pos001.PosUnitPrice,
+    Pos001_LineTotal: Pos001.PosLineTotal,
+    Pos001_CostSum: Pos001.CostSum,
+    Pos001_CostLines: Pos001.CostLines,
+    Pos001_SurchargeLines: Pos001.SurchargeLines,
+
+    // --- Pos002 flat ---
+    Pos002_No: Pos002.PosNo,
+    Pos002_Title: Pos002.PosTitle,
+    Pos002_HoursLabel: Pos002.PosHoursLabel,
+    Pos002_HoursColon: Pos002.PosHoursColon,
+    Pos002_Qty: Pos002.PosQty,
+    Pos002_Unit: Pos002.PosUnit,
+    Pos002_UnitPrice: Pos002.PosUnitPrice,
+    Pos002_LineTotal: Pos002.PosLineTotal,
+    Pos002_CostSum: Pos002.CostSum,
+    Pos002_CostLines: Pos002.CostLines,
+    Pos002_SurchargeLines: Pos002.SurchargeLines,
+
+    // Bonus flags
+    HasBonus300,
+    HasBonusGrab,
+
+    // Optional: totals for direct use
+    vatOnNet: fmtCurrency(vatOnNet),
+    total: fmtCurrency(total),
+  };
+
+  if (HasBonus300 && Pos003) {
+    data.Pos003_No = Pos003.PosNo;
+    data.Pos003_Title = Pos003.PosTitle;
+    data.Pos003_UnitPrice = Pos003.PosUnitPrice;
+    data.Pos003_LineTotal = Pos003.PosLineTotal;
+    data.Pos003_CostSum = Pos003.CostSum;
+    data.Pos003_CostLines = Pos003.CostLines;
+  }
+
+  if (HasBonusGrab && Pos004) {
+    data.Pos004_No = Pos004.PosNo;
+    data.Pos004_Title = Pos004.PosTitle;
+    data.Pos004_UnitPrice = Pos004.PosUnitPrice;
+    data.Pos004_LineTotal = Pos004.PosLineTotal;
+    data.Pos004_CostSum = Pos004.CostSum;
+    data.Pos004_CostLines = Pos004.CostLines;
+  }
+
+  // Attach debug meta only if requested (won't break docx placeholders if you never reference it)
+  if (debugMeta) data._debug = debugMeta;
+
+  return data;
+}
+
+/* ===========================
+   HTML PREVIEW endpoint (no DOCX involved)
+   Use to verify values quickly
+   =========================== */
+
+router.post("/preview", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const data = await mapKalkulationData(
+      body,
+      computed,
+      isDebug(req) ? { note: "preview debug" } : null,
+    );
+
+    const esc = (v) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const renderTable = (rows = [], cols = []) => {
+      const thead = cols.map((c) => `<th>${esc(c)}</th>`).join("");
+      const tbody =
+        rows.length === 0
+          ? `<tr><td colspan="${cols.length}" style="color:#666">No rows</td></tr>`
+          : rows
+              .map((r) => `<tr>${cols.map((c) => `<td>${esc(r?.[c])}</td>`).join("")}</tr>`)
+              .join("");
+      return `
+        <table>
+          <thead><tr>${thead}</tr></thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      `;
+    };
+
+    const renderPosFlat = (prefix) => {
+      const no = data[`${prefix}_No`];
+      const title = data[`${prefix}_Title`];
+      if (!no && !title) return `<div class="muted">${esc(prefix)}: (missing)</div>`;
+
+      const costLines = data[`${prefix}_CostLines`] || [];
+      const surchargeLines = data[`${prefix}_SurchargeLines`] || [];
+
+      return `
+        <section class="card">
+          <h2>${esc(prefix)} — ${esc(no)} ${esc(title)}</h2>
+          <div><b>Hours:</b> ${esc(data[`${prefix}_HoursLabel`])}
+              <span class="muted">(${esc(data[`${prefix}_HoursColon`])})</span></div>
+          <div><b>Calc:</b> ${esc(data[`${prefix}_Qty`])} ${esc(data[`${prefix}_Unit`])}
+              × ${esc(data[`${prefix}_UnitPrice`])} = <b>${esc(data[`${prefix}_LineTotal`])}</b></div>
+
+          <h3>CostLines (${costLines.length})</h3>
+          ${renderTable(costLines, [
+            "Kostenart",
+            "Menge",
+            "Einheit",
+            "Beschreibung",
+            "EK_je_Einheit",
+            "Gesamt",
+          ])}
+
+          <h3>SurchargeLines (${surchargeLines.length})</h3>
+          ${renderTable(surchargeLines, ["ZuschlagPct", "ZuschlagText", "ZuschlagValue"])}
+
+          <div class="right"><b>CostSum:</b> ${esc(data[`${prefix}_CostSum`] || "")}</div>
+        </section>
+      `;
+    };
+
+    const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Kalkulation Preview</title>
+<style>
+  body{font-family:system-ui,Arial;margin:20px;background:#fff;color:#111}
+  .header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+  .card{border:1px solid #ddd;border-radius:12px;padding:14px;margin:14px 0}
+  h1{margin:0 0 6px}
+  h2{margin:0 0 8px}
+  h3{margin:12px 0 6px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{border:1px solid #eee;padding:6px;vertical-align:top}
+  th{background:#fafafa}
+  .muted{color:#666}
+  .right{text-align:right;margin-top:8px}
+  code{background:#f5f5f5;padding:2px 6px;border-radius:8px}
+  pre{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;padding:10px;border-radius:10px}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${esc(data.TitleLine || "Kalkulation")}</h1>
+      <div><b>Angebotsnummer:</b> ${esc(data.Angebotsnummer)}</div>
+      <div><b>Dokumentennummer:</b> ${esc(data.Dokumentennummer)}</div>
+      <div><b>Datum:</b> ${esc(data.Datum)}</div>
+      <div><b>TotalHoursLabel:</b> ${esc(data.TotalHoursLabel)}</div>
+    </div>
+    <div class="card" style="min-width:320px">
+      <h2>Totals</h2>
+      <div><b>${esc(data.NettoLabel)}:</b> ${esc(data.NettoValue)}</div>
+      <div><b>${esc(data.UstLabel)}:</b> ${esc(data.UstValue)}</div>
+      <div><b>${esc(data.BruttoLabel)}:</b> ${esc(data.BruttoValue)}</div>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>SummaryRows (${(data.SummaryRows || []).length})</h2>
+    ${renderTable(data.SummaryRows || [], [
+      "Kostenart",
+      "EK",
+      "ZuschlagEuro",
+      "ZuschlagPct",
+      "Verkauf",
+    ])}
+  </section>
+
+  ${renderPosFlat("Pos001")}
+  ${renderPosFlat("Pos002")}
+
+  <section class="card">
+    <h2>Zeiterfassung</h2>
+    <div><b>Arbeitszeit gesamt:</b> ${esc(data.ArbeitszeitGesamtLabel)}</div>
+    <div><b>Reisezeit gesamt:</b> ${esc(data.ReisezeitGesamtLabel)}</div>
+    <div><b>Gesamtzeit:</b> ${esc(data.GesamtzeitLabel)}</div>
+    <div><b>Anzahl Mitarbeiter:</b> ${esc(data.MitarbeiterCount)}</div>
+    <div><b>Vor Ort (je Mitarbeiter):</b> ${esc(data.Employee1_OnSiteHoursLabel)}</div>
+    <div><b>Anfahrt (je Mitarbeiter):</b> ${esc(data.Employee1_TravelHoursLabel)}</div>
+  </section>
+
+  <section class="card">
+    <h2>Reisezeit Kosten <span class="muted">${esc(data.OfferBadge)}</span></h2>
+    <h3>Zeiten</h3>
+    <div>Arbeitszeit: ${esc(data.ArbeitszeitDezimalLabel)}</div>
+    <div>Reisezeit gesamt: ${esc(data.ReisezeitDezimalLabel)}</div>
+    <h3>Stundensätze</h3>
+    <div>Voller Satz / Fahrer: ${esc(data.VollerSatzLabel)}</div>
+    ${data.OfferBadge === "BU" ? `<div>2. Mitarbeiter Reisezeit: ${esc(data.ZweiterMitarbeiterSatzLabel)}</div>` : ""}
+    ${(data.Employees || [])
+      .map(
+        (e) => `
+      <h3>${esc(e.Label)}</h3>
+      <div>Arbeitszeit: ${esc(e.OnSiteCostLabel)}</div>
+      <div>Reisezeit: ${esc(e.TravelCostLabel)}</div>
+      <div><b>Zwischensumme: ${esc(e.TotalCostLabel)}</b></div>`,
+      )
+      .join("")}
+    <div class="right"><b>Gesamtkosten aus Zeiten: ${esc(data.GesamtkostenAusZeitenLabel)}</b></div>
+    <div class="muted">${esc(data.ZeitenHinweisText)}</div>
+  </section>
+
+  <section class="card">
+    <h2>Bonus</h2>
+    <div><code>HasBonus300</code>: ${esc(data.HasBonus300)}</div>
+    <div><code>HasBonusGrab</code>: ${esc(data.HasBonusGrab)}</div>
+
+    ${
+      data.HasBonus300
+        ? `<div class="card"><h3>Pos003</h3>
+            <div>${esc(data.Pos003_No)} ${esc(data.Pos003_Title)} — ${esc(data.Pos003_LineTotal)}</div>
+            ${renderTable(data.Pos003_CostLines || [], ["Kostenart","Menge","Einheit","Beschreibung","EK_je_Einheit","Gesamt"])}
+           </div>`
+        : `<div class="muted">Pos003 hidden</div>`
+    }
+
+    ${
+      data.HasBonusGrab
+        ? `<div class="card"><h3>Pos004</h3>
+            <div>${esc(data.Pos004_No)} ${esc(data.Pos004_Title)} — ${esc(data.Pos004_LineTotal)}</div>
+            ${renderTable(data.Pos004_CostLines || [], ["Kostenart","Menge","Einheit","Beschreibung","EK_je_Einheit","Gesamt"])}
+           </div>`
+        : `<div class="muted">Pos004 hidden</div>`
+    }
+  </section>
+
+  ${
+    isDebug(req)
+      ? `<section class="card"><h2>_debug</h2><pre>${esc(JSON.stringify(data._debug || {}, null, 2))}</pre></section>`
+      : ""
+  }
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (e) {
+    docsLog.error("[kalkulation/preview] failed:", e);
+    res.status(500).send(`<pre>${String(e?.stack || e)}</pre>`);
+  }
+});
+
+/* ===========================
+   DEBUG endpoint (JSON)
+   =========================== */
+
+router.post("/debug", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+
+    const angebotData = mapData(body, computed);
+    const { bonus300Row, bonusGrabRow } = pickBonusRows(angebotData);
+
+    const meta = {
+      offerNumber: body?.offerNumber || null,
+      activeOffer: body?.activeOffer || null,
+      rabatt: body?.rabatt || null,
+      computedFlags: computed?.flags || null,
+      computedPick: {
+        productsSubtotal: computed?.productsSubtotal,
+        markupPct: computed?.markupPct,
+        markup: computed?.markup,
+        material_plus_aufschlag: computed?.material_plus_aufschlag,
+        vatOnNet: computed?.vatOnNet,
+        total: computed?.total,
+      },
+      servicesPick: {
+        sum: computed?.services?.sum,
+        laborRate: computed?.services?.laborRate,
+        laborHours: computed?.services?.laborHours,
+        distanceKm: computed?.services?.distanceKm,
+      },
+      materialsPick: {
+        sum: computed?.materials?.sum,
+      },
+      bonusRows: angebotData?.BonusRows || [],
+      bonus300Row,
+      bonusGrabRow,
+    };
+
+    const data = await mapKalkulationData(body, computed, meta);
+
+    dlog(req, "top-level keys:", Object.keys(data));
+    dlog(req, "Angebotsnummer:", data.Angebotsnummer);
+    dlog(req, "HasBonus300:", data.HasBonus300, "HasBonusGrab:", data.HasBonusGrab);
+    dlog(req, "Pos001_CostLines:", data?.Pos001_CostLines?.length);
+    dlog(req, "Pos002_CostLines:", data?.Pos002_CostLines?.length);
+
+    res.json({ ok: true, data });
+  } catch (e) {
+    docsLog.error("[kalkulation/debug] failed:", e);
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+/* ===========================
+   Routes
+   =========================== */
+
+// Generate DOCX Kalkulation
+router.post("/docx", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+
+    const templatePath = path.join(docsRoot(), "src", "templates", "Kalkulation.docx");
+
+    const data = await mapKalkulationData(
+      body,
+      computed,
+      isDebug(req) ? { note: "docx debug" } : null,
+    );
+
+    dlog(req, "Angebotsnummer:", data.Angebotsnummer);
+    dlog(req, "Pos001_No:", data.Pos001_No, "Pos001_CostLines:", data?.Pos001_CostLines?.length);
+    dlog(req, "Pos002_No:", data.Pos002_No, "Pos002_CostLines:", data?.Pos002_CostLines?.length);
+
+    const out = await renderDocx(templatePath, data);
+
+    const fname = `${safeFileName(
+      `Kalkulation_${data.Projektnummer}_${data.Dokumentennummer}`,
+      "Kalkulation",
+    )}.docx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+    res.send(out);
+  } catch (e) {
+    docsLog.error("[kalkulation/docx] generation failed:", e);
+    res.status(500).json({
+      error: "Kalkulation DOCX generation failed",
+      detail: e?.message || String(e),
+    });
+  }
+});
+
+// Generate PDF Kalkulation (DOCX -> LibreOffice)
+router.post("/pdf", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+
+    const templatePath = path.join(docsRoot(), "src", "templates", "Kalkulation.docx");
+
+    const data = await mapKalkulationData(
+      body,
+      computed,
+      isDebug(req) ? { note: "pdf debug" } : null,
+    );
+
+    dlog(req, "Angebotsnummer:", data.Angebotsnummer);
+
+    const docxBuffer = await renderDocx(templatePath, data);
+    const pdfBuffer = await convertDocxToPdf(docxBuffer);
+
+    const fname = `${safeFileName(
+      `Kalkulation_${data.Projektnummer}_${data.Dokumentennummer}`,
+      "Kalkulation",
+    )}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    docsLog.error("[kalkulation/pdf] generation failed:", e);
+    res.status(500).json({
+      error: "Kalkulation PDF generation failed",
+      detail: e?.message || String(e),
+    });
+  }
+});
+
+// Kalkulation (neue Version) — HTML/Puppeteer instead of DOCX+LibreOffice.
+// Reuses mapKalkulationData for everything already correct there (Pos001/
+// Pos002 cost lines, Zeiterfassung, Reisezeit-Kosten panel, Boni), and adds
+// the Kalkulationsübersicht fields fresh from `computed` — matching the
+// app's own Kosten-Details math (I + II + III + Aufschlag − Bonus = Netto),
+// not the old SummaryRows model, which omits Fahrzeug/Werkzeug/Kilometer
+// entirely and doesn't reconcile.
+router.post("/pdf-v2", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const data = await mapKalkulationData(body, computed, null);
+
+    const isBwt = !!computed?.services?.isBwt;
+    const posI = Number(computed?.services?.sum || 0);
+    const posII = Number(computed?.materialsDisplayUI?.sum || 0);
+    const posIII = Number(computed?.optionalDisplayUI?.sum || 0);
+    const aufschlag = Number(computed?.markup || 0);
+    const markupPct = Number(computed?.markupPct || 0);
+    const markupBase = Number(computed?.markupBase || 0);
+    const rabattAmount = Number(computed?.rabattAmount || 0);
+    const bonusGross = Number(computed?.bonusGross || 0);
+    const zwischensumme = Number(computed?.Nettobetrag ?? posI + posII + posIII + aufschlag);
+    const nettobetrag = Number(computed?.netAfterRabatt_and_Bonus || 0);
+
+    // Pos. 0.002 used to print material_plus_aufschlag as its total, which
+    // bakes in the same Aufschlag/Rabatt/Bonus already shown once, further up,
+    // in the Kalkulationsübersicht (AufschlagLabel/RabattValueLabel/
+    // BonusGesamtLabel below) — showing it a second time here just made two
+    // numbers that don't visibly match. Pos. 0.002's own total is simply the
+    // sum of its own material rows.
+    const pos002Sum = round2(
+      (data.Pos002_CostLines || []).reduce((a, l) => a + (Number(l._totalNum) || 0), 0),
+    );
+    data.Pos002_UnitPrice = fmtCurrency(pos002Sum);
+    data.Pos002_LineTotal = fmtCurrency(pos002Sum);
+
+    // Pos. 2 as EK / Aufschlag / VK. The Aufschlag is the offer's real
+    // global amount (markupBase = EK net of Pos. 2 here), not a recomputation.
+    const matVk = round2(pos002Sum + aufschlag);
+
+    Object.assign(data, {
+      MatAufschlagPctLabel: `(${fmtPercentDE(markupPct * 100, 1)})`,
+      MatAufschlagLabel: aufschlag > 0 ? fmtCurrency(aufschlag) : "",
+      MatVkLabel: fmtCurrency(matVk),
+      OfferBadge: isBwt ? "BWT" : "BU",
+      DealId: body?.dealId || body?.Kundendaten?.dealId || "",
+      PosI_Label: fmtCurrency(posI),
+      PosII_Label: fmtCurrency(posII),
+      PosIII_Label: fmtCurrency(posIII),
+      AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 1)} auf ${fmtCurrency(markupBase)})`,
+      AufschlagValueLabel: fmtCurrency(aufschlag),
+      RabattValueLabel: rabattAmount > 0 ? `-${fmtCurrency(rabattAmount)}` : "",
+      ZwischensummeLabel: fmtCurrency(zwischensumme),
+      BonusGesamtLabel: bonusGross > 0 ? `-${fmtCurrency(bonusGross)}` : fmtCurrency(0),
+      NettobetragLabel: fmtCurrency(nettobetrag),
+    });
+
+    const html = buildKalkulationV2Html(data);
+    const pdfBuffer = await htmlToPdfBuffer(html, { footerTemplate: KALKULATION_V2_FOOTER });
+
+    const fname = `${safeFileName(
+      `Kalkulation_v2_${data.Projektnummer}_${data.Dokumentennummer}`,
+      "Kalkulation",
+    )}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    docsLog.error("[kalkulation/pdf-v2] generation failed:", e);
+    res.status(500).json({
+      error: "Kalkulation v2 PDF generation failed",
+      detail: e?.message || String(e),
+    });
+  }
+});
+
+export default router;

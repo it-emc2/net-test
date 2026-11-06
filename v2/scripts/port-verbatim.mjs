@@ -28,21 +28,54 @@ const SIGNING_TRANSFORMS = [
   ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
 ];
 
+// shared rewrites for ported legacy route modules
+const ROUTE_BASE = [
+  ['import express from "express";', 'import express from "../shims/express.js";\nimport { docsRoot, docsLog } from "../shims/runtime.js";'],
+  [/from "\.\.\/models\/Product\.js"/g, 'from "../shims/product-model.js"'],
+  [/from "\.\.\/logic\/pricing\.js"/g, 'from "../shims/pricing.js"'],
+  [/process\.cwd\(\)/g, "docsRoot()", { optional: true }],
+  [/\bconsole\./g, "docsLog.", { optional: true }],
+];
+const KALK_TRANSFORMS = [
+  ...ROUTE_BASE,
+  ['from "../utils/htmlToPdf.js"', 'from "../shims/html-to-pdf.js"'],
+  ['from "../templates/kalkulation-v2.js"', 'from "./kalkulation-v2.js"'],
+];
+const ARB_TRANSFORMS = [
+  ...ROUTE_BASE,
+  ['from "../models/Offer.js"', 'from "../shims/offer-model.js"'],
+  ['from "../models/Draft.js"', 'from "../shims/draft-model.js"'],
+];
+const PRODUCT_IMAGE_TRANSFORMS = [
+  ['import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";', 'import { htmlToPdfBuffer } from "../shims/html-to-pdf.js";\nimport { docsLog } from "../shims/runtime.js";'],
+  ['from "../external/vigorDb.js"', 'from "../shims/vigor-db.js"'],
+  [/\bconsole\./g, "docsLog."],
+];
+const KALK_V2_TEMPLATE_TRANSFORMS = [
+  ['import fs from "fs";', 'import fs from "fs";\nimport { docsRoot } from "../shims/runtime.js";'],
+  ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
+];
+
 export const PORTS = [
   { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/catalog/ported/wanne-sets.ts" },
   { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/catalog/ported/wanne-describe.ts" },
   { from: "src/lib/docxTextReplace.js", to: "v2/apps/server/src/documents/ported/docx-text-replace.ts" },
   { from: "src/routes/docx-template.js", to: "v2/apps/server/src/documents/ported/docx-template.ts", transforms: DOCS_TRANSFORMS },
+  { from: "src/routes/kalkulation.js", to: "v2/apps/server/src/documents/ported/kalkulation.ts", transforms: KALK_TRANSFORMS },
+  { from: "src/templates/kalkulation-v2.js", to: "v2/apps/server/src/documents/ported/kalkulation-v2.ts", transforms: KALK_V2_TEMPLATE_TRANSFORMS },
+  { from: "src/routes/arbeitsbericht.js", to: "v2/apps/server/src/documents/ported/arbeitsbericht.ts", transforms: ARB_TRANSFORMS },
+  { from: "src/routes/pdf-preview.js", to: "v2/apps/server/src/documents/ported/pdf-preview.ts", transforms: ROUTE_BASE },
+  { from: "src/lib/productImagePdf.js", to: "v2/apps/server/src/documents/ported/product-image-pdf.ts", transforms: PRODUCT_IMAGE_TRANSFORMS },
   { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>
   `// @ts-nocheck\n// GENERATED ${rules ? `copy of ${from} with ${rules} import/runtime rewrites (see v2/scripts/port-verbatim.mjs)` : `verbatim copy of ${from}`} — do not edit. Re-port: node v2/scripts/port-verbatim.mjs\n// Drift guard: apps/server/test/verbatim-ports.test.ts\n`;
 export function expected(from, transforms = []) {
   let src = fs.readFileSync(path.join(ROOT, from), "utf8");
-  for (const [find, repl] of transforms) {
+  for (const [find, repl, opts] of transforms) {
     const hit = typeof find === "string" ? src.includes(find) : find.test(src);
     if (find instanceof RegExp) find.lastIndex = 0;
-    if (!hit) throw new Error(`port rule no longer matches in ${from}: ${find}`);
+    if (!hit && !opts?.optional) throw new Error(`port rule no longer matches in ${from}: ${find}`);
     src = typeof find === "string" ? src.split(find).join(repl) : src.replace(find, repl);
   }
   return header(from, transforms.length) + src;

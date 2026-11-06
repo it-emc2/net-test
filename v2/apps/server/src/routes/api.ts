@@ -161,10 +161,11 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const pdfEngine = deps.pdfEngine ?? new Gotenberg({ baseUrl: cfg.GOTENBERG_URL, timeoutMs: cfg.GOTENBERG_TIMEOUT_MS });
   const vigorPrices = vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI);
   const { offerDocuments, signingRenderer: ownSigningRenderer } = await registerDocuments(app, {
-    businessConfig, fetchVigourNetPrices: vigorPrices, root: cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT, pdf: pdfEngine,
+    businessConfig, fetchVigourNetPrices: vigorPrices, vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI, root: cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT, pdf: pdfEngine,
+    externalApiKey: cfg.EXTERNAL_API_KEY,
     log: { debug: (o, m) => app.log.debug(o, m), warn: (o, m) => app.log.warn(o, m), error: (o, m) => app.log.error(o, m) },
   });
-  const ownDocuments: OfferDocuments = { ...offerDocuments, productImagePdf: UNAVAILABLE_DOCUMENTS.productImagePdf };
+  const ownDocuments: OfferDocuments = offerDocuments;
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
     badoluxDiscount: () => businessConfig.get("BU_BADOLUX_DISCOUNT", 0.25),

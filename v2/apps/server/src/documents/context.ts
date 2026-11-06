@@ -5,6 +5,8 @@
 export interface DocumentsContext {
   businessConfig: { get(key: string, fallback?: unknown): any };
   fetchVigourNetPrices: (ids: string[]) => Promise<Map<string, number>>;
+  /** vigor DB (read-only supplier data) */
+  vigorUri: string;
   /** directory that holds src/templates (legacy layout) */
   root: string;
   log: { debug(o: object, m: string): void; warn(o: object, m: string): void; error(o: object, m: string): void };

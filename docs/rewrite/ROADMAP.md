@@ -65,9 +65,9 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 ## Phase 5 — Documents
 - [x] docxtemplater kept; DOCX golden master green **against v2** (50 snapshots, ADR 019) — 2026-11-05
 - [ ] Gotenberg container replaces soffice/Puppeteer/Adobe; PDF comparison per type (ADR 008, accepted 2026-11-05).
-  - [x] 5a/5b Offer DOCX, Materialübersicht, offer PDF (`/docx-template`, `/material-overview`, `/pdf`) via mechanical port + Gotenberg; send-offer uses v2's own documents in production (product-image PDF still pending) — 2026-11-05
+  - [x] 5a/5b Offer DOCX, Materialübersicht, offer PDF (`/docx-template`, `/material-overview`, `/pdf`) via mechanical port + Gotenberg; send-offer uses v2's own documents — 2026-11-05
   - [x] 5c Signing documents: ported templates (`documents/ported/signing-docs.ts`, ADR 019) + HTML→PDF via Gotenberg; the 7 signing contract scenarios now run on v2's own templates — identical; real PDFs contain every word of each form — 2026-11-06
-  - [ ] 5d Kalkulation, Arbeitsbericht, product-image PDF, PDF preview
+  - [x] 5d Kalkulation (preview, debug, docx, pdf, pdf-v2), Arbeitsbericht (both mounts; `/api/arbeitsbericht/external/pdf` with fail-closed API key), PDF preview, product-image list/preview/PDF (send-offer attachment) — mechanical ports + Gotenberg; identical in the contract test (fake PDF engine on both sides). v2 no longer loads any legacy code in-process — 2026-11-06
   - [ ] 5e Adobe, LaTeX, `/pdf-template`: retire or port (usage check, owner OK)
 - [ ] Single offer rendering source for DOCX + signing HTML. Today (as in legacy) DOCX and signing HTML share the render data (`getOfferRenderData`) but have separate templates; `SigningRenderer` is filled by the ported templates (5c). Merging the templates is a later improvement (owner sign-off: visible change).
 - [ ] Wording rules (`offerOverrides.textReplacements`) applied once on the finished output (rendered DOCX via `lib/docxTextReplace.js`, signing HTML), not on render data — main #314, 2026-11-05.

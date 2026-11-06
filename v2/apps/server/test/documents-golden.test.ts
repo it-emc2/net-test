@@ -36,7 +36,7 @@ beforeAll(async () => {
   app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   const quiet = () => {};
   await registerDocuments(app, {
-    businessConfig, fetchVigourNetPrices: vigorPriceFetcher(uri), root: ROOT,
+    businessConfig, fetchVigourNetPrices: vigorPriceFetcher(uri), vigorUri: uri, root: ROOT,
     log: { debug: quiet, warn: quiet, error: quiet },
     pdf: { docxToPdf: async () => Buffer.from("%PDF-test"), htmlToPdf: async () => Buffer.from("%PDF-test") },
   });

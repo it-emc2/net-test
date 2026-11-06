@@ -117,19 +117,7 @@ export async function registerMisc(app: FastifyInstance, d: MiscDeps) {
   });
 
   // ---- external lookup for the bau-formular (shared API key instead of a session) ----
-  const keyOk = (req: FastifyRequest) => {
-    if (!d.externalApiKey) return false;
-    const given = String(req.headers["x-api-key"] || (req.query as Record<string, unknown>).apiKey || "");
-    const a = Buffer.from(given), b = Buffer.from(d.externalApiKey);
-    return a.length === b.length && timingSafeEqual(a, b);
-  };
-  const EXT = {
-    config: { public: true },
-    onRequest: async (req: FastifyRequest, reply: FastifyReply) => {
-      if (!d.externalApiKey) return fail(req, reply, 503, "NOT_CONFIGURED", "EXTERNAL_API_KEY not configured");
-      if (!keyOk(req)) return fail(req, reply, 401, "UNAUTHORIZED", "Invalid or missing API key");
-    },
-  };
+  const EXT = { config: { public: true }, onRequest: externalKeyGuard(d.externalApiKey) };
 
   app.get("/api/offers/external/search", EXT, async (req, reply) => {
     try {
@@ -194,4 +182,15 @@ export async function registerMisc(app: FastifyInstance, d: MiscDeps) {
       return fail(req, reply, 500, "LOOKUP_FAILED", "External offer lookup failed");
     }
   });
+}
+
+/** Route guard for machine callers (bau-formular): `X-API-Key` / `?apiKey` = EXTERNAL_API_KEY,
+ *  constant-time compare; closed (503) when the key is not configured (legacy: open). */
+export function externalKeyGuard(externalApiKey: string | undefined) {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!externalApiKey) return fail(req, reply, 503, "NOT_CONFIGURED", "EXTERNAL_API_KEY not configured");
+    const given = String(req.headers["x-api-key"] || (req.query as Record<string, unknown>).apiKey || "");
+    const a = Buffer.from(given), b = Buffer.from(externalApiKey);
+    if (!(a.length === b.length && timingSafeEqual(a, b))) return fail(req, reply, 401, "UNAUTHORIZED", "Invalid or missing API key");
+  };
 }
