@@ -125,7 +125,7 @@ test("autosave switched off: nothing saves by itself; „Speichern“ at the bot
   const deal = freshDeal();
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.locator("#ocUserMenuBtn").click();
-  await page.locator("#ocAutosaveToggle").uncheck();
+  await page.locator("label[for=ocAutosaveToggle]").click(); // switch off
   await page.keyboard.press("Escape");
   await startBu(page, deal);
   const btn = page.locator("#ocManualSave");

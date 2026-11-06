@@ -110,8 +110,17 @@ test("U-008 clean header: save status + Versionen in the header only while an of
   await page.locator("#ocUserMenuBtn").click();
   const menu = page.locator("#ocUserMenu");
   await expect(menu).toBeVisible();
-  await expect(menu.locator("#themeSelect")).toBeVisible();
-  await expect(menu.locator(".ui-view-seg")).toBeVisible();
+  await expect(menu.locator("#ocThemeSelect")).toBeVisible();
+  await expect(menu.locator(".oc-seg")).toBeVisible();
+  await expect(menu.getByText("Dunkler Modus")).toBeVisible();
+  // the menu's switch operates today's light/dark control
+  const before = await page.evaluate(() => document.getElementById("modeToggle").checked);
+  await menu.locator("label[for=ocDarkToggle]").click();
+  expect(await page.evaluate(() => document.getElementById("modeToggle").checked)).toBe(!before);
+  await menu.locator("label[for=ocDarkToggle]").click();
+  // the menu's theme select operates today's theme select
+  await menu.locator("#ocThemeSelect").selectOption("pflege");
+  expect(await page.evaluate(() => document.getElementById("themeSelect").value)).toBe("pflege");
   await expect(menu.getByText("App neu laden")).toBeVisible();
   await expect(menu.getByText("Abmelden")).toBeVisible();
   await page.keyboard.press("Escape");
