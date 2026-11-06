@@ -97,7 +97,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
   - [x] Parallel run tool `test/parallel-run.test.ts` (local copy only, report without customer data): 3,800/3,800 offers + drafts priced identically — 2026-11-06. Documents are the same code (mechanical ports, DOCX golden 50/50).
   - [ ] Staging on the server with staff spot-check (`CUTOVER.md` §1.5).
 - [x] Deal drafts: draft update + revision insert in one transaction on replica sets (Atlas); standalone dev DB falls back; replica-set test incl. rollback + simultaneous saves — 2026-11-06
-- [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup
+- [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup. CLI `dist/cli/migrate.js` (dry run default); dry run on the copy 2026-11-06: 2 indexes / 1 record.
 - [ ] Everyone who maintains the catalog has role `admin` (ADR 018).
 - [ ] `EXTERNAL_API_KEY` set in production and in the bau-formular (v2 closes `/api/offers/external/*` without it).
-- [ ] Cut-over plan with rollback (`docs/rewrite/CUTOVER.md`, draft 2026-11-06); owner OK; rollback export tool `deal_drafts → drafts`.
+- [ ] Cut-over plan with rollback (`docs/rewrite/CUTOVER.md`, draft 2026-11-06); owner OK; rollback export tool `deal_drafts → drafts` ✓ (2026-11-06).

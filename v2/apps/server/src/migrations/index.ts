@@ -25,3 +25,36 @@ export async function m002UnsetEmptyCustomerNumber(db: mongoose.mongo.Db, dryRun
 }
 
 export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber];
+
+/**
+ * ROLLBACK tool (CUTOVER.md §4.2) — not a migration. Copies each deal's CURRENT autosaved draft
+ * (v2 `deal_drafts`) into the legacy `drafts` collection as an ordinary draft, so the old app
+ * shows the work after switching back (its "Deal laden" dialog finds it via payload.auftragId).
+ * Idempotent: the key `clientSaveId = "dealdraft:<dealId>:<revision>"` is never written twice.
+ * Only INSERTS into `drafts`; `deal_drafts` is only read.
+ */
+export async function exportDealDraftsToLegacy(db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
+  const deals = await db.collection("deal_drafts").find({}).toArray();
+  let matched = 0, changed = 0;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  for (const d of deals as any[]) {
+    const key = `dealdraft:${d.dealId}:${d.revision}`;
+    if (await db.collection("drafts").countDocuments({ clientSaveId: key }, { limit: 1 })) continue;
+    matched++;
+    if (dryRun) continue;
+    const at = new Date(d.updatedAt ?? Date.now());
+    const k = d.payload?.Kundendaten ?? {};
+    const clean = (v: unknown) => String(v ?? "").trim().replace(/[^\p{L}\p{N}]+/gu, "") || "X";
+    // same name shape as today's quick save: ANG-{TYPE}-{First}-{Last}-{DDMMYYYY}-{HHMMSS}
+    const name = `ANG-${String(d.offerType).toUpperCase()}-${clean(k.firstName)}-${clean(k.lastName)}-` +
+      `${pad(at.getDate())}${pad(at.getMonth() + 1)}${at.getFullYear()}-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`;
+    const now = new Date();
+    await db.collection("drafts").insertOne({
+      name, offerType: d.offerType, payload: d.payload,
+      ...(d.payload?.offerNumber ? { offerNumber: String(d.payload.offerNumber) } : {}),
+      savedAt: at, clientSaveId: key, createdAt: now, updatedAt: now,
+    });
+    changed++;
+  }
+  return { id: "rollback-export-deal-drafts", dryRun, matched, changed, note: "copies current deal drafts into legacy drafts (insert only)" };
+}

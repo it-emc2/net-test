@@ -23,7 +23,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 3. **Backup**: full `mongodump` of `KonfiguratorDB` + `vigor` (Atlas snapshot plus an offline copy). Restore test on the local replica.
 4. **Fresh local copy** of production → run the checks against it:
    - parallel run: `OC_PARALLEL_RUN_URI=mongodb://127.0.0.1:27018 npx vitest run test/parallel-run.test.ts` — must report **0 different** (2026-11-06: 3,800/3,800 identical);
-   - migrations **dry run**: 001 and 002 on the copy, check the reported changes.
+   - migrations **dry run**: `node apps/server/dist/cli/migrate.js` (no `--apply`) on the copy — 2026-11-06: 001 would create 2 indexes, 002 would change exactly 1 customer record (the known B-1 case).
 5. **Staging**: start the stack on the server with a staging domain (e.g. `oc-staging.emc2.de`) against the **copy** (or with `DB_READONLY=1` against production for a read-only look). Staff spot-check: open a deal, price, documents, PDF, signing page.
 6. **Roles** (ADR 018): everyone who maintains the catalog has role `admin`.
 7. **Bitrix/links**: Bitrix links to `https://oc.emc2.de/?offer=…` and `/deal/…` keep working (same domain, same paths).
@@ -31,7 +31,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 ## 2. Switch (about 30 minutes)
 
 1. Announce a short pause; check nobody is mid-send (offer email / letter / signing).
-2. Run migrations on production (D5): 001 (creates `deal_drafts`/`deal_draft_revisions` with their unique indexes), then 002 (B-1). Both are idempotent and touch only what they report.
+2. Run migrations on production (D5): `node apps/server/dist/cli/migrate.js --apply` — 001 (creates `deal_drafts`/`deal_draft_revisions` with their unique indexes), then 002 (B-1). Both are idempotent and touch only what they report.
 3. Start v2 on the server: `docker compose up -d --build`; wait for `/api/health` = ok.
 4. Point the domain `oc.emc2.de` to the server (DNS) — Caddy fetches the certificate automatically.
 5. Smoke test with a real login: Hauptmenü, „Öffnen“ a deal, price, PDF, Bitrix comment on a test deal, signing link on a test offer.
@@ -57,6 +57,6 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 ## Open items before the switch
 
 - [ ] Owner decisions D1–D5.
-- [ ] Rollback export tool `deal_drafts → drafts` (§4.2) + test on the copy.
+- [x] Rollback export tool `deal_drafts → drafts` (§4.2): `node apps/server/dist/cli/migrate.js rollback-export [--apply]` — insert-only, idempotent, tested; dry run on the copy 2026-11-06: 0 (no deal drafts exist yet).
 - [ ] Staging run with staff spot-check (§1.5).
 - [ ] Fresh parallel run on a copy taken the day before (§1.4).
