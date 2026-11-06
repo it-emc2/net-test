@@ -74,8 +74,7 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 
 ## Phase 6 — Frontend port + new flows (strategy: ADR 021)
 - [x] 6a v2 serves today's UI (static files with Express content types, helmet 8.1.0 + extracted legacy CSP, CORS allowlist, login redirect incl. `?offer=` deep link, `/logic/*.js`, SPA fallback, pdf.js/Font Awesome mounts); web contract test identical; Playwright parity suite 9/9 **against v2** (new CI job `parity-v2`). Route guard: 0 legacy endpoints missing — 2026-11-06
-  - Note: because the UI is served unchanged, the HMS/WD tiles (ADR 011: not offered in v2) are still visible; hiding them is an add-on in 6b–6c (UX-CHANGES U-001).
-- [ ] 6b Deal URLs `/deal/:dealId` (+ step) as an add-on module (ADR 006).
+- [x] 6b Deal links (ADR 006) as add-on `web/addons/deal-link.js`: `/deal/<id>[/<step>]` (Bitrix, bookmarks; via login if needed) → `/?deal=<id>[#step]` → the existing "Bitrix Deal laden" flow runs; while working the address keeps `?deal=<Auftrag-ID>#<step>` (reload/bookmark keep deal + step); HMS/WD hidden on the Hauptmenü (U-001). The app always runs at `/` because `index.html` uses 237 relative asset paths. Playwright v2 spec + unit tests — 2026-11-06
 - [ ] 6c One draft per deal + version history + autosave + "restore version" (ADR 007) as an add-on module on the deal-draft API.
 - [ ] 6d Offline parity check against v2 (service worker + offline suite).
 - [ ] Every page/feature in `FRONTEND-INVENTORY.md`; Playwright parity suite green on new app.

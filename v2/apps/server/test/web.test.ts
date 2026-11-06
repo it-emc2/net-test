@@ -33,7 +33,7 @@ describe("web layer", () => {
     const app = await build(['<script type="module" src="/v2/addon.js"></script>']);
     const r = await app.inject({ url: "/", headers: { accept: "text/html" } });
     expect([r.statusCode, r.headers.location]).toEqual([302, "/login"]);
-    const ok = await app.inject({ url: "/deal/1", headers: { accept: "text/html", ...cookie() } });
+    const ok = await app.inject({ url: "/irgendwo/tief", headers: { accept: "text/html", ...cookie() } });
     expect(ok.statusCode).toBe(200);
     expect(ok.body).toContain('<script type="module" src="/v2/addon.js"></script>\n</body>');
   });
@@ -45,5 +45,20 @@ describe("web layer", () => {
     expect((await app.inject({ url: "/vendor/fontawesome/..%2f..%2fpackage.json" })).statusCode).toBe(404);
     const t = await app.inject({ url: "/..%2f..%2fpackage.json", headers: cookie() });
     expect(t.body.startsWith("<!DOCTYPE html>")).toBe(true); // the app page, never the file outside
+  });
+
+  it("deal links: login first, then /?deal=<id>[#step]; invalid ids never redirect", async () => {
+    const app = await build(['<script src="/v2/addons/deal-link.js" defer></script>']);
+    const anon = await app.inject({ url: "/deal/9001", headers: { accept: "text/html" } });
+    expect([anon.statusCode, anon.headers.location]).toEqual([302, "/login?next=%2Fdeal%2F9001"]);
+    const r = await app.inject({ url: "/deal/9001", headers: cookie() });
+    expect([r.statusCode, r.headers.location]).toEqual([302, "/?deal=9001"]);
+    const s2 = await app.inject({ url: "/deal/9001/Kosten", headers: cookie() });
+    expect(s2.headers.location).toBe("/?deal=9001#Kosten");
+    const bad = await app.inject({ url: "/deal/%3Cscript%3E", headers: cookie() });
+    expect([bad.statusCode, bad.headers.location]).toEqual([200, undefined]);
+    const addon = await app.inject({ url: "/v2/addons/deal-link.js" });
+    expect([addon.statusCode, addon.headers["content-type"]]).toEqual([200, "text/javascript; charset=utf-8"]);
+    expect(addon.body).toContain("btnLoadDeal");
   });
 });

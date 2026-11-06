@@ -20,8 +20,13 @@ test.beforeEach(async ({ page }) => {
   expect(res.ok()).toBeTruthy();
 });
 
+// v2 hides HMS and WD on the Hauptmenü (ADR 011, UX U-001) — their pages are not offered there.
+const V2_HIDDEN = new Set(["hms", "wd"]);
+const isV2 = process.env.PARITY_TARGET === "v2";
+
 for (const [key, tile] of TILES) {
   test(`${key}: tile opens the same wizard steps and every step page renders`, async ({ page }) => {
+    test.skip(isV2 && V2_HIDDEN.has(key), "not offered in v2 (ADR 011)");
     const errors = [];
     const dialogs = [];
     page.on("pageerror", (e) => errors.push(String(e.message)));
@@ -76,5 +81,12 @@ test("main menu shows all seven offer tiles", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const tiles = await page.$$eval(".tile-btn[data-step]", (as) =>
     as.map((a) => `${a.dataset.step} | ${a.querySelector(".tile-title")?.textContent?.trim()}`));
+  if (isV2) {
+    // same tiles in the same order, minus the two v2 hides (checked for visibility in v2-deal-link.spec.cjs)
+    const fs = require("node:fs");
+    const recorded = fs.readFileSync(require("node:path").join(__dirname, "__snapshots__/main-menu-tiles.txt"), "utf8").trim().split("\n");
+    expect(tiles).toEqual(recorded);
+    return;
+  }
   expect(tiles.join("\n")).toMatchSnapshot("main-menu-tiles.txt");
 });

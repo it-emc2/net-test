@@ -60,6 +60,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 
 ## 006 — Deal URLs
 - `/deal/:dealId` opens (or creates) the deal's draft directly; deep-linkable from Bitrix24.
+- Implemented 2026-11-06 (6b): `/deal/<id>[/<step>]` is the entry link; the server redirects to `/?deal=<id>[#step]` because today's `index.html` loads its files with relative paths (the app must run at `/`). The address bar then shows `/?deal=<id>#<step>`.
 - Additional: `/offer/:offerNumber` (read-only view of a sent offer).
 
 ## 007 — One draft per deal + revision history (ACCEPTED by owner, 2026-11-04)

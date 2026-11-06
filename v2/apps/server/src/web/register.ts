@@ -55,6 +55,27 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   app.get("/logic/tray-search-core.js", js("tray-search-core.js"));
   app.get("/logic/aufschlag-rules.js", js("aufschlag-rules.js"));
 
+  // ---- phase 6 add-ons (ADR 021): small scripts injected into index.html, served from v2
+  // source folder (works from src/ and from the built dist/; tsc does not copy .js assets)
+  const ADDONS = new URL("../../src/web/addons/", import.meta.url);
+  const addonSrc = (f: string) => fs.readFileSync(new URL(f, ADDONS), "utf8");
+  app.get("/v2/addons/deal-link.js", { config: { public: true } }, async (_req, reply) =>
+    reply.type("text/javascript; charset=utf-8").header("Cache-Control", "no-cache").send(addonSrc("deal-link.js")));
+
+  // ---- deal links (ADR 006): /deal/<id>[/<step>] → /?deal=<id>[#<step>] (index.html uses relative
+  // asset paths, so the app itself always runs at "/"); not logged in → login, then back here
+  const DEAL_RE = /^[A-Za-z0-9_-]{1,32}$/, STEP_RE = /^[A-Za-z0-9_-]{1,40}$/;
+  const dealLink = async (req: FastifyRequest, reply: FastifyReply) => {
+    const { dealId, step } = req.params as { dealId: string; step?: string };
+    if (!DEAL_RE.test(dealId) || (step !== undefined && !STEP_RE.test(step))) return sendIndexOrLogin(req, reply);
+    if (!loggedIn(req)) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
+    return reply.redirect(`/?deal=${encodeURIComponent(dealId)}${step ? `#${step}` : ""}`);
+  };
+  app.get("/deal/:dealId", { config: { public: true } }, dealLink);
+  app.get("/deal/:dealId/:step", { config: { public: true } }, dealLink);
+  const sendIndexOrLogin = (req: FastifyRequest, reply: FastifyReply) =>
+    loggedIn(req) ? sendIndex(reply) : reply.redirect("/login");
+
   // ---- everything else: legacy authGate rules + express.static + SPA fallback
   // Content-Type exactly like legacy: Express static (send@1 → mime-types 3 contentType), plus the
   // explicit types of the legacy pdf.js and Font Awesome mounts

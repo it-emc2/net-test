@@ -1616,13 +1616,20 @@ describe("contract: web layer — same pages, files, redirects, security headers
   });
 
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
-    await same("/", COOKIE());
+    { // index: identical except v2's one add-on script tag before </body> (ADR 021)
+      const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n</body>') });
+    }
     await same("/admin/", COOKIE());
-    // SPA fallback: legacy res.sendFile refuses dot-folder paths (local worktrees under .claude/) → compare with the file there
-    if (ROOT.includes("/.")) {
-      const v = await get("v2", "/deal/9001", COOKIE());
-      expect([v.status, v.body.toString()]).toEqual([200, readFileSync(ROOT + "src/public/index.html", "utf8")]);
-    } else await same("/deal/9001", COOKIE());
+    // SPA fallback (any unknown app path) — legacy res.sendFile refuses dot-folder paths
+    // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
+    {
+      const v = await get("v2", "/irgendwo/tief", COOKIE());
+      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n</body>');
+      expect([v.status, v.body.toString()]).toEqual([200, html]);
+    }
+    // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>
+    expect((await get("v2", "/deal/9001", COOKIE())).headers.location).toBe("/?deal=9001");
     for (const f of ["/logic/pricing-core.js", "/logic/tray-search-core.js", "/logic/aufschlag-rules.js"]) {
       await same(f, { cookie: `net_session=${token}` });
       await same(f); // not public: 401 without a session

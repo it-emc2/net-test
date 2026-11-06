@@ -173,6 +173,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerWeb(app, {
     publicDir: cfg.WEB_PUBLIC_DIR ?? LEGACY_PUBLIC, logicDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/src/logic`,
     fontAwesomeDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/node_modules/@fortawesome/fontawesome-free`, authSecret: cfg.AUTH_SECRET,
+    indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>'],
   });
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
