@@ -6,13 +6,7 @@ import { describe, expect, it } from "vitest";
 import { missingInV2 } from "../../../scripts/route-parity.mjs";
 
 const ASSIGNED: Record<string, string> = {
-  // phase 5 — documents
-  "GET /api/adobe-pdf/status": "5", "POST /api/adobe-pdf/batch": "5", "POST /api/adobe-pdf/document-merge": "5",
-  "POST /api/adobe-pdf/docx": "5", "POST /api/adobe-pdf/pdf": "5",
-    
-  "POST /latex-template/pdf": "5",
-  "POST /pdf-template": "retire (always 500 in legacy)",
-  // phase 6 — frontend
+  // phase 6 — frontend (the new web app bundles @oc/pricing; login page is part of it)
   "GET /login": "6", "GET /logic/aufschlag-rules.js": "6", "GET /logic/pricing-core.js": "6", "GET /logic/tray-search-core.js": "6",
 };
 

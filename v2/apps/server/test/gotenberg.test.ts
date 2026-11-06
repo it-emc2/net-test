@@ -50,3 +50,15 @@ describe("legacy handler adapter", () => {
     expect([e.statusCode, e.body]).toEqual([202, "done"]);
   });
 });
+
+describe("retired endpoints (ADR 020)", () => {
+  it("answer 410 with the German hint", async () => {
+    const { registerRetired, RETIRED_ROUTES, RETIRED_MESSAGE } = await import("../src/routes/retired.js");
+    const app = Fastify();
+    await registerRetired(app);
+    for (const [method, url] of RETIRED_ROUTES) {
+      const r = await app.inject({ method, url });
+      expect([url, r.statusCode, r.json().error.message]).toEqual([url, 410, RETIRED_MESSAGE]);
+    }
+  });
+});

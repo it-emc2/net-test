@@ -9,5 +9,6 @@ Everything not listed here must behave exactly like today (ADR 004). Each entry:
 | U-004 | Re-opened AH offers keep their saved travel zone; AH drafts in the older format open with their services instead of 0 € | Two legacy bugs (FINDINGS-AH.md) | ADR 014 | ✅ accepted 2026-11-04 |
 | U-003 | Deals open by URL `/deal/<id>`; the step is part of the URL; reload/back never loses work | Today `/`, `#home` or the main menu reset everything; no deep link to a deal | ADR 006 | ✅ requirement |
 | U-005 | Catalog editor (products/services, prices) only visible and usable for admins | Prices affect every offer; today any logged-in user can change them | ADR 018 | ✅ accepted 2026-11-05 |
+| U-006 | Export buttons "Adobe DOCX/PDF/beides", "LaTeX-PDF" and "PDF (Vorlage)" removed; offer PDF and Word stay | Duplicate export paths; Adobe sends data to an external service; the template PDF never worked | ADR 020 | ✅ accepted 2026-11-06 |
 
 Proposed next (not yet approved — will be shown as screens first): larger controls/text, one "Öffnen" search instead of four, hiding developer/legacy export buttons, German-only wording with "Sie", clear dialogs instead of browser pop-ups.

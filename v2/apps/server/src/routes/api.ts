@@ -30,6 +30,7 @@ import { registerSigning } from "./signing.js";
 import { registerMisc } from "./misc.js";
 import { registerCatalog } from "./catalog.js";
 import { registerDocuments } from "./documents.js";
+import { registerRetired } from "./retired.js";
 import { Gotenberg, type PdfEngine } from "../integrations/gotenberg.js";
 import type { SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
@@ -166,6 +167,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     log: { debug: (o, m) => app.log.debug(o, m), warn: (o, m) => app.log.warn(o, m), error: (o, m) => app.log.error(o, m) },
   });
   const ownDocuments: OfferDocuments = offerDocuments;
+  await registerRetired(app);
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
     badoluxDiscount: () => businessConfig.get("BU_BADOLUX_DISCOUNT", 0.25),
