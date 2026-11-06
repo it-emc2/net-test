@@ -36,6 +36,7 @@
     ".oc-notice p{margin:0;flex:1;white-space:pre-line}",
     ".oc-notice button{min-height:44px;min-width:44px;font-size:16px}",
     "#ocHandOver[disabled]{opacity:.7}",
+    "#ocHandOver[hidden]{display:none!important}", // .sw-save-btn sets display and would override [hidden]
   ].join("\n");
   var style = document.createElement("style");
   style.id = "ocUxStyles";
