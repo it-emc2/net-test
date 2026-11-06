@@ -22,7 +22,6 @@ import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
 import type { OfferDocuments } from "../src/email/ports.js";
-import type { SigningRenderer } from "../src/signing/documents.js";
 // @ts-expect-error plain .mjs test helper
 import { fakePdf, normaliseHtml } from "./helpers/fake-pdf.mjs";
 import { PDFDocument } from "pdf-lib";
@@ -61,7 +60,6 @@ chmodSync(join(FAKE_SOFFICE_DIR, "soffice"), 0o755);
 const PATH_WITH_FAKE_SOFFICE = `${FAKE_SOFFICE_DIR}:${process.env.PATH}`;
 let documentsBridge: OfferDocuments;
 let ORIGINAL_CWD = "";
-let signingRenderer: SigningRenderer;
 
 const MAGIC = { EXTERNAL_API_USER: "magic@test.local", EXTERNAL_API_PASSWORD: "magic-test-pass" };
 
@@ -141,25 +139,21 @@ beforeAll(async () => {
   const { default: legacyCfg } = await import(ROOT + "src/services/configService.js");
   legacyCfg._cache = new Map(Object.entries(fx("pricing/config.json")));
   const docx = await import(ROOT + "src/routes/docx-template.js");
-  const tpl = await import(ROOT + "src/templates/signing-docs.js");
   documentsBridge = {
     renderOfferPdf: (p) => docx.generateOfferPdfBuffer(p),
     convertDocxToPdf: (b) => docx.convertDocxToPdf(b),
     getOfferRenderData: (p) => docx.getOfferRenderData(p),
     productImagePdf: async () => null,
   };
-  // signing documents (phase 5): legacy templates + the same fake HTML→PDF as the legacy app
-  signingRenderer = {
-    renderData: (p) => docx.getOfferRenderData(p),
-    offerPdf: async (p) => (await docx.generateOfferPdfBuffer(p)).pdfBuffer,
-    angebotHtml: (data, o) => tpl.buildAngebotHtml(data, o), ahAngebotHtml: (data, o) => tpl.buildAhAngebotHtml(data, o),
-    vollmachtHtml: (sr, doc, m) => tpl.buildVollmachtHtml(sr, doc, m), abtretungHtml: (sr, doc, m) => tpl.buildAbtretungHtml(sr, doc, m),
-    zusatzblattHtml: (sr, doc, m) => tpl.buildZusatzblattHtml(sr, doc, m), abtretungAhHtml: (sr, doc, m) => tpl.buildAbtretungAhHtml(sr, doc, m),
-    htmlToPdf: async (html) => fakePdf(html),
-  };
+
 
   v2 = await buildApp(cfg, {
-    register: (a) => registerApi(a, { cfg, documents: documentsBridge, signingRenderer, mailTls: { rejectUnauthorized: false } }),
+    register: (a) => registerApi(a, {
+      cfg, documents: documentsBridge, mailTls: { rejectUnauthorized: false },
+      // v2's OWN signing templates (ported, 5c) + the same fake PDF engine as the legacy side:
+      // DOCX→PDF = the fake soffice bytes, HTML→PDF = hash of the HTML (fake-pdf.mjs)
+      pdfEngine: { docxToPdf: async () => Buffer.from("%PDF-1.4\n% OC contract-test fake PDF\n%%EOF\n"), htmlToPdf: async (html: string) => fakePdf(html) },
+    }),
   });
 
   // log in on the LEGACY app; the same token is used against v2

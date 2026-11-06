@@ -23,11 +23,17 @@ const DOCS_TRANSFORMS = [
   [/function convertDocxToPdf\(docxBuffer\) \{[\s\S]*?\n\}\n/, "function convertDocxToPdf(docxBuffer) {\n  return pdfEngine().docxToPdf(docxBuffer); // v2: Gotenberg (ADR 008)\n}\n"],
 ];
 
+const SIGNING_TRANSFORMS = [
+  ['import { replaceTextInHtml } from "../lib/docxTextReplace.js";', 'import { replaceTextInHtml } from "./docx-text-replace.js";\nimport { docsRoot } from "../shims/runtime.js";'],
+  ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
+];
+
 export const PORTS = [
   { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/catalog/ported/wanne-sets.ts" },
   { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/catalog/ported/wanne-describe.ts" },
   { from: "src/lib/docxTextReplace.js", to: "v2/apps/server/src/documents/ported/docx-text-replace.ts" },
   { from: "src/routes/docx-template.js", to: "v2/apps/server/src/documents/ported/docx-template.ts", transforms: DOCS_TRANSFORMS },
+  { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>
   `// @ts-nocheck\n// GENERATED ${rules ? `copy of ${from} with ${rules} import/runtime rewrites (see v2/scripts/port-verbatim.mjs)` : `verbatim copy of ${from}`} — do not edit. Re-port: node v2/scripts/port-verbatim.mjs\n// Drift guard: apps/server/test/verbatim-ports.test.ts\n`;

@@ -31,7 +31,7 @@ import { registerMisc } from "./misc.js";
 import { registerCatalog } from "./catalog.js";
 import { registerDocuments } from "./documents.js";
 import { Gotenberg, type PdfEngine } from "../integrations/gotenberg.js";
-import { UNAVAILABLE_SIGNING_RENDERER, type SigningRenderer } from "../signing/documents.js";
+import type { SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
 import { todaysCustomers } from "../integrations/todays-customers.js";
@@ -160,7 +160,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   // ---------------- documents (phase 5) ----------------
   const pdfEngine = deps.pdfEngine ?? new Gotenberg({ baseUrl: cfg.GOTENBERG_URL, timeoutMs: cfg.GOTENBERG_TIMEOUT_MS });
   const vigorPrices = vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI);
-  const { offerDocuments } = await registerDocuments(app, {
+  const { offerDocuments, signingRenderer: ownSigningRenderer } = await registerDocuments(app, {
     businessConfig, fetchVigourNetPrices: vigorPrices, root: cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT, pdf: pdfEngine,
     log: { debug: (o, m) => app.log.debug(o, m), warn: (o, m) => app.log.warn(o, m), error: (o, m) => app.log.error(o, m) },
   });
@@ -188,7 +188,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerBitrixRead(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   const signingSvc = await registerSigning(app, {
-    deals, renderer: deps.signingRenderer ?? { ...UNAVAILABLE_SIGNING_RENDERER, renderData: (p) => offerDocuments.getOfferRenderData(p), offerPdf: async (p) => (await offerDocuments.renderOfferPdf(p)).pdfBuffer },
+    deals, renderer: deps.signingRenderer ?? ownSigningRenderer,
     mailer: new Mailer({
       smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_PORT || 587, secure: cfg.SMTP_SECURE === "true", requirePass: false,
       smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS, replyTo: cfg.SMTP_REPLY_TO,

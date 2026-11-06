@@ -72,12 +72,17 @@ export function normaliseDocx(buf, { today = new Date() } = {}) {
   const m = String(today.getMonth() + 1).padStart(2, "0");
   const y = String(today.getFullYear());
   const todayRe = new RegExp(`\\b(${d}\\.${m}\\.${y}|${y}-${m}-${d}|${Number(d)}\\.${Number(m)}\\.${y})\\b`, "g");
+  // offers without a date are valid until today + 8 weeks (docx-template mapData) — mask that too,
+  // otherwise the snapshot breaks the day after it was recorded
+  const v = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 56);
+  const validRe = new RegExp(`\\b${String(v.getDate()).padStart(2, "0")}\\.${String(v.getMonth() + 1).padStart(2, "0")}\\.${v.getFullYear()}\\b`, "g");
   const out = {};
   for (const name of parts) {
     const xml = zip.file(name).asText();
     const paragraphs = xml.split(/<\/w:p>/).map((p) =>
       decode([...p.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)].map((x) => x[1]).join(""))
         .replace(todayRe, "<TODAY>")
+        .replace(validRe, "<TODAY+8W>")
         .replace(/ANG-\d{13}/g, "ANG-<ts>")
         // letterhead: personal names never land in fixtures (org rule: initials only)
         .replace(/\b(EmC2|emc2)\s+[A-ZÄÖÜ][a-zäöüß]+\s+[A-ZÄÖÜ][a-zäöüß]+/g, "$1 <OWNER>")

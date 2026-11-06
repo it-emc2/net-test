@@ -4300,7 +4300,7 @@
      "Bitte unterschreiben Sie bei Annahme an entsprechender Stelle und senden uns das Angebot wieder zurück - gerne auch per E-Mail an service@e-m-c-2.de. Die Unterschrift gilt für uns als Auftragsbestätigung.",
      "Angebot akzeptiert / Auftrag bestätigt:",
      "_________________________________",
-     "Ort, Datum, UnterschriftFür Rückfragen stehen wir Ihnen gerne zur Verfügung.  Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören. Dieses Angebot ist gültig bis 31.12.2026.",
+     "Ort, Datum, UnterschriftFür Rückfragen stehen wir Ihnen gerne zur Verfügung.  Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören. Dieses Angebot ist gültig bis <TODAY+8W>.",
      "Mit freundlichen Grüßen",
      "Ihr Team von EmC2"
     ]

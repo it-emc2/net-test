@@ -57,3 +57,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-05 | phase 4 (ADR 018) | Owner: catalog edits admins only → v2 enforces it (403 for normal users), admins unchanged; v2 1,270 tests | phase 5 (documents) |
 | 2026-11-05 | main sync + phase 4 (group 4i) | main@95fc920d merged, pricing re-ported; product pickers (trays, DA model, curtains, bathtubs) identical; route-parity + verbatim-port drift guards; v2 1,283 tests | phase 5 (documents) |
 | 2026-11-05 | phase 5 (5a/5b) | ADR 008 accepted (Gotenberg 8.40.0); offer DOCX/Materialübersicht/PDF via mechanical port (ADR 019) — DOCX golden 50/50 identical, PDFs contain every DOCX word; v2 1,345 tests | 5c signing documents |
+| 2026-11-06 | phase 5 (5c) | Signing documents on v2's own ported templates + Gotenberg (contract scenarios identical, PDFs complete); golden date bug fixed; v2 1,350 tests | 5d Kalkulation, Arbeitsbericht, product images, PDF preview |

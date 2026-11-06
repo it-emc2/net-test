@@ -100,3 +100,5 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
 - `test/documents-golden.test.ts`: the legacy DOCX golden master (25 cases × offer + Materialübersicht) runs against v2's ported module — identical.
 - Real PDFs: set `OC_TEST_GOTENBERG_URL` (CI does). Locally: `docker run --rm -p 127.0.0.1:3000:3000 gotenberg/gotenberg:8.40.0`. Without it the PDF word checks are skipped.
 - Ported modules write the legacy debug copies `out-Angebot.docx` / `out-Materialuebersicht.docx` into `DOCUMENTS_ROOT` (gitignored); the test removes them.
+- Signing forms: `test/signing-pdf.test.ts` renders Vollmacht, Abtretung, Zusatzblatt, Abtretung §45b through Gotenberg and checks every word (needs `OC_TEST_GOTENBERG_URL`).
+- Fixed 2026-11-06: the DOCX golden normaliser masked today's date but not the offer validity (today + 8 weeks for offers without a date), so one snapshot broke the day after recording. Now masked as `<TODAY+8W>` (legacy and v2 golden share the normaliser).
