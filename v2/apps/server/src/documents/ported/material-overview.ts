@@ -1,5 +1,5 @@
 // @ts-nocheck
-// GENERATED copy of src/routes/material-overview.js with 7 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// GENERATED copy of src/routes/material-overview.js with 8 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
 // Drift guard: apps/server/test/verbatim-ports.test.ts
 /* eslint-disable no-useless-escape */
 import express from "../shims/express.js";
@@ -25,7 +25,7 @@ export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
 
 const cleverbadCatalog = JSON.parse(
-  fsSync.readFileSync(new URL("../logic/cleverbad-catalog.json", import.meta.url), "utf8"),
+  fsSync.readFileSync(path.join(docsRoot(), "src", "logic", "cleverbad-catalog.json"), "utf8"),
 );
 
 // Article codes that are internal cost lines or belong to other suppliers and

@@ -60,6 +60,8 @@ const MATERIAL_TRANSFORMS = [
   ...ROUTE_BASE,
   ['from "../logic/badolux-cart.js"', 'from "./badolux-cart.js"'],
   ['from "../lib/wanneSets.js"', 'from "../../catalog/ported/wanne-sets.js"'],
+  // module-relative data file → legacy data folder under DOCUMENTS_ROOT
+  ['new URL("../logic/cleverbad-catalog.json", import.meta.url)', 'path.join(docsRoot(), "src", "logic", "cleverbad-catalog.json")'],
 ];
 const HL_TRANSFORMS = [
   ...ROUTE_BASE,
@@ -92,6 +94,9 @@ export function expected(from, transforms = []) {
     if (!hit && !opts?.optional) throw new Error(`port rule no longer matches in ${from}: ${find}`);
     src = typeof find === "string" ? src.split(find).join(repl) : src.replace(find, repl);
   }
+  // module-relative file reads break once the file lives in v2 → must be rewritten by a rule
+  if (transforms.length && /new URL\([^)]*import\.meta\.url\)|path\.join\(__dirname/.test(src))
+    throw new Error(`${from}: module-relative path left after porting (add a rule mapping it to docsRoot())`);
   return header(from, transforms.length) + src;
 }
 
