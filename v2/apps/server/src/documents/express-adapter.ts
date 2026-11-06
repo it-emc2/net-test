@@ -4,7 +4,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { LegacyHandler } from "./shims/express.js";
 
-export function runLegacy(handler: LegacyHandler, req: FastifyRequest, reply: FastifyReply): Promise<unknown> {
+export function runLegacy(chain: LegacyHandler | LegacyHandler[], req: FastifyRequest, reply: FastifyReply): Promise<unknown> {
+  const handlers = Array.isArray(chain) ? chain : [chain];
   return new Promise((resolve, reject) => {
     let status = 200;
     const headers: Record<string, string> = {};
@@ -29,10 +30,17 @@ export function runLegacy(handler: LegacyHandler, req: FastifyRequest, reply: Fa
       send(body: unknown) { return finish(body); },
       end(body?: unknown) { return finish(body ?? ""); },
     };
-    const legacyReq = {
+    const legacyReq: any = {
       body: req.body ?? {}, query: req.query ?? {}, params: req.params ?? {}, headers: req.headers, user: req.user,
-      get: (h: string) => req.headers[h.toLowerCase()],
+      get: (h: string) => req.headers[h.toLowerCase()], _fastify: req,
     };
-    Promise.resolve(handler(legacyReq, res)).catch(reject);
+    // Express-style chain: middleware calls next(), the last handler answers
+    const step = (i: number) => (err?: unknown) => {
+      if (err) return reject(err);
+      const h = handlers[i];
+      if (!h) return reject(new Error("legacy handler chain ended without a response"));
+      Promise.resolve(h(legacyReq, res, step(i + 1))).catch(reject);
+    };
+    step(0)();
   });
 }

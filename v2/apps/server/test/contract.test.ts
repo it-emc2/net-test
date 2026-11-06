@@ -1505,3 +1505,74 @@ describe("contract: Kalkulation, Arbeitsbericht, PDF preview, product images (po
     await same("/api/email/preview-product-image-pdf", { payload: {} });
   }, 180000);
 });
+
+// ---------------- 5d (found later): Materialübersicht carts, request summary PDF, HL offer parser ----------------
+describe("contract: Materialübersicht carts/online orders/PDF, /pdf summary, HL offer parser", () => {
+  const offers = EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[];
+  const payloads = offers.filter((o) => ["bu", "bwt"].includes(o.offerType)).slice(0, 4).map((o) => JSON.parse(JSON.stringify(o.payload)));
+  const pdfText = async (buf: Buffer) => {
+    const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), useSystemFonts: true }).promise;
+    const pages: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) pages.push((await (await doc.getPage(i)).getTextContent()).items.map((x: any) => x.str).join("|"));
+    return pages;
+  };
+  const call = async (app: "legacy" | "v2", url: string, body: BodyInit | object, headers: Record<string, string> = {}) => {
+    const h: Record<string, string> = { authorization: `Bearer ${token}`, ...headers };
+    const isRaw = body instanceof FormData;
+    let status: number, type: string, disp: string, raw: Buffer;
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method: "POST", headers: isRaw ? h : { ...h, "content-type": "application/json" }, body: isRaw ? body : JSON.stringify(body) });
+      status = r.status; type = r.headers.get("content-type") ?? ""; disp = r.headers.get("content-disposition") ?? ""; raw = Buffer.from(await r.arrayBuffer());
+    } else {
+      let payload: any = body, hh = { ...h, "content-type": "application/json" };
+      if (isRaw) { const req = new Request("http://x/", { method: "POST", body }); payload = Buffer.from(await req.arrayBuffer()); hh = { ...h, "content-type": req.headers.get("content-type")! }; }
+      const r = await v2.inject({ method: "POST", url, headers: hh, payload });
+      status = r.statusCode; type = String(r.headers["content-type"] ?? ""); disp = String(r.headers["content-disposition"] ?? ""); raw = r.rawPayload;
+    }
+    const base = type.split(";")[0]!.toLowerCase();
+    let view: unknown;
+    if (base.includes("wordprocessingml")) view = normaliseDocx(raw);
+    else if (base === "application/json") { const j = JSON.parse(raw.toString("utf8")); view = app === "v2" && j?.error && typeof j.error === "object" ? { ...j, error: j.error.message } : j; }
+    else if (base === "application/pdf" && raw.subarray(0, 8).toString().includes("fake")) view = raw.toString(); // fake engine bytes
+    else if (base === "application/pdf") view = await pdfText(raw); // pdfkit: compare text (bytes carry a creation date)
+    else view = raw.toString("utf8");
+    return { status, type: base, disp, view };
+  };
+  const same = async (url: string, body: any, headers?: Record<string, string>) => {
+    const l = await call("legacy", url, body instanceof FormData ? body : structuredClone(body), headers);
+    const v = await call("v2", url, body instanceof FormData ? body : structuredClone(body), headers);
+    expect(v, url).toEqual(l);
+    return v;
+  };
+
+  it.each(payloads.map((p, i) => [i, p]))("Materialübersicht docx/pdf/carts/online orders (payload %s)", async (_i, p) => {
+    for (const ep of ["/material-overview", "/material-overview/pdf", "/material-overview/hassmann-cart", "/material-overview/badolux-cart", "/material-overview/winwall-cart", "/material-overview/online-orders"]) {
+      await same(ep, p);
+    }
+  }, 180000);
+
+  it("/pdf request summary (pdfkit) — same text", async () => {
+    const v = await same("/pdf", { bereich: { name: "Bad OG", flaeche: 6.5 }, duschwanne: { typ: "SLA", rutschfest: true }, wandverkleidung: { farbe: "weiß" }, optional: { handlauf: false } });
+    expect(v.type).toBe("application/pdf");
+    await same("/pdf", {});
+  }, 60000);
+
+  it("HL offer parser: no file → 400, non-PDF → 400, generated PDF → same parse", async () => {
+    await same("/api/hl/parse-flexofit-offer", new FormData());
+    const txt = new FormData(); txt.append("file", new Blob(["hallo"], { type: "text/plain" }), "angebot.txt");
+    await same("/api/hl/parse-flexofit-offer", txt);
+    const { default: PDFDocument } = await import("pdfkit");
+    const pdf: Buffer = await new Promise((resolve) => {
+      const d = new PDFDocument(); const chunks: Buffer[] = [];
+      d.on("data", (c: Buffer) => chunks.push(c)); d.on("end", () => resolve(Buffer.concat(chunks)));
+      d.fontSize(10).text("Angebot Nr. 4711").moveDown();
+      for (const [pos, art, name, qty, price] of [["1", "FX-100", "Hebeanlage Sanifloor", "1", "1.234,00"], ["2", "FX-200", "Rohrset 32 mm", "2", "45,50"]])
+        d.text(`${pos}   ${art}   ${name}   ${qty} Stk   ${price} €`);
+      d.end();
+    });
+    const f = new FormData(); f.append("file", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), "flexofit.pdf");
+    const v = await same("/api/hl/parse-flexofit-offer", f);
+    expect(v.status).toBe(200);
+  }, 60000);
+});

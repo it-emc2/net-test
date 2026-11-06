@@ -11,9 +11,15 @@ const M = "get|post|put|delete|patch";
 
 export function legacyRoutes() {
   const app = read("src/app.js");
-  const imports = Object.fromEntries(
-    [...app.matchAll(/import (\w+)(?:,\s*\{[^}]*\})? from ["']\.\/routes\/([\w-]+)\.js["']/g)].map((m) => [m[1], m[2]]),
-  );
+  // default imports (`import x from`) and named router imports (`import { router as x } from`)
+  const imports = {};
+  for (const m of app.matchAll(/import\s+(?:(\w+)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*["']\.\/routes\/([\w-]+)\.js["']/g)) {
+    if (m[1]) imports[m[1]] = m[3];
+    for (const part of (m[2] || "").split(",")) {
+      const a = /(\w+)\s+as\s+(\w+)/.exec(part.trim());
+      if (a && a[1] === "router") imports[a[2]] = m[3];
+    }
+  }
   const out = new Set();
   for (const m of app.matchAll(new RegExp(`app\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${m[2]}`);
   for (const m of app.matchAll(/app\.use\(\s*["']([^"']+)["']\s*,\s*(\w+)\s*\)/g)) {
@@ -41,6 +47,7 @@ export function v2Routes() {
   const PORTED_ROUTERS = {
     [`${P}docx-template.ts`]: ["/docx-template"], [`${P}kalkulation.ts`]: ["/kalkulation"], [`${P}pdf-preview.ts`]: ["/api/docx"],
     [`${P}arbeitsbericht.ts`]: ["/arbeitsbericht", "/api/arbeitsbericht"],
+    [`${P}material-overview.ts`]: ["/material-overview"], [`${P}hl-parse.ts`]: ["/api/hl"], [`${P}pdf-summary.ts`]: ["/pdf"],
   };
   for (const [f, prefixes] of Object.entries(PORTED_ROUTERS)) {
     for (const m of read(f).matchAll(new RegExp(`router\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g")))

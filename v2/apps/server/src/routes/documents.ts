@@ -1,7 +1,8 @@
 // Documents (phase 5). Legacy routers are ported mechanically (documents/ported, ADR 019) and
 // their own Express handlers run here unchanged (express-adapter):
 //   /docx-template (offer DOCX, Materialübersicht, PDF) · /kalkulation/* · /arbeitsbericht/* +
-//   /api/arbeitsbericht/* · /api/docx/pdf-preview · product-image list/preview (email).
+//   /api/arbeitsbericht/* · /api/docx/pdf-preview · /material-overview/* (carts, online orders,
+//   PDF) · /api/hl/parse-flexofit-offer (upload) · /pdf (request summary) · product images.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { configureDocuments, type DocumentsContext } from "../documents/context.js";
 import { runLegacy } from "../documents/express-adapter.js";
@@ -23,6 +24,9 @@ export async function registerDocuments(app: FastifyInstance, ctx: DocumentsDeps
   const arb: any = await import("../documents/ported/arbeitsbericht.js");
   const preview: any = await import("../documents/ported/pdf-preview.js");
   const img: any = await import("../documents/ported/product-image-pdf.js");
+  const material: any = await import("../documents/ported/material-overview.js");
+  const hl: any = await import("../documents/ported/hl-parse.js");
+  const summary: any = await import("../documents/ported/pdf-summary.js");
 
   const mount = (router: CapturingRouter, prefix: string, opts: (sub: string) => Record<string, unknown> = () => ({})) => {
     for (const [key, handler] of router.routes) {
@@ -34,6 +38,9 @@ export async function registerDocuments(app: FastifyInstance, ctx: DocumentsDeps
   mount(docx.router ?? docx.default, "/docx-template");
   mount(kalk.default, "/kalkulation");
   mount(preview.default, "/api/docx");
+  mount(material.router, "/material-overview");
+  mount(hl.router, "/api/hl");
+  mount(summary.router, "/pdf");
   // legacy mounts the Arbeitsbericht twice; only /api/arbeitsbericht/external/* is for machine callers (API key)
   mount(arb.default, "/arbeitsbericht");
   mount(arb.default, "/api/arbeitsbericht", (sub) => (sub.startsWith("/external") ? { config: { public: true }, onRequest: externalKeyGuard(ctx.externalApiKey) } : {}));

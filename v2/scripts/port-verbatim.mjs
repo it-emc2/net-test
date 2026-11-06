@@ -31,8 +31,8 @@ const SIGNING_TRANSFORMS = [
 // shared rewrites for ported legacy route modules
 const ROUTE_BASE = [
   ['import express from "express";', 'import express from "../shims/express.js";\nimport { docsRoot, docsLog } from "../shims/runtime.js";'],
-  [/from "\.\.\/models\/Product\.js"/g, 'from "../shims/product-model.js"'],
-  [/from "\.\.\/logic\/pricing\.js"/g, 'from "../shims/pricing.js"'],
+  [/from "\.\.\/models\/Product\.js"/g, 'from "../shims/product-model.js"', { optional: true }],
+  [/from "\.\.\/logic\/pricing\.js"/g, 'from "../shims/pricing.js"', { optional: true }],
   [/process\.cwd\(\)/g, "docsRoot()", { optional: true }],
   [/\bconsole\./g, "docsLog.", { optional: true }],
 ];
@@ -56,6 +56,16 @@ const KALK_V2_TEMPLATE_TRANSFORMS = [
   ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
 ];
 
+const MATERIAL_TRANSFORMS = [
+  ...ROUTE_BASE,
+  ['from "../logic/badolux-cart.js"', 'from "./badolux-cart.js"'],
+  ['from "../lib/wanneSets.js"', 'from "../../catalog/ported/wanne-sets.js"'],
+];
+const HL_TRANSFORMS = [
+  ...ROUTE_BASE,
+  ['import multer from "multer";', 'import multer from "../shims/multer.js";'],
+];
+
 export const PORTS = [
   { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/catalog/ported/wanne-sets.ts" },
   { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/catalog/ported/wanne-describe.ts" },
@@ -66,6 +76,10 @@ export const PORTS = [
   { from: "src/routes/arbeitsbericht.js", to: "v2/apps/server/src/documents/ported/arbeitsbericht.ts", transforms: ARB_TRANSFORMS },
   { from: "src/routes/pdf-preview.js", to: "v2/apps/server/src/documents/ported/pdf-preview.ts", transforms: ROUTE_BASE },
   { from: "src/lib/productImagePdf.js", to: "v2/apps/server/src/documents/ported/product-image-pdf.ts", transforms: PRODUCT_IMAGE_TRANSFORMS },
+  { from: "src/routes/material-overview.js", to: "v2/apps/server/src/documents/ported/material-overview.ts", transforms: MATERIAL_TRANSFORMS },
+  { from: "src/logic/badolux-cart.js", to: "v2/apps/server/src/documents/ported/badolux-cart.ts" },
+  { from: "src/routes/hl-parse.js", to: "v2/apps/server/src/documents/ported/hl-parse.ts", transforms: HL_TRANSFORMS },
+  { from: "src/routes/pdf.js", to: "v2/apps/server/src/documents/ported/pdf-summary.ts", transforms: ROUTE_BASE },
   { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>
