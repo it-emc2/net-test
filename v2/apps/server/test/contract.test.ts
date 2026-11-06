@@ -1618,14 +1618,14 @@ describe("contract: web layer — same pages, files, redirects, security headers
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
     { // index: identical except v2's one add-on script tag before </body> (ADR 021)
       const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
-      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n</body>') });
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n</body>') });
     }
     await same("/admin/", COOKIE());
     // SPA fallback (any unknown app path) — legacy res.sendFile refuses dot-folder paths
     // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
     {
       const v = await get("v2", "/irgendwo/tief", COOKIE());
-      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n</body>');
+      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n</body>');
       expect([v.status, v.body.toString()]).toEqual([200, html]);
     }
     // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>

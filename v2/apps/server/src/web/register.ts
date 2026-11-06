@@ -59,8 +59,10 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   // source folder (works from src/ and from the built dist/; tsc does not copy .js assets)
   const ADDONS = new URL("../../src/web/addons/", import.meta.url);
   const addonSrc = (f: string) => fs.readFileSync(new URL(f, ADDONS), "utf8");
-  app.get("/v2/addons/deal-link.js", { config: { public: true } }, async (_req, reply) =>
-    reply.type("text/javascript; charset=utf-8").header("Cache-Control", "no-cache").send(addonSrc("deal-link.js")));
+  for (const f of ["deal-link.js", "deal-draft.js"]) {
+    app.get(`/v2/addons/${f}`, { config: { public: true } }, async (_req, reply) =>
+      reply.type("text/javascript; charset=utf-8").header("Cache-Control", "no-cache").send(addonSrc(f)));
+  }
 
   // ---- deal links (ADR 006): /deal/<id>[/<step>] → /?deal=<id>[#<step>] (index.html uses relative
   // asset paths, so the app itself always runs at "/"); not logged in → login, then back here
