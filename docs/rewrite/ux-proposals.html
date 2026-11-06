@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase 7 Vorschläge</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --panel: #fff; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb;
+    --accent: #7C3AED; --accent-weak: #ede9fe; --ok: #16a34a; --warn: #b45309; --danger: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1115; --panel: #181b22; --text: #e5e7eb; --muted: #9ca3af; --border: #2a2f3a; --accent-weak: #2e1065; }
+  }
+  :root[data-theme="dark"] { --bg: #0f1115; --panel: #181b22; --text: #e5e7eb; --muted: #9ca3af; --border: #2a2f3a; --accent-weak: #2e1065; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; max-width: 760px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; padding: 0; list-style: none; }
+  .toc a { display: inline-block; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--text); text-decoration: none; background: var(--panel); }
+  section.p { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin: 0 0 24px; }
+  section.p h2 { margin: 0 0 4px; font-size: 22px; }
+  .id { display: inline-block; font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: .04em; margin-bottom: 4px; }
+  .why { color: var(--muted); margin: 0 0 16px; }
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .cmp { grid-template-columns: 1fr; } }
+  .col h3 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; color: var(--muted); }
+  .col.new h3 { color: var(--ok); }
+  .screen { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--bg); min-height: 180px; }
+  .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  @media (max-width: 820px) { .meta { grid-template-columns: 1fr; } }
+  .meta div { border-top: 3px solid var(--border); padding-top: 8px; font-size: 15px; }
+  .meta b { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+  .meta .gain { border-color: var(--ok); } .meta .change { border-color: var(--accent); } .meta .risk { border-color: var(--warn); }
+
+  /* mock widgets — today */
+  .old label { display: block; font-size: 12.5px; color: var(--muted); margin: 6px 0 2px; }
+  .old input { width: 100%; font: 13px system-ui; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: var(--panel); color: var(--text); }
+  .old .row { display: flex; gap: 6px; align-items: end; margin-bottom: 6px; }
+  .old .row > div { flex: 1; }
+  .old button, .oldbtn { font: 600 12.5px system-ui; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); white-space: nowrap; }
+  .old .small { font-size: 12px; color: var(--muted); }
+  .old .devbtn { font: 12px ui-monospace, monospace; background: #111827; color: #e5e7eb; border: 0; margin: 2px; }
+  .old .adobe { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+  .popup { border: 1px solid #9ca3af; background: #fff; color: #111; border-radius: 6px; padding: 12px; font: 13px system-ui; max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+  .popup .pbtns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  .popup button { font: 12px system-ui; padding: 4px 12px; border: 1px solid #9ca3af; border-radius: 4px; background: #f3f4f6; color: #111; }
+  .popup .host { font-weight: 600; margin-bottom: 6px; }
+
+  /* mock widgets — proposed */
+  .new .big { width: 100%; font-size: 18px; padding: 14px 16px; border: 2px solid var(--accent); border-radius: 12px; background: var(--panel); color: var(--text); }
+  .new .hint { font-size: 15px; color: var(--muted); margin: 6px 0 10px; }
+  .new .res { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); overflow: hidden; }
+  .new .res .grp { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 14px 4px; }
+  .new .res .item { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 14px; min-height: 48px; border-top: 1px solid var(--border); font-size: 16px; }
+  .new .res .item span.s { color: var(--muted); font-size: 14px; }
+  .btnp { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 18px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; font: 600 17px system-ui; }
+  .btns { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 18px; border-radius: 12px; border: 2px solid var(--border); background: var(--panel); color: var(--text); font: 600 17px system-ui; }
+  .stack { display: flex; flex-wrap: wrap; gap: 10px; }
+  .card { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 14px; margin-bottom: 10px; }
+  .card h4 { margin: 0 0 8px; font-size: 18px; }
+  .dlg { border-radius: 16px; background: var(--panel); border: 1px solid var(--border); padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.15); max-width: 420px; }
+  .dlg h4 { margin: 0 0 6px; font-size: 20px; }
+  .dlg p { margin: 0 0 14px; font-size: 17px; }
+  .warnbar { border-left: 5px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, var(--panel)); padding: 10px 12px; border-radius: 8px; font-size: 16px; margin-bottom: 10px; }
+  .opt { border: 2px solid var(--border); border-radius: 12px; padding: 12px; background: var(--panel); margin-bottom: 10px; }
+  .opt b { font-size: 17px; }
+  .size { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  footer { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Phase 7 — Vorschläge zur Vereinfachung</h1>
+  <p class="lead">Jeder Vorschlag zeigt links den heutigen Bildschirm und rechts den Vorschlag. Nichts davon ist umgesetzt — jeder Punkt braucht Ihr OK und kann einzeln angenommen, geändert oder abgelehnt werden. Preise, Dokumente und Abläufe bleiben unverändert.</p>
+  <ul class="toc">
+    <li><a href="#p1">P7-1 Ein Suchfeld „Öffnen“</a></li>
+    <li><a href="#p2">P7-2 Größer &amp; klarer</a></li>
+    <li><a href="#p3">P7-3 Weniger Knöpfe</a></li>
+    <li><a href="#p4">P7-4 Meldungen statt Pop-ups</a></li>
+    <li><a href="#p5">P7-5 Speichern ohne Knopf</a></li>
+  </ul>
+
+  <!-- ───────────── P7-1 ───────────── -->
+  <section class="p" id="p1">
+    <span class="id">P7-1</span>
+    <h2>Ein Suchfeld „Öffnen“ statt drei Eingaben</h2>
+    <p class="why">Heute muss man wissen, ob man eine Angebotsnummer, eine Deal-ID oder einen Namen hat — und dafür das richtige von drei Feldern wählen.</p>
+    <div class="cmp">
+      <div class="col old"><h3>Heute — Hauptmenü</h3>
+        <div class="screen">
+          <div class="row"><div><label>Angebot laden</label><input placeholder="ANG2025-1008-092040"></div><button>Angebot laden</button></div>
+          <div class="row"><div><label>Bitrix Deal-ID</label><input placeholder="z. B. 48213"></div><button>Deal laden</button></div>
+          <label>Schnellsuche in Entwürfen + Angeboten</label>
+          <input placeholder="Name, Datum, ANG-Nummer, Ort, Telefonnummer, Stichwort …">
+          <p class="small">Dazu eine weitere Kundensuche auf der Seite „Kundendaten“.</p>
+        </div>
+      </div>
+      <div class="col new"><h3>Vorschlag</h3>
+        <div class="screen">
+          <input class="big" value="Müller Hof" aria-label="Öffnen">
+          <p class="hint">Name, Ort, Telefon, Angebotsnummer oder Deal-Nummer – das Feld erkennt es selbst.</p>
+          <div class="res">
+            <div class="grp">Deals</div>
+            <div class="item"><span>Deal 48213 · Müller, Hof</span><span class="s">heute 09:12</span></div>
+            <div class="grp">Angebote</div>
+            <div class="item"><span>ANG2026-1104-093242 · Müller, Hof</span><span class="s">gesendet 04.11.</span></div>
+            <div class="grp">Entwürfe</div>
+            <div class="item"><span>Badumbau · Müller, Hof</span><span class="s">gespeichert 05.11.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="gain"><b>Gewinn</b>Ein Ort zum Suchen. Eine Zahl wird als Deal erkannt, „ANG…“ als Angebot, alles andere wird gesucht.</div>
+      <div class="change"><b>Was sich ändert</b>Die zwei Felder „Angebot laden“ und „Bitrix Deal-ID“ entfallen; die Schnellsuche wird das neue Feld. Deal-Links (/deal/…) bleiben.</div>
+      <div class="risk"><b>Zu beachten</b>Gewohnheit: wer heute die Nummer ins obere Feld tippt, findet das neue Feld an derselben Stelle.</div>
+    </div>
+  </section>
+
+  <!-- ───────────── P7-2 ───────────── -->
+  <section class="p" id="p2">
+    <span class="id">P7-2</span>
+    <h2>Größere Knöpfe und Schrift, einfache Wörter</h2>
+    <p class="why">Viele Bedienelemente sind heute klein (Schrift teils 12–13 px, Knöpfe etwa 30 px hoch) — mühsam auf dem Tablet und für ältere Augen.</p>
+    <div class="cmp">
+      <div class="col old"><h3>Heute</h3>
+        <div class="screen">
+          <div class="size">
+            <button>Zurück</button><button style="background:#7C3AED;color:#fff;border:0">Weiter</button>
+            <span class="small">Schrift Hinweise: 12,5 px</span>
+          </div>
+          <p class="small" style="margin-top:14px">Beispiele für Wörter auf den Seiten: „Payload“, „Form POST absenden“, „Snapshot“, „Fallback“.</p>
+        </div>
+      </div>
+      <div class="col new"><h3>Vorschlag</h3>
+        <div class="screen">
+          <div class="size"><span class="btns">Zurück</span><span class="btnp">Weiter</span></div>
+          <p style="font-size:17px;margin:14px 0 0">Mindestens <b>16 px</b> Schrift und <b>48 px</b> hohe Knöpfe (Fingerbreite). Nur deutsche Alltagswörter, durchgehend „Sie“.</p>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="gain"><b>Gewinn</b>Weniger Fehltipper auf dem Tablet, leichter lesbar.</div>
+      <div class="change"><b>Was sich ändert</b>Nur Größen, Abstände und Texte. Kein Feld und kein Ablauf verschwindet.</div>
+      <div class="risk"><b>Zu beachten</b>Seiten werden etwas länger (mehr Scrollen auf kleinen Bildschirmen).</div>
+    </div>
+  </section>
+
+  <!-- ───────────── P7-3 ───────────── -->
+  <section class="p" id="p3">
+    <span class="id">P7-3</span>
+    <h2>Weniger Knöpfe im Dokumentenstudio</h2>
+    <p class="why">Neben den echten Dokumenten stehen Adobe-Knöpfe (stillgelegt, ADR 020) und ein Bereich „Entwicklerwerkzeuge“ mit technischen Knöpfen, den jede Person öffnen kann.</p>
+    <div class="cmp">
+      <div class="col old"><h3>Heute</h3>
+        <div class="screen">
+          <p class="small" style="margin:0 0 6px">Angebot · Kalkulation (4 Knöpfe) · Hassmann Warenkorb · …</p>
+          <div style="margin-bottom:8px"><span class="oldbtn adobe">Adobe DOCX</span> <span class="oldbtn adobe">Adobe PDF</span> <span class="oldbtn adobe">Adobe beides</span></div>
+          <span class="oldbtn">Entwicklerwerkzeuge ▾</span>
+          <div style="margin-top:6px">
+            <button class="devbtn">Form POST absenden</button><button class="devbtn">JSON senden</button><button class="devbtn">Legacy PDF erstellen</button>
+            <button class="devbtn">PDF aus Vorlage</button><button class="devbtn">LaTeX → PDF</button><button class="devbtn">Payload anzeigen</button><button class="devbtn">Payload kopieren</button>
+          </div>
+        </div>
+      </div>
+      <div class="col new"><h3>Vorschlag</h3>
+        <div class="screen">
+          <div class="card"><h4>Angebot</h4><div class="stack"><span class="btnp">Ansehen</span><span class="btns">PDF herunterladen</span><span class="btns">Word herunterladen</span></div></div>
+          <div class="card"><h4>Kalkulation</h4><div class="stack"><span class="btns">Ansehen</span><span class="btns">PDF herunterladen</span></div></div>
+          <div class="card"><h4>Hassmann Warenkorb</h4><div class="stack"><span class="btns">Herunterladen</span></div></div>
+          <p class="note">Entwicklerwerkzeuge nur noch für Admins sichtbar. Kalkulation: welche der heutigen Varianten (Word, PDF, Vorschau, „neue Version“) bleiben, entscheiden Sie.</p>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="gain"><b>Gewinn</b>Nur noch Knöpfe, die im Alltag gebraucht werden. Kein versehentliches „JSON senden“.</div>
+      <div class="change"><b>Was sich ändert</b>Adobe-Karte entfällt (ist schon stillgelegt). Entwicklerbereich nur für Admins. Doppelte Varianten werden zusammengefasst.</div>
+      <div class="risk"><b>Zu beachten</b>Bitte bestätigen, welche Kalkulations-Varianten tatsächlich genutzt werden.</div>
+    </div>
+  </section>
+
+  <!-- ───────────── P7-4 ───────────── -->
+  <section class="p" id="p4">
+    <span class="id">P7-4</span>
+    <h2>Klare Meldungen statt Browser-Pop-ups</h2>
+    <p class="why">Heute gibt es 55 Browser-Pop-ups (46 Hinweise, 9 Rückfragen). Sie sehen fremd aus, blockieren die Seite, und manche Texte sind technisch („Siehe Konsole für Details“).</p>
+    <div class="cmp">
+      <div class="col old"><h3>Heute</h3>
+        <div class="screen">
+          <div class="popup">
+            <div class="host">oc.emc2.de meldet</div>
+            Das Angebot wurde geändert, seit der Kunde 1 von 3 Dokument(en) unterschrieben hat. Der bisherige Fortschritt geht mit dem neuen Link verloren.<br><br>Trotzdem fortfahren?
+            <div class="pbtns"><button>Abbrechen</button><button>OK</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="col new"><h3>Vorschlag</h3>
+        <div class="screen">
+          <div class="dlg" role="dialog" aria-label="Beispiel">
+            <h4>Neuen Unterschrifts-Link erstellen?</h4>
+            <p>Der Kunde hat schon 1 von 3 Dokumenten unterschrieben. Mit einem neuen Link muss er alles noch einmal unterschreiben.</p>
+            <div class="stack"><span class="btns">Nein, alten Link behalten</span><span class="btnp">Ja, neuen Link erstellen</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="gain"><b>Gewinn</b>Die Knöpfe sagen, was passiert („Ja, neuen Link erstellen“ statt „OK“). Fehler erscheinen als Hinweis auf der Seite, ohne die Arbeit zu unterbrechen.</div>
+      <div class="change"><b>Was sich ändert</b>Alle 55 Pop-ups bekommen einen eigenen, verständlichen Text. Technische Meldungen gehen ins Fehlerprotokoll, nicht an die Mitarbeitenden.</div>
+      <div class="risk"><b>Zu beachten</b>Keine — die Entscheidungen bleiben dieselben, nur die Darstellung ändert sich.</div>
+    </div>
+  </section>
+
+  <!-- ───────────── P7-5 ───────────── -->
+  <section class="p" id="p5">
+    <span class="id">P7-5</span>
+    <h2>Speichern ohne Knopf — und was mit „Zuteilen“ passiert</h2>
+    <p class="why">Seit 6c speichert v2 jede Änderung automatisch je Deal, mit Versionen. „Schnellspeichern“ und „Speichern unter“ sind damit doppelt. Aber: „Schnellspeichern“ verschiebt heute den Bitrix-Deal zusätzlich in die Phase <b>„Zuteilen“</b>. Dafür braucht es einen neuen Platz.</p>
+    <div class="cmp">
+      <div class="col old"><h3>Heute</h3>
+        <div class="screen">
+          <div class="stack"><span class="oldbtn">Schnellspeichern</span><span class="oldbtn">Speichern unter …</span></div>
+          <p class="small">Schnellspeichern = Entwurf speichern <b>und</b> Deal → „Zuteilen“. Speichern unter = neuer Entwurf mit eigenem Namen (viele Kopien pro Deal).</p>
+        </div>
+      </div>
+      <div class="col new"><h3>Vorschlag — zwei Möglichkeiten</h3>
+        <div class="screen">
+          <div class="opt"><b>A) Eigener Knopf „An Planung übergeben“</b><br>Speichert nichts extra (läuft automatisch) und verschiebt den Deal nach „Zuteilen“ — bewusst, mit einem Klick, wann die Person fertig ist.</div>
+          <div class="opt"><b>B) Automatisch beim ersten Speichern</b><br>Sobald ein Deal zum ersten Mal einen Entwurf hat, wird er nach „Zuteilen“ verschoben — wie heute beim ersten Schnellspeichern, aber ohne Knopf.</div>
+          <p class="note">Empfehlung: <b>A</b> — der Zeitpunkt bleibt in der Hand der Mitarbeitenden, nichts passiert in Bitrix „aus Versehen“.</p>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="gain"><b>Gewinn</b>Kein Nachdenken über Speichern mehr, keine Entwurfs-Kopien mit kryptischen Namen.</div>
+      <div class="change"><b>Was sich ändert</b>Die zwei Speicher-Knöpfe entfallen; die Phase „Zuteilen“ wird per A oder B gesetzt.</div>
+      <div class="risk"><b>Zu beachten</b>Bitte A oder B wählen. Alte Entwürfe bleiben lesbar und können übernommen werden.</div>
+    </div>
+  </section>
+
+  <footer>Stand 06.11.2026 · Grundlage: heutiger Stand von main · Umsetzung erst nach Freigabe pro Punkt (UX-CHANGES.md).</footer>
+</div>
+</body>
+</html>
