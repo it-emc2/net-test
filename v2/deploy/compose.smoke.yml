@@ -2,7 +2,9 @@
 #   docker compose -f docker-compose.yml -f compose.smoke.yml up -d --build
 services:
   mongo:
-    image: mongo:8.0
+    # 7.0 for the smoke test only: mongo 8.0 refuses to start on Linux kernel ≥ 6.19 (CI runners);
+    # production uses Atlas, unaffected
+    image: mongo:7.0
     expose: ["27017"]
   app:
     env_file: !reset []
