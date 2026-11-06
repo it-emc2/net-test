@@ -170,3 +170,7 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Web-layer settings that live inline in legacy `app.js` (helmet/CSP options, CORS allowlist, public-asset rule) are extracted mechanically (ADR 019 style, drift-guarded) instead of copied by hand.
 - New flows (ADR 006 deal URLs `/deal/:id`, ADR 007 one draft per deal + history + autosave) are added as small, separately tested modules that v2 injects into the served `index.html` (one script tag). They call existing UI functions and the v2 API; the legacy files stay untouched.
 - Screens move to the new web app (`apps/web`) one at a time only where it buys a real improvement (phase 7, owner sign-off per screen).
+
+## 022 — Phase 7 UX changes P7-1 … P7-5 (ACCEPTED by owner, 2026-11-06)
+- Approved from the before/after page `docs/rewrite/ux-proposals.html`: P7-1 one „Öffnen“ field, P7-2 min. 16 px text / 48 px buttons / plain German, P7-3 fewer buttons in the Dokumentenstudio (Adobe card gone, developer tools for admins only, Kalkulation keeps all four exports), P7-4 in-page messages instead of browser pop-ups, P7-5 option **A**: „Schnellspeichern“/„Speichern unter“ removed, a button „An Planung übergeben“ moves the Bitrix deal to „Zuteilen“.
+- Built as v2 add-ons (ADR 021) — today's app on `main` is unchanged. Parity suites keep comparing behaviour; v2-only specs check each change.
