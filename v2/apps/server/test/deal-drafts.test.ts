@@ -141,3 +141,42 @@ describe("deal drafts", () => {
     expect((await get("/api/deals/1001/draft/revisions/999")).statusCode).toBe(404);
   });
 });
+
+describe("drafts started without a deal number (option A, owner 2026-11-06)", () => {
+  const T = "t-" + "ab12".repeat(6); // temporary key
+  const adopt = (dealId: string, from: string) => app.inject({ method: "POST", url: `/api/deals/${dealId}/draft/adopt`, headers: auth(), payload: { from } });
+
+  it("saves and versions under a temporary key", async () => {
+    expect((await put(T, { offerType: "bu", payload: { Kundendaten: { firstName: "Ohne" } }, baseRevision: 0 })).json()).toMatchObject({ revision: 1 });
+    expect((await put(T, { offerType: "bu", payload: { Kundendaten: { firstName: "Ohne", lastName: "Deal" } }, baseRevision: 1 })).json()).toMatchObject({ revision: 2 });
+    expect((await get(`/api/deals/${T}/draft`)).json().payload.Kundendaten.lastName).toBe("Deal");
+    expect((await get(`/api/deals/${T}/draft/revisions`)).json().revisions).toHaveLength(2);
+  });
+
+  it("attach to a NEW deal: the temporary state becomes the deal's version 1, with a note", async () => {
+    const r = await adopt("880001", T);
+    expect(r.json()).toMatchObject({ dealId: "880001", revision: 1, changed: true });
+    const d = (await get("/api/deals/880001/draft")).json();
+    expect(d.payload.Kundendaten).toEqual({ firstName: "Ohne", lastName: "Deal" });
+    expect((await get("/api/deals/880001/draft/revisions")).json().revisions[0].note).toContain("ohne Deal-Nummer begonnen");
+    // the temporary draft is kept (marked), and attaching it to ANOTHER deal is refused
+    expect((await mongoose.connection.db!.collection("deal_drafts").findOne({ dealId: T }))!.adoptedInto).toBe("880001");
+    expect((await adopt("880002", T)).statusCode).toBe(409);
+  });
+
+  it("attach to a deal that already has a draft: added on top, nothing lost", async () => {
+    const T2 = "t-" + "cd34".repeat(6);
+    await put("880003", { offerType: "bu", payload: { Kundendaten: { firstName: "Vorher" } }, baseRevision: 0 });
+    await put(T2, { offerType: "bu", payload: { Kundendaten: { firstName: "Neu" } }, baseRevision: 0 });
+    expect((await adopt("880003", T2)).json()).toMatchObject({ revision: 2 });
+    const v1 = (await get("/api/deals/880003/draft/revisions/1")).json();
+    expect(v1.payload.Kundendaten.firstName).toBe("Vorher"); // the earlier state is still a version
+  });
+
+  it("rejects bad keys; unknown temporary draft → 404", async () => {
+    expect((await adopt("880004", "t-123")).statusCode).toBe(400);
+    expect((await adopt("t-" + "ab12".repeat(6), "t-" + "ab12".repeat(6))).statusCode).toBe(400); // target must be a deal number
+    expect((await adopt("880004", "t-" + "ef56".repeat(6))).statusCode).toBe(404);
+    expect((await get("/api/deals/t-xyz/draft")).statusCode).toBe(400);
+  });
+});

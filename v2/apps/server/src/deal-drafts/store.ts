@@ -14,6 +14,8 @@ export const DealDraft = model("DealDraft", new Schema({
   payload: { type: Schema.Types.Mixed, required: true },
   revision: { type: Number, required: true },
   updatedBy: { type: String, default: "" },
+  /** temporary drafts (started without a deal number): the deal they were attached to */
+  adoptedInto: { type: String, default: undefined },
 }, { timestamps: true, minimize: false, collection: "deal_drafts" }));
 
 export const DealDraftRevision = model("DealDraftRevision", new Schema({
@@ -126,6 +128,27 @@ async function saveCore(input: SaveInput, session?: mongoose.ClientSession) {
     sections: touchedSections(ops), note,
   }], opt);
   return { dealId, revision: nextRev, changed: true };
+}
+
+/** Temporary key for a draft started without a deal number: "t-" + 24 hex (unguessable). */
+export const TEMP_KEY = /^t-[0-9a-f]{24}$/;
+
+/**
+ * Attach a temporary draft to its deal (option A, owner 2026-11-06): the temporary state becomes
+ * a new revision of the deal's draft — on top of whatever the deal already has, so nothing is
+ * lost — and the temporary draft is marked `adoptedInto` (kept, not deleted).
+ */
+export async function adoptTempDraft(input: { dealId: string; tempKey: string; by: string }) {
+  const temp: any = await DealDraft.findOne({ dealId: input.tempKey }).lean();
+  if (!temp) return null;
+  if (temp.adoptedInto && temp.adoptedInto !== input.dealId) throw new RevisionConflictError(-1);
+  const current: any = await DealDraft.findOne({ dealId: input.dealId }).lean();
+  const res = await saveDealDraft({
+    dealId: input.dealId, offerType: temp.offerType, payload: temp.payload, baseRevision: current?.revision ?? 0,
+    by: input.by, kind: "import", note: "Übernommen aus dem vorläufigen Entwurf (ohne Deal-Nummer begonnen)",
+  });
+  await DealDraft.updateOne({ dealId: input.tempKey }, { $set: { adoptedInto: input.dealId } });
+  return res;
 }
 
 export async function getDealDraft(dealId: string) {

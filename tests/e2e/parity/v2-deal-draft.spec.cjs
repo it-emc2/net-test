@@ -91,3 +91,32 @@ test("'Deal laden' dialog offers the autosaved state and opens it", async ({ pag
   await open.click();
   await expect(page.locator("#firstName")).toHaveValue("Dialog", { timeout: 15000 });
 });
+
+test("option A: an offer started WITHOUT a deal number is saved too, survives a reload, and joins the deal when the number is entered", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e.message)));
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
+  await page.waitForFunction(() => location.hash && location.hash !== "#home");
+  expect(new URL(page.url()).searchParams.get("entwurf")).toBe(null); // just opening creates nothing
+  await setField(page, "firstName", "Vorläufig");
+  await expect(page.locator("#ocAutosaveText")).toContainText("Vorläufig gespeichert", { timeout: 15000 });
+  const temp = new URL(page.url()).searchParams.get("entwurf");
+  expect(temp).toMatch(/^t-[0-9a-f]{24}$/);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("#firstName")).toHaveValue("Vorläufig", { timeout: 15000 });
+
+  const deal = freshDeal();
+  await page.evaluate((id) => {
+    const el = document.getElementById("auftragId");
+    el.value = id;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, deal);
+  await expect.poll(async () => (await draftOf(page, deal)).payload?.Kundendaten?.firstName, { timeout: 15000 }).toBe("Vorläufig");
+  await expect.poll(() => new URL(page.url()).searchParams.get("entwurf")).toBe(null);
+  await expect.poll(() => new URL(page.url()).searchParams.get("deal")).toBe(deal);
+  const revs = (await (await page.request.get(`/api/deals/${deal}/draft/revisions`)).json()).revisions;
+  expect(revs.at(-1).note).toContain("ohne Deal-Nummer begonnen");
+  expect(errors).toEqual([]);
+});

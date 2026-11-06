@@ -3,13 +3,15 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
 import { Draft, Offer } from "../models.js";
 import {
-  getDealDraft, listRevisions, payloadAt, RevisionConflictError, saveDealDraft,
+  adoptTempDraft, getDealDraft, listRevisions, payloadAt, RevisionConflictError, saveDealDraft, TEMP_KEY,
 } from "./store.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
 
-const DEAL_ID = /^\d{1,12}$/;
+const DEAL_NUMBER = /^\d{1,12}$/;
+/** a deal number, or the temporary key of a draft started without one (option A) */
+const DEAL_ID = { test: (v: string) => DEAL_NUMBER.test(v) || TEMP_KEY.test(v) };
 const OFFER_TYPES = new Set(["bu", "bwt", "hl", "bl", "ah"]); // HMS/WD dropped (ADR 011)
 
 async function guarded<T>(req: FastifyRequest, reply: FastifyReply, fn: () => Promise<T>) {
@@ -68,6 +70,16 @@ export async function registerDealDrafts(app: FastifyInstance) {
       dealId, offerType: old.offerType, payload: old.payload as Record<string, unknown>, baseRevision: b.baseRevision!,
       by: req.user!.email, kind: "restore", note: `Version ${b.revision} wiederhergestellt`,
     }));
+  });
+
+  /** Attach a draft started without a deal number to this deal (option A). */
+  app.post("/api/deals/:dealId/draft/adopt", async (req, reply) => {
+    const { dealId } = req.params as { dealId: string };
+    const from = String(((req.body ?? {}) as { from?: string }).from || "");
+    if (!DEAL_NUMBER.test(dealId) || !TEMP_KEY.test(from)) return fail(req, reply, 400, "BAD_REQUEST", "Deal-Nummer und vorläufiger Entwurf erforderlich");
+    const r = await guarded(req, reply, () => adoptTempDraft({ dealId, tempKey: from, by: req.user!.email }));
+    if (r === null) return fail(req, reply, 404, "NOT_FOUND", "Vorläufiger Entwurf nicht gefunden");
+    return r;
   });
 
   /** Copy a legacy draft/offer into the deal draft. The legacy document is only READ. */
