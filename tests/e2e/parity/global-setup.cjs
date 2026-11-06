@@ -50,7 +50,15 @@ module.exports = async () => {
   if (vigor.length) await mongoose.connection.getClient().db("vigor").collection("products").insertMany(vigor);
   await mongoose.disconnect();
 
-  const child = spawn("node", ["src/app.js"], {
+  // PARITY_TARGET=v2 runs the very same suite against the rewrite (phase 6a, ADR 021):
+  // v2 serves today's UI files and must behave identically. Needs `npm run build` in v2/.
+  const target = process.env.PARITY_TARGET === "v2" ? "v2" : "legacy";
+  const entry = target === "v2" ? ["v2/apps/server/dist/server.js"] : ["src/app.js"];
+  const v2Env = target === "v2" ? {
+    HOST: "127.0.0.1", LOG_LEVEL: "warn", SMTP_SEND_PORT: "9", GOTENBERG_URL: DEAD,
+    BITRIX_WEBHOOK_BASE: `${DEAD}/rest/0/blocked`, OFFER_LINK_BASE: "http://oc.test",
+  } : {};
+  const child = spawn("node", entry, {
     cwd: REPO_ROOT,
     env: {
       ...process.env,
@@ -65,10 +73,11 @@ module.exports = async () => {
       OB24_BASE_URL: DEAD, OB24_MODE: "test",
       PLANNING_API_BASE_URL: DEAD, EXTERNAL_API_BASE: DEAD,
       ORS_API_KEY: "", PDF_SERVICES_CLIENT_ID: "", PDF_SERVICES_CLIENT_SECRET: "",
+      ...v2Env,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const log = fs.createWriteStream(path.join(REPO_ROOT, "test-results-parity-app.log"));
+  const log = fs.createWriteStream(path.join(REPO_ROOT, `test-results-parity-${target}.log`));
   child.stdout.pipe(log);
   child.stderr.pipe(log);
 

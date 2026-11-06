@@ -9,7 +9,7 @@ import { PORTS, expected } from "../../../scripts/port-verbatim.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 describe("verbatim ports in sync with legacy", () => {
-  it.each(PORTS.map((p: { from: string; to: string; transforms?: unknown[] }) => [p.from, p.to, p.transforms ?? []]))("%s ≡ %s", (from, to, transforms) => {
-    expect(fs.readFileSync(path.join(ROOT, to as string), "utf8")).toBe(expected(from, transforms));
+  it.each(PORTS.map((p: { from: string; to: string; transforms?: unknown[]; extract?: unknown }) => [p.from, p.to, p.transforms ?? [], p.extract ?? null]))("%s → %s", (from, to, transforms, extract) => {
+    expect(fs.readFileSync(path.join(ROOT, to as string), "utf8")).toBe(expected(from, transforms, extract));
   });
 });

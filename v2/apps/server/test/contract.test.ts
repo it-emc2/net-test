@@ -3,6 +3,7 @@
 // identical; errors must match in status code and German message. A session token issued by
 // the legacy login must be accepted by v2 (cut-over keeps everybody logged in).
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1575,4 +1576,71 @@ describe("contract: Materialübersicht carts/online orders/PDF, /pdf summary, HL
     const v = await same("/api/hl/parse-flexofit-offer", f);
     expect(v.status).toBe(200);
   }, 60000);
+});
+
+// ---------------- phase 6a: v2 serves today's UI (ADR 021) ----------------
+describe("contract: web layer — same pages, files, redirects, security headers, CORS", () => {
+  const HEADERS = ["content-type", "location", "content-security-policy", "cross-origin-opener-policy", "cross-origin-resource-policy",
+    "origin-agent-cluster", "referrer-policy", "strict-transport-security", "x-content-type-options", "x-dns-prefetch-control",
+    "x-download-options", "x-frame-options", "x-permitted-cross-domain-policies", "x-xss-protection", "access-control-allow-origin",
+    "access-control-allow-credentials", "access-control-expose-headers"];
+  const get = async (app: "legacy" | "v2", url: string, h: Record<string, string> = {}, method = "GET") => {
+    if (app === "legacy") {
+      const r = await fetch(`http://127.0.0.1:${LEGACY_PORT}${url}`, { method, headers: h, redirect: "manual" });
+      const body = Buffer.from(await r.arrayBuffer());
+      return { status: r.status, headers: Object.fromEntries(HEADERS.map((k) => [k, r.headers.get(k)])), body };
+    }
+    const r = await v2.inject({ method: method as any, url, headers: h });
+    return { status: r.statusCode, headers: Object.fromEntries(HEADERS.map((k) => [k, (r.headers[k] as string | undefined) ?? null])), body: r.rawPayload };
+  };
+  const norm = (x: { status: number; headers: Record<string, string | null>; body: Buffer }, json: boolean) => ({
+    status: x.status,
+    headers: { ...x.headers, "content-type": x.headers["content-type"]?.toLowerCase().replace(/\s/g, "") ?? null },
+    body: json ? "<json>" : createHash("sha256").update(x.body).digest("hex"),
+  });
+  const same = async (url: string, h: Record<string, string> = {}, { method = "GET", bodyMatters = true } = {}) => {
+    const l = await get("legacy", url, h, method), v = await get("v2", url, h, method);
+    const isJson = !!l.headers["content-type"]?.includes("json");
+    expect(norm(v, isJson || !bodyMatters), url).toEqual(norm(l, isJson || !bodyMatters));
+    return { l, v };
+  };
+  const HTML = { accept: "text/html,application/xhtml+xml" };
+  const COOKIE = () => ({ ...HTML, cookie: `net_session=${token}` });
+
+  it("not logged in: pages redirect to /login (deep link keeps ?offer), login page and assets are public", async () => {
+    await same("/", HTML);
+    await same("/?offer=ANG2026-1", HTML);
+    await same("/irgendwo/tief", HTML);
+    await same("/login", HTML);
+    for (const f of ["/script.js", "/style.css", "/sw.js", "/manifest.webmanifest", "/login.js", "/configurator/boot.js", "/assets/logo.png"]) await same(f);
+  });
+
+  it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
+    await same("/", COOKIE());
+    await same("/admin/", COOKIE());
+    // SPA fallback: legacy res.sendFile refuses dot-folder paths (local worktrees under .claude/) → compare with the file there
+    if (ROOT.includes("/.")) {
+      const v = await get("v2", "/deal/9001", COOKIE());
+      expect([v.status, v.body.toString()]).toEqual([200, readFileSync(ROOT + "src/public/index.html", "utf8")]);
+    } else await same("/deal/9001", COOKIE());
+    for (const f of ["/logic/pricing-core.js", "/logic/tray-search-core.js", "/logic/aufschlag-rules.js"]) {
+      await same(f, { cookie: `net_session=${token}` });
+      await same(f); // not public: 401 without a session
+    }
+  });
+
+  it("dedicated static roots never fall back to the app page", async () => {
+    // missing files: same status (legacy renders Express's own error page, v2 a plain "Not Found")
+    expect((await get("v2", "/pdfjs/does-not-exist.js")).status).toBe((await get("legacy", "/pdfjs/does-not-exist.js")).status);
+    if (ROOT.includes("/.")) { // legacy express.static refuses dot-folder roots locally (see above)
+      const v = await get("v2", "/vendor/fontawesome/css/all.min.css");
+      expect([v.status, v.headers["content-type"], v.body.equals(readFileSync(ROOT + "node_modules/@fortawesome/fontawesome-free/css/all.min.css"))]).toEqual([200, "text/css; charset=utf-8", true]);
+    } else await same("/vendor/fontawesome/css/all.min.css");
+    expect((await get("v2", "/vendor/fontawesome/nope.css")).status).toBe((await get("legacy", "/vendor/fontawesome/nope.css")).status);
+  });
+
+  it("CORS: allowed origin gets credentials + exposed header; unknown API path is JSON 404", async () => {
+    await same("/api/health", { origin: "http://localhost:5173" }, { bodyMatters: false });
+    await same("/api/gibt-es-nicht", { origin: "https://oc.emc2.de", cookie: `net_session=${token}` });
+  });
 });

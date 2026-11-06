@@ -5,10 +5,7 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error plain .mjs script
 import { missingInV2 } from "../../../scripts/route-parity.mjs";
 
-const ASSIGNED: Record<string, string> = {
-  // phase 6 — frontend (the new web app bundles @oc/pricing; login page is part of it)
-  "GET /login": "6", "GET /logic/aufschlag-rules.js": "6", "GET /logic/pricing-core.js": "6", "GET /logic/tray-search-core.js": "6",
-};
+const ASSIGNED: Record<string, string> = {};
 
 describe("route parity with legacy", () => {
   it("every legacy route is ported or assigned to a phase", () => {

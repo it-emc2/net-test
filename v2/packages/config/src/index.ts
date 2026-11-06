@@ -102,6 +102,8 @@ const EnvSchema = z.object({
   /** PDF engine (ADR 008): Gotenberg base URL (DOCX→PDF via LibreOffice, HTML→PDF via Chromium). */
   GOTENBERG_URL: z.string().url().default("http://127.0.0.1:3000"),
   GOTENBERG_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+  /** Folder with today's UI files (legacy src/public). Default: the legacy app's. */
+  WEB_PUBLIC_DIR: z.string().optional(),
   /** Folder that contains the document templates (`src/templates/…`, legacy layout). Default: the legacy app. */
   DOCUMENTS_ROOT: z.string().optional(),
   /** Static assets (email presets, signature picture). Default: the legacy app's assets. */

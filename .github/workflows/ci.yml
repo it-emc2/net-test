@@ -104,5 +104,38 @@ jobs:
           name: playwright-results
           path: |
             test-results/
-            test-results-parity-app.log
+            test-results-parity-*.log
+          retention-days: 7
+
+  parity-v2:
+    name: UI parity against v2 (same Playwright suite, v2 serves today's UI — ADR 021)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            v2/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+        working-directory: v2
+      - name: Build v2
+        run: npx tsc -b
+        working-directory: v2
+      - run: npx playwright install --with-deps chromium
+      - name: Parity suite against v2
+        run: npm run test:parity
+        env:
+          PARITY_TARGET: v2
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results-v2
+          path: |
+            test-results/
+            test-results-parity-*.log
           retention-days: 7

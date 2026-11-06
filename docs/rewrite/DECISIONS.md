@@ -162,3 +162,10 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Gotenberg (ADR 008) produces the offer DOCX/PDF for every case these covered.
 - v2 answers these URLs with **410 Gone** and a plain German hint („Diese Exportfunktion gibt es nicht mehr …“), and logs every call, so a leftover client is visible instead of failing silently (`apps/server/src/routes/retired.ts`).
 - Frontend (phase 6): the Adobe buttons, the LaTeX export and the template-PDF export are not rebuilt (UX-CHANGES U-006). The current app on `main` is unchanged.
+
+## 021 — Phase 6: v2 serves today's UI; new flows as add-ons; screens move only for real gains (ACCEPTED, technical, 2026-11-06)
+- The current frontend is ~55k lines of vanilla JS + an 11k-line `index.html`, changed on `main` almost daily (2026-11-05: +665 lines in `script.js`). A rewrite would drift constantly and endanger "all UI functions stay the same" (ADR 004).
+- So v2 serves the legacy frontend files unchanged (`src/public`, same paths, same security headers, same login redirect, same offline service worker). UI parity is by construction; main's UI changes flow in with each sync; the existing Playwright parity suite runs against v2 as the gate.
+- Web-layer settings that live inline in legacy `app.js` (helmet/CSP options, CORS allowlist, public-asset rule) are extracted mechanically (ADR 019 style, drift-guarded) instead of copied by hand.
+- New flows (ADR 006 deal URLs `/deal/:id`, ADR 007 one draft per deal + history + autosave) are added as small, separately tested modules that v2 injects into the served `index.html` (one script tag). They call existing UI functions and the v2 API; the legacy files stay untouched.
+- Screens move to the new web app (`apps/web`) one at a time only where it buys a real improvement (phase 7, owner sign-off per screen).

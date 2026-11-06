@@ -72,7 +72,12 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] → moved to phase 7 (visible change, owner sign-off): single offer rendering source for DOCX + signing HTML. Today (as in legacy) DOCX and signing HTML share the render data (`getOfferRenderData`) but have separate templates; `SigningRenderer` is filled by the ported templates (5c). Merging the templates is a later improvement (owner sign-off: visible change).
 - [x] Wording rules (`offerOverrides.textReplacements`) applied once on the finished output (rendered DOCX via `lib/docxTextReplace.js`, signing HTML), not on render data — main #314; v2 runs the same code through the mechanical ports (ADR 019) — 2026-11-06
 
-## Phase 6 — Frontend port + new flows
+## Phase 6 — Frontend port + new flows (strategy: ADR 021)
+- [x] 6a v2 serves today's UI (static files with Express content types, helmet 8.1.0 + extracted legacy CSP, CORS allowlist, login redirect incl. `?offer=` deep link, `/logic/*.js`, SPA fallback, pdf.js/Font Awesome mounts); web contract test identical; Playwright parity suite 9/9 **against v2** (new CI job `parity-v2`). Route guard: 0 legacy endpoints missing — 2026-11-06
+  - Note: because the UI is served unchanged, the HMS/WD tiles (ADR 011: not offered in v2) are still visible; hiding them is an add-on in 6b–6c (UX-CHANGES U-001).
+- [ ] 6b Deal URLs `/deal/:dealId` (+ step) as an add-on module (ADR 006).
+- [ ] 6c One draft per deal + version history + autosave + "restore version" (ADR 007) as an add-on module on the deal-draft API.
+- [ ] 6d Offline parity check against v2 (service worker + offline suite).
 - [ ] Every page/feature in `FRONTEND-INVENTORY.md`; Playwright parity suite green on new app.
 - [ ] Real router: `/deal/:dealId`, `/offer/:offerNumber`, `/deal/:dealId/:step`; no data loss on navigation.
 - [ ] One draft per deal + revision history (ADR 007 accepted) with autosave and "restore version"; read-only legacy view per deal with "copy into draft".

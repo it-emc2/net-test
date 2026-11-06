@@ -38,6 +38,7 @@ export function v2Routes() {
   const files = [
     ...fs.readdirSync(path.join(ROOT, "v2/apps/server/src/routes")).map((f) => `v2/apps/server/src/routes/${f}`),
     "v2/apps/server/src/app.ts",
+    "v2/apps/server/src/web/register.ts",
   ];
   for (const f of files) {
     for (const m of read(f).matchAll(new RegExp(`app\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${m[2]}`);

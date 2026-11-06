@@ -82,12 +82,36 @@ export const PORTS = [
   { from: "src/logic/badolux-cart.js", to: "v2/apps/server/src/documents/ported/badolux-cart.ts" },
   { from: "src/routes/hl-parse.js", to: "v2/apps/server/src/documents/ported/hl-parse.ts", transforms: HL_TRANSFORMS },
   { from: "src/routes/pdf.js", to: "v2/apps/server/src/documents/ported/pdf-summary.ts", transforms: ROUTE_BASE },
+  // web layer (phase 6, ADR 021): settings that live inline in legacy app.js / authGate.js
+  { from: "src/app.js", to: "v2/apps/server/src/web/ported/helmet-options.ts", extract: { start: "  helmet({", object: true, prefix: "export default ", suffix: ";\n" } },
+  { from: "src/app.js", to: "v2/apps/server/src/web/ported/cors-origins.ts", extract: { start: "const allowedExact = new Set([", end: "app.use(\n  cors(", suffix: "export { isAllowedOrigin };\n" } },
+  { from: "src/middleware/authGate.js", to: "v2/apps/server/src/web/ported/public-paths.ts", extract: { start: "const ASSET_RE =", end: "function isExternalApi(p)", suffix: "export { isPublicAsset, isPublicSigning, isAlwaysPublic };\n" } },
   { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>
   `// @ts-nocheck\n// GENERATED ${rules ? `copy of ${from} with ${rules} import/runtime rewrites (see v2/scripts/port-verbatim.mjs)` : `verbatim copy of ${from}`} — do not edit. Re-port: node v2/scripts/port-verbatim.mjs\n// Drift guard: apps/server/test/verbatim-ports.test.ts\n`;
-export function expected(from, transforms = []) {
+/** Cut a piece out of a legacy file: from `start` to (excluding) `end`, or — with `object` —
+ *  the balanced {…} literal that follows `start`. Missing anchors fail the port. */
+export function extractPiece(src, from, x) {
+  const i = src.indexOf(x.start);
+  if (i < 0) throw new Error(`extract anchor not found in ${from}: ${x.start}`);
+  if (x.object) {
+    const open = src.indexOf("{", i);
+    let depth = 0;
+    for (let k = open; k < src.length; k++) {
+      if (src[k] === "{") depth++;
+      else if (src[k] === "}" && --depth === 0) return src.slice(open, k + 1);
+    }
+    throw new Error(`unbalanced object after ${x.start} in ${from}`);
+  }
+  const j = src.indexOf(x.end, i);
+  if (j < 0) throw new Error(`extract end anchor not found in ${from}: ${x.end}`);
+  return src.slice(i, j);
+}
+
+export function expected(from, transforms = [], extract = null) {
   let src = fs.readFileSync(path.join(ROOT, from), "utf8");
+  if (extract) src = (extract.prefix ?? "") + extractPiece(src, from, extract) + (extract.suffix ?? "");
   for (const [find, repl, opts] of transforms) {
     const hit = typeof find === "string" ? src.includes(find) : find.test(src);
     if (find instanceof RegExp) find.lastIndex = 0;
@@ -97,12 +121,12 @@ export function expected(from, transforms = []) {
   // module-relative file reads break once the file lives in v2 → must be rewritten by a rule
   if (transforms.length && /new URL\([^)]*import\.meta\.url\)|path\.join\(__dirname/.test(src))
     throw new Error(`${from}: module-relative path left after porting (add a rule mapping it to docsRoot())`);
-  return header(from, transforms.length) + src;
+  return header(from, transforms.length + (extract ? 1 : 0)) + src;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const p of PORTS) {
-    fs.writeFileSync(path.join(ROOT, p.to), expected(p.from, p.transforms));
+    fs.writeFileSync(path.join(ROOT, p.to), expected(p.from, p.transforms, p.extract));
     console.log("ported", p.from, "→", p.to);
   }
 }

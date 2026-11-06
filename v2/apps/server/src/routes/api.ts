@@ -31,6 +31,7 @@ import { registerMisc } from "./misc.js";
 import { registerCatalog } from "./catalog.js";
 import { registerDocuments } from "./documents.js";
 import { registerRetired } from "./retired.js";
+import { registerWeb } from "../web/register.js";
 import { Gotenberg, type PdfEngine } from "../integrations/gotenberg.js";
 import type { SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
@@ -168,6 +169,11 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   const ownDocuments: OfferDocuments = offerDocuments;
   await registerRetired(app);
+  // ---------------- today's UI (phase 6a, ADR 021) ----------------
+  await registerWeb(app, {
+    publicDir: cfg.WEB_PUBLIC_DIR ?? LEGACY_PUBLIC, logicDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/src/logic`,
+    fontAwesomeDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/node_modules/@fortawesome/fontawesome-free`, authSecret: cfg.AUTH_SECRET,
+  });
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
     badoluxDiscount: () => businessConfig.get("BU_BADOLUX_DISCOUNT", 0.25),

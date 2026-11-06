@@ -151,7 +151,7 @@ ios/**/xcuserdata/
 scripts/replica/dumps/
 
 # parity suite app log
-test-results-parity-app.log
+test-results-parity-*.log
 
 # personal Claude Code settings
 .claude/settings.local.json
