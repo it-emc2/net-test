@@ -1534,10 +1534,10 @@ describe("contract: Materialübersicht carts/online orders/PDF, /pdf summary, HL
     let view: unknown;
     if (base.includes("wordprocessingml")) view = normaliseDocx(raw);
     else if (base === "application/json") { const j = JSON.parse(raw.toString("utf8")); view = app === "v2" && j?.error && typeof j.error === "object" ? { ...j, error: j.error.message } : j; }
-    else if (base === "application/pdf" && raw.subarray(0, 8).toString().includes("fake")) view = raw.toString(); // fake engine bytes
-    else if (base === "application/pdf") view = await pdfText(raw); // pdfkit: compare text (bytes carry a creation date)
+    else if (base === "application/pdf" && raw.subarray(0, 80).toString().includes("fake")) view = raw.toString(); // fake engine bytes
+    else if (base === "application/pdf") view = (await pdfText(raw)).map((t) => t.replace(/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/g, "<NOW>")); // pdfkit: compare text (bytes carry a creation date)
     else view = raw.toString("utf8");
-    return { status, type: base, disp, view };
+    return { status, type: base, disp: disp.replace(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}/, "<NOW>"), view };
   };
   const same = async (url: string, body: any, headers?: Record<string, string>) => {
     const l = await call("legacy", url, body instanceof FormData ? body : structuredClone(body), headers);

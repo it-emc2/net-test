@@ -38,4 +38,15 @@ describe("legacy handler adapter", () => {
     expect(bad.json()).toMatchObject({ error: { code: "DOCUMENT_ERROR", message: "DOCX generation failed" }, detail: "x" });
     expect((await app.inject({ method: "POST", url: "/throw" })).statusCode).toBe(500);
   });
+
+  it("streamed responses (pdfkit doc.pipe(res)) and res.end(buffer) are sent once, with headers", async () => {
+    const { Readable } = await import("node:stream");
+    const app = Fastify();
+    app.post("/pipe", (req, reply) => runLegacy((_q, res) => { res.setHeader("Content-Type", "application/pdf"); Readable.from([Buffer.from("%PDF-"), Buffer.from("x")]).pipe(res); }, req, reply));
+    app.post("/end", (req, reply) => runLegacy((_q, res) => { res.statusCode = 202; res.end(Buffer.from("done")); }, req, reply));
+    const p = await app.inject({ method: "POST", url: "/pipe" });
+    expect([p.statusCode, p.headers["content-type"], p.body]).toEqual([200, "application/pdf", "%PDF-x"]);
+    const e = await app.inject({ method: "POST", url: "/end" });
+    expect([e.statusCode, e.body]).toEqual([202, "done"]);
+  });
 });
