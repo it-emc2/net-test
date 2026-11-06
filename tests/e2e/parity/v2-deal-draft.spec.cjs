@@ -120,3 +120,37 @@ test("option A: an offer started WITHOUT a deal number is saved too, survives a 
   expect(revs.at(-1).note).toContain("ohne Deal-Nummer begonnen");
   expect(errors).toEqual([]);
 });
+
+test("autosave switched off: nothing saves by itself; „Speichern“ at the bottom adds a version to the SAME deal draft; tab close warns", async ({ page }) => {
+  const deal = freshDeal();
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.locator("#ocUserMenuBtn").click();
+  await page.locator("#ocAutosaveToggle").uncheck();
+  await page.keyboard.press("Escape");
+  await startBu(page, deal);
+  const btn = page.locator("#ocManualSave");
+  await expect(btn).toBeVisible();
+  await setField(page, "firstName", "Manuell");
+  await expect(page.locator("#ocAutosaveText")).toContainText("Nicht gespeichert", { timeout: 10000 });
+  await page.waitForTimeout(4000); // longer than the autosave delay
+  expect((await page.request.get(`/api/deals/${deal}/draft`)).status()).toBe(404); // nothing saved by itself
+
+  await btn.click();
+  await expect.poll(async () => (await draftOf(page, deal)).revision ?? 0, { timeout: 10000 }).toBe(1);
+  await setField(page, "lastName", "Speicher");
+  await btn.click();
+  await expect.poll(async () => (await draftOf(page, deal)).revision ?? 0, { timeout: 10000 }).toBe(2);
+  const revs = (await (await page.request.get(`/api/deals/${deal}/draft/revisions`)).json()).revisions;
+  expect(revs).toHaveLength(2); // versions of ONE draft — no extra copies
+  expect((await page.request.get(`/api/drafts/search?offerType=bu&q=Speicher`)).ok()).toBeTruthy();
+  const legacyCopies = await (await page.request.get(`/api/drafts/search?offerType=bu&q=Speicher`)).json();
+  expect(Array.isArray(legacyCopies) ? legacyCopies.length : (legacyCopies.items || []).length).toBe(0); // no old-style drafts
+
+  // unsaved change + leaving → the browser asks (beforeunload)
+  await setField(page, "lastName", "Ungespeichert");
+  await page.waitForTimeout(800);
+  let asked = false;
+  page.on("dialog", async (d) => { asked = d.type() === "beforeunload"; await d.dismiss(); });
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => asked).toBe(true);
+});

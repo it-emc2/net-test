@@ -71,6 +71,17 @@
   menu.appendChild(el("div", { class: "oc-menu-title", text: "Darstellung" }));
   if (themeGroup) menu.appendChild(el("div", { class: "oc-menu-row" }, [themeGroup]));
   if (viewSeg) menu.appendChild(el("div", { class: "oc-menu-row" }, [el("span", { text: "Ansicht" }), viewSeg]));
+  // autosave on/off (deal-draft.js) — remembered on this device
+  if (window.__ocDealDraft && window.__ocDealDraft.setAutosave) {
+    var auto = el("input", { type: "checkbox", id: "ocAutosaveToggle", style: "width:22px;height:22px" });
+    auto.checked = window.__ocDealDraft.isAutosave();
+    auto.addEventListener("change", function () { window.__ocDealDraft.setAutosave(auto.checked); });
+    menu.appendChild(el("div", { class: "oc-menu-title", text: "Speichern" }));
+    menu.appendChild(el("label", { class: "oc-menu-row", for: "ocAutosaveToggle", style: "cursor:pointer;min-height:44px" }, [auto,
+      el("span", { text: "Automatisch speichern" })]));
+    menu.appendChild(el("div", { class: "oc-menu-row", style: "font-size:14px;color:var(--muted,#6b7280);padding-top:0" }, [
+      el("span", { text: "Aus: unten erscheint „Speichern“ – jede Speicherung wird eine neue Version desselben Entwurfs." })]));
+  }
   menu.appendChild(el("hr", {}));
   function item(original, icon, label) {
     if (!original) return null;

@@ -50,11 +50,11 @@
   }
   function hideBadge() { badge.style.display = "none"; }
   var lastWarn = "";
-  function show(text, warn) {
+  function show(text, warn, shortLabel) {
     mount();
     // the header pill stays short; the full sentence is in the tooltip and, for problems, a notice
-    var short = warn ? "⚠ Nicht gespeichert" : text.replace(/\s*\(noch ohne Deal-Nummer\)/, "");
-    badgeText.textContent = (warn || /^Speichert/.test(short) ? "" : "✓ ") + short;
+    var short = shortLabel || (warn ? "⚠ Nicht gespeichert" : text.replace(/\s*\(noch ohne Deal-Nummer\)/, ""));
+    badgeText.textContent = (warn || shortLabel || /^Speichert/.test(short) ? "" : "✓ ") + short;
     badgeText.title = text;
     badge.style.borderColor = warn ? "#d97706" : "";
     badge.style.display = "flex";
@@ -112,10 +112,34 @@
     });
   }
 
+  // ---------- autosave on/off (owner request 2026-11-06): per device, default on ----------
+  // Off: nothing is saved by itself; a „Speichern“ button at the bottom (where „Schnellspeichern“
+  // was) saves into the SAME deal draft as a new version — never a new copy.
+  var AUTO_KEY = "oc.autosave";
+  function autoOn() { try { return localStorage.getItem(AUTO_KEY) !== "off"; } catch (e) { return true; } }
+  var manualBtn = null;
+  function refreshManual() {
+    if (!manualBtn) return;
+    manualBtn.style.display = !autoOn() && active() ? "" : "none";
+    manualBtn.disabled = st.saving;
+  }
+  function checkDirty() {
+    if (!active()) return;
+    var json; try { json = JSON.stringify(window.buildPayload()); } catch (e) { return; }
+    st.dirty = json !== st.lastJson;
+    if (st.dirty) show("● Nicht gespeichert – bitte „Speichern“ drücken", false, "● Nicht gespeichert");
+    refreshManual();
+  }
+  function setAutosave(on) {
+    try { localStorage.setItem(AUTO_KEY, on ? "on" : "off"); } catch (e) { /* private mode: setting only for this page */ }
+    if (on) { if (active()) save(); } else checkDirty();
+    refreshManual();
+  }
+
   // ---------- autosave ----------
   function schedule() {
     clearTimeout(st.timer);
-    st.timer = setTimeout(save, DEBOUNCE_MS);
+    st.timer = autoOn() ? setTimeout(save, DEBOUNCE_MS) : setTimeout(checkDirty, 600);
   }
   // a draft started without a deal number joins the deal as soon as the number is entered
   function adoptIfNeeded() {
@@ -149,7 +173,7 @@
       .then(function (r) {
         st.offline = false;
         if (r.status === 200) {
-          st.revision = r.body.revision; st.lastJson = json;
+          st.revision = r.body.revision; st.lastJson = json; st.dirty = false;
           show((TEMP_RE.test(id) ? "Vorläufig gespeichert (noch ohne Deal-Nummer) · " : "Automatisch gespeichert · ") + hhmm(Date.now()));
         } else if (r.status === 409) {
           st.conflict = true; st.revision = null;
@@ -166,6 +190,7 @@
       })
       .then(function () {
         st.saving = false;
+        refreshManual();
         if (st.again) { st.again = false; schedule(); }
       });
   }
@@ -264,9 +289,23 @@
     document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest("button, [role=button], input[type=checkbox], input[type=radio]") && active()) schedule(); }, true);
     window.addEventListener("hashchange", function () {
       if (atHome()) { hideBadge(); closeVersions(); if (tempKey()) setTempKey(""); st.dealId = null; st.revision = null; st.lastJson = null; st.conflict = false; }
-      else if (active() && (dealNumber() || tempKey())) save(); // step change saves; opening a tile alone creates nothing
+      else if (autoOn() && active() && (dealNumber() || tempKey())) save(); // step change saves; opening a tile alone creates nothing
+      refreshManual();
     });
-    window.addEventListener("online", function () { if (st.offline) save(); });
+    window.addEventListener("online", function () { if (st.offline && autoOn()) save(); });
+    // manual mode: „Speichern“ where „Schnellspeichern“ used to be
+    var actions = document.querySelector("#summaryWidget .sw-actions");
+    if (actions && !document.getElementById("ocManualSave")) {
+      manualBtn = h("button", { type: "button", id: "ocManualSave", class: "sw-save-btn", style: "display:none", text: "💾 Speichern",
+        title: "Diesen Stand als neue Version im Entwurf des Deals speichern", onclick: function () {
+          checkDirty();
+          if (!st.dirty && st.lastJson) { show("Keine Änderungen seit dem letzten Speichern", false, "✓ Gespeichert"); return; }
+          save();
+        } });
+      actions.insertBefore(manualBtn, actions.firstChild);
+    }
+    // manual mode: do not lose unsaved work by closing the tab
+    window.addEventListener("beforeunload", function (e) { if (!autoOn() && st.dirty) { e.preventDefault(); e.returnValue = ""; } });
     var modal = document.getElementById("dealActionModal");
     if (modal) new MutationObserver(enhanceDealDialog).observe(modal, { attributes: true, attributeFilter: ["hidden"] });
 
@@ -279,5 +318,5 @@
     }, 400);
   });
 
-  window.__ocDealDraft = { save: save, state: st, openVersions: openVersions }; // tests / support
+  window.__ocDealDraft = { save: save, state: st, openVersions: openVersions, setAutosave: setAutosave, isAutosave: autoOn }; // header menu / tests
 })();
