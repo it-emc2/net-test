@@ -127,13 +127,24 @@ module.exports = async () => {
 
   await mongoose.disconnect();
 
-  const child = spawn("node", ["src/app.js"], {
+  // PARITY_TARGET=v2 runs the same offline suite against the rewrite (phase 6d, ADR 021).
+  // v2 refuses non-local integration hosts outside production, so they are pinned to a dead port.
+  const target = process.env.PARITY_TARGET === "v2" ? "v2" : "legacy";
+  const DEAD = "http://127.0.0.1:9";
+  const v2Env = target === "v2" ? {
+    NODE_ENV: "test", HOST: "127.0.0.1", LOG_LEVEL: "warn", AUTH_SECRET: process.env.AUTH_SECRET || "offline-suite-secret-0123456789",
+    BITRIX_WEBHOOK_BASE: `${DEAD}/rest/0/blocked`, PLANNING_API_BASE_URL: DEAD, OB24_BASE_URL: DEAD, EXTERNAL_API_BASE: DEAD,
+    SMTP_HOST: "127.0.0.1", SMTP_PORT: "9", SMTP_SEND_PORT: "9", IMAP_HOST: "127.0.0.1", IMAP_PORT: "9",
+    GOTENBERG_URL: DEAD, VIGOR_MONGODB_URI: uri, OFFER_LINK_BASE: "http://oc.test",
+  } : {};
+  const child = spawn("node", [target === "v2" ? "v2/apps/server/dist/server.js" : "src/app.js"], {
     cwd: REPO_ROOT,
     env: {
       ...process.env,
       MONGODB_URI: uri,
       MONGODB_DB: dbName,
       PORT: String(PORT),
+      ...v2Env,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

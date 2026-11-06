@@ -131,6 +131,10 @@ jobs:
         run: npm run test:parity
         env:
           PARITY_TARGET: v2
+      - name: Offline suite against v2 (service worker, offline drafts/pricing/sync — phase 6d)
+        run: npm run test:e2e:offline
+        env:
+          PARITY_TARGET: v2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
