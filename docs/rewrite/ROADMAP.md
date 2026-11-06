@@ -77,11 +77,11 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] 6b Deal links (ADR 006) as add-on `web/addons/deal-link.js`: `/deal/<id>[/<step>]` (Bitrix, bookmarks; via login if needed) → `/?deal=<id>[#step]` → the existing "Bitrix Deal laden" flow runs; while working the address keeps `?deal=<Auftrag-ID>#<step>` (reload/bookmark keep deal + step); HMS/WD hidden on the Hauptmenü (U-001). The app always runs at `/` because `index.html` uses 237 relative asset paths. Playwright v2 spec + unit tests — 2026-11-06
 - [x] 6c One draft per deal (ADR 007) as add-on `web/addons/deal-draft.js` on `/api/deals/:id/draft`: autosave ~2.5 s after a change and on every step change (status badge, offline/conflict messages in plain German), reload fills the form back in, "Versionen" lists every save (when, initials, what changed) with "Wiederherstellen" (itself a new version), the "Deal laden" dialog offers the autosaved state. Playwright v2 spec. Also fixed: v2 server connected the DB after loading business settings (10 s wait, defaults until refresh) — 2026-11-06
   - Open (phase 7, owner): "Schnellspeichern"/"Speichern unter" still visible — quick save also moves the Bitrix deal to "Zuteilen", so removing it (U-002) needs a replacement for that step first.
-- [ ] 6d Offline parity check against v2 (service worker + offline suite).
-- [ ] Every page/feature in `FRONTEND-INVENTORY.md`; Playwright parity suite green on new app.
-- [ ] Real router: `/deal/:dealId`, `/offer/:offerNumber`, `/deal/:dealId/:step`; no data loss on navigation.
-- [ ] One draft per deal + revision history (ADR 007 accepted) with autosave and "restore version"; read-only legacy view per deal with "copy into draft".
-- [ ] Offline: Workbox shell, IndexedDB queue, local pricing — parity with today.
+- [x] 6d Offline parity: the offline suite (service worker, offline drafts, pricing, planning, sync, app install, session recovery) runs against v2 in CI — 22 passed / 1 skipped, identical to legacy — 2026-11-06
+- [x] Every page/feature in `FRONTEND-INVENTORY.md` — by construction (v2 serves today's UI, ADR 021); Playwright parity + offline suites green against v2.
+- [x] Deal links `/deal/:dealId[/:step]` (6b); no data loss on reload (6c). `/offer/:offerNumber` = today's `/?offer=` deep link (kept).
+- [x] One draft per deal + revision history (ADR 007) with autosave and "restore version" (6c); legacy drafts/offers per deal stay listed in the "Deal laden" dialog and open into the deal draft (autosave then copies them).
+- [x] Offline: today's service worker, IndexedDB queue and local pricing — parity with today (6d).
 
 ## Phase 7 — UX simplification (owner sign-off per item, `UX-CHANGES.md`)
 - [ ] Hide dev tools; reduce export variants to what users need.

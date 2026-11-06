@@ -63,3 +63,4 @@ Read in this order, then continue the first unchecked item in `ROADMAP.md`.
 | 2026-11-06 | phase 6 (6a) | ADR 021; v2 serves today's UI — security headers, CORS, files, redirects identical (web contract test); Playwright parity suite 9/9 against v2; all 124 legacy endpoints covered | 6b deal URLs |
 | 2026-11-06 | phase 6 (6b) | Deal links add-on (/deal/<id> → existing "Deal laden" flow; address keeps deal + step), HMS/WD hidden; local Mac now crashes browsers/Node → CI is the only reference | 6c one draft per deal |
 | 2026-11-06 | phase 6 (6c) | One draft per deal add-on: autosave, reload restore, versions + restore, autosaved state in the deal dialog; server start order fixed (DB before settings) | 6d offline check; owner: quick-save stage move |
+| 2026-11-06 | phase 6 (6d) — phase 6 complete | Offline suite against v2 identical (22/1); CI runs parity + offline suites against both apps | phase 7 (UX, owner sign-off per item) |

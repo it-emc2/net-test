@@ -104,3 +104,8 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
 - Fixed 2026-11-06: the DOCX golden normaliser masked today's date but not the offer validity (today + 8 weeks for offers without a date), so one snapshot broke the day after recording. Now masked as `<TODAY+8W>` (legacy and v2 golden share the normaliser).
 - 2026-11-06: the contract test no longer imports legacy modules into the v2 test process (documents + signing are v2's own now). Before, two copies of mongoose/docxtemplater in one process plus Node 25.9 led to worker crashes (`SIGSEGV`) locally. Remaining local crashes are the Node 25.9 issue → CI (Node 24) is the reference; installing Node 24 LTS locally is recommended.
 - Debug aid: `OC_TEST_DUMP_DIR=<dir>` makes the fake PDF engine (both apps) write each normalised HTML to `<dir>/<hash>.html`, to diff a document mismatch.
+
+## Phase 6 — UI against v2
+- `PARITY_TARGET=v2` switches both Playwright stacks (parity: `tests/e2e/parity/global-setup.cjs`, offline: `tests/e2e/offline-sync/global-setup.cjs`) from the legacy app to `v2/apps/server/dist/server.js` (build first: `cd v2 && npx tsc -b`). CI job `parity-v2` runs both.
+- v2-only specs (skipped for legacy): `v2-deal-link.spec.cjs` (6b), `v2-deal-draft.spec.cjs` (6c).
+- Web layer contract (`contract.test.ts` "web layer"): headers/CSP/CORS/files/redirects vs legacy; index differs only by the injected add-on script tags.
