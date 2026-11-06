@@ -143,3 +143,31 @@ jobs:
             test-results/
             test-results-parity-*.log
           retention-days: 7
+
+  docker-smoke:
+    name: v2 Docker image + compose smoke test (app, Gotenberg, Caddy — phase 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: v2/deploy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the stack (local MongoDB, integrations on a dead port)
+        run: docker compose -f docker-compose.yml -f compose.smoke.yml up -d --build --wait --wait-timeout 180
+      - name: Health, login page with security headers, UI files, PDF engine reachable
+        run: |
+          set -e
+          curl -fsS http://localhost/api/health | tee /dev/stderr | grep -q '"ok":true'
+          curl -fsSI http://localhost/login | tee /tmp/h.txt
+          grep -qi '^content-security-policy:' /tmp/h.txt
+          grep -qi '^x-frame-options: SAMEORIGIN' /tmp/h.txt
+          curl -fsS http://localhost/login | grep -q '<form'
+          curl -fsS http://localhost/script.js | grep -q 'Ja, neuen Link erstellen'
+          curl -fsS http://localhost/v2/addons/ux.js | grep -q 'An Planung übergeben'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/api/offers/search-all?q=x)" = "401"
+          docker compose -f docker-compose.yml -f compose.smoke.yml exec -T app node -e "fetch('http://gotenberg:3000/health').then(r=>r.json()).then(j=>{console.log(JSON.stringify(j)); process.exit(j.status==='up'?0:1)}).catch(e=>{console.error(e);process.exit(1)})"
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f compose.smoke.yml logs --no-color --tail=200
+

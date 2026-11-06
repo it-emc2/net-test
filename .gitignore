@@ -155,3 +155,6 @@ test-results-parity-*.log
 
 # personal Claude Code settings
 .claude/settings.local.json
+
+# v2 production settings (never commit)
+v2/deploy/.env

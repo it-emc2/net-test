@@ -58,13 +58,42 @@ export interface SaveInput {
   note?: string;
 }
 
+/** True when the connected MongoDB can run multi-document transactions (replica set / mongos). */
+let txSupport: boolean | null = null;
+export async function supportsTransactions(): Promise<boolean> {
+  if (txSupport !== null) return txSupport;
+  try {
+    const hello: any = await mongoose.connection.db!.admin().command({ hello: 1 });
+    txSupport = !!(hello.setName || hello.msg === "isdbgrid");
+  } catch { txSupport = false; }
+  return txSupport;
+}
+/** tests only */
+export function resetTransactionSupportCache() { txSupport = null; }
+
 /**
  * Saves a new revision with optimistic concurrency. Returns the current state; an unchanged
  * payload creates no revision. Throws RevisionConflictError if someone saved in between.
+ * On a replica set (Atlas, production) the draft update and the revision record are written in
+ * ONE transaction — both or neither (ADR 007). A standalone dev/test MongoDB falls back to the
+ * same two steps without a transaction.
  */
 export async function saveDealDraft(input: SaveInput) {
+  if (!(await supportsTransactions())) return saveCore(input);
+  const session = await mongoose.startSession();
+  try {
+    let out: Awaited<ReturnType<typeof saveCore>> | undefined;
+    await session.withTransaction(async () => { out = await saveCore(input, session); });
+    return out!;
+  } finally {
+    await session.endSession();
+  }
+}
+
+async function saveCore(input: SaveInput, session?: mongoose.ClientSession) {
   const { dealId, offerType, payload, baseRevision, by, kind = "save", note = "" } = input;
-  const current: any = await DealDraft.findOne({ dealId }).lean();
+  const opt = session ? { session } : {};
+  const current: any = await DealDraft.findOne({ dealId }, null, opt).lean();
   const currentRev = current?.revision ?? 0;
   if (baseRevision !== currentRev) throw new RevisionConflictError(currentRev);
   if (current && kind === "save" && current.offerType === offerType && jsonEqual(current.payload, payload)) {
@@ -80,21 +109,22 @@ export async function saveDealDraft(input: SaveInput) {
       const r = await DealDraft.updateOne(
         { dealId, revision: currentRev },
         { $set: { payload, offerType, revision: nextRev, updatedBy: by } },
+        opt,
       );
-      if (r.matchedCount !== 1) throw new RevisionConflictError((await DealDraft.findOne({ dealId }).lean() as any)?.revision ?? -1);
+      if (r.matchedCount !== 1) throw new RevisionConflictError((await DealDraft.findOne({ dealId }, null, opt).lean() as any)?.revision ?? -1);
     } else {
-      await DealDraft.create({ dealId, offerType, payload, revision: nextRev, updatedBy: by });
+      await DealDraft.create([{ dealId, offerType, payload, revision: nextRev, updatedBy: by }], opt);
     }
   } catch (e) {
     if (isDup(e)) throw new RevisionConflictError((await DealDraft.findOne({ dealId }).lean() as any)?.revision ?? -1);
     throw e;
   }
-  // 2) append the revision record
-  await DealDraftRevision.create({
+  // 2) append the revision record (same transaction on a replica set)
+  await DealDraftRevision.create([{
     dealId, revision: nextRev, at, by, kind, patch: ops, offerType,
     snapshot: nextRev === 1 || nextRev % SNAPSHOT_EVERY === 0 ? payload : undefined,
     sections: touchedSections(ops), note,
-  });
+  }], opt);
   return { dealId, revision: nextRev, changed: true };
 }
 

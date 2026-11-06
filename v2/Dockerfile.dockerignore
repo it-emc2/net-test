@@ -1,0 +1,17 @@
+# Build context is the repo root; only v2/ and the UI/template folders are needed.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.claude
+tests
+test-results*
+playwright-report
+docs
+scripts
+v2/apps/server/test
+v2/packages/*/test
+v2/deploy/.env
+**/.env
+**/.DS_Store
+src/templates/~$*

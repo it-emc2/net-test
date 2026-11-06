@@ -1,0 +1,11 @@
+# HTTPS with automatic certificates for OC_DOMAIN (e.g. oc.emc2.de). Long-running responses
+# (planning live stream, PDF generation) must not be cut off by the proxy.
+{$OC_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080 {
+		flush_interval -1
+		transport http {
+			read_timeout 10m
+		}
+	}
+}

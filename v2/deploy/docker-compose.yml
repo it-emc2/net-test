@@ -1,0 +1,44 @@
+# OC v2 on one server (phase 8, ADR 009): app + PDF engine (Gotenberg, ADR 008) + Caddy (HTTPS).
+# Phase 1: the database stays on MongoDB Atlas (MONGODB_URI in .env).
+#   cp .env.example .env   # fill in — never commit .env
+#   docker compose up -d --build
+name: oc-v2
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: v2/Dockerfile
+    image: oc-v2:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8080"
+      GOTENBERG_URL: http://gotenberg:3000
+    depends_on:
+      gotenberg:
+        condition: service_started
+    expose: ["8080"]
+
+  gotenberg:
+    # pinned: 8.40.0 (digest checked 2026-11-05, ADR 008)
+    image: gotenberg/gotenberg:8.40.0@sha256:53073e798c8ef39ea2187e44cb67bab77894ea2509100b94c4fe3b461f7b2996
+    restart: unless-stopped
+    expose: ["3000"]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      OC_DOMAIN: ${OC_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+
+volumes:
+  caddy_data:
+  caddy_config:

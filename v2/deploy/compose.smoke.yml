@@ -1,0 +1,26 @@
+# CI smoke test only: local MongoDB, every integration pointed at a dead local port, plain HTTP.
+#   docker compose -f docker-compose.yml -f compose.smoke.yml up -d --build
+services:
+  mongo:
+    image: mongo:8.0
+    expose: ["27017"]
+  app:
+    env_file: !reset []
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: smoke
+      AUTH_SECRET: smoke-test-secret-0123456789abcdef-0123
+      COOKIE_SECURE: "false"
+      BITRIX_WEBHOOK_BASE: http://127.0.0.1:9/rest/0/blocked
+      PLANNING_API_BASE_URL: http://127.0.0.1:9
+      OB24_BASE_URL: http://127.0.0.1:9
+      EXTERNAL_API_BASE: http://127.0.0.1:9
+      SMTP_HOST: 127.0.0.1
+      IMAP_HOST: 127.0.0.1
+      OFFER_LINK_BASE: http://localhost
+    depends_on:
+      mongo:
+        condition: service_started
+  caddy:
+    environment:
+      OC_DOMAIN: ":80"

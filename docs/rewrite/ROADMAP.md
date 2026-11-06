@@ -92,10 +92,12 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [ ] Single offer rendering source for DOCX + signing HTML (moved here from phase 5; visible change → separate proposal)
 
 ## Phase 8 — Self-hosting + cut-over
-- [ ] Docker Compose (app, Gotenberg, Caddy; GlitchTip) on Coolify/Dokploy (ADR 009).
+- [x] Docker image + compose (app, Gotenberg 8.40.0 pinned, Caddy HTTPS) in `v2/deploy/`; CI job `docker-smoke` builds and starts the full stack — 2026-11-06. Server/tool choice (ADR 009): owner decision D1/D2 in `CUTOVER.md`. GlitchTip later.
 - [ ] Staging against a **copy** of prod data; parallel run vs current app (same inputs → same prices/docs).
-- [ ] Deal drafts: wrap draft update + revision insert in a transaction (replica set) — see ADR 007
+  - [x] Parallel run tool `test/parallel-run.test.ts` (local copy only, report without customer data): 3,800/3,800 offers + drafts priced identically — 2026-11-06. Documents are the same code (mechanical ports, DOCX golden 50/50).
+  - [ ] Staging on the server with staff spot-check (`CUTOVER.md` §1.5).
+- [x] Deal drafts: draft update + revision insert in one transaction on replica sets (Atlas); standalone dev DB falls back; replica-set test incl. rollback + simultaneous saves — 2026-11-06
 - [ ] Run migrations 001 (deal draft indexes) + 002 (B-1) — dry run first, owner OK, after backup
 - [ ] Everyone who maintains the catalog has role `admin` (ADR 018).
 - [ ] `EXTERNAL_API_KEY` set in production and in the bau-formular (v2 closes `/api/offers/external/*` without it).
-- [ ] Cut-over plan with rollback; owner OK.
+- [ ] Cut-over plan with rollback (`docs/rewrite/CUTOVER.md`, draft 2026-11-06); owner OK; rollback export tool `deal_drafts → drafts`.
