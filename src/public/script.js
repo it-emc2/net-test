@@ -15238,7 +15238,16 @@ function initWannePicker() {
   }
 
   // A restored offer fills the hidden inputs after this init ran.
+  // cat_WANNE has no kid checkboxes, so nothing else ticks the card (green
+  // frame, badge, chip) when a saved tub comes back — do it here.
+  const catWanne = document.getElementById("cat_WANNE");
   ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      if (catWanne && !catWanne.checked && (selectedId("tub") || selectedId("screen"))) {
+        catWanne.checked = true;
+        catWanne.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
     document.getElementById(id)?.addEventListener("change", () => {
       if (!items.length || own) return;
       syncFromSelection();
@@ -22797,6 +22806,14 @@ cat_SHOWER: "menu_SHOWER",
     if (wcSeatWrap) {
       wcSeatWrap.hidden = true;
       wcSeatWrap.setAttribute("aria-hidden", "true");
+    }
+
+    // WANNE-only: the picker stores its pick in hidden inputs, which
+    // form.reset() never clears — so a new offer kept the last tub.
+    const hidden = [...panel.querySelectorAll('input[type="hidden"]')];
+    if (hidden.some((h) => h.value)) {
+      hidden.forEach((h) => (h.value = ""));
+      hidden[0].dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     // Keep totals in sync
