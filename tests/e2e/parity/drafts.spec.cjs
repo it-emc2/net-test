@@ -14,6 +14,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("bu: each quick save creates a new draft; loading restores the form", async ({ page }) => {
+  // v2: quick save is replaced by autosave per deal (ADR 007, P7-5 / ADR 022) → v2-deal-draft.spec.cjs
+  test.skip(process.env.PARITY_TARGET === "v2", "replaced in v2 by autosave (ADR 007/022)");
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
   await page.locator("#firstName").fill("Max");

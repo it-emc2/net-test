@@ -8,6 +8,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import compress from "@fastify/compress";
 import fastifyStatic from "@fastify/static";
 import mime from "mime-types";
+import { REWRITES, applyRewrites } from "./rewrites.js";
 import { isAlwaysPublic, isPublicAsset, isPublicSigning } from "./ported/public-paths.js";
 import { tokenFromHeaders, verifyToken } from "../auth.js";
 
@@ -40,6 +41,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
     try { return fs.statSync(full).isFile() ? full : null; } catch { return null; }
   };
   const injected = (d.indexInjections ?? []).join("\n");
+  const rewritten: Record<string, string> = {};
   const sendIndex = (reply: FastifyReply) => {
     (reply.request as any).ocType = "text/html; charset=utf-8";
     if (!injected) return reply.sendFile("index.html", d.publicDir);
@@ -59,7 +61,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   // source folder (works from src/ and from the built dist/; tsc does not copy .js assets)
   const ADDONS = new URL("../../src/web/addons/", import.meta.url);
   const addonSrc = (f: string) => fs.readFileSync(new URL(f, ADDONS), "utf8");
-  for (const f of ["deal-link.js", "deal-draft.js"]) {
+  for (const f of ["deal-link.js", "deal-draft.js", "ux.js"]) {
     app.get(`/v2/addons/${f}`, { config: { public: true } }, async (_req, reply) =>
       reply.type("text/javascript; charset=utf-8").header("Cache-Control", "no-cache").send(addonSrc(f)));
   }
@@ -129,7 +131,12 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
     if (rel === "/index.html") return sendIndex(reply);
     if (exists(d.publicDir, rel.slice(1))) {
       (req as any).ocType = staticType(rel);
-      return reply.sendFile(rel.slice(1), d.publicDir);
+      const file = rel.slice(1);
+      if (REWRITES[file]) { // P7-4: confirm() → in-page dialog (web/rewrites.ts)
+        rewritten[file] ??= applyRewrites(file, fs.readFileSync(path.join(d.publicDir, file), "utf8"));
+        return reply.header("Cache-Control", "public, max-age=0").send(rewritten[file]);
+      }
+      return reply.sendFile(file, d.publicDir);
     }
     return sendIndex(reply); // SPA fallback
   });

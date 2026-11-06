@@ -19,6 +19,7 @@ import { buildApp } from "../src/app.js";
 import { hashPassword } from "../src/auth.js";
 import { connectDb, disconnectDb } from "../src/db.js";
 import { registerApi } from "../src/routes/api.js";
+import { applyRewrites } from "../src/web/rewrites.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
@@ -1612,20 +1613,25 @@ describe("contract: web layer — same pages, files, redirects, security headers
     await same("/?offer=ANG2026-1", HTML);
     await same("/irgendwo/tief", HTML);
     await same("/login", HTML);
-    for (const f of ["/script.js", "/style.css", "/sw.js", "/manifest.webmanifest", "/login.js", "/configurator/boot.js", "/assets/logo.png"]) await same(f);
+    for (const f of ["/style.css", "/sw.js", "/manifest.webmanifest", "/login.js", "/configurator/boot.js", "/assets/logo.png"]) await same(f);
+    // script.js: v2 serves it with the P7-4 confirm rewrites (ADR 022) — exactly legacy + rewrites
+    {
+      const l = await get("legacy", "/script.js"), v = await get("v2", "/script.js");
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: applyRewrites("script.js", l.body.toString()) });
+    }
   });
 
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
     { // index: identical except v2's one add-on script tag before </body> (ADR 021)
       const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
-      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n</body>') });
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: l.body.toString().replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n</body>') });
     }
     await same("/admin/", COOKIE());
     // SPA fallback (any unknown app path) — legacy res.sendFile refuses dot-folder paths
     // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
     {
       const v = await get("v2", "/irgendwo/tief", COOKIE());
-      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n</body>');
+      const html = readFileSync(ROOT + "src/public/index.html", "utf8").replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n</body>');
       expect([v.status, v.body.toString()]).toEqual([200, html]);
     }
     // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>

@@ -83,11 +83,13 @@ Principle: **build the safety net first, then port.** Each phase = one or more P
 - [x] One draft per deal + revision history (ADR 007) with autosave and "restore version" (6c); legacy drafts/offers per deal stay listed in the "Deal laden" dialog and open into the deal draft (autosave then copies them).
 - [x] Offline: today's service worker, IndexedDB queue and local pricing — parity with today (6d).
 
-## Phase 7 — UX simplification (owner sign-off per item, `UX-CHANGES.md`)
-- [ ] Hide dev tools; reduce export variants to what users need.
-- [ ] One "Open" search (deal / name / ANG no.); autosave replaces quick save/save as.
-- [ ] Larger controls (min 44 px), min 16 px text, German-only wording, Sie consistently, plain-language errors.
-- [ ] Replace `alert/confirm` with clear dialogs.
+## Phase 7 — UX simplification (owner sign-off per item, `UX-CHANGES.md`; approved 2026-11-06, ADR 022)
+- [x] P7-1 One „Öffnen“ field (deal number / ANG number / text) — add-on `web/addons/ux.js` — 2026-11-06
+- [x] P7-2 Min. 16 px text, 48 px buttons, 44 px fields — 2026-11-06 (wording: technical buttons are admin-only now; further text clean-up as found)
+- [x] P7-3 Dokumentenstudio: Adobe card gone, developer tools admin-only, Kalkulation keeps all four exports — 2026-11-06
+- [x] P7-4 Notices instead of alert(); the 4 real confirm() questions rewritten to the app's own dialog with telling buttons (`web/rewrites.ts`, drift guard) — 2026-11-06
+- [x] P7-5 (A) Save buttons gone; „An Planung übergeben“ (same rule as quick save: deal on today's planning list, not done) — 2026-11-06
+- [ ] Single offer rendering source for DOCX + signing HTML (moved here from phase 5; visible change → separate proposal)
 
 ## Phase 8 — Self-hosting + cut-over
 - [ ] Docker Compose (app, Gotenberg, Caddy; GlitchTip) on Coolify/Dokploy (ADR 009).
