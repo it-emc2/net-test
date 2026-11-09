@@ -9168,8 +9168,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 };
 
 (function initAufschlag() {
-  // Vorübergehend aus: kein Hinweis, keine Pflicht-Begründung unter dem Mindestwert. true = wieder aktiv.
-  const AUFSCHLAG_REASON_ENFORCED = false;
+  // Pflicht-Begründung unter dem Mindestwert (keine Freigabe nötig). false = abschalten.
+  const AUFSCHLAG_REASON_ENFORCED = true;
   // Mindestwerte je Kundenart + Zonenfarben: src/logic/aufschlag-rules.js (rein, getestet).
   let rules = null;
   import("/logic/aufschlag-rules.js").then((m) => { rules = m; render(); validateAufschlagSelection(); }).catch(() => {});
@@ -9242,9 +9242,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       warnEl.hidden = !(AUFSCHLAG_REASON_ENFORCED && below);
       const kk = payer === "Kassenkunde";
       document.getElementById("aufschlagWarnText").textContent =
-        `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte prüfen.`;
+        `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte kurz begründen (keine Freigabe nötig).`;
       const lbl = document.getElementById("aufschlagReasonLabel");
-      if (lbl) lbl.firstChild.textContent = `Warum liegt der Aufschlag unter ${min} %? `;
+      if (lbl) lbl.firstChild.textContent = `Begründung für Aufschlag unter ${min} % `;
     }
     syncReason();
   }
