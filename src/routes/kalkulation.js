@@ -1093,6 +1093,7 @@ router.post("/pdf-v2", async (req, res) => {
       PosIII_Label: fmtCurrency(posIII),
       AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 0)} auf ${fmtCurrency(markupBase)})`,
       AufschlagValueLabel: fmtCurrency(aufschlag),
+      AufschlagBegruendung: String(body?.Kundendaten?.aufschlagBegruendung || "").trim(),
       RabattValueLabel: rabattAmount > 0 ? `-${fmtCurrency(rabattAmount)}` : "",
       ZwischensummeLabel: fmtCurrency(zwischensumme),
       BonusGesamtLabel: bonusGross > 0 ? `-${fmtCurrency(bonusGross)}` : fmtCurrency(0),
