@@ -496,6 +496,13 @@ export function winwallSealingSets(areaM2) {
   return [{ productId: "WS80301", qty: Math.ceil(a / 5 - 1e-9) }];
 }
 
+// Abdichtungsset: by area, unless a Menge was typed (wvWwSealingQty, additive) —
+// then that many 5-m² sets (WS80301).
+function sealingLines(wv, area) {
+  const manual = Math.round(Number(String(wv?.wvWwSealingQty ?? "").replace(",", ".")) || 0);
+  return manual > 0 ? [{ productId: "WS80301", qty: manual }] : winwallSealingSets(area);
+}
+
 function planWalls(sit, widths, each) {
   return KERAMICO_SITUATIONS[sit].walls.map((key, index) => {
     const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
@@ -1614,7 +1621,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // Sealing sets by area: the Wandfläche, else what the panels cover.
       if (wv?.wvWwSealing) {
         const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
-        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
+        for (const l of sealingLines(wv, area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
       }
       if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
       // No freight per offer: winwall is ordered in collective orders for several
@@ -1631,7 +1638,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
       if (wv?.wvWwSealing) {
         const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || keramicoQty * 2.4225;
-        for (const l of winwallSealingSets(area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
+        for (const l of sealingLines(wv, area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
       }
     }
 
