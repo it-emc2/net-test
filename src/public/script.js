@@ -9230,9 +9230,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       warnEl.hidden = !(AUFSCHLAG_REASON_ENFORCED && below);
       const kk = payer === "Kassenkunde";
       document.getElementById("aufschlagWarnText").textContent =
-        `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte prüfen.`;
+        `Aufschlag liegt unter dem Mindestwert für ${kk ? "Kassenkunden" : payer === "Selbstzahler" ? "Selbstzahler" : "dieses Angebot"} (${min} %) – bitte kurz begründen (keine Freigabe nötig).`;
       const lbl = document.getElementById("aufschlagReasonLabel");
-      if (lbl) lbl.firstChild.textContent = `Warum liegt der Aufschlag unter ${min} %? `;
+      if (lbl) lbl.firstChild.textContent = `Begründung für Aufschlag unter ${min} % `;
     }
     syncReason();
   }
