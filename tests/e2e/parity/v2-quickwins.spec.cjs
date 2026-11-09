@@ -155,7 +155,7 @@ test("C1: developer and CRM groups are for admins only", async ({ page }) => {
   await expect(page.locator('#sideMenu a.side-link[data-step="DuschabtrennungNeu"] > span:last-child')).toHaveText("Duschabtrennung");
 });
 
-test("D5: identical price requests go to the server once", async ({ page }) => {
+test("D5: identical price requests in flight at the same time go to the server once", async ({ page }) => {
   let hits = 0;
   // only the test's own payloads ({a:…}) are counted; the app's own price requests pass through
   await page.route("**/api/price", async (route) => {
@@ -167,10 +167,10 @@ test("D5: identical price requests go to the server once", async ({ page }) => {
   const res = await page.evaluate(async () => {
     const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: 1 }) };
     const [a, b] = await Promise.all([fetch("/api/price", opts), fetch("/api/price", opts)]); // same payload in flight
-    const c = await fetch("/api/price", opts); // right after → reused
+    const c = await fetch("/api/price", opts); // finished answers are never reused (offline fallback) → sent
     const d = await fetch("/api/price", { ...opts, body: JSON.stringify({ a: 2 }) }); // other payload → sent
     return [await a.json(), await b.json(), await c.json(), await d.json()].map((j) => j.total);
   });
   expect(res).toEqual([1, 1, 1, 1]);
-  expect(hits).toBe(2);
+  expect(hits).toBe(3);
 });

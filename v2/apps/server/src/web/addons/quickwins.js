@@ -20,7 +20,7 @@
  *  C7  „Kundenmodus“: hides markup, costs, calculation and purchasing CSV while the customer watches
  *  C8  Page title = menu label; category accordions without numbering; typo fixed (label only)
  *  D3  Total shown as „vorläufig“ (grey) until a customer and at least one item exist
- *  D5  Identical price requests are sent once (in flight shared, 1.5 s reuse)
+ *  D5  Identical price requests in flight at the same moment are sent once (no reuse of finished answers)
  *  D6  Larger tap targets for pills, rows and chips */
 (function () {
   "use strict";
@@ -179,12 +179,14 @@
   if (ssGet(KM_KEY) === "1") document.documentElement.classList.add("oc-customer");
 
   // ---------- D5: identical price requests only once ----------
+  // Only requests still in flight are shared (same payload sent twice at the same moment → one
+  // network call). A finished answer is never reused: the offline fallback (pricing-client.js)
+  // relies on a real request failing, and a fresh state must always reach the server.
   (function dedupePriceRequests() {
     var orig = window.fetch;
     if (typeof orig !== "function") return;
     var inflight = {}; // body → Promise<Response>
-    var recent = null; // { body, at, res }
-    var REUSE_MS = 1500;
+    var shared = 0;
     function isPrice(input, init) {
       var url = typeof input === "string" ? input : (input && input.url) || "";
       var method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
@@ -193,18 +195,14 @@
     window.fetch = function (input, init) {
       if (!isPrice(input, init)) return orig.apply(this, arguments);
       var body = init.body;
-      if (recent && recent.body === body && Date.now() - recent.at < REUSE_MS) return Promise.resolve(recent.res.clone());
-      if (inflight[body]) return inflight[body].then(function (r) { return r.clone(); });
-      var p = orig.apply(this, arguments).then(function (r) {
-        if (r.ok) recent = { body: body, at: Date.now(), res: r.clone() };
-        return r;
-      });
+      if (inflight[body]) { shared++; return inflight[body].then(function (r) { return r.clone(); }); }
+      var p = orig.apply(this, arguments);
       inflight[body] = p;
       var clear = function () { delete inflight[body]; };
       p.then(clear, clear);
       return p.then(function (r) { return r.clone(); });
     };
-    window.__ocPriceDedupe = { stats: function () { return { inflight: Object.keys(inflight).length, recentAt: recent && recent.at }; } };
+    window.__ocPriceDedupe = { stats: function () { return { inflight: Object.keys(inflight).length, shared: shared }; } };
   })();
 
   onReady(function () {
