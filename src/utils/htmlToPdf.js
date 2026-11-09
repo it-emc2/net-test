@@ -7,7 +7,7 @@
 // A single browser instance is reused across calls for speed.
 
 import puppeteer from "puppeteer";
-import { GOTENBERG_URL, gotenbergHtmlToPdf } from "./gotenberg.js";
+import { withGotenberg, gotenbergHtmlToPdf } from "./gotenberg.js";
 
 let browserPromise = null;
 
@@ -45,11 +45,11 @@ async function getBrowser() {
  * @param {object} [opts.margin] page margins (CSS units), default 18mm all round
  * @returns {Promise<Buffer>} PDF bytes
  */
-export async function htmlToPdfBuffer(html, opts = {}) {
-  if (GOTENBERG_URL) {
-    try { return await gotenbergHtmlToPdf(html, opts); }
-    catch (e) { console.warn("[gotenberg] HTML→PDF failed, falling back to Puppeteer:", e.message); }
-  }
+export function htmlToPdfBuffer(html, opts = {}) {
+  return withGotenberg("html", () => gotenbergHtmlToPdf(html, opts), () => puppeteerPdf(html, opts));
+}
+
+async function puppeteerPdf(html, opts) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
