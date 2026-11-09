@@ -3,6 +3,8 @@
 // Optional PDF engine (same approach as v2, ADR 008): with GOTENBERG_URL set,
 // DOCX→PDF and HTML→PDF go to one Gotenberg container (LibreOffice + Chromium
 // inside) instead of a local soffice process / Puppeteer browser.
+import PdfLog, { PDF_LOG_APP } from "../models/PdfLog.js";
+
 export const GOTENBERG_URL = (process.env.GOTENBERG_URL || "").replace(/\/+$/, "");
 // fetch() rejects URLs with credentials → split "https://user:pass@host" into URL + Basic header.
 const u = GOTENBERG_URL ? new URL(GOTENBERG_URL) : null;
@@ -56,4 +58,23 @@ export function gotenbergHtmlToPdf(html, opts = {}) {
   }
   form.append("printBackground", "true");
   return post("/forms/chromium/convert/html", form);
+}
+
+// Runs a conversion on Gotenberg (if configured) with local fallback, and logs
+// each attempt to PdfLog for the admin "PDF-Engine" view. Logging never blocks or throws.
+function log(kind, engine, t0, err) {
+  PdfLog.create({ app: PDF_LOG_APP, kind, engine, ms: Date.now() - t0, ok: !err, error: err ? String(err.message || err).slice(0, 500) : undefined }).catch(() => {});
+}
+async function timed(kind, engine, fn) {
+  const t0 = Date.now();
+  try { const b = await fn(); log(kind, engine, t0); return b; }
+  catch (e) { log(kind, engine, t0, e); throw e; }
+}
+export async function withGotenberg(kind, gotenbergFn, localFn) {
+  if (!GOTENBERG_URL) return timed(kind, "local", localFn);
+  try { return await timed(kind, "gotenberg", gotenbergFn); }
+  catch (e) {
+    console.warn(`[gotenberg] ${kind}→PDF failed, falling back to local engine:`, e.message);
+    return timed(kind, "fallback", localFn);
+  }
 }

@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: 'ah',       label: 'AH – Alltagshilfe',    icon: 'fa-hands-helping' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
+  { id: 'pdfstats', label: 'PDF-Engine',          icon: 'fa-file-pdf', view: 'pdfstats' },
   { id: 'bitrixlogs', label: 'Bitrix-Fehler',      icon: 'fa-triangle-exclamation', view: 'bitrixlogs' },
   { id: 'userlogs', label: 'Aktivitäts-Log',       icon: 'fa-list-check', view: 'userlogs' },
   { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
@@ -105,6 +106,7 @@ function switchSection(id) {
   if (view) hide($('change-count'));
   if (view === 'signing') renderSigning();
   else if (view === 'bitrixlogs') renderBitrixLogs();
+  else if (view === 'pdfstats') renderPdfStats();
   else if (view === 'userlogs') renderUserLogs();
   else if (view === 'users') renderUsers();
   else renderSection();
@@ -449,6 +451,79 @@ async function loadBitrixLogs() {
         }
       });
     });
+  } catch (e) {
+    if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
+  }
+}
+
+// ── PDF engine stats (Gotenberg vs. local soffice/Puppeteer) ─────────────
+const PDF_KIND = { docx: 'DOCX\u00a0→\u00a0PDF', html: 'HTML\u00a0→\u00a0PDF' };
+const PDF_ENGINE = {
+  gotenberg: ['Gotenberg', 'b-completed'],
+  fallback: ['Fallback (lokal nach Gotenberg-Fehler)', 'b-failed'],
+  local: ['Lokal (ohne Gotenberg)', 'b-neutral'],
+};
+let pdfDays = 30;
+const fmtMs = (ms) => (ms == null ? '–' : ms >= 1000 ? (ms / 1000).toFixed(1) + ' s' : ms + ' ms');
+const fmtDur = (ms) => { if (ms < 60000) return Math.round(ms / 1000) + ' s'; const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+
+function renderPdfStats() {
+  $('config-grid').innerHTML = `<div class="signing-view">
+    <div class="toolbar">
+      <select id="pdf-days">${[1, 7, 30, 90, 180].map(d => `<option value="${d}"${d === pdfDays ? ' selected' : ''}>Letzte ${d} Tage</option>`).join('')}</select>
+      <button class="btn-ghost" id="pdf-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="pdf-err" class="sign-err hidden"></div>
+    <div class="counts" id="pdf-counts"></div>
+    <div class="table-wrap"><table class="sign-table">
+      <thead><tr><th>Art</th><th>Engine</th><th>Anzahl</th><th>Fehler</th><th>Ø Dauer</th><th>Max</th><th>Zuletzt</th></tr></thead>
+      <tbody id="pdf-rows"></tbody></table></div>
+    <h3 style="margin:18px 0 8px">Fehler &amp; Fallbacks</h3>
+    <div class="table-wrap"><table class="sign-table">
+      <thead><tr><th>Zeit</th><th>Art</th><th>Engine</th><th>Dauer</th><th>Fehler</th></tr></thead>
+      <tbody id="pdf-fails"></tbody></table></div>
+  </div>`;
+  $('pdf-days').addEventListener('change', e => { pdfDays = Number(e.target.value); loadPdfStats(); });
+  $('pdf-refresh').addEventListener('click', loadPdfStats);
+  loadPdfStats();
+}
+
+async function loadPdfStats() {
+  const err = $('pdf-err');
+  if (err) hide(err);
+  try {
+    const d = await api('GET', '/admin/api/pdf-stats?days=' + pdfDays);
+    const okOf = (f) => d.rows.filter(f).reduce((n, r) => n + r.ok, 0);
+    const total = okOf(() => true); // delivered PDFs (a fallback = 1 failed Gotenberg try + 1 local PDF)
+    const got = okOf(r => r.engine === 'gotenberg');
+    const fallbacks = d.rows.filter(r => r.engine === 'fallback').reduce((n, r) => n + r.total, 0);
+    const failed = d.rows.filter(r => r.engine !== 'gotenberg').reduce((n, r) => n + r.failed, 0);
+    const savedMs = d.saved.docx.ms + d.saved.html.ms;
+    const base = (k) => `${PDF_KIND[k]} vorher Ø ${fmtMs(d.saved[k].baselineMs)} (${d.saved[k].measured ? 'gemessen' : 'Benchmark'})`;
+    $('pdf-counts').innerHTML = [
+      [total, 'PDFs erzeugt'],
+      [total ? Math.round(got / total * 100) + ' %' : '–', 'über Gotenberg'],
+      [fallbacks, 'Fallbacks'],
+      [failed, 'Endgültig fehlgeschlagen'],
+      [fmtDur(savedMs), 'Zeit gespart (geschätzt)'],
+    ].map(([n, l]) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('')
+      + `<div class="stat" style="flex-basis:100%"><div class="l">${base('docx')} · ${base('html')}</div></div>`;
+
+    const order = ['gotenberg', 'fallback', 'local'];
+    const rows = [...d.rows].sort((a, b) => a.kind.localeCompare(b.kind) || order.indexOf(a.engine) - order.indexOf(b.engine));
+    $('pdf-rows').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td>${PDF_KIND[r.kind]}</td>
+      <td><span class="badge ${PDF_ENGINE[r.engine][1]}">${PDF_ENGINE[r.engine][0]}</span></td>
+      <td>${r.total}</td>
+      <td>${r.failed ? `<span class="badge b-failed">${r.failed}</span>` : 0}</td>
+      <td>${fmtMs(r.avgMs)}</td><td>${fmtMs(r.maxMs)}</td><td>${fmtTs(r.last)}</td>
+    </tr>`).join('') : '<tr><td colspan="7"><div class="empty-state">Noch keine PDFs im Zeitraum.</div></td></tr>';
+
+    $('pdf-fails').innerHTML = d.failures.length ? d.failures.map(f => `<tr>
+      <td>${fmtTs(f.createdAt)}</td><td>${PDF_KIND[f.kind]}</td>
+      <td><span class="badge ${f.engine === 'gotenberg' ? 'b-sent' : 'b-failed'}">${f.engine === 'gotenberg' ? 'Gotenberg → Fallback' : 'Lokal fehlgeschlagen'}</span></td>
+      <td>${fmtMs(f.ms)}</td><td>${esc(f.error)}</td>
+    </tr>`).join('') : '<tr><td colspan="5"><div class="empty-state">Keine Fehler im Zeitraum.</div></td></tr>';
   } catch (e) {
     if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
   }
