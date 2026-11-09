@@ -7,7 +7,7 @@ import fsSync from "fs";
 import path from "path";
 import os from "os";
 import { spawn } from "child_process";
-import { GOTENBERG_URL, gotenbergDocxToPdf } from "../utils/gotenberg.js";
+import { withGotenberg, gotenbergDocxToPdf } from "../utils/gotenberg.js";
 import { randomBytes } from "crypto";
 import dayjs from "dayjs";
 import PizZip from "pizzip";
@@ -447,14 +447,12 @@ spawn(
 let loQueue = Promise.resolve();
 
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
-async function convertDocxToPdf(docxBuffer) {
-  if (GOTENBERG_URL) {
-    try { return await gotenbergDocxToPdf(docxBuffer); }
-    catch (e) { console.warn("[gotenberg] DOCX→PDF failed, falling back to soffice:", e.message); }
-  }
-  const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
-  loQueue = run.catch(() => {});
-  return run;
+function convertDocxToPdf(docxBuffer) {
+  return withGotenberg("docx", () => gotenbergDocxToPdf(docxBuffer), () => {
+    const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
+    loQueue = run.catch(() => {});
+    return run;
+  });
 }
 
 async function convertDocxToPdfUnqueued(docxBuffer) {

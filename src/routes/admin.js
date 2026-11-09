@@ -4,6 +4,7 @@ import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
 import BitrixLog from '../models/BitrixLog.js';
 import UserActionLog from '../models/UserActionLog.js';
+import PdfLog, { PDF_LOG_APP } from '../models/PdfLog.js';
 import { retryBitrixLog } from './bitrix.js';
 import { sendSignedDocsToBitrix, buildSignedPdf, buildDocumentPdf } from './signing.js';
 import User from '../models/User.js';
@@ -268,6 +269,47 @@ router.post('/api/bitrix-logs/:id/retry', requireAdmin, async (req, res) => {
     res.json({ ok: true, result });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// ---------------- PDF engine stats (admin) ----------------
+
+// Local soffice/Puppeteer warm medians from the 2026-11 benchmark; used as the
+// "before" baseline until enough local/fallback rows exist in the window.
+const PDF_BASELINE_MS = { docx: 5100, html: 2400 };
+
+// GET /admin/api/pdf-stats?days=30 — per kind/engine counts + avg ms, time saved, last 200 failures.
+router.get('/api/pdf-stats', requireAdmin, async (req, res) => {
+  try {
+    const days = Math.min(180, Math.max(1, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * 864e5);
+    const [groups, failures] = await Promise.all([
+      PdfLog.aggregate([
+        { $match: { app: PDF_LOG_APP, createdAt: { $gte: since } } },
+        { $group: {
+          _id: { kind: '$kind', engine: '$engine' },
+          total: { $sum: 1 },
+          ok: { $sum: { $cond: ['$ok', 1, 0] } },
+          okMs: { $sum: { $cond: ['$ok', '$ms', 0] } },
+          maxMs: { $max: '$ms' },
+          last: { $max: '$createdAt' },
+        } },
+      ]),
+      PdfLog.find({ app: PDF_LOG_APP, createdAt: { $gte: since }, ok: false }).sort({ createdAt: -1 }).limit(200).lean(),
+    ]);
+    const rows = groups.map((g) => ({ ...g._id, total: g.total, ok: g.ok, failed: g.total - g.ok, avgMs: g.ok ? Math.round(g.okMs / g.ok) : null, maxMs: g.maxMs, last: g.last }));
+    const saved = {};
+    for (const kind of ['docx', 'html']) {
+      const got = rows.find((r) => r.kind === kind && r.engine === 'gotenberg');
+      const loc = rows.filter((r) => r.kind === kind && r.engine !== 'gotenberg' && r.ok);
+      const locN = loc.reduce((n, r) => n + r.ok, 0);
+      const baselineMs = locN >= 5 ? Math.round(loc.reduce((n, r) => n + r.avgMs * r.ok, 0) / locN) : PDF_BASELINE_MS[kind];
+      saved[kind] = { baselineMs, measured: locN >= 5, ms: got?.ok ? Math.max(0, Math.round(got.ok * (baselineMs - got.avgMs))) : 0 };
+    }
+    res.json({ app: PDF_LOG_APP, days, rows, saved, failures });
+  } catch (err) {
+    console.error('GET /admin/api/pdf-stats failed:', err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
