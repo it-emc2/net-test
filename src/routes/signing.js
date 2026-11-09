@@ -22,6 +22,7 @@ import nodemailer from "nodemailer";
 
 import SigningRequest from "../models/SigningRequest.js";
 import {
+  addTask,
   addTimelineComment,
   updateDealAfterSigning,
   ensurePartnerContact,
@@ -596,11 +597,93 @@ async function loadByToken(req, res) {
       sr.status = "expired";
       await sr.save();
     }
-    res.status(410).json({ error: "Dieser Link ist abgelaufen" });
+    // 410 is heuristically cacheable — without no-store a reload shows the
+    // pre-request state (request button again) from the browser cache.
+    res.set("Cache-Control", "no-store");
+    res.status(410).json({
+      error: "Dieser Link ist abgelaufen",
+      expired: true,
+      newLinkRequested: !!sr.newLinkRequestedAt,
+    });
     return null;
   }
   return sr;
 }
+
+// Bitrix users for the "new link requested" task: HP responsible, JP + RF
+// Mitwirkende, SW Beobachter.
+const NEW_LINK_TASK_RESPONSIBLE = 2586;
+const NEW_LINK_TASK_ACCOMPLICES = [2136, 2920];
+const NEW_LINK_TASK_AUDITORS = [6];
+
+// POST /api/signing/:token/request-new-link — customer on an expired link asks
+// for a new one. Creates one Bitrix task + timeline comment per link; repeat
+// clicks are no-ops (atomic claim on newLinkRequestedAt).
+router.post("/:token/request-new-link", async (req, res) => {
+  try {
+    const token = String(req.params.token || "").trim();
+    const sr = await SigningRequest.findOne({ token });
+    if (!sr) return res.status(404).json({ error: "Ungültiger Link" });
+    if (!sr.isExpired() && sr.status !== "expired") {
+      return res.status(400).json({ error: "Dieser Link ist noch gültig" });
+    }
+    const claimed = await SigningRequest.findOneAndUpdate(
+      { _id: sr._id, newLinkRequestedAt: null },
+      { $set: { newLinkRequestedAt: new Date() } },
+      { new: true },
+    );
+    if (!claimed) return res.json({ ok: true, already: true });
+
+    const p = sr.prefill || {};
+    const name = [p.salutation, p.firstName, p.lastName].filter(Boolean).join(" ").trim() || sr.customerName;
+    const entity = sr.bitrixEntityType === "deal" ? "D" : sr.bitrixEntityType === "contact" ? "C" : "";
+    const entityUrl = entity
+      ? `https://emczwei.bitrix24.de/crm/${entity === "D" ? "deal" : "contact"}/details/${sr.bitrixEntityId}/`
+      : "";
+    const ocUrl = `${publicBaseUrl(req)}/?offer=${encodeURIComponent(sr.offerNumber || "")}`;
+    const lines = [
+      `Kunde fordert über die Signaturseite einen neuen Signatur-Link an.`,
+      ``,
+      `Kunde: ${name}`,
+      `E-Mail: ${p.email || sr.customerEmail || "-"}`,
+      `Telefon: ${p.phone || "-"}`,
+      `Angebot: ${sr.offerNumber || "-"}`,
+      entityUrl ? `Bitrix: ${entityUrl}` : null,
+      `OC: ${ocUrl}`,
+      `Alter Link: /sign/${sr.token.slice(0, 8)}… (abgelaufen)`,
+      ``,
+      `Bitte Angebot in OC öffnen und den Signatur-Link neu an den Kunden senden.`,
+    ].filter((l) => l !== null);
+
+    let task;
+    try {
+      task = await addTask({
+        TITLE: `Neuer Signatur-Link angefordert – ${sr.offerNumber || ""} – ${name}`,
+        DESCRIPTION: lines.join("\n"),
+        RESPONSIBLE_ID: NEW_LINK_TASK_RESPONSIBLE,
+        ACCOMPLICES: NEW_LINK_TASK_ACCOMPLICES,
+        AUDITORS: NEW_LINK_TASK_AUDITORS,
+        ...(entity ? { UF_CRM_TASK: [`${entity}_${sr.bitrixEntityId}`] } : {}),
+      });
+    } catch (err) {
+      // Release the claim so the customer can retry instead of silently losing the request.
+      console.error("[signing] new-link task failed:", err?.message || err);
+      await SigningRequest.updateOne({ _id: sr._id }, { $set: { newLinkRequestedAt: null } });
+      return res.status(502).json({ error: "Anfrage konnte nicht übermittelt werden. Bitte rufen Sie uns an." });
+    }
+    const taskId = task?.result?.task?.id;
+    await postTimeline(
+      sr,
+      `Kunde fordert einen neuen Signatur-Link an (${sr.offerNumber || ""})\n` +
+        `Der bisherige Link ist abgelaufen. Bitte neuen Signatur-Link an ${p.email || sr.customerEmail || "den Kunden"} senden.` +
+        (taskId ? `\nAufgabe: https://emczwei.bitrix24.de/company/personal/user/${NEW_LINK_TASK_RESPONSIBLE}/tasks/task/view/${taskId}/` : ""),
+    );
+    return res.json({ ok: true, taskId: taskId || null });
+  } catch (err) {
+    console.error("POST signing request-new-link failed:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
 
 // GET /api/signing/:token — data the signing page renders from
 router.get("/:token", async (req, res) => {
