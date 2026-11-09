@@ -435,7 +435,7 @@ fsSync.mkdirSync(LO_PROFILE_DIR, { recursive: true });
 
 // Warm-up at boot: initialize the profile so the first user request
 // doesn't pay the one-time profile-creation cost. Fire-and-forget.
-if (!GOTENBERG_URL) spawn(
+spawn(
   "soffice",
   ["--headless", `-env:UserInstallation=${LO_PROFILE_URL}`, "--terminate_after_init"],
   { stdio: "ignore", env: { ...process.env, HOME: LO_PROFILE_DIR } },
@@ -447,8 +447,11 @@ if (!GOTENBERG_URL) spawn(
 let loQueue = Promise.resolve();
 
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
-function convertDocxToPdf(docxBuffer) {
-  if (GOTENBERG_URL) return gotenbergDocxToPdf(docxBuffer);
+async function convertDocxToPdf(docxBuffer) {
+  if (GOTENBERG_URL) {
+    try { return await gotenbergDocxToPdf(docxBuffer); }
+    catch (e) { console.warn("[gotenberg] DOCX→PDF failed, falling back to soffice:", e.message); }
+  }
   const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
   loQueue = run.catch(() => {});
   return run;

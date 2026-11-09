@@ -4,6 +4,10 @@
 // DOCX→PDF and HTML→PDF go to one Gotenberg container (LibreOffice + Chromium
 // inside) instead of a local soffice process / Puppeteer browser.
 export const GOTENBERG_URL = (process.env.GOTENBERG_URL || "").replace(/\/+$/, "");
+// fetch() rejects URLs with credentials → split "https://user:pass@host" into URL + Basic header.
+const u = GOTENBERG_URL ? new URL(GOTENBERG_URL) : null;
+const AUTH = u?.username ? { Authorization: "Basic " + Buffer.from(`${decodeURIComponent(u.username)}:${decodeURIComponent(u.password)}`).toString("base64") } : {};
+const BASE = u ? `${u.origin}${u.pathname.replace(/\/+$/, "")}` : "";
 
 // "18mm" | "1cm" | "0.5in" | "96px" → inches (Gotenberg units)
 export function toInches(v, dflt = 18 / 25.4) {
@@ -14,8 +18,9 @@ export function toInches(v, dflt = 18 / 25.4) {
 }
 
 async function post(route, form) {
-  const res = await fetch(`${GOTENBERG_URL}${route}`, {
+  const res = await fetch(`${BASE}${route}`, {
     method: "POST",
+    headers: AUTH,
     body: form,
     signal: AbortSignal.timeout(120_000),
   });
