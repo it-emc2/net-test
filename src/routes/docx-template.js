@@ -7,6 +7,7 @@ import fsSync from "fs";
 import path from "path";
 import os from "os";
 import { spawn } from "child_process";
+import { GOTENBERG_URL, gotenbergDocxToPdf } from "../utils/gotenberg.js";
 import { randomBytes } from "crypto";
 import dayjs from "dayjs";
 import PizZip from "pizzip";
@@ -434,7 +435,7 @@ fsSync.mkdirSync(LO_PROFILE_DIR, { recursive: true });
 
 // Warm-up at boot: initialize the profile so the first user request
 // doesn't pay the one-time profile-creation cost. Fire-and-forget.
-spawn(
+if (!GOTENBERG_URL) spawn(
   "soffice",
   ["--headless", `-env:UserInstallation=${LO_PROFILE_URL}`, "--terminate_after_init"],
   { stdio: "ignore", env: { ...process.env, HOME: LO_PROFILE_DIR } },
@@ -447,6 +448,7 @@ let loQueue = Promise.resolve();
 
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
 function convertDocxToPdf(docxBuffer) {
+  if (GOTENBERG_URL) return gotenbergDocxToPdf(docxBuffer);
   const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
   loQueue = run.catch(() => {});
   return run;
