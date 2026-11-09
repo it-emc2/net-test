@@ -11612,7 +11612,7 @@ const PRODUKT_LINES = {
       // (wvKeramicoCalc) is on both lines: Standard bills Keramico from it, Premium
       // takes the cheapest 997/1497 mix into the Plattenwahl by button.
       // Hidden inputs are disabled, so they stay out of the payload.
-      { premium: "wvAreaBlock", standard: "", what: "Wandmaße" },
+      // wvAreaBlock (Wandfläche) removed from the page 2026-11-09: the walls give the area.
       { premium: "", standard: "wvBadoluxAccSection", what: "Badolux-Zubehör", resetFields: true },
       { premium: "wvPanelsLabel", standard: "", what: "" },
     ],
@@ -12816,6 +12816,18 @@ document.addEventListener("click", (e) => {
   input.dispatchEvent(new Event("change", { bubbles: true }));
 });
 
+// Abdichtungsset: − / + start from the computed amount, "Automatisch" clears the Menge.
+document.addEventListener("click", (e) => {
+  const qEl = document.getElementById("wvWwSealingQty");
+  if (!qEl) return;
+  if (e.target.closest?.(".wv-seal-reset")) {
+    e.preventDefault();
+    qEl.value = "";
+    qEl.dispatchEvent(new Event("input", { bubbles: true }));
+    qEl.dispatchEvent(new Event("change", { bubbles: true }));
+  } else if (e.target.closest?.("#wvWwSealingStep button") && qEl.value === "") qEl.value = qEl.dataset.auto || "0";
+}, true);
+
 /* ========== Wandverkleidung: winwall line (wvSupplier = ww) ==========
    winwall is the Premium line with its own panels/accessories; VIGOUR is the
    Premium line with wvSupplier = hm (or missing — every older offer). */
@@ -12893,7 +12905,14 @@ function updateWwSuggestions({ write = true } = {}) {
     try { sets = window.__pricingCore?.winwallSealingSets?.(area); } catch {}
     if (!Array.isArray(sets)) sets = [];
     const txt = sets.map((l) => `${l.qty} × ${l.productId === "WS80302" ? "6,25" : "5"} m²`).join(" + ");
-    hint.textContent = `WS80301 (5 m²) / WS80302 (6,25 m²) · nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${txt}` : ""}`;
+    // Menge: empty = by area (placeholder shows it); a typed Menge = that many 5-m² sets.
+    const qEl = document.getElementById("wvWwSealingQty");
+    const auto = sets.reduce((a, l) => a + l.qty, 0);
+    const manual = Math.round(Number(qEl?.value) || 0);
+    if (qEl) { qEl.placeholder = String(auto); qEl.dataset.auto = String(auto); }
+    hint.innerHTML = manual > 0
+      ? `berechnet: ${escapeHtml(txt || "–")} · <b>manuell: ${manual} × 5 m²</b> · <button type="button" class="wv-seal-reset">Automatisch</button>`
+      : `nach Plattenfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${escapeHtml(txt)}` : ""} · automatisch`;
   }
   const ph = document.getElementById("wvWwPanelsHint");
   if (ph && !std) {
@@ -12987,6 +13006,10 @@ function syncWwCustomDecor() {
     if (cb) cb.checked = Number(t.value) > 0;
   });
   document.getElementById("wvArea")?.addEventListener("input", () => updateWwSuggestions({ write: false }));
+  document.getElementById("wvWwSealingQty")?.addEventListener("input", () => {
+    updateWwSuggestions({ write: false });
+    window.requestPricingRefresh?.({ delay: 120, reason: "ww-sealing-qty" });
+  });
   const decors = document.getElementById("wvWwDecorSection");
   decors?.addEventListener("change", (e) => {
     syncWwCustomDecor();
@@ -13050,8 +13073,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   let pushing = false;
   // The Dekor tiles (#wvColorSection, moved — never rebuilt, so all
   // handlers/IDs stay) open inside the marked row. Both views.
-  const colorSection = document.getElementById("wvColorSection");
-  const colorLabel = colorSection?.querySelector(".sec-settings__label");
+  const colorSectionEl = document.getElementById("wvColorSection");
+  const colorLabel = colorSectionEl?.querySelector(".sec-settings__label");
   const colorLabelText = colorLabel?.textContent || "";
   let collapsed = false;
 
@@ -13067,6 +13090,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const ensureWired = () => { if (typeof setupWandverkleidungPage === "function") setupWandverkleidungPage(); };
 
   function render() {
+    // Tiles opened under a wall (Wände und Dekor) stay there.
+    const colorSection = colorSectionEl?.classList.contains("in-wall") ? null : colorSectionEl;
     if (colorSection) section.after(colorSection); // park it before listEl is rebuilt
     const colors = colorRadios().map((r) => r.value);
     listEl.innerHTML = rows.length
@@ -13076,7 +13101,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
           const img = colorInfo(r.color).img;
           return `<div class="wv-row" data-i="${i}">
             ${img ? `<img class="wv-row__sw" src="${escapeHtml(img)}" alt="" />` : `<span class="wv-row__sw"></span>`}
-            <span class="wv-row__name"><b>${escapeHtml(colorInfo(r.color).label)}</b><small>${i === activeIdx && !collapsed ? "Dekor unten wählen" : "Tippen zum Ändern"}</small></span>
+            <span class="wv-row__name"><b>${escapeHtml(colorInfo(r.color).label)}</b><small>${i === activeIdx && !collapsed ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
             <select class="wv-row__color" aria-label="Dekor">${opts}</select>
             <select class="wv-row__size wv-row__sizesel" aria-label="Breite">
               ${SIZES.map((z) => `<option value="${z}"${z === r.size ? " selected" : ""}>${z} mm</option>`).join("")}
@@ -13220,6 +13245,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   document.addEventListener("change", (e) => { if (e.target.matches?.("#wv997, #wv1497, #wvQty997, #wvQty1497")) pullSoon(); });
   document.addEventListener("input", (e) => { if (e.target.matches?.("#wvQty997, #wvQty1497")) pullSoon(); });
   window.pullWvRows = pull;
+  // Wände und Dekor (initKeramicoCalc): the walls write the rows.
+  window.__wvRowsState = () => rows;
+  window.setWvRowsList = (list) => { rows = list; activeIdx = -1; collapsed = true; render(); push(); };
   render();
 })();
 
@@ -13234,7 +13262,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const listEl = document.getElementById("wvKRows");
   const addBtn = document.getElementById("wvKRowAdd");
   const dataEl = document.getElementById("wvKRowsData");
-  const tiles = document.getElementById("wvBudgetColorSection");
+  const tilesEl = document.getElementById("wvBudgetColorSection");
   if (!section || !listEl || !addBtn || !dataEl) return;
   const SONDER = "WP007";
   const SHOP_URL = "https://cleverbad.de/konfigurator";
@@ -13244,7 +13272,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   let activeIdx = -1;
   let collapsed = false;
   let pushing = false;
-  const tilesLabel = tiles?.querySelector(".sec-settings__label");
+  const tilesLabel = tilesEl?.querySelector(".sec-settings__label");
   const tilesLabelText = tilesLabel?.textContent || "";
 
   const radios = () => [...document.querySelectorAll('#wvBudgetColors input[name="wvColor"]')];
@@ -13263,13 +13291,14 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   }
 
   function render() {
+    const tiles = tilesEl?.classList.contains("in-wall") ? null : tilesEl; // under a wall: stays there
     if (tiles) section.after(tiles); // park before listEl is rebuilt
     listEl.innerHTML = rows.length
       ? rows.map((r, i) => {
           const open = i === activeIdx && !collapsed;
           return `<div class="wv-row" data-i="${i}">
             <img class="wv-row__sw" src="${esc(imgOf(r.pid))}" alt="" onerror="this.style.visibility='hidden'" />
-            <span class="wv-row__name"><b>${esc(nameOf(r))}</b><small>${open ? "Dekor unten wählen" : "Tippen zum Ändern"}</small></span>
+            <span class="wv-row__name"><b>${esc(nameOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
             <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
             <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
           </div>`;
@@ -13406,6 +13435,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     render();
     push();
   });
+  window.__kRowsState = () => rows;
+  window.setKRowsList = (list) => { rows = list; activeIdx = rows.length ? 0 : -1; collapsed = true; render(); push(); };
   window.__kRowsRefresh = () => {
     if (!rows.length && !dataEl.value && radios().some((r) => r.checked)) pull();
     else render();
@@ -13455,7 +13486,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   }
 
   function render() {
-    section.after(decors); // park before listEl is rebuilt
+    const inWall = decors.classList.contains("in-wall"); // under a wall: stays there
+    if (!inWall) section.after(decors); // park before listEl is rebuilt
     listEl.innerHTML = rows.length
       ? rows.map((r, i) => {
           const open = i === activeIdx && !collapsed;
@@ -13463,7 +13495,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
           const set = SETTABLE.has(r.fmt) && same >= 2 ? " · Set (2 gleiche Platten, günstiger)" : "";
           return `<div class="wv-row" data-i="${i}">
             ${r.code ? `<img class="wv-row__sw" src="./assets/winwall/${esc(r.code)}.jpg" alt="" onerror="this.style.visibility='hidden'" />` : `<span class="wv-row__sw"></span>`}
-            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor unten wählen" : "Tippen zum Ändern"}${set}</small></span>
+            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}${set}</small></span>
             <select class="wv-row__size wv-ww-fmtsel" aria-label="Format">${FMTS.map(([c, t]) => `<option value="${c}"${c === r.fmt ? " selected" : ""}>${t}</option>`).join("")}</select>
             <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
             <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
@@ -13472,8 +13504,8 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       : `<div class="wv-rows-empty">Noch keine Platten. Mit „+ Zeile hinzufügen“ beginnen.</div>`;
     const activeRow = listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`);
     activeRow?.classList.add("is-active");
-    const open = !!(activeRow && !collapsed);
-    decors.classList.toggle("in-row", open);
+    const open = !!(activeRow && !collapsed) && !inWall;
+    if (!inWall) decors.classList.toggle("in-row", open);
     if (label) label.textContent = open ? "Dekor für diese Zeile" : labelText;
     if (open) {
       showDecorOf(rows[activeIdx]);
@@ -13545,8 +13577,10 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
 
   listEl.addEventListener("change", (e) => {
     const row = e.target.closest(".wv-row");
-    if (!row || !e.target.classList.contains("wv-ww-fmtsel")) return;
-    rows[Number(row.dataset.i)].fmt = e.target.value;
+    if (!row) return;
+    const r = rows[Number(row.dataset.i)];
+    if (e.target.classList.contains("wv-ww-fmtsel")) r.fmt = e.target.value;
+    else return;
     render();
     push();
   });
@@ -13589,6 +13623,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     push();
   });
   window.__wwRowsRefresh = render;
+  window.setWwRowsList = (list) => { rows = list; activeIdx = rows.length ? 0 : -1; collapsed = true; render(); push(); };
   render();
 })();
 
@@ -13651,6 +13686,24 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     back: document.getElementById("wvKBack"),
     rechts: document.getElementById("wvKRechts"),
   };
+  const wallDecorEl = document.getElementById("wvWallDecor");
+  const lineKey = () => (winwall() ? "ww" : vigour() ? "hm" : "bx");
+  const tileSection = () => document.getElementById(winwall() ? "wvWwDecorSection" : vigour() ? "wvColorSection" : "wvBudgetColorSection");
+  const tileInputs = () => [...(tileSection()?.querySelectorAll('label.image-check input[type="radio"]') || [])];
+  const tileFor = (v) => (v ? tileInputs().find((x) => x.value === v) : null);
+  let openWall = null;
+  // Per-wall Dekor of the current line (another line's choice is ignored).
+  function readWallDecor() {
+    let o = null;
+    try { o = JSON.parse(wallDecorEl?.value || "null"); } catch { o = null; }
+    return o && o.line === lineKey() ? o : { line: lineKey() };
+  }
+  function wallImg(key) {
+    const v = readWallDecor()[key];
+    if (!v) return "";
+    if (winwall()) return `./assets/winwall/panel/${wwDecorCode(v)}.jpg`;
+    return tileFor(v)?.closest("label")?.querySelector("img")?.getAttribute("src") || "";
+  }
   // Wall colours by position in the situation (A, B, C), as on the shop page.
   const TONES = [
     { letter: "A", solid: "#b06a32", wash: "rgba(176,106,50,0.16)" },
@@ -13816,15 +13869,18 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     // 149,7 cm Vigour), slanted with the wall. Each piece has its own pattern in
     // wall-local space (u = cm along the wall from the piece's start, v = cm down
     // from the top), mapped to the screen by an affine matrix.
-    const tex = decorImage();
+    // A wall with its own Dekor (Wände und Dekor) shows that one, the rest the line's decor.
+    const fallbackTex = decorImage();
+    const wd = readWallDecor();
+    const texOf = (key) => (wd[key] && wallImg(key)) || fallbackTex;
     let defs = "";
-    if (tex) {
-      plan.pieces.forEach((pc, n) => {
-        const o = P(pc.key, pc.start, DRAW_H), u = P(pc.key, pc.start + 1, DRAW_H), v = P(pc.key, pc.start, DRAW_H - 1);
-        const m = [u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]].map((x) => x.toFixed(4)).join(" ");
-        defs += `<pattern id="kcTex${n}" patternUnits="userSpaceOnUse" width="${pc.size}" height="${DRAW_H}" patternTransform="matrix(${m})"><image href="${esc(tex)}" width="${pc.size}" height="${DRAW_H}" preserveAspectRatio="xMidYMid slice"/></pattern>`;
-      });
-    }
+    plan.pieces.forEach((pc, n) => {
+      const tex = texOf(pc.key);
+      if (!tex) return;
+      const o = P(pc.key, pc.start, DRAW_H), u = P(pc.key, pc.start + 1, DRAW_H), v = P(pc.key, pc.start, DRAW_H - 1);
+      const m = [u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]].map((x) => x.toFixed(4)).join(" ");
+      defs += `<pattern id="kcTex${n}" patternUnits="userSpaceOnUse" width="${pc.size}" height="${DRAW_H}" patternTransform="matrix(${m})"><image href="${esc(tex)}" width="${pc.size}" height="${DRAW_H}" preserveAspectRatio="xMidYMid slice"/></pattern>`;
+    });
     let out = defs ? `<defs>${defs}</defs>` : "";
     const room = view === "room";
     out += `<polygon class="kc-floor${room ? " kc-floor--room" : ""}" points="${pts([[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D]].map(([x, y, z]) => project(x, y, z, cam)))}"/>`;
@@ -13861,7 +13917,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
         nowKeys.add(k);
         const q = quad(key, pc.start, pc.start + pc.breite, PH);
         const isNew = !shownKeys.has(k);
-        const fill = tex ? `fill:url(#kcTex${plan.pieces.indexOf(pc)});fill-opacity:1;` : "";
+        const fill = texOf(key) ? `fill:url(#kcTex${plan.pieces.indexOf(pc)});fill-opacity:1;` : "";
         out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="${fill}--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
         if (pc.start > 0.5) {
           const a = P(key, pc.start, 0), b = P(key, pc.start, PH);
@@ -13936,6 +13992,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       ? `Höhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
       : "";
     paintPrice();
+    renderWalls();
     if (ww) paintWinwall(plan);
     else if (premium) paintVigour(plan, arts);
     else paintKeramico(plan);
@@ -14069,12 +14126,14 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     btn.addEventListener("click", () => {
       if (sitEl.value === btn.dataset.sit) return;
       sitEl.value = btn.dataset.sit;
+      regen();
       render();
       refresh("keramico-situation");
     }),
   );
   for (const [key, el] of Object.entries(inputs)) {
     el?.addEventListener("input", () => {
+      regen();
       render();
       refresh("keramico-width");
     });
@@ -14088,6 +14147,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     });
   }
   heightEl?.addEventListener("input", () => {
+    regen();
     render();
     refresh("keramico-height"); // the height changes how many panels are billed
   });
@@ -14123,6 +14183,154 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   window.addEventListener("pricing:updated", paintPrice);
   window.renderKeramicoCalc = render;
   window.keramicoCurrentCount = () => keramicoCount;
+
+  /* ---- Wände und Dekor: tap a wall (list or drawing) → the line's Dekor tiles
+     open right below it. wvWallDecor (JSON {line, links, back, rechts}, additive —
+     missing in older offers) keeps the choice; the walls then write the line's
+     panel rows, one group per Dekor planned with the same pricing-core plan, so
+     pricing, saving and the rows below stay exactly as they were. */
+  function regen() {
+    if (!core || window.__restoring || window.__RESTORING__) return;
+    const wd = readWallDecor();
+    const sit = situation();
+    const H = num(heightEl);
+    const groups = new Map();
+    for (const key of core.KERAMICO_SITUATIONS[sit].walls) {
+      const w = num(inputs[key]);
+      const v = wd[key];
+      if (!(w > 0) || !v || !tileFor(v)) continue;
+      if (!groups.has(v)) groups.set(v, {});
+      groups.get(v)[key] = w;
+    }
+    if (!groups.size && !wd.auto?.length) return; // walls never used: the rows stay as they are
+    const list = [];
+    for (const [v, widths] of groups) {
+      if (winwall()) {
+        const plan = core.winwallPanelPlan(sit, widths, { heightCm: H });
+        for (const [fmt, n] of Object.entries(plan.qty || {})) if (n > 0) list.push({ code: wwDecorCode(v), fmt, qty: n, custom: false, text: "" });
+      } else if (vigour()) {
+        const arts = vigourArticles();
+        const plan = core.vigourPanelPlan(sit, widths, { heightCm: H, prices: { 997: vigourPrices.get(arts[997]), 1497: vigourPrices.get(arts[1497]) } });
+        if (plan.qty997) list.push({ size: 997, qty: plan.qty997, color: v });
+        if (plan.qty1497) list.push({ size: 1497, qty: plan.qty1497, color: v });
+      } else {
+        const [pid, ...nm] = v.split("|");
+        const plan = core.keramicoPanelPlan(sit, widths, { heightCm: H, reuse: pid !== "WP007" });
+        if (plan.gesamt) list.push({ pid, name: nm.join("|"), qty: plan.gesamt, price: "" });
+      }
+    }
+    // Rows the walls made last time (wd.auto) are replaced; every other row is an
+    // extra the user added and stays, after the wall rows.
+    const key = winwall() ? (r) => `${r.code}|${r.fmt}` : vigour() ? (r) => `${r.color}|${r.size}` : (r) => r.pid;
+    const prev = [...(wd.auto || [])];
+    const current = (winwall() ? window.__wwRowsState : vigour() ? window.__wvRowsState : window.__kRowsState)?.() || [];
+    const extras = current.filter((r) => {
+      const i = prev.indexOf(key(r));
+      if (i < 0) return true;
+      prev.splice(i, 1);
+      return false;
+    });
+    wd.auto = list.map(key);
+    if (wallDecorEl) wallDecorEl.value = JSON.stringify(wd);
+    (winwall() ? window.setWwRowsList : vigour() ? window.setWvRowsList : window.setKRowsList)?.([...list, ...extras]);
+  }
+
+  function renderWalls() {
+    const sec = tileSection();
+    const wd = readWallDecor();
+    const walls = core ? core.KERAMICO_SITUATIONS[situation()].walls : [];
+    if (openWall && !walls.includes(openWall)) openWall = null;
+    root.querySelectorAll(".kc-row[data-wall]").forEach((row) => {
+      const key = row.dataset.wall;
+      const label = tileFor(wd[key])?.closest("label");
+      const img = label?.querySelector("img")?.getAttribute("src");
+      const name = label?.querySelector(".caption")?.textContent?.trim() || "";
+      const btn = row.querySelector(".kc-decor");
+      if (btn) {
+        btn.classList.toggle("is-missing", !label);
+        btn.innerHTML = label ? `${img ? `<img src="${esc(img)}" alt="" />` : ""}<span>${esc(name)}</span>` : "<span>Dekor wählen</span>";
+      }
+      const sub = row.querySelector(".kc-wall-sub");
+      if (sub) sub.textContent = num(inputs[key]) > 0 ? "" : "Breite fehlt";
+      const open = openWall === key && !row.hidden;
+      row.classList.toggle("is-open", open);
+      const body = root.querySelector(`.kc-wall-body[data-body="${key}"]`);
+      if (body) body.hidden = !open;
+    });
+    const body = openWall && root.querySelector(`.kc-wall-body[data-body="${openWall}"]`);
+    if (sec && body) {
+      if (!body.querySelector(".kc-wall-foot")) body.insertAdjacentHTML("beforeend", `<div class="kc-wall-foot"><button type="button" class="kc-all-same">Alle Wände gleiches Dekor</button></div>`);
+      body.prepend(sec);
+      sec.classList.add("in-row", "in-wall");
+      // a row that had the tiles open is left with an empty box — drop it
+      document.querySelectorAll("#wvRows .wv-row__body, #wvKRows .wv-row__body, #wvWwRows .wv-row__body").forEach((b) => { if (!b.children.length) b.remove(); });
+      tileInputs().forEach((x) => {
+        const l = x.closest("label");
+        l?.classList.toggle("wv-active", x.value === wd[openWall]);
+        l?.classList.remove("wv-used");
+      });
+    } else if (sec?.classList.contains("in-wall")) parkTiles(sec);
+  }
+  function parkTiles(sec) {
+    sec.classList.remove("in-row", "in-wall");
+    const home = { wvWwDecorSection: "wvWwRowsSection", wvColorSection: "wvRowsSection", wvBudgetColorSection: "wvKRowsSection" }[sec.id];
+    document.getElementById(home)?.after(sec);
+  }
+  function setWall(key, v) {
+    const wd = readWallDecor();
+    wd[key] = v;
+    if (wallDecorEl) wallDecorEl.value = JSON.stringify(wd);
+    // next wall without a Dekor, else close
+    openWall = core.KERAMICO_SITUATIONS[situation()].walls.find((k) => !wd[k]) || null;
+    regen();
+    render();
+    refresh("wv-wall-decor");
+  }
+  function toggleWall(key) {
+    openWall = openWall === key ? null : key;
+    renderWalls();
+  }
+  // A tile inside an open wall sets that wall's Dekor — caught before the
+  // rows' own tile handlers (capture on the ancestor), so no row is changed.
+  root.addEventListener("click", (e) => {
+    const l = e.target.closest(".kc-wall-body label.image-check");
+    const inp = l?.querySelector('input[type="radio"]');
+    if (!inp || !openWall || inp.value === "custom") return;
+    e.preventDefault();
+    e.stopPropagation();
+    setWall(openWall, inp.value);
+  }, true);
+  root.addEventListener("click", (e) => {
+    if (e.target.closest(".kc-all-same")) {
+      const wd = readWallDecor();
+      const walls = core.KERAMICO_SITUATIONS[situation()].walls;
+      const v = wd[openWall] || walls.map((k) => wd[k]).find(Boolean);
+      if (!v) return;
+      walls.forEach((k) => (wd[k] = v));
+      if (wallDecorEl) wallDecorEl.value = JSON.stringify(wd);
+      openWall = null;
+      regen();
+      render();
+      refresh("wv-wall-decor");
+      return;
+    }
+    const row = e.target.closest(".kc-row[data-wall]");
+    if (row && !e.target.closest("input")) toggleWall(row.dataset.wall);
+  });
+  svg.addEventListener("click", (e) => {
+    const i = e.target.closest?.(".kc-wall")?.dataset.wall;
+    const key = core && i != null ? core.KERAMICO_SITUATIONS[situation()].walls[Number(i)] : null;
+    if (key) toggleWall(key);
+  });
+  // A tap on a panel row below hands the tiles back to the rows.
+  document.addEventListener("click", (e) => {
+    if (!openWall || !e.target.closest?.("#wvRows, #wvKRows, #wvWwRows")) return;
+    openWall = null;
+    const sec = tileSection();
+    if (sec) sec.classList.remove("in-wall");
+    root.querySelectorAll(".kc-wall-body").forEach((b) => (b.hidden = true));
+    root.querySelectorAll(".kc-row.is-open").forEach((r) => r.classList.remove("is-open"));
+  }, true);
   // For the send-time "0 Platten" check (wvCheck): panels for a payload's wall
   // widths, or null while pricing-core isn't loaded.
   window.keramicoPanelCount = (wv) => {
@@ -18325,9 +18533,11 @@ function restoreWV(wv) {
   registerBudgetReapply("wv", applyWvColors);
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
   // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
-  setInputByNameOrId("wvArea", wv.wvArea || "");
+  // Wandfläche removed 2026-11-09: an old offer's area is not restored — area now
+  // comes from the panels/walls (pricing-core falls back to them when it is empty).
+  setInputByNameOrId("wvArea", "");
   setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
-  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif", "wvKRows"]) setInputByNameOrId(k, wv[k] || "");
+  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvKQty", "wvMotif", "wvKRows", "wvWallDecor", "wvWwSealingQty"]) setInputByNameOrId(k, wv[k] || "");
   window.pullKRows?.();
   // Badolux accessories (Standard): wvBx_<SKU> + wvBxQty_<SKU>, absent in older offers.
   document.querySelectorAll('#wvBadoluxAccSection input[type="checkbox"]').forEach((cb) => {
