@@ -36,6 +36,18 @@ for (const [key, tile] of TILES) {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.locator(`.tile-btn[data-step="${tile}"]`).click();
     await page.waitForFunction(() => document.querySelectorAll("#sidebar a.side-link[data-step]").length > 0);
+    if (isV2 && key === "bu") {
+      // v2 (UX U-010 B1): only the chosen material steps are in the menu. Choose all five, then the
+      // menu must be exactly today's (the hiding itself is tested in v2-quickwins.spec.cjs).
+      await page.waitForFunction(() => !!window.__ocQuickWins);
+      await page.evaluate(() => {
+        ["dwTrayToggle", "fbMaster", "wvEnabled", "daNeuToggle", "vorhangToggle"].forEach((id) => {
+          const t = document.getElementById(id); if (t && !t.checked) t.click();
+        });
+        window.__ocQuickWins.sync();
+      });
+      await page.waitForFunction(() => document.querySelector('#sidebar a.side-link[data-step="Duschvorhang"]')?.offsetParent !== null);
+    }
 
     const steps = await page.$$eval("#sidebar a.side-link[data-step]", (as) =>
       as.filter((a) => a.offsetParent !== null).map((a) => a.dataset.step));
