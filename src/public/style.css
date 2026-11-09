@@ -12561,8 +12561,8 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel
 }
 
 /* ===== Aufschlag: Mindestwert je Kundenart, Begründung, Zonenregler (Neu + Klassisch) ===== */
-.aufschlag-min { font-size: 0.85rem; color: var(--muted-foreground, #6b7280); white-space: nowrap; }
-.aufschlag-min b { color: var(--foreground, #1f2937); }
+.aufschlag-min { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+.aufschlag-min b { color: var(--text); }
 .aufschlag-value-box.is-low input[type="text"] { border-color: var(--accent); background: var(--accent-weak); }
 .aufschlag-chip.is-low { color: var(--accent-strong); border-color: var(--accent); background: transparent; }
 .aufschlag-chip.is-low.active { background: var(--accent-weak); border-color: var(--accent-strong); }
@@ -12596,18 +12596,18 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel
   background: var(--aknob); border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 .aufschlag-minmark {
-  position: absolute; left: var(--p-min); top: 5px; width: 2px; height: 24px; margin-left: -1px; background: #334155; pointer-events: none;
+  position: absolute; left: var(--p-min); top: 5px; width: 2px; height: 24px; margin-left: -1px; background: var(--text); pointer-events: none;
 }
 .aufschlag-minmark::after {
   content: attr(data-l); position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
-  font-size: 11px; font-weight: 700; color: #334155; white-space: nowrap;
+  font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap;
 }
 .aufschlag-minmark[hidden] { display: none; }
 
 /* Hinweis + Pflicht-Begründung */
 .aufschlag-warn { flex-direction: column; align-items: stretch; gap: 10px; background: var(--accent-weak); border-color: var(--accent); color: var(--accent-strong); }
 .aufschlag-warn__t { display: flex; gap: 10px; font-weight: 600; }
-.aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--foreground, #1f2937); }
+.aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .aufschlag-reason label span { color: var(--accent-strong); }
 .aufschlag-reason textarea {
   width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; font: inherit; resize: vertical; background: var(--panel, #fff); box-sizing: border-box;
@@ -12615,7 +12615,7 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel
 .aufschlag-reason textarea.empty { border-color: var(--accent); }
 .aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: var(--accent-strong); }
 .aufschlag-reason__err[hidden] { display: none; }
-.aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted-foreground, #6b7280); }
+.aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted); }
 
 /* ===== Wandverkleidung (Neu + Klassisch): Dekor-Kacheln klappen in der markierten Zeile auf ===== */
 .wv-row__name { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; }
