@@ -192,6 +192,11 @@ export function buildKalkulationV2Html(data) {
       <tr><td>III. Optionale Produkte</td><td class="num">${esc(data.PosIII_Label)}</td></tr>
       <tr class="sub"><td>${esc(data.AufschlagLabel)}</td><td class="num">${esc(data.AufschlagValueLabel)}</td></tr>
       ${
+        data.AufschlagBegruendung
+          ? `<tr class="sub"><td colspan="2" style="white-space:pre-wrap;">Begründung (Aufschlag unter Mindestwert): ${esc(data.AufschlagBegruendung)}</td></tr>`
+          : ""
+      }
+      ${
         data.RabattValueLabel
           ? `<tr class="sub"><td>Rabatt</td><td class="num">${esc(data.RabattValueLabel)}</td></tr>`
           : ""
