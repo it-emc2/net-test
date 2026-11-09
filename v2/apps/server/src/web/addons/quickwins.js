@@ -124,7 +124,8 @@
     N + ".radio-group.vertical>.radio-pill{flex:0 1 auto;width:auto!important;justify-content:flex-start!important;text-align:left;gap:10px;padding:10px 16px!important}",
     N + ".radio-group.vertical>.radio-pill>span:last-child{margin-left:0!important;text-align:left!important}",
     // A5 — icons on the offer-type tiles
-    "#page-home .tile-btn:has(.oc-tile-ico){display:flex!important;align-items:center;justify-content:flex-start;gap:14px}",
+    // not !important: deal-link.js hides HMS/WD tiles with display:none!important (ADR 011) and must win
+    "#page-home .tile-btn:has(.oc-tile-ico){display:flex;align-items:center;justify-content:flex-start;gap:14px}",
     "#page-home .tile-btn .oc-tile-ico{font-size:24px;width:30px;text-align:center;flex:none;margin:0;color:var(--accent,#7C3AED)}",
     // C1 — developer/CRM groups only for admins
     "html:not(.oc-admin) #sideMenu .accordion-group{display:none!important}",
