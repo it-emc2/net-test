@@ -90,6 +90,8 @@ const SigningRequestSchema = new Schema(
     openedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
+    // customer clicked "Neuen Link anfordern" on the expired page (once per link)
+    newLinkRequestedAt: { type: Date, default: null },
   },
   { timestamps: true, minimize: false },
 );

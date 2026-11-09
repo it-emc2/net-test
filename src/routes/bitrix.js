@@ -1195,7 +1195,10 @@ async function setDealOfferLink(dealId, offerNumber) {
   }
 }
 
+const addTask = (fields) => bxPost("tasks.task.add", { fields });
+
 export {
+  addTask,
   ensurePartnerContact,
   getDealContactId,
   setDealOfferLink,

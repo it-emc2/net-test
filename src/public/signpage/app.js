@@ -32,7 +32,11 @@
   function api(path, opts) {
     return fetch("/api/signing/" + path, opts).then(function (r) {
       return r.json().then(function (body) {
-        if (!r.ok) throw new Error(body && body.error ? body.error : "Fehler");
+        if (!r.ok) {
+          var err = new Error(body && body.error ? body.error : "Fehler");
+          err.body = body || {};
+          throw err;
+        }
         return body;
       });
     });
@@ -56,7 +60,38 @@
         state.maxIndex = state.index;
         renderStep();
       })
-      .catch(function (e) { showFatal(e.message || "Der Link ist ungültig oder abgelaufen."); });
+      .catch(function (e) {
+        if (e.body && e.body.expired) return showExpired(e.body.newLinkRequested);
+        showFatal(e.message || "Der Link ist ungültig oder abgelaufen.");
+      });
+  }
+
+  // Expired link: our contact details + one-click "send me a new link" request.
+  function showExpired(alreadyRequested) {
+    loading.classList.add("hidden");
+    app.classList.add("hidden");
+    var box = el("expired");
+    box.classList.remove("hidden");
+    var btn = el("requestNewLink");
+    var msg = el("requestNewLinkMsg");
+    function done() {
+      btn.classList.add("hidden");
+      msg.className = "feedback is-success";
+      msg.textContent = "Vielen Dank! Ihre Anfrage ist bei uns eingegangen. Wir senden Ihnen in Kürze einen neuen Link per E-Mail.";
+    }
+    if (alreadyRequested) return done();
+    btn.onclick = function () {
+      btn.disabled = true;
+      btn.textContent = "Wird gesendet …";
+      api(encodeURIComponent(token) + "/request-new-link", { method: "POST" })
+        .then(done)
+        .catch(function (e) {
+          btn.disabled = false;
+          btn.textContent = "Neuen Link anfordern";
+          msg.className = "feedback is-error";
+          msg.textContent = e.message || "Anfrage fehlgeschlagen. Bitte rufen Sie uns an.";
+        });
+    };
   }
 
   function updateNav() {
