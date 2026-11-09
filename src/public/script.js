@@ -9168,8 +9168,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 };
 
 (function initAufschlag() {
-  // Vorübergehend aus: kein Hinweis, keine Pflicht-Begründung unter dem Mindestwert. true = wieder aktiv.
-  const AUFSCHLAG_REASON_ENFORCED = false;
+  // Pflicht-Begründung unter dem Mindestwert (keine Freigabe nötig). false = abschalten.
+  const AUFSCHLAG_REASON_ENFORCED = true;
   // Mindestwerte je Kundenart + Zonenfarben: src/logic/aufschlag-rules.js (rein, getestet).
   let rules = null;
   import("/logic/aufschlag-rules.js").then((m) => { rules = m; render(); validateAufschlagSelection(); }).catch(() => {});
