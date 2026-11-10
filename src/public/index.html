@@ -21,6 +21,7 @@
 
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./styles/opt_section.css" />
+  <link rel="stylesheet" href="./styles/referenzbilder.css" />
   <link rel="stylesheet" href="/configurator/badolux-sketch.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
@@ -11139,6 +11140,14 @@ button.dm-btn-danger:focus-visible {
           <div id="crm-emc2-results" class="crm-emc2-results"></div>
         </div>
       </section>
+
+      <!-- Referenzbilder: filled by referenzbilder.js for the active offer -->
+      <section class="card page ref-page" id="page-referenzVorher" hidden>
+        <div class="ref-root"></div>
+      </section>
+      <section class="card page ref-page" id="page-referenzNachher" hidden>
+        <div class="ref-root"></div>
+      </section>
     </div>
   <!-- widget: direct grid child of .app so the desktop rail gets its own column -->
   <div id="summaryWidget" class="summary-widget" aria-live="polite">
@@ -11307,6 +11316,7 @@ button.dm-btn-danger:focus-visible {
   <script type="module" src="/arbeitenAuto.js"></script>
   <script type="module" src="/angebotsversand.js"></script>
   <script type="module" src="/checkliste.js"></script>
+  <script type="module" src="/referenzbilder.js"></script>
 
 </body>
 
