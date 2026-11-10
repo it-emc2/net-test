@@ -9336,7 +9336,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     const reason = String(reasonEl?.value || "").trim();
     return belowMin() && reason ? { min: rules.aufschlagMin(payerName()), reason } : null;
   };
-  window.getAufschlagReason = () => String(reasonEl?.value || "").trim();
+  // Nur unter dem Mindestwert mitspeichern (sonst druckt die Kalkulation eine Begründung, die nicht gilt).
+  // Regeln noch nicht geladen → behalten statt still verwerfen. Der Feldtext selbst bleibt stehen.
+  window.getAufschlagReason = () => (!rules || belowMin() ? String(reasonEl?.value || "").trim() : "");
   window.setAufschlagReason = (v) => { if (reasonEl) { reasonEl.value = String(v ?? ""); syncReason(); } };
 
   slider?.addEventListener("input", () => setAufschlag(slider.value));
@@ -18568,6 +18570,8 @@ function restoreWV(wv) {
   }
   syncProduktlinieGroups({ render: false });
   syncTierSwitchUi();
+  // Re-render now that wvSupplier is set — the render above still saw the previous offer's line (stale hint text).
+  window.renderKeramicoCalc?.();
   setTimeout(() => window.syncWvDisclosures?.(wv), 0); // extra colour rows are rebuilt below
 
   const pageWV = document.getElementById("page-Wandverkleidung");
