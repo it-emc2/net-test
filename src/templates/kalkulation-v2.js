@@ -60,7 +60,7 @@ const CSS = `
   tr.total td{border-top:1.5px solid #1b2a30; border-bottom:none; font-weight:700; padding-top:8px;}
   tr.sub td{color:#5c6e76;}
   tr.sect td{font-weight:700; background:#f4f8f9;}
-  .section-lbl{font-size:9pt; text-transform:uppercase; letter-spacing:.06em; color:#0a5462; font-weight:700; margin:20px 0 8px;}
+  .section-lbl{font-size:9pt; text-transform:uppercase; letter-spacing:.06em; color:#0a5462; font-weight:700; margin:20px 0 8px; break-after:avoid; page-break-after:avoid;}
   .pos-card{border:1px solid #dbe4e6; border-radius:4px; padding:10px 12px; margin-bottom:10px; background:#f4f8f9;}
   .pos-card .row1{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
   .pos-card .ptitle{font-weight:700; font-size:10.5pt;}
