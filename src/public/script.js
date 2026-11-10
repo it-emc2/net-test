@@ -4507,58 +4507,6 @@ function buildPayload() {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
   }
 
-  /* ===========================
-     HL: pair steel length + quality rows into structured array
-     =========================== */
-  try {
-  
-  // --- HL Quick-Add (Freier Posten) rows from UI ---
-  try {
-    const panels = document.querySelectorAll("[data-hl-quickadd]");
-    panels.forEach((panel) => {
-      const group = panel.getAttribute("data-hl-group") || "QuickAdd";
-      const wrap = panel.querySelector(".hl-quickadd-items");
-      if (!wrap) return;
-      Array.from(wrap.querySelectorAll(".da-item")).forEach((rowEl) => {
-        const nameEl = rowEl.querySelector(".da-name");
-        const idEl = rowEl.querySelector(".da-id");
-        const qtyEl = rowEl.querySelector(".da-qty");
-        const priceEl = rowEl.querySelector(".da-price");
-
-        const label = String(nameEl?.value || "").trim();
-        const productId = String(idEl?.value || "").trim();
-        const qtyRaw = String(qtyEl?.value || "").trim();
-        const priceRaw = String(priceEl?.value || "").trim();
-
-        if (!label && !productId && !qtyRaw && !priceRaw) return;
-        if (!label || !productId || !priceRaw) return;
-
-        const qty = Math.max(1, Number(qtyRaw || 1) || 1);
-        const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
-
-        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
-        const family = String(rowEl.dataset.hlCatalogFamily || "");
-        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
-
-        rows.push({
-          kind: "hl-custom",
-          group,
-          label,
-          productId,
-          qty,
-          price,
-          ...(unit ? { unit } : {}),
-        });
-      });
-    });
-  } catch (e) {
-    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
-  }
-
-  } catch (e) {
-    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
-  }
-
   payload.Kundendaten = payload.Kundendaten || {};
   if (!payload.Kundendaten.customerNumber) {
     payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
