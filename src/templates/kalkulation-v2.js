@@ -60,7 +60,7 @@ const CSS = `
   tr.total td{border-top:1.5px solid #1b2a30; border-bottom:none; font-weight:700; padding-top:8px;}
   tr.sub td{color:#5c6e76;}
   tr.sect td{font-weight:700; background:#f4f8f9;}
-  .section-lbl{font-size:9pt; text-transform:uppercase; letter-spacing:.06em; color:#0a5462; font-weight:700; margin:20px 0 8px;}
+  .section-lbl{font-size:9pt; text-transform:uppercase; letter-spacing:.06em; color:#0a5462; font-weight:700; margin:20px 0 8px; break-after:avoid; page-break-after:avoid;}
   .pos-card{border:1px solid #dbe4e6; border-radius:4px; padding:10px 12px; margin-bottom:10px; background:#f4f8f9;}
   .pos-card .row1{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
   .pos-card .ptitle{font-weight:700; font-size:10.5pt;}
@@ -106,7 +106,7 @@ function posBlock(prefix, data, { material = false } = {}) {
     <div class="pos-card">
       <div class="row1">
         <div class="ptitle">${esc(no)} &middot; ${esc(title)}</div>
-        <div class="pcalc">${esc(data[`${prefix}_Qty`])} ${esc(data[`${prefix}_Unit`])} &times; ${esc(data[`${prefix}_UnitPrice`])} = <b>${esc(data[`${prefix}_LineTotal`])}</b></div>
+        <div class="pcalc">${material ? `inkl. Aufschlag = <b>${esc(data.MatVkLabel)}</b>` : `${esc(data[`${prefix}_Qty`])} ${esc(data[`${prefix}_Unit`])} &times; ${esc(data[`${prefix}_UnitPrice`])} = <b>${esc(data[`${prefix}_LineTotal`])}</b>`}</div>
       </div>
     </div>
     <table>
@@ -117,21 +117,57 @@ function posBlock(prefix, data, { material = false } = {}) {
             (l) => `<tr><td>${esc(l.Kostenart)}</td><td class="num">${esc(l.Menge)}</td><td>${esc(l.Einheit)}</td><td>${esc(l.Beschreibung)}</td><td class="num">${esc(l.EK_je_Einheit)}</td><td class="num">${esc(l.Gesamt)}</td></tr>`,
           )
           .join("")}
-        <tr class="total"><td colspan="5">${material ? `Summe Position ${esc(no)} &ndash; EK netto` : `Summe Position ${esc(no)}`}</td><td class="num">${esc(fmtCurrency(rowSum))}</td></tr>
-        ${
-          material && data.MatAufschlagLabel
-            ? `<tr class="sub"><td colspan="5">+ Aufschlag ${esc(data.MatAufschlagPctLabel)} auf EK netto</td><td class="num">${esc(data.MatAufschlagLabel)}</td></tr>
-        <tr class="total"><td colspan="5">= Summe Position ${esc(no)} &ndash; VK netto</td><td class="num">${esc(data.MatVkLabel)}</td></tr>`
-            : ""
-        }
+        <tr class="total"><td colspan="5">${material ? `Summe Material &ndash; EK netto` : `Summe Position ${esc(no)}`}</td><td class="num">${esc(fmtCurrency(rowSum))}</td></tr>
       </tbody>
     </table>
-    ${material ? `<div class="note">Alle Materialpreise sind EK-Preise netto. VK = EK + Aufschlag, vor Rabatt und Bonus.</div>` : ""}`;
+    ${
+      material && data.MatVkLabel
+        ? `<div class="note">Alle Materialpreise in der Tabelle sind EK-Preise netto.</div>
+    <div class="section-lbl">Berechnung Aufschlag</div>
+    <table style="page-break-inside:avoid;">
+      <tbody>
+        <tr><td>EK netto (Basis f&uuml;r den Aufschlag)</td><td class="num">${esc(data.MatBaseLabel)}</td></tr>
+        <tr><td>&times; Aufschlag ${esc(data.MatPctLabel)}</td><td class="num">+ ${esc(data.MatAufschlagLabel)}</td></tr>
+        ${data.MatNoMarkupLabel ? `<tr class="sub"><td>Artikel ohne Aufschlag (EK = VK)</td><td class="num">+ ${esc(data.MatNoMarkupLabel)}</td></tr>` : ""}
+        <tr class="total"><td>= Material &ndash; VK netto (Position II)</td><td class="num">${esc(data.MatVkLabel)}</td></tr>
+      </tbody>
+    </table>`
+        : ""
+    }`;
+}
+
+// Selbstzahler only: Arbeitskostenanteil (Lohn) for the tax return, built from
+// the same numbers already shown elsewhere in this document.
+function selbstzahlerBlock(data) {
+  if (!data.IsSZ) return "";
+  const emps = data.Employees || [];
+  return `
+  <div style="page-break-before:always; break-before:page;"></div>
+  <div class="section-lbl" style="margin-top:0;">Selbstzahler &mdash; Arbeitskostenanteil</div>
+  <table>
+    <thead><tr><th>Handwerker</th><th class="num">Vor Ort</th><th class="num">Anfahrt</th><th class="num">Lohn vor Ort</th><th class="num">Lohn Anfahrt</th><th class="num">Summe Lohn</th></tr></thead>
+    <tbody>
+      ${emps.map((e) => `<tr><td>${esc(e.Label)}</td><td class="num">${esc(e.OnSiteHoursLabel)}</td><td class="num">${esc(e.TravelHoursLabel)}</td><td class="num">${esc(e.OnSiteCostLabel)}</td><td class="num">${esc(e.TravelCostLabel)}</td><td class="num">${esc(e.TotalCostLabel)}</td></tr>`).join("")}
+      <tr class="total"><td>Gesamt</td><td class="num">${esc(data.ArbeitszeitGesamtLabel)}</td><td class="num">${esc(data.ReisezeitGesamtLabel)}</td><td class="num">${esc(data.SzLohnVorOrtLabel)}</td><td class="num">${esc(data.SzLohnAnfahrtLabel)}</td><td class="num">${esc(data.SzLohnLabel)}</td></tr>
+    </tbody>
+  </table>
+  <div class="section-lbl">Aufteilung des Angebots (netto)</div>
+  <table style="page-break-inside:avoid;">
+    <tbody>
+      <tr class="sect"><td>Arbeitskostenanteil (Lohn)</td><td class="num">${esc(data.SzLohnLabel)}</td></tr>
+      <tr><td>Fahrzeug, Maschinen, Ber&auml;umung, Kilometer (Nebenleistungen)</td><td class="num">${esc(data.SzNebenLabel)}</td></tr>
+      <tr><td>Material (inkl. Aufschlag)</td><td class="num">${esc(data.MatVkLabel)}</td></tr>
+      <tr class="sub"><td>Bonus / Gratis</td><td class="num">${esc(data.BonusGesamtLabel)}</td></tr>
+      <tr class="total"><td>Nettobetrag</td><td class="num">${esc(data.NettobetragLabel)}</td></tr>
+    </tbody>
+  </table>
+  <div class="note">Arbeitskostenanteil brutto (${esc(data.SzTaxLabel)} MwSt.): ${esc(data.SzLohnBruttoLabel)}. Lohn + Nebenleistungen = Position I.</div>`;
 }
 
 function reisezeitKostenBlock(data) {
   const employees = data.Employees || [];
   return `
+    <div style="page-break-inside:avoid;">
     <div class="section-lbl">Reisezeit Kosten &mdash; ${esc(data.OfferBadge)}</div>
     <table style="page-break-inside:avoid;">
       <tbody>
@@ -157,7 +193,8 @@ function reisezeitKostenBlock(data) {
         <tr class="total"><td>Gesamtkosten aus Zeiten</td><td class="num">${esc(data.GesamtkostenAusZeitenLabel)}</td></tr>
       </tbody>
     </table>
-    <div class="note">${esc(data.ZeitenHinweisText)}</div>`;
+    <div class="note">${esc(data.ZeitenHinweisText)}</div>
+    </div>`;
 }
 
 export function buildKalkulationV2Html(data) {
@@ -188,9 +225,8 @@ export function buildKalkulationV2Html(data) {
     <thead><tr><th>Position</th><th class="num">Summe</th></tr></thead>
     <tbody>
       <tr><td>I. Auszuführende Arbeiten</td><td class="num">${esc(data.PosI_Label)}</td></tr>
-      <tr><td>II. Material für Badumbau (EK netto)</td><td class="num">${esc(data.PosII_Label)}</td></tr>
-      <tr><td>III. Optionale Produkte</td><td class="num">${esc(data.PosIII_Label)}</td></tr>
-      <tr class="sub"><td>${esc(data.AufschlagLabel)}</td><td class="num">${esc(data.AufschlagValueLabel)}</td></tr>
+      <tr><td>II. Material für Badumbau <span style="color:#5c6e76">(inkl. Aufschlag)</span></td><td class="num">${esc(data.PosII_Label)}</td></tr>
+      ${data.PosIII_Label && data.PosIII_Label !== data.ZeroLabel ? `<tr><td>III. Optionale Produkte</td><td class="num">${esc(data.PosIII_Label)}</td></tr>` : ""}
       ${
         data.AufschlagBegruendung
           ? `<tr class="sub"><td colspan="2" style="white-space:pre-wrap;">Begründung (Aufschlag unter Mindestwert): ${esc(data.AufschlagBegruendung)}</td></tr>`
@@ -222,6 +258,7 @@ export function buildKalkulationV2Html(data) {
 <div class="page">
   ${headerBlock(data)}
   ${posBlock("Pos001", data)}
+  ${selbstzahlerBlock(data)}
   ${reisezeitKostenBlock(data)}
 </div>
 
