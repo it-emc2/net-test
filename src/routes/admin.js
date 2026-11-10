@@ -5,6 +5,8 @@ import SigningRequest from '../models/SigningRequest.js';
 import BitrixLog from '../models/BitrixLog.js';
 import UserActionLog from '../models/UserActionLog.js';
 import PdfLog, { PDF_LOG_APP } from '../models/PdfLog.js';
+import { RecordingSession, RecordingRequest, RECORDING_APP } from '../models/Recording.js';
+import { b2Get } from '../services/b2.js';
 import { retryBitrixLog } from './bitrix.js';
 import { sendSignedDocsToBitrix, buildSignedPdf, buildDocumentPdf } from './signing.js';
 import User from '../models/User.js';
@@ -415,6 +417,50 @@ router.get('/api/users/:email/signature', requireAdmin, async (req, res) => {
     res.json({ dataUrl: u.signatureDataUrl || '' });
   } catch (err) {
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// ── Session recordings (rrweb chunks in B2, index + request log in Mongo) ──
+// GET /admin/api/recordings?days=7 — newest first, without the chunk list.
+router.get('/api/recordings', requireAdmin, async (req, res) => {
+  try {
+    const days = Math.min(31, Math.max(1, Number(req.query.days) || 7));
+    const since = new Date(Date.now() - days * 864e5);
+    const items = await RecordingSession.find({ app: RECORDING_APP, startedAt: { $gte: since } })
+      .sort({ startedAt: -1 }).limit(500)
+      .select('sid email day startedAt lastAt ua viewport errorCount bytes chunks.seq').lean();
+    res.json({ app: RECORDING_APP, items: items.map(({ chunks, ...s }) => ({ ...s, chunkCount: chunks?.length || 0 })) });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /admin/api/recordings/:sid — chunk list + the server requests of that user in the same window.
+router.get('/api/recordings/:sid', requireAdmin, async (req, res) => {
+  try {
+    const s = await RecordingSession.findOne({ app: RECORDING_APP, sid: req.params.sid }).lean();
+    if (!s) return res.status(404).json({ error: 'Nicht gefunden' });
+    s.chunks.sort((a, b) => a.seq - b.seq);
+    const requests = await RecordingRequest.find({
+      app: RECORDING_APP, email: s.email,
+      at: { $gte: new Date(+s.startedAt - 60e3), $lte: new Date(+s.lastAt + 60e3) },
+    }).sort({ at: 1 }).limit(10000).select('-_id at method path status ms').lean();
+    res.json({ session: s, requests });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /admin/api/recordings/:sid/chunk/:seq — gzip bytes as stored (the browser decompresses).
+router.get('/api/recordings/:sid/chunk/:seq', requireAdmin, async (req, res) => {
+  try {
+    const s = await RecordingSession.findOne({ app: RECORDING_APP, sid: req.params.sid }, { chunks: 1 }).lean();
+    const c = s?.chunks.find((x) => x.seq === Number(req.params.seq));
+    if (!c) return res.status(404).json({ error: 'Nicht gefunden' });
+    const buf = await b2Get(c.key);
+    res.set({ 'Content-Type': 'application/octet-stream', 'Cache-Control': 'private, max-age=86400' }).send(buf);
+  } catch (err) {
+    res.status(502).json({ error: String(err?.message || err) });
   }
 });
 
