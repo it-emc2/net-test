@@ -328,7 +328,10 @@ function getPagesForOfferType(offerType) {
   if (!cfg || !Array.isArray(cfg.pages)) return [];
   return cfg.pages
     .map((p) => (typeof p === "string" ? p : p.id))
-    .filter((id) => id !== "Duschabtrennung" || isDaHassmannVisible());
+    .filter((id) => id !== "Duschabtrennung" || isDaHassmannVisible())
+    // Old HL page is hidden from navigation; it stays in OFFERS.hl.pages so its
+    // form (Quick-Add rows the Konfigurator injects) is still collected/restored.
+    .filter((id) => id !== "hl");
 }
 
 const HOME_HASH = "#home";
