@@ -245,6 +245,9 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
+      // Reference photos (referenzbilder.js) — outside the flow, see getFlowSteps.
+      "referenzVorher",
+      "referenzNachher",
     ],
   },
   bwt: {
@@ -258,6 +261,8 @@ const OFFERS = {
       "Kosten",
       "Zusammenfassung",
       "admin",
+      // BWT only has Nachher photos so far.
+      "referenzNachher",
     ],
   },
   hl: {
@@ -283,7 +288,15 @@ const OFFERS = {
   },
   hms: {
     name: "HMS · Hausmeisterservice",
-    pages: ["Kundendaten", "Arbeitszeit", "hms", "Kosten", "Zusammenfassung"],
+    pages: [
+      "Kundendaten",
+      "Arbeitszeit",
+      "hms",
+      "Kosten",
+      "Zusammenfassung",
+      "referenzVorher",
+      "referenzNachher",
+    ],
   },
   wd: {
     name: "WD · Winterdienst",
@@ -328,7 +341,10 @@ function getPagesForOfferType(offerType) {
   if (!cfg || !Array.isArray(cfg.pages)) return [];
   return cfg.pages
     .map((p) => (typeof p === "string" ? p : p.id))
-    .filter((id) => id !== "Duschabtrennung" || isDaHassmannVisible());
+    .filter((id) => id !== "Duschabtrennung" || isDaHassmannVisible())
+    // Old HL page is hidden from navigation; it stays in OFFERS.hl.pages so its
+    // form (Quick-Add rows the Konfigurator injects) is still collected/restored.
+    .filter((id) => id !== "hl");
 }
 
 const HOME_HASH = "#home";
@@ -2942,9 +2958,13 @@ function resetAllRepeaterDOMs() {
 }
 
 // Effective list of steps used for prev/next navigation
+// Vorher/Nachher photo pages: reachable from the sidebar, but never part of
+// Weiter/Zurück or the done-circles.
+const REFERENZ_PAGES = new Set(["referenzVorher", "referenzNachher"]);
+
 function getFlowSteps() {
   if (currentOfferKey && OFFERS[currentOfferKey]) {
-    return getPagesForOfferType(currentOfferKey);
+    return getPagesForOfferType(currentOfferKey).filter((p) => !REFERENZ_PAGES.has(p));
   }
   return steps;
 }
@@ -3012,7 +3032,8 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
-  const groupedPages = new Set(["admin", "services", "crm-emc2"]);
+  const referenzPages = ["referenzVorher", "referenzNachher"];
+  const groupedPages = new Set(["admin", "services", "crm-emc2", ...referenzPages]);
   const normalPages = pages.filter(
     (pageId) => pageId !== "home" && !groupedPages.has(pageId),
   );
@@ -3032,6 +3053,8 @@ function updateSidebarForOffer() {
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
     Optional: "Optionale Produkte",
+    referenzVorher: "Vorher / Arbeitsschritte",
+    referenzNachher: "Nachher",
   };
 
   // Badumbau and Badewannentür group their pages into numbered sections; every
@@ -3181,6 +3204,12 @@ function updateSidebarForOffer() {
     group.appendChild(body);
     sideMenu.appendChild(group);
   }
+
+  // Reference photos: own unnumbered group below the offer pages.
+  appendSideGroup(
+    { title: "Referenzbilder" },
+    referenzPages.filter((pageId) => pages.includes(pageId)),
+  );
 
   appendAccordionGroup(
     "Developer",
@@ -3334,7 +3363,12 @@ function setStep(step) {
   console.trace("[setStep] stack");
 
   const flowSteps = getFlowSteps(); // pages for the current offer (or all steps if none)
-  const progressIndex = flowSteps.indexOf(step);
+  // On a Referenzbilder page keep the circles of the step the user came from,
+  // and remember that step for the page's "Zurück zum Angebot".
+  if (!REFERENZ_PAGES.has(step)) window.__refReturnStep = step === "home" ? null : step;
+  const progressIndex = flowSteps.indexOf(
+    REFERENZ_PAGES.has(step) ? window.__refReturnStep : step,
+  );
   function isDoneInFlow(s) {
     if (step === "home") return false;
     if (s === "home") {
@@ -4474,58 +4508,6 @@ function buildPayload() {
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
-  }
-
-  /* ===========================
-     HL: pair steel length + quality rows into structured array
-     =========================== */
-  try {
-  
-  // --- HL Quick-Add (Freier Posten) rows from UI ---
-  try {
-    const panels = document.querySelectorAll("[data-hl-quickadd]");
-    panels.forEach((panel) => {
-      const group = panel.getAttribute("data-hl-group") || "QuickAdd";
-      const wrap = panel.querySelector(".hl-quickadd-items");
-      if (!wrap) return;
-      Array.from(wrap.querySelectorAll(".da-item")).forEach((rowEl) => {
-        const nameEl = rowEl.querySelector(".da-name");
-        const idEl = rowEl.querySelector(".da-id");
-        const qtyEl = rowEl.querySelector(".da-qty");
-        const priceEl = rowEl.querySelector(".da-price");
-
-        const label = String(nameEl?.value || "").trim();
-        const productId = String(idEl?.value || "").trim();
-        const qtyRaw = String(qtyEl?.value || "").trim();
-        const priceRaw = String(priceEl?.value || "").trim();
-
-        if (!label && !productId && !qtyRaw && !priceRaw) return;
-        if (!label || !productId || !priceRaw) return;
-
-        const qty = Math.max(1, Number(qtyRaw || 1) || 1);
-        const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
-
-        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
-        const family = String(rowEl.dataset.hlCatalogFamily || "");
-        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
-
-        rows.push({
-          kind: "hl-custom",
-          group,
-          label,
-          productId,
-          qty,
-          price,
-          ...(unit ? { unit } : {}),
-        });
-      });
-    });
-  } catch (e) {
-    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
-  }
-
-  } catch (e) {
-    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
   }
 
   payload.Kundendaten = payload.Kundendaten || {};

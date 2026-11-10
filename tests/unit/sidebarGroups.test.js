@@ -95,6 +95,7 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
     "Rabatt",
     "Kosten",
     "Zusammenfassung",
+    "Referenzbilder",
     "Developer",
     "CRM",
   ]);
@@ -207,4 +208,19 @@ test("non-bu/bwt offers keep the flat list", () => {
     "Zusammenfassung",
     "Developer",
   ]);
+});
+
+test("Referenzbilder: own group below the offer pages, only for offers that have photos", () => {
+  const bu = render({ offerType: "bu", step: "Kundendaten" }, BU_PAGES);
+  const group = bu.find((e) => e.group === "Referenzbilder");
+  expect(group.steps).toEqual(["referenzVorher", "referenzNachher"]);
+  expect(group.num).toBeUndefined();
+
+  // An offer that only lists Nachher gets just that link.
+  const bwt = render({ offerType: "bwt", step: "bwt" }, ["Kundendaten", "bwt", "referenzNachher"]);
+  expect(bwt.find((e) => e.group === "Referenzbilder").steps).toEqual(["referenzNachher"]);
+
+  // No photo pages → no empty group.
+  const hl = render({ offerType: "hl", step: "hl" }, ["Kundendaten", "hl"]);
+  expect(hl.some((e) => e.group === "Referenzbilder")).toBe(false);
 });
