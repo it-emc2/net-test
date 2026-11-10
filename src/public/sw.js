@@ -68,6 +68,9 @@ const PRECACHE = [
   "/AdminManager.js",
   "/EmailManager.js",
   "/sw-register.js",
+  // Session recorder library (recorder.js loads it only for recorded users).
+  "/vendor/rrweb/rrweb.umd.min.cjs",
+  "/vendor/rrweb-console/rrweb-plugin-console-record.umd.min.cjs",
   // Static import of referenzbilder.js (photo index for Vorher/Nachher).
   "/referenz-manifest.js",
   // The only images worth precaching. Discovery deliberately ignores images:

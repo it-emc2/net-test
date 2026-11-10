@@ -51,6 +51,7 @@ import pricingFactory from "./logic/pricing.js";
 // app.txt (top imports)
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
+import recordingRouter, { logRecordedRequests } from "./routes/recording.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
 import { fetchVigourNetPrices } from "./external/vigorDb.js";
 import UserActionLog from "./models/UserActionLog.js";
@@ -272,6 +273,8 @@ app.use("/api/auth", authRouter);
 // Gate everything else (customer signing + assets + health stay public; see
 // middleware/authGate.js). Runs before the routers below.
 app.use(authGate);
+// Server-side request log for users in RECORD_USERS (session recording); no-op for everyone else.
+app.use(logRecordedRequests);
 
 // ---------------- Mongo ----------------
 mongoose.set("strictQuery", true);
@@ -321,6 +324,7 @@ app.use("/api", planningRouter);
 app.use("/api/hl", hlParseRouter);
 app.use('/api', todaysCustomersRouter);
 app.use('/admin', adminRouter);
+app.use('/api/recording', recordingRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/signing', signingRouter);
 // Public signing page (must be before the SPA fallback so /sign/:token works).
@@ -671,6 +675,12 @@ app.use(
     },
   }),
 );
+
+// ---------------- Static: rrweb (session recorder + admin replay) from npm ----------------
+// UMD bundles ship as .cjs; with nosniff the browser only runs them as JavaScript.
+const jsCjs = { maxAge: "7d", fallthrough: false, setHeaders: (res, f) => f.endsWith(".cjs") && res.setHeader("Content-Type", "text/javascript; charset=utf-8") };
+app.use("/vendor/rrweb", express.static(path.join(__dirname, "..", "node_modules", "rrweb", "dist"), jsCjs));
+app.use("/vendor/rrweb-console", express.static(path.join(__dirname, "..", "node_modules", "@rrweb", "rrweb-plugin-console-record", "dist"), jsCjs));
 
 // ---------------- Static: Font Awesome from npm ----------------
 app.use(
