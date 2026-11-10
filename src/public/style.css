@@ -12591,9 +12591,9 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel
 /* ===== Aufschlag: Mindestwert je Kundenart, Begründung, Zonenregler (Neu + Klassisch) ===== */
 .aufschlag-min { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
 .aufschlag-min b { color: var(--text); }
-.aufschlag-value-box.is-low input[type="text"] { border-color: var(--accent); background: var(--accent-weak); }
-.aufschlag-chip.is-low { color: var(--accent-strong); border-color: var(--accent); background: transparent; }
-.aufschlag-chip.is-low.active { background: var(--accent-weak); border-color: var(--accent-strong); }
+.aufschlag-value-box.is-low input[type="text"] { border-color: var(--aw-border); background: var(--aw-bg); }
+.aufschlag-chip.is-low { color: var(--aw-text); border-color: var(--aw-border); background: transparent; }
+.aufschlag-chip.is-low.active { background: var(--aw-bg); border-color: var(--aw-text); }
 
 /* Regler: Spurverlauf rot | orange | gelb | grün; Griff in der Zonenfarbe (--aknob aus render()).
    --amin-n = Mindestwert in % der Reglerbreite (Skala 0–200 %); 60 % → 30, 70 % → 35. */
@@ -12632,16 +12632,18 @@ body.ui-classic #page-Wandverkleidung .wv-leftover-btn { background: var(--panel
 }
 .aufschlag-minmark[hidden] { display: none; }
 
-/* Hinweis + Pflicht-Begründung */
-.aufschlag-warn { flex-direction: column; align-items: stretch; gap: 10px; background: var(--accent-weak); border-color: var(--accent); color: var(--accent-strong); }
+/* Hinweis + Pflicht-Begründung: bewusst Warnfarbe (Amber/Rot), nicht die Themenfarbe — Grün las sich wie „OK". */
+:root { --aw-bg: #fff7e6; --aw-border: #f5c26b; --aw-text: #92400e; --aw-err: #b91c1c; }
+[data-mode="dark"] { --aw-bg: rgba(245, 158, 11, 0.14); --aw-border: #b45309; --aw-text: #fcd34d; --aw-err: #fca5a5; }
+.aufschlag-warn { flex-direction: column; align-items: stretch; gap: 10px; background: var(--aw-bg); border-color: var(--aw-border); color: var(--aw-text); }
 .aufschlag-warn__t { display: flex; gap: 10px; font-weight: 600; }
 .aufschlag-reason label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text); }
-.aufschlag-reason label span { color: var(--accent-strong); }
+.aufschlag-reason label span { color: var(--aw-err); }
 .aufschlag-reason textarea {
   width: 100%; min-height: 76px; padding: 10px 12px; border: 1px solid var(--input-border, #d1d5db); border-radius: 10px; font: inherit; resize: vertical; background: var(--panel, #fff); box-sizing: border-box;
 }
-.aufschlag-reason textarea.empty { border-color: var(--accent); }
-.aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: var(--accent-strong); }
+.aufschlag-reason textarea.empty { border-color: var(--aw-err); }
+.aufschlag-reason__err { margin-top: 6px; font-size: 0.8rem; font-weight: 600; color: var(--aw-err); }
 .aufschlag-reason__err[hidden] { display: none; }
 .aufschlag-reason__hint { margin-top: 6px; font-size: 0.78rem; font-weight: 400; color: var(--muted); }
 
