@@ -245,6 +245,9 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
+      // Reference photos (referenzbilder.js) — outside the flow, see getFlowSteps.
+      "referenzVorher",
+      "referenzNachher",
     ],
   },
   bwt: {
@@ -258,6 +261,8 @@ const OFFERS = {
       "Kosten",
       "Zusammenfassung",
       "admin",
+      // BWT only has Nachher photos so far.
+      "referenzNachher",
     ],
   },
   hl: {
@@ -283,7 +288,15 @@ const OFFERS = {
   },
   hms: {
     name: "HMS · Hausmeisterservice",
-    pages: ["Kundendaten", "Arbeitszeit", "hms", "Kosten", "Zusammenfassung"],
+    pages: [
+      "Kundendaten",
+      "Arbeitszeit",
+      "hms",
+      "Kosten",
+      "Zusammenfassung",
+      "referenzVorher",
+      "referenzNachher",
+    ],
   },
   wd: {
     name: "WD · Winterdienst",
@@ -2942,9 +2955,13 @@ function resetAllRepeaterDOMs() {
 }
 
 // Effective list of steps used for prev/next navigation
+// Vorher/Nachher photo pages: reachable from the sidebar, but never part of
+// Weiter/Zurück or the done-circles.
+const REFERENZ_PAGES = new Set(["referenzVorher", "referenzNachher"]);
+
 function getFlowSteps() {
   if (currentOfferKey && OFFERS[currentOfferKey]) {
-    return getPagesForOfferType(currentOfferKey);
+    return getPagesForOfferType(currentOfferKey).filter((p) => !REFERENZ_PAGES.has(p));
   }
   return steps;
 }
@@ -3012,7 +3029,8 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
-  const groupedPages = new Set(["admin", "services", "crm-emc2"]);
+  const referenzPages = ["referenzVorher", "referenzNachher"];
+  const groupedPages = new Set(["admin", "services", "crm-emc2", ...referenzPages]);
   const normalPages = pages.filter(
     (pageId) => pageId !== "home" && !groupedPages.has(pageId),
   );
@@ -3032,6 +3050,8 @@ function updateSidebarForOffer() {
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
     Optional: "Optionale Produkte",
+    referenzVorher: "Vorher / Arbeitsschritte",
+    referenzNachher: "Nachher",
   };
 
   // Badumbau and Badewannentür group their pages into numbered sections; every
@@ -3181,6 +3201,12 @@ function updateSidebarForOffer() {
     group.appendChild(body);
     sideMenu.appendChild(group);
   }
+
+  // Reference photos: own unnumbered group below the offer pages.
+  appendSideGroup(
+    { title: "Referenzbilder" },
+    referenzPages.filter((pageId) => pages.includes(pageId)),
+  );
 
   appendAccordionGroup(
     "Developer",
@@ -3334,7 +3360,12 @@ function setStep(step) {
   console.trace("[setStep] stack");
 
   const flowSteps = getFlowSteps(); // pages for the current offer (or all steps if none)
-  const progressIndex = flowSteps.indexOf(step);
+  // On a Referenzbilder page keep the circles of the step the user came from,
+  // and remember that step for the page's "Zurück zum Angebot".
+  if (!REFERENZ_PAGES.has(step)) window.__refReturnStep = step === "home" ? null : step;
+  const progressIndex = flowSteps.indexOf(
+    REFERENZ_PAGES.has(step) ? window.__refReturnStep : step,
+  );
   function isDoneInFlow(s) {
     if (step === "home") return false;
     if (s === "home") {
