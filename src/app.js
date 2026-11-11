@@ -755,7 +755,7 @@ function shutdown(reason, exitCode = 0) {
 
   const forceExit = setTimeout(() => {
     console.warn("[shutdown] grace period over, exiting with requests still open");
-    process.exit(exitCode || 1);
+    process.exit(exitCode);
   }, SHUTDOWN_GRACE_MS);
   forceExit.unref();
 
