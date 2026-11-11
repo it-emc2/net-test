@@ -776,16 +776,34 @@ router.get("/:token/documents/:key/pdf", async (req, res) => {
 
 // POST /api/signing/:token/documents/:key
 // Body: { signatureImage (data URL), editedFields?, extraFields?, place? }
+// A document that is already signed: the same submit again (double tap, a
+// retry after a dropped connection, a parallel request) gets the answer of
+// the first one instead of signing — and mailing/filing — a second time
+// (Audit S-06). A different signature is still a conflict.
+function answerAlreadySigned(res, current, key, sig) {
+  const curDoc = (current?.documents || []).find((d) => d.key === key);
+  if (curDoc?.status === "signed" && sig && curDoc.signatureImage === sig) {
+    return res.json({
+      ok: true,
+      status: current.status,
+      documents: current.documents.map((d) => ({ key: d.key, status: d.status })),
+      completed: current.status === "completed",
+      duplicate: true,
+    });
+  }
+  return res.status(409).json({ error: "Dokument wurde bereits unterschrieben" });
+}
+
 router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (req, res) => {
   try {
-    const sr = await loadByToken(req, res);
+    let sr = await loadByToken(req, res);
     if (!sr) return;
 
     const key = String(req.params.key || "");
     const doc = (sr.documents || []).find((d) => d.key === key);
     if (!doc) return res.status(404).json({ error: "Dokument nicht gefunden" });
     if (doc.status === "signed") {
-      return res.status(409).json({ error: "Dokument wurde bereits unterschrieben" });
+      return answerAlreadySigned(res, sr, key, String(req.body?.signatureImage || ""));
     }
 
     const sig = String(req.body?.signatureImage || "");
@@ -875,9 +893,10 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       kk_krankenkasseAdresse: "partnerKrankenkasseAdresse",
     };
     const partnerDoc = isPartnerKey(key);
+    let touchedPrefill = false;
+    let touchedSnapshot = false;
     if (["vollmacht", "abtretung", "abtretung_ah"].includes(baseDocKey(key))) {
       sr.prefill = sr.prefill || {};
-      let touchedPrefill = false;
       for (const k of partnerDoc
         ? ["street", "postalCode", "city", "phone"]
         : PREFILL_CARRY_KEYS) {
@@ -891,7 +910,6 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
 
       sr.payloadSnapshot = sr.payloadSnapshot || {};
       sr.payloadSnapshot.Kundendaten = sr.payloadSnapshot.Kundendaten || {};
-      let touchedSnapshot = false;
       const carryMap = partnerDoc
         ? PARTNER_CARRY
         : Object.fromEntries(KUNDENDATEN_CARRY_KEYS.map((k) => [k, k]));
@@ -905,28 +923,62 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       if (touchedSnapshot) sr.markModified("payloadSnapshot");
     }
 
-    doc.signatureImage = sig;
-    doc.editedFields = editedFields;
-    doc.extraFields = extraFields;
-    doc.place = String(req.body?.place || sr.prefill?.city || "").trim();
-    doc.signedAt = new Date();
-    doc.signedIp = clientIp(req);
-    doc.userAgent = String(req.headers["user-agent"] || "").slice(0, 300);
-    doc.status = "signed";
+    // Atomic claim: only the request that flips this document from "pending"
+    // to "signed" goes on. A second identical submit finds no pending
+    // document and gets the first result (Audit S-06).
+    const signedAt = new Date();
+    const docSet = {
+      "documents.$.signatureImage": sig,
+      "documents.$.editedFields": editedFields,
+      "documents.$.extraFields": extraFields,
+      "documents.$.place": String(req.body?.place || sr.prefill?.city || "").trim(),
+      "documents.$.signedAt": signedAt,
+      "documents.$.signedIp": clientIp(req),
+      "documents.$.userAgent": String(req.headers["user-agent"] || "").slice(0, 300),
+      "documents.$.status": "signed",
+    };
+    if (touchedPrefill) docSet.prefill = sr.prefill;
+    if (touchedSnapshot) docSet.payloadSnapshot = sr.payloadSnapshot;
+    const claimed = await SigningRequest.findOneAndUpdate(
+      { _id: sr._id, documents: { $elemMatch: { key, status: "pending" } } },
+      { $set: docSet },
+      { new: true },
+    );
+    if (!claimed) {
+      return answerAlreadySigned(res, await SigningRequest.findById(sr._id), key, sig);
+    }
+    sr = claimed;
 
     await postTimeline(
       sr,
       `✍️ Dokument „${docLabel(sr, key)}" unterschrieben am ` +
-        `${doc.signedAt.toLocaleString("de-DE")}` +
+        `${signedAt.toLocaleString("de-DE")}` +
         (sr.offerNumber ? ` (${sr.offerNumber})` : ""),
     );
 
-    const prevStatus = sr.status;
-    sr.recomputeStatus();
+    // Roll-up status. Completion (PDFs, mail, Bitrix) is claimed atomically
+    // too, so two requests that sign the last documents at the same time do
+    // not both send it.
+    const allSigned = sr.documents.length > 0 && sr.documents.every((d) => d.status === "signed");
+    let completionOwner = null;
+    if (allSigned) {
+      completionOwner = await SigningRequest.findOneAndUpdate(
+        { _id: sr._id, status: { $ne: "completed" } },
+        { $set: { status: "completed", completedAt: sr.completedAt || new Date() } },
+        { new: true },
+      );
+      if (completionOwner) sr = completionOwner;
+    } else {
+      await SigningRequest.updateOne(
+        { _id: sr._id, status: { $nin: ["completed", "expired"] } },
+        { $set: { status: "partially_signed" } },
+      );
+    }
+    const partnerContactBefore = sr.partnerContactId || "";
 
     // If everything is now signed, generate signed PDFs, email + attach to Bitrix.
     let completion = { completed: false };
-    if (sr.status === "completed" && prevStatus !== "completed") {
+    if (completionOwner) {
       const signedPdfs = [];
       for (const d of sr.documents) {
         const buffer = await buildSignedPdf(sr, d);
@@ -1052,11 +1104,17 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       completion = { completed: true };
     }
 
-    await sr.save();
+    // filePerPersonDocs() may have linked/created the partner contact.
+    if ((sr.partnerContactId || "") !== partnerContactBefore) {
+      await SigningRequest.updateOne(
+        { _id: sr._id },
+        { $set: { partnerContactId: sr.partnerContactId } },
+      );
+    }
 
     return res.json({
       ok: true,
-      status: sr.status,
+      status: allSigned ? "completed" : "partially_signed",
       documents: sr.documents.map((d) => ({ key: d.key, status: d.status })),
       ...completion,
     });
