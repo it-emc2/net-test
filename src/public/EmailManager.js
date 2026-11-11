@@ -1770,10 +1770,24 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
       const noteEl = document.getElementById("internalNote");
       if (noteEl) noteEl.value = "";
 
-      pushStatus(
-        `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
-        "success",
-      );
+      // The server answers ok:true once the mail went out, even when the Bitrix
+      // filing failed (bitrixComment.ok === false). Say so instead of a plain
+      // success, otherwise the office never gets the documents (Audit S-05).
+      const bitrixFailed = data?.bitrixComment?.ok === false;
+      const bitrixError = String(data?.bitrixComment?.error || "").trim();
+      if (bitrixFailed) {
+        const msg = bitrixOnly
+          ? `Die Ablage in Bitrix hat nicht geklappt${bitrixError ? ` (${bitrixError})` : ""}. Bitte versuchen Sie es erneut.`
+          : `E-Mail wurde gesendet, die Ablage in Bitrix hat nicht geklappt${bitrixError ? ` (${bitrixError})` : ""}. ` +
+            "Bitte legen Sie Angebot und Anhänge im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.";
+        pushStatus(msg, "error");
+        window.toast?.warn?.("Bitrix-Ablage fehlgeschlagen", msg);
+      } else {
+        pushStatus(
+          `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
+          "success",
+        );
+      }
 
       // Clear the edited-DOCX choice so it can't silently apply to the next send.
       clearEditedDocx();

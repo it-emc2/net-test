@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { replaceTextInHtml } from "../lib/docxTextReplace.js";
+import { isValidSignatureDataUrl } from "../lib/signatureImage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -207,7 +208,12 @@ function signatureBlock(doc, prefill, opts = {}) {
         }`.trim();
   const signedAt = doc.signedAt ? new Date(doc.signedAt) : new Date();
   const image = opts.image !== undefined ? opts.image : doc.signatureImage;
-  const img = image ? `<img class="sig-img" src="${image}" alt="Unterschrift">` : "";
+  // Only a strict PNG data URL is ever placed into the page, escaped
+  // (Audit S-10); older stored values that do not pass are left out.
+  const img =
+    image && isValidSignatureDataUrl(image)
+      ? `<img class="sig-img" src="${esc(image)}" alt="Unterschrift">`
+      : "";
   const audit =
     opts.showAudit === false
       ? ""

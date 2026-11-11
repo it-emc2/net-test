@@ -69,7 +69,25 @@ router.get("/smtp-test", async (req, res) => {
   });
 });
 
-const upload = multer({ dest: os.tmpdir() });
+// Text fields carry the whole offer payload (incl. sketch data-URLs) and
+// custom product photos as data-URLs. busboy's default is 1 MB per field,
+// which made large offers fail with an opaque 500. Same 20 MB as the preview
+// route (/preview-product-image-pdf) accepts as JSON.
+export const SEND_FIELD_SIZE_LIMIT = 20 * 1024 * 1024;
+const upload = multer({ dest: os.tmpdir(), limits: { fieldSize: SEND_FIELD_SIZE_LIMIT } });
+
+// Turns multer limit errors into a clear JSON 413 instead of Express' HTML 500.
+const withUploadLimits = (mw) => (req, res, next) =>
+  mw(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      console.warn("[email] upload rejected:", err.code, err.field || "");
+      return res.status(413).json({
+        error: "Upload zu groß",
+        detail: `Die Daten überschreiten die zulässige Größe (${err.code}${err.field ? `, Feld ${err.field}` : ""}).`,
+      });
+    }
+    return next(err);
+  });
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -479,12 +497,14 @@ export const claimEmailSend = (dealId, forceResend) =>
 
 router.post(
   "/send-offer",
-  upload.fields([
-    { name: "attachments", maxCount: 10 },
-    // 3 generated docs + the user's Bitrix-only uploads
-    { name: "bitrixDocs", maxCount: 15 },
-    { name: "editedDocx", maxCount: 1 },
-  ]),
+  withUploadLimits(
+    upload.fields([
+      { name: "attachments", maxCount: 10 },
+      // 3 generated docs + the user's Bitrix-only uploads
+      { name: "bitrixDocs", maxCount: 15 },
+      { name: "editedDocx", maxCount: 1 },
+    ]),
+  ),
   async (req, res) => {
   // upload.fields() returns an object keyed by field name.
   const uploaded = req.files?.attachments || [];
@@ -821,18 +841,28 @@ router.post(
       }
 
       // ---- DB log (only names + content) ----
-      await EmailLog.create({
-        to,
-        ...(cc ? { cc } : {}),
-        subject,
-        body: textBody,
-        attachmentNames,
-        offerNumber: payload?.offerNumber || offerNumber,
-        offerType: payload?.activeOffer || offerType,
-        ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
-        ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
-        sentBy,
-      });
+      // The customer already has the mail: a failing log write must neither
+      // turn the answer into "Send failed" nor skip the Bitrix filing below.
+      try {
+        await EmailLog.create({
+          to,
+          ...(cc ? { cc } : {}),
+          subject,
+          body: textBody,
+          attachmentNames,
+          offerNumber: payload?.offerNumber || offerNumber,
+          offerType: payload?.activeOffer || offerType,
+          ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
+          ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
+          sentBy,
+        });
+      } catch (logErr) {
+        console.error("[email] EmailLog write failed after SMTP success:", {
+          offerNumber: payload?.offerNumber || offerNumber,
+          dealId,
+          error: logErr?.message || String(logErr),
+        });
+      }
     }
 
     const actionEvent = bitrixOnly ? "offer_bitrix_only" : "offer_sent";

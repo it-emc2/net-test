@@ -540,8 +540,26 @@ function handleHashChange() {
   const hasOffer = !!(state && state.offerType);
   const manualAllowed = ["", "home"];
 
-  // Typing "/#home" or clearing the hash -> always go to a fresh home
+  // Typing "/#home", clearing the hash or browser back onto "#home".
+  // With an offer in progress this used to wipe every input silently; now it
+  // asks with the same dialog as the sidebar "Hauptmenü" link (Audit F03).
+  // The URL is put back on the current page while asking, so cancelling
+  // leaves everything as it was.
   if (manualAllowed.includes(hash)) {
+    if (hasOffer && typeof askBeforeGoingHome === "function") {
+      const backTo = normalizeStepForOffer(state.step, state.offerType);
+      if (backTo) {
+        try {
+          history.replaceState(null, "", "#" + backTo);
+        } catch {}
+      }
+      const overlay = document.getElementById("homeConfirmOverlay");
+      if (overlay?.classList.contains("visible")) return; // already asking
+      askBeforeGoingHome(() => {
+        setStep("home");
+      });
+      return;
+    }
     goHomeWithoutOffer();
     return;
   }
@@ -2554,6 +2572,9 @@ function resetAllForms() {
     "form-admin",
     "form-as",
     "form-ah",
+    // AH Finanzierung: its flags feed the AH price and must not carry over
+    // to the next customer (Audit F10).
+    "form-Finanzierung",
     "form-hms",
     "form-wd",
   ];
@@ -2571,6 +2592,8 @@ function resetAllForms() {
       form.reset();
     }
   });
+  // Slider label and Umwidmung field follow the reset Finanzierung inputs.
+  window.__refreshFinanzierungUI?.();
   // A new offer starts without a Duschwanne; form.reset() unticks the switch
   // but does not touch the form's data-tray-off attribute.
   setDwTrayEnabled(false);
@@ -3359,9 +3382,6 @@ function getCurrentStep() {
   return steps.includes(h) ? h : steps[0];
 }
 function setStep(step) {
-  console.log("[setStep] called with", step);
-  console.trace("[setStep] stack");
-
   const flowSteps = getFlowSteps(); // pages for the current offer (or all steps if none)
   // On a Referenzbilder page keep the circles of the step the user came from,
   // and remember that step for the page's "Zurück zum Angebot".
@@ -3949,6 +3969,7 @@ function filterPayloadByOffer(payload) {
     hl: "hl",
     bl: "bl",
     ah: "ah",
+    Finanzierung: "Finanzierung",
         hms: "hms",
             wd: "wd",
     admin: "admin",
@@ -8402,6 +8423,12 @@ function initWVConnectorsUI() {
   const corners = document.getElementById("wvCornersCount");
 
   if (!qtyVEl || !outEl) return;
+  // Runs on every visit to the page: wire the listeners only once, later
+  // visits just refresh the hint (Audit F-11, listener leak).
+  if (qtyVEl.dataset.wvConnWired === "1") {
+    qtyVEl.__wvConnRender?.();
+    return;
+  }
 
   const n = (v) => {
     const x = parseInt(String(v ?? "0").replace(/[^\d-]/g, ""), 10);
@@ -8454,6 +8481,9 @@ function initWVConnectorsUI() {
       outEl.innerHTML = `Empfehlung: ${rec} Stück – aktuell eingetragen: ${cur} Stück.${formula}`;
     }
   }
+
+  qtyVEl.dataset.wvConnWired = "1";
+  qtyVEl.__wvConnRender = render;
 
   // Wire listeners (any change should refresh the hint)
   ["input", "change", "blur"].forEach((ev) => {
@@ -15632,13 +15662,40 @@ function attachDuschwanneToPayload(payload) {
 }
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
+  // Identical requests that are still in flight share one fetch (same JSON
+  // body → same promise). Each caller gets its own copy of the result. A
+  // finished answer is never reused: the entry is dropped as soon as the
+  // request settles, so the offline fallback below still sees a real failing
+  // fetch every time (Audit F-01, safe part).
+  const inflightPrice = new Map();
+  const clonePriceResult = (data) => {
+    if (data == null || typeof data !== "object") return data;
+    try {
+      return typeof structuredClone === "function"
+        ? structuredClone(data)
+        : JSON.parse(JSON.stringify(data));
+    } catch {
+      return JSON.parse(JSON.stringify(data));
+    }
+  };
   async function fetchPrice(payload) {
+    const body = JSON.stringify(payload);
+    let shared = inflightPrice.get(body);
+    if (!shared) {
+      shared = fetchPriceOnce(payload, body).finally(() => {
+        inflightPrice.delete(body);
+      });
+      inflightPrice.set(body, shared);
+    }
+    return clonePriceResult(await shared);
+  }
+  async function fetchPriceOnce(payload, body) {
     let r;
     try {
       r = await fetch("/api/price", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body,
       });
     } catch (err) {
       // No signal. Run the server's own rules (logic/pricing-core.js) against
@@ -21213,8 +21270,10 @@ function initOptionalSonderprodukte() {
 }
 
 // Save a final offer snapshot after a successful export
+// Returns { ok, queued, offerNumber } so callers can stop when the offer was
+// not stored (ok=false and queued=false). Existing callers may ignore it.
 async function saveFinalOfferSnapshot() {
-  if (typeof buildPayload !== "function") return;
+  if (typeof buildPayload !== "function") return { ok: false, queued: false, offerNumber: "" };
 
   // 1) Build full payload from UI
   const fullPayload = buildPayload();
@@ -21269,24 +21328,28 @@ async function saveFinalOfferSnapshot() {
         "Offline",
         `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
       );
-      return;
+      return { ok: false, queued: true, offerNumber };
     }
 
     if (!res.ok) {
       const { handleSaveAuthExpired } = await import("./auth-recovery.js");
-      if (await handleSaveAuthExpired(res, "offer")) return;
+      if (await handleSaveAuthExpired(res, "offer")) {
+        return { ok: false, queued: false, authExpired: true, offerNumber };
+      }
       const body = await res.json().catch(() => ({}));
       window.toast?.error?.(
         "Speichern fehlgeschlagen",
         body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
       );
-      return;
+      return { ok: false, queued: false, status: res.status, offerNumber };
     }
 
     window.toast?.success?.("Gespeichert", `Angebot ${offerNumber} wurde gespeichert.`);
+    return { ok: true, queued: false, offerNumber };
   } catch (err) {
     console.error("Failed to save final offer snapshot:", err);
     window.toast?.error?.("Speichern fehlgeschlagen", `Angebot ${offerNumber}: ${err.message}`);
+    return { ok: false, queued: false, offerNumber };
   }
 }
 
@@ -27427,10 +27490,22 @@ async function sendPdfToAuftrag() {
     if (offerNumberInput && !offerNumberInput.value.trim() && typeof genOfferNumber === "function") {
       offerNumberInput.value = genOfferNumber();
     }
+    let saveResult;
     try {
-      await window.saveFinalOfferSnapshot?.();
+      saveResult = await window.saveFinalOfferSnapshot?.();
     } catch (err) {
       console.error("[signOnSite] Angebot konnte nicht gespeichert werden:", err);
+      saveResult = { ok: false, queued: false };
+    }
+    // Do not hand the iPad to the customer for an offer that was not stored:
+    // the signing view has no way back to it (Audit F12). The error toast
+    // was already shown by saveFinalOfferSnapshot().
+    if (saveResult && !saveResult.ok && !saveResult.queued) {
+      setStatus(
+        "Das Angebot konnte nicht gespeichert werden. Die Unterschrift wurde nicht gestartet – bitte versuchen Sie es erneut.",
+        "error",
+      );
+      return;
     }
 
     const payload = buildPayload();
@@ -34016,12 +34091,21 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
 
-        setStatus(
+        const sentMsg =
           result.mode === "test"
             ? `Testmodus: Auftrag ${result.printjobId || "-"} liegt im onlinebrief24-Warenkorb · Anlagen: ${result.attachmentCount || 0}`
-            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
-          "success",
-        );
+            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`;
+        // Letter is out, but the Bitrix filing may have failed (Audit S-05).
+        if (result?.bitrix?.ok === false) {
+          const bxErr = String(result.bitrix.error || "").trim();
+          const warn =
+            `Der Brief wurde versendet, die Ablage in Bitrix hat nicht geklappt${bxErr ? ` (${bxErr})` : ""}. ` +
+            "Bitte legen Sie die Unterlagen im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.";
+          setStatus(`${sentMsg} – ${warn}`, "error");
+          window.toast?.warn?.("Bitrix-Ablage fehlgeschlagen", warn);
+        } else {
+          setStatus(sentMsg, "success");
+        }
 
         postalSent = true;
 
@@ -34154,12 +34238,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!response.ok || result?.ok === false) {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
-        setStatus(
+        const signedMsg =
           result.mode === "test"
             ? `Testmodus: unterschriebene Unterlagen liegen im onlinebrief24-Warenkorb (Auftrag ${result.printjobId || "-"}).`
-            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`,
-          "success",
-        );
+            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`;
+        if (result?.bitrix?.ok === false) {
+          const bxErr = String(result.bitrix.error || "").trim();
+          const warn =
+            `Der Brief wurde versendet, die Ablage in Bitrix hat nicht geklappt${bxErr ? ` (${bxErr})` : ""}. ` +
+            "Bitte legen Sie die Unterlagen im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.";
+          setStatus(`${signedMsg} – ${warn}`, "error");
+          window.toast?.warn?.("Bitrix-Ablage fehlgeschlagen", warn);
+        } else {
+          setStatus(signedMsg, "success");
+        }
       } catch (error) {
         console.error("[post] signed send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
