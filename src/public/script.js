@@ -3359,9 +3359,6 @@ function getCurrentStep() {
   return steps.includes(h) ? h : steps[0];
 }
 function setStep(step) {
-  console.log("[setStep] called with", step);
-  console.trace("[setStep] stack");
-
   const flowSteps = getFlowSteps(); // pages for the current offer (or all steps if none)
   // On a Referenzbilder page keep the circles of the step the user came from,
   // and remember that step for the page's "Zurück zum Angebot".
