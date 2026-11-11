@@ -187,7 +187,6 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
-  await registerSends(app);
   await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   const bitrix = deps.bitrix ?? new BitrixClient({
     baseUrl: cfg.BITRIX_WEBHOOK_BASE,
@@ -199,6 +198,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   await registerBitrixRead(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
+  await registerSends(app, { deals });
   const signingSvc = await registerSigning(app, {
     deals, renderer: deps.signingRenderer ?? ownSigningRenderer,
     mailer: new Mailer({

@@ -733,7 +733,9 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     return { status: r.statusCode, body: r.json() };
   };
   // signing requests too: an unchanged offer reuses the open request (no new link note) — legacy rule
-  const clean = async () => { await db().collection("emailsends").deleteMany({}); await db().collection("signingrequests").deleteMany({}); };
+  // offer_sends too: the parity cases reuse offer numbers with different content, which v2 refuses
+  // on purpose once an offer was sent (decision C — covered by "send record (v2 only)" below)
+  const clean = async () => { await db().collection("emailsends").deleteMany({}); await db().collection("signingrequests").deleteMany({}); await db().collection("offer_sends").deleteMany({}); };
   /** legacy first, then v2 (locks cleared in between); returns everything that left each app */
   const sendBoth = async (fields: Record<string, Field | Field[]>, { clearLock = true } = {}) => {
     const out: Record<string, any> = {};
@@ -835,14 +837,28 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     expectSameResult(o);
   }, 60000);
 
-  it("hand-edited DOCX replaces the generated PDF and is archived + flagged on the timeline", async () => {
-    const o = await sendBoth({ to: "k@example.invalid", subject: "Bearbeitet", offerNumber: "ANG-T-4", offerType: "bu", payload: JSON.stringify(BU), dealId: "9011", body: "x",
+  it("hand-edited DOCX replaces the generated PDF and is archived + flagged on the timeline — v2: NO online-signing link (decision B)", async () => {
+    const o = await sendBoth({ to: "k@example.invalid", subject: "Bearbeitet", offerNumber: "ANG-T-4", offerType: "bu", payload: JSON.stringify(BU), dealId: "9013",
+      body: "Guten Tag,\n\nanbei Ihr Angebot.\n\nKeine Möglichkeit, die Dokumente auszudrucken? {{SIGN_LINK}}\n\nViele Grüße",
       editedDocx: { filename: "Angebot bearbeitet.docx", content: "PK-fake-docx" } });
     expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
-    expectSameResult(o);
+    expect(o.legacy.res.status).toBe(200);
+    // intended difference: the customer would sign the standard rendering without the edits
+    // (audit signing S-02) → v2 creates no signing request and drops the sentence with the link
+    expect(o.v2.res.body).toMatchObject({ ok: true, signingLink: "off-hand-edited" });
+    const text = (m: any) => String(m.mail.text || "");
+    expect(text(o.legacy.mails[0])).toMatch(/\/sign\/[0-9a-f]{48}/);
+    expect(text(o.v2.mails[0])).not.toContain("/sign/");
+    expect(text(o.v2.mails[0])).not.toContain("auszudrucken");
+    expect(text(o.v2.mails[0])).toContain("anbei Ihr Angebot.");
+    expect(await db().collection("signingrequests").countDocuments({})).toBe(0); // clean() ran before the v2 send
+    // same attachments as legacy (the converted DOCX is the offer PDF)
+    const names = (m: any) => m.mail.attachments.map((a: any) => a.filename).sort();
+    expect(names(o.v2.mails[0])).toEqual(names(o.legacy.mails[0]));
     const mailNote = o.v2.calls.find((c) => c.method === "crm.timeline.comment.add" && c.params.includes("Email automatisch von OC gesendet"))!;
     expect(mailNote.params).toContain("Handbearbeitete DOCX hochgeladen");
     expect(mailNote.params).toContain(`${BU.offerNumber}.docx`);
+    expect(o.v2.calls.some((c) => c.params.includes("/sign/"))).toBe(false);
   }, 60000);
   // ---- v2 only: one record per send (ADR 023) — legacy has no such thing ----
   describe("send record (v2 only)", () => {
@@ -872,7 +888,8 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
       });
       expect(st.body.send.total).toBe(first.body.offerTotal); // the price as sent is frozen on the record
       expect(st.body.result).toMatchObject({ ok: true, offerTotal: first.body.offerTotal });
-      expect(st.body.send.files.map((f: any) => f.role).sort()).toEqual(["offer", "upload"]);
+      // offer PDF, the upload, and the standard enclosures that were filed in Bitrix
+      expect([...new Set(st.body.send.files.map((f: any) => f.role))].sort()).toEqual(["offer", "preset", "upload"]);
 
       // the stored offer PDF is byte-identical to the one in the customer's mail
       const offerFile = st.body.send.files.find((f: any) => f.role === "offer");
@@ -905,6 +922,104 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
       expect(r.body.error.code).toBe("SEND_IN_PROGRESS");
       expect(smtp.take()).toHaveLength(0);
     }, 30000);
+
+    it("decision C: a sent offer is immutable — changed content is refused for save, e-mail and post; unchanged goes through", async () => {
+      await clean(); smtp.take();
+      const P = { ...BU, offerNumber: "ANG-REC-C" };
+      const f = (sendId: string, payload: any, extra: Record<string, Field> = {}) => ({ ...fields(sendId), offerNumber: "ANG-REC-C", payload: JSON.stringify(payload), dealId: "9312", ...extra });
+      expect((await sendTo("v2", f("send-c-0001", P))).status).toBe(200);
+      const post = (url: string, body: unknown) => v2.inject({ method: "POST", url, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: body as any });
+
+      // saving the SAME offer again is fine (downloads etc.), also with workflow noise and another key order
+      const noisy = { zusammenfassung: { sent: true }, mail: { to: "x" }, ...Object.fromEntries(Object.entries(P).reverse()) };
+      expect((await post("/api/offers", { offerNumber: "ANG-REC-C", offerType: "bu", payload: noisy })).statusCode).toBe(200);
+
+      // changed content under the sent number → refused everywhere, with a message that says what to do
+      const changed = { ...P, Kundendaten: { ...P.Kundendaten, lastName: "Geändert" } };
+      const save = await post("/api/offers", { offerNumber: "ANG-REC-C", offerType: "bu", payload: changed });
+      expect(save.statusCode).toBe(409);
+      expect(save.json()).toMatchObject({ error: { code: "OFFER_CHANGED" }, differences: ["Inhalt (Positionen, Preise oder Kundendaten)"], sent: { sendId: "send-c-0001", channel: "email" } });
+      expect(save.json().error.message).toContain("neue Version");
+      const mail = await sendTo("v2", f("send-c-0002", changed, { forceResend: "1" }));
+      expect(mail.status).toBe(409);
+      expect(mail.body.error.code).toBe("OFFER_CHANGED");
+      expect(smtp.take()).toHaveLength(1); // only the first mail ever left
+      // the stored offer is still the one that was sent
+      const stored: any = await db().collection("offers").findOne({ offerNumber: "ANG-REC-C" });
+      expect(stored.payload.Kundendaten.lastName).toBe(P.Kundendaten.lastName);
+      // a new version (new number) is free
+      expect((await post("/api/offers", { offerNumber: "ANG-REC-C-2", offerType: "bu", payload: { ...changed, offerNumber: "ANG-REC-C-2" } })).statusCode).toBe(200);
+    }, 60000);
+
+    it("e-mail first, post a few days later: unchanged → the letter is the exact PDF that was mailed; changed → refused, original on request", async () => {
+      await clean(); await db().collection("postalsends").deleteMany({}); bx.take("v2");
+      const { OfferSend, storeSendFile } = await import("../src/sends/store.js");
+      const { offerIdentity } = await import("../src/sends/identity.js");
+      const pdf = async (text: string) => { const d = await PDFDocument.create(); d.addPage([595.28, 841.89]).drawText(text, { x: 50, y: 700 }); return Buffer.from(await d.save()); };
+      const P = { ...BU, offerNumber: "ANG-REC-P" };
+      // the e-mail send of a few days ago (the contract-test PDF engine returns placeholder bytes, so the record is seeded with a real PDF)
+      const mailedPdf = await pdf("Angebot wie per E-Mail versendet");
+      await OfferSend.create({ sendId: "send-p-mail", channel: "email", status: "done", offerNumber: "ANG-REC-P", dealId: "9313", to: "kunde0001@example.invalid",
+        by: USER.email, identity: offerIdentity(P, "ANG-REC-P"), total: 1234.5, startedAt: new Date(Date.now() - 3 * 864e5), finishedAt: new Date(Date.now() - 3 * 864e5) });
+      await storeSendFile("send-p-mail", "offer", "ANG-REC-P.pdf", mailedPdf);
+
+      const post = async (body: Record<string, unknown>) => {
+        const r = await v2.inject({ method: "POST", url: "/api/post/send", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: body as any });
+        return { status: r.statusCode, body: r.json() };
+      };
+      const printed = () => bx.take("v2").filter((c: any) => c.method.startsWith("ob24:") && c.http === "POST").map((c: any) => JSON.parse(c.params).letter.base64_file as string);
+      const freshlyRendered = await pdf("Angebot neu erzeugt (andere Bytes)");
+      const letter = { recipient: { name: "Kunde 0001", street: "Teststr. 1", zipCode: "95028", city: "Hof" }, auftragId: "9313", meta: { offerNumber: "ANG-REC-P", dealId: "9313" },
+        document: { filename: "ANG-REC-P.pdf", base64: freshlyRendered.toString("base64") } };
+
+      // unchanged offer → accepted; the printer receives the PDF that was mailed, not the freshly rendered one
+      const ok = await post({ ...letter, sendId: "send-p-post", payload: P });
+      expect(ok.status, JSON.stringify(ok.body).slice(0, 300)).toBe(200);
+      expect(ok.body).toMatchObject({ ok: true, sendId: "send-p-post", resendOf: { sendId: "send-p-mail", channel: "email" } });
+      const first = printed();
+      expect(first).toHaveLength(1);
+      expect(Buffer.from(first[0]!, "base64").equals(mailedPdf)).toBe(true);
+      const st = await get("/api/sends/send-p-post");
+      expect(st.body.send).toMatchObject({ channel: "post", status: "done", resendOf: "send-p-mail", total: 1234.5, steps: { provider: { status: "ok" }, bitrix: { status: "ok" } } });
+      const letterFile = st.body.send.files.find((x: any) => x.role === "letter");
+      expect((await get(`/api/sends/send-p-post/files/${letterFile.fileId}`)).raw.equals(mailedPdf)).toBe(true);
+
+      // changed offer → refused; nothing goes to the printer
+      await db().collection("postalsends").deleteMany({});
+      const changed = { ...P, Kundendaten: { ...P.Kundendaten, street: "Andere Str. 9" } };
+      const no = await post({ ...letter, sendId: "send-p-post2", payload: changed });
+      expect(no.status).toBe(409);
+      expect(no.body).toMatchObject({ ok: false, error: { code: "OFFER_CHANGED" }, sent: { sendId: "send-p-post" } });
+      expect(printed()).toHaveLength(0);
+      // …unless the user posts the original as it was sent
+      const orig = await post({ ...letter, sendId: "send-p-post3", useSentOriginal: true });
+      expect(orig.status, JSON.stringify(orig.body).slice(0, 300)).toBe(200);
+      expect(orig.body.resendOf.sendId).toBe("send-p-post");
+      expect(Buffer.from(printed()[0]!, "base64").equals(mailedPdf)).toBe(true);
+      // without a payload (old client) nothing is compared — today's behaviour
+      await db().collection("postalsends").deleteMany({});
+      expect((await post({ ...letter })).status).toBe(200);
+      expect(Buffer.from(printed()[0]!, "base64").equals(freshlyRendered)).toBe(true);
+    }, 90000);
+
+    it("a failed Bitrix filing can be repeated from the stored files — nothing is mailed again", async () => {
+      await clean(); smtp.take(); bx.take("v2");
+      const P = { ...BU, offerNumber: "ANG-REC-B" };
+      const { OfferSend } = await import("../src/sends/store.js");
+      expect((await sendTo("v2", { ...fields("send-b-0001"), offerNumber: "ANG-REC-B", payload: JSON.stringify(P), dealId: "9314" })).status).toBe(200);
+      smtp.take(); bx.take("v2");
+      const retry = () => v2.inject({ method: "POST", url: "/api/sends/send-b-0001/retry-bitrix", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: {} });
+      expect((await retry()).json()).toMatchObject({ ok: true, already: true }); // filed fine → nothing to do
+      expect(bx.take("v2")).toHaveLength(0);
+      // simulate the failure that was recorded at send time
+      await OfferSend.updateOne({ sendId: "send-b-0001" }, { $set: { "steps.bitrix": { status: "failed", at: new Date(), error: "timeout" } } });
+      const r = await retry();
+      expect(r.statusCode, r.body.slice(0, 300)).toBe(200);
+      expect(r.json().send.steps.bitrix.status).toBe("ok");
+      const calls = bx.take("v2");
+      expect(calls.some((c: any) => c.method === "crm.timeline.comment.add" && decodeURIComponent(c.params).includes("ANG-REC-B"))).toBe(true);
+      expect(smtp.take()).toHaveLength(0);
+    }, 60000);
 
     it("a failed send is recorded as failed and can be repeated with the same sendId", async () => {
       await clean(); smtp.take();

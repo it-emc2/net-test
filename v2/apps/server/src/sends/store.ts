@@ -9,14 +9,15 @@
 // and how each step went. The same `sendId` never sends twice.
 import { createHash } from "node:crypto";
 import mongoose, { Schema } from "mongoose";
+import { identityDifferences, offerIdentity, type OfferIdentity } from "./identity.js";
 
 const model = <T>(name: string, schema: Schema<T>) =>
   (mongoose.models[name] as mongoose.Model<T>) ?? mongoose.model<T>(name, schema);
 
 export type SendChannel = "email" | "bitrix" | "post" | "onsite";
-export type StepName = "pdf" | "mail" | "sentCopy" | "emailLog" | "bitrix";
+export type StepName = "pdf" | "mail" | "sentCopy" | "emailLog" | "bitrix" | "provider";
 export type StepStatus = "ok" | "failed" | "skipped";
-export interface SendFile { role: "offer" | "productImages" | "editedDocx" | "upload" | "bitrixDoc"; filename: string; fileId: string; size: number; sha256: string }
+export interface SendFile { role: "offer" | "productImages" | "editedDocx" | "upload" | "bitrixDoc" | "preset" | "letter"; filename: string; fileId: string; size: number; sha256: string }
 
 export const OfferSend = model("OfferSend", new Schema({
   sendId: { type: String, required: true },
@@ -34,6 +35,13 @@ export const OfferSend = model("OfferSend", new Schema({
   payload: { type: Schema.Types.Mixed, default: null },
   /** the price as sent — frozen here, independent of later recomputation */
   pricing: { type: Schema.Types.Mixed, default: null },
+  /** offer number + Ansprechpartner + content hash as sent — what a later save/send is compared with */
+  identity: { type: Schema.Types.Mixed, default: null },
+  /** what was filed in Bitrix (target + comment) — lets the filing be repeated from the stored files */
+  bitrixCall: { type: Schema.Types.Mixed, default: null },
+  recipient: { type: Schema.Types.Mixed, default: null },
+  resendOf: { type: String, default: "" },
+  bitrixRetryAt: { type: Date, default: null },
   total: { type: Number, default: null },
   selfPayAmount: { type: Number, default: null },
   files: { type: [Schema.Types.Mixed], default: [] },
@@ -121,11 +129,45 @@ export async function readSendFile(fileId: string): Promise<Buffer | null> {
   return Buffer.concat(chunks);
 }
 
+/** The last completed send of an offer that went to the customer (e-mail or post; not signed-documents letters). */
+export async function lastSentOffer(offerNumber: string): Promise<any | null> {
+  if (!offerNumber) return null;
+  return OfferSend.findOne({ offerNumber, status: "done", identity: { $ne: null } }).sort({ startedAt: -1 }).lean();
+}
+
+export class OfferChangedError extends Error {
+  override name = "OfferChangedError";
+  readonly statusCode = 409;
+  constructor(readonly differences: string[], readonly sent: { sendId: string; channel: string; at: Date; to: string; by: string }) {
+    super("Dieses Angebot wurde bereits versendet und seitdem geändert (" + differences.join(", ") +
+      "). Ein versendetes Angebot kann nicht mehr geändert werden. Bitte erstellen Sie eine neue Version.");
+  }
+}
+
+/**
+ * Decision C: an offer that was sent is immutable. Returns the earlier send when the current
+ * payload is still the same offer (null when it was never sent); throws OfferChangedError otherwise.
+ */
+export async function assertUnchangedSinceSent(offerNumber: string, payload: unknown): Promise<any | null> {
+  const prior = await lastSentOffer(offerNumber);
+  if (!prior) return null;
+  const diff = identityDifferences(prior.identity as OfferIdentity, offerIdentity(payload, offerNumber));
+  if (diff.length) {
+    throw new OfferChangedError(diff, { sendId: prior.sendId, channel: prior.channel, at: prior.finishedAt ?? prior.startedAt, to: prior.to || "", by: prior.by || "" });
+  }
+  return prior;
+}
+
+export const offerChangedBody = (e: OfferChangedError, requestId: string) => ({
+  error: { code: "OFFER_CHANGED", message: e.message, requestId }, differences: e.differences, sent: e.sent,
+});
+
 /** What the client may see of a send (no payload, no file contents). */
 export function sendView(s: any) {
   return {
     sendId: s.sendId, channel: s.channel, status: s.status, by: s.by, dealId: s.dealId, offerNumber: s.offerNumber, offerType: s.offerType,
     to: s.to, cc: s.cc, subject: s.subject, total: s.total, selfPayAmount: s.selfPayAmount,
+    ansprechpartner: s.identity?.ansprechpartner || "", customer: s.identity?.customer || "", resendOf: s.resendOf || "",
     steps: s.steps ?? {}, files: (s.files ?? []).map((f: SendFile) => ({ role: f.role, filename: f.filename, fileId: f.fileId, size: f.size, sha256: f.sha256 })),
     error: s.error || "", startedAt: s.startedAt, finishedAt: s.finishedAt,
   };

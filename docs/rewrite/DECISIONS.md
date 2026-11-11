@@ -195,8 +195,13 @@ Rules:
 
 New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `GET /api/sends/:sendId/files/:fileId`.
 
-**Next increments (same record, not built yet).**
-- A2: post and on-site signing write the same record; "Bitrix-Ablage wiederholen" from the stored files; the app shows the real sent state from the record instead of `locked`.
-- B (needs owner): signing uses the record — prices frozen from the send, the signed PDF stored with a hash; a hand-edited DOCX is signed as the sent PDF (today the customer signs the standard rendering without the edits).
-- C (needs owner): a sent offer is immutable on the server (a changed payload under a sent number is refused → "Neue Version"); offer numbers issued by the server; `locked` only after a real send, not after a download.
+**Addendum 2026-11-11 — owner decisions, built the same day.**
+- **A2 (built):** post writes the same record (`channel: "post"`, the letter exactly as handed to the printer, `provider` step); a failed Bitrix filing can be repeated from the stored files (`POST /api/sends/:sendId/retry-bitrix`, the add-on offers it right after the send).
+- **B (owner):** a hand-edited offer gets **no online-signing link** — no signing request is created and the sentence with the link is dropped from the mail (`signingLink: "off-hand-edited"` in the answer, notice in the app). Follow-up wish: edit description and price per position on the Kosten page so the hand-edited DOCX is needed less (not built — see UX-CHANGES U-014).
+- **C (owner):** a sent offer is immutable. `POST /api/offers`, the e-mail send and the post send compare the offer with the last completed send of that number (`sends/identity.ts`: offer number, Ansprechpartner, content hash that ignores key order, empty values and workflow sections). Unchanged → fine. Changed → `409 OFFER_CHANGED` with what differs; the app says: create a new version.
+- **Sent by e-mail, later by post:** the app asks first (when, how, to whom, Ansprechpartner); the server checks the open offer against the sent one and posts the **exact PDF that was sent**; if the open offer differs the user may post the original as it was sent (`useSentOriginal`).
+- Requests without `payload`/`sendId` (old client) behave exactly as before.
 
+**Not built yet.**
+- On-site signing writes the record; the app shows the real sent state from the record instead of `locked`; offer numbers issued by the server; `locked` only after a real send.
+- Signing: prices frozen from the send, signed PDF stored with a hash.

@@ -23,7 +23,11 @@ import {
 } from "../email/builders.js";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "../email/send-lock.js";
 import type { OfferDocuments, SigningPort } from "../email/ports.js";
-import { SEND_ID, beginSend, finishSend, patchSend, recordStep, storeSendFile, type SendFile, type StepName, type StepStatus } from "../sends/store.js";
+import {
+  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, offerChangedBody, patchSend, recordStep, storeSendFile,
+  type SendFile, type StepName, type StepStatus,
+} from "../sends/store.js";
+import { offerIdentity } from "../sends/identity.js";
 
 export interface EmailDeps {
   mailer: Mailer; deals: DealWrites; documents: OfferDocuments; signing: SigningPort; businessConfig: BusinessConfig;
@@ -108,6 +112,21 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         recordOpen = true;
       } catch (e) { req.log.warn({ err: e, sendId }, "send record: begin failed — sending without record"); }
 
+      // Decision C: an offer that was already sent cannot go out again with different content
+      // under the same number — "Neue Version" gives it a new one.
+      // identity of the offer as the client sent it — taken BEFORE the server resolves the
+      // Ansprechpartner and the pricing/rendering code touches the payload, so that the same
+      // offer sent or saved again compares equal
+      const identity = offerIdentity(payload, offerNumber);
+      let resendOf = "";
+      try {
+        const prior = await assertUnchangedSinceSent(String(payload?.offerNumber || offerNumber), payload);
+        if (prior) resendOf = prior.sendId;
+      } catch (e) {
+        if (e instanceof OfferChangedError) { sendError = e.message; return reply.status(409).send(offerChangedBody(e, req.id)); }
+        req.log.warn({ err: e, sendId }, "sent-offer check failed — continuing");
+      }
+
       if (dealId && !bitrixOnly) {
         const existing = await claimSendLock(EmailSend, dealId, ["1", "true"].includes(String(fields.forceResend || "")), { inFlightMs: EMAIL_IN_FLIGHT_MS, resendBlockMs: EMAIL_RESEND_BLOCK_MS });
         if (existing) {
@@ -130,7 +149,12 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       const isSelbstzahler = String(payload?.Kundendaten?.payer || "").toLowerCase().includes("selbstzahler");
 
       // ---- online-signing link ({{SIGN_LINK}} placeholder) ----
-      if (bitrixOnly) body = body.split("{{SIGN_LINK}}").join("");
+      // Decision B (owner 2026-11-11): a hand-edited offer gets NO online-signing link — the
+      // signing page shows the standard rendering, so the customer would sign a document
+      // without the edits (audit signing S-02). The whole sentence with the link is dropped.
+      const handEdited = !!files.editedDocx[0];
+      if (handEdited && !bitrixOnly) body = body.split(/\r?\n/).filter((line) => !line.includes("{{SIGN_LINK}}")).join("\n").replace(/\n{3,}/g, "\n\n");
+      else if (bitrixOnly) body = body.split("{{SIGN_LINK}}").join("");
       else try {
         const baseUrl = String(d.publicBaseUrl || "").trim() || `${req.protocol}://${req.headers.host}`;
         const { link } = await d.signing.createRequest({ payload, offerNumber, offerType, dealId, contactId, baseUrl, force: true });
@@ -161,7 +185,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         await rec("snapshot", () => patchSend(sendId, {
           // very large payloads (many sketches) would exceed the document limit — the stored PDF is the record then
           payload: payloadJson.length <= 8 * 1024 * 1024 ? payload : null, payloadOmitted: payloadJson.length > 8 * 1024 * 1024,
-          pricing: offerComputed ?? null,
+          pricing: offerComputed ?? null, identity, resendOf,
           total: isAhOffer ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0,
           selfPayAmount: isAhOffer ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0,
         }));
@@ -190,6 +214,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         if (productImageBuf && productImageFilename) await keep("productImages", productImageFilename, productImageBuf);
         for (const u of uploads) await keep("upload", u.filename, u.content);
         for (const f of files.bitrixDocs) await keep("bitrixDoc", f.filename, f.content);
+        if (!excludeBitrixPresets) for (const p of presets) await rec("file preset", async () => { await storeSendFile(sendId, "preset", p.filename, await readFile(p.path)); });
       }
       const inline = existsSync(signaturePath) ? [{ filename: "signaturepicture.png", path: signaturePath, cid: signatureCid }] : [];
       const mailAttachments = [
@@ -255,12 +280,11 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       try {
         const target = getBitrixTargetFromPayload(payload);
         if (target) {
+          const comment = buildBitrixEmailComment({ offerNumber: payload?.offerNumber || offerNumber, to, subject, body, attachmentNames, bitrixOnly, changes: offerChanges });
+          // kept on the record so a failed filing can be repeated from the stored files
+          if (recordOpen) await rec("bitrixCall", () => patchSend(sendId, { bitrixCall: { target, comment, internalNote: String(fields.internalNote || "") } }));
           if (target.entityType === "deal") await d.deals.setDealOfferLink(target.entityId, payload?.offerNumber || offerNumber);
-          bitrixComment = await d.deals.addTimelineComment({
-            ...target,
-            comment: buildBitrixEmailComment({ offerNumber: payload?.offerNumber || offerNumber, to, subject, body, attachmentNames, bitrixOnly, changes: offerChanges }),
-            attachments: bitrixAttachments,
-          });
+          bitrixComment = await d.deals.addTimelineComment({ ...target, comment, attachments: bitrixAttachments });
           const note = buildInternalNoteComment(fields.internalNote);
           if (note) await d.deals.addTimelineComment({ ...target, comment: note });
         }
@@ -273,7 +297,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       const offerTotal = isAh ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0;
       const selfPayAmount = isAh ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0;
       req.log.info({ dealId, offerNumber, bitrixOnly, attachments: attachmentNames.length, sendId }, "offer email done");
-      const result = { ok: true, bitrixOnly, messageId: info.messageId, attachmentNames, bitrixComment, offerTotal, selfPayAmount, ...(clientSendId ? { sendId } : {}) };
+      const result = { ok: true, bitrixOnly, messageId: info.messageId, attachmentNames, bitrixComment, offerTotal, selfPayAmount, ...(clientSendId ? { sendId } : {}), ...(handEdited && !bitrixOnly ? { signingLink: "off-hand-edited" } : {}) };
       if (recordOpen) {
         const bc = bitrixComment as { ok?: boolean; skipped?: boolean; error?: string; reason?: string } | null;
         await step("bitrix", bc?.skipped ? "skipped" : bc?.ok === false ? "failed" : "ok", bc?.ok === false ? String(bc.error || "") : bc?.skipped ? String(bc.reason || "") : "");

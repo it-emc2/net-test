@@ -6,6 +6,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
 import { Draft, Offer, User } from "../models.js";
+import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../sends/store.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -59,6 +60,14 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
     const { offerNumber, offerType, payload, status } = (req.body ?? {}) as Record<string, any>;
     if (!offerNumber) return fail(req, reply, 400, "BAD_REQUEST", "offerNumber ist erforderlich");
     if (!payload) return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
+    // Decision C (ADR 023): an offer that was sent is immutable. Saving it again unchanged is
+    // fine (downloads, post after e-mail); changed content under the sent number is refused —
+    // before, it overwrote the sent offer while the old price stayed pinned (audit create F01).
+    try { await assertUnchangedSinceSent(String(offerNumber), payload); }
+    catch (e) {
+      if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
+      req.log.warn({ err: e, offerNumber }, "sent-offer check failed — saving anyway");
+    }
     const pricingPayload = { ...payload, offerNumber, offerType };
     const computedPricing = await pricing.computePrices(pricingPayload);
     const offerDoc = {
