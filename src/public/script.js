@@ -8399,6 +8399,12 @@ function initWVConnectorsUI() {
   const corners = document.getElementById("wvCornersCount");
 
   if (!qtyVEl || !outEl) return;
+  // Runs on every visit to the page: wire the listeners only once, later
+  // visits just refresh the hint (Audit F-11, listener leak).
+  if (qtyVEl.dataset.wvConnWired === "1") {
+    qtyVEl.__wvConnRender?.();
+    return;
+  }
 
   const n = (v) => {
     const x = parseInt(String(v ?? "0").replace(/[^\d-]/g, ""), 10);
@@ -8451,6 +8457,9 @@ function initWVConnectorsUI() {
       outEl.innerHTML = `Empfehlung: ${rec} Stück – aktuell eingetragen: ${cur} Stück.${formula}`;
     }
   }
+
+  qtyVEl.dataset.wvConnWired = "1";
+  qtyVEl.__wvConnRender = render;
 
   // Wire listeners (any change should refresh the hint)
   ["input", "change", "blur"].forEach((ev) => {
