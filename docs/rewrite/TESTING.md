@@ -62,7 +62,7 @@
 ### Known flaky (CI only)
 | Test | Symptom | Handling |
 |---|---|---|
-| `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | **Known CI-only failure.** On GitHub runners the restore banner is absent after the offline reload (every attempt); locally it passes, also with 12× CPU throttling. CI artifact: app booted offline correctly (cached shell), banner element missing. Ruled out: cold SW cache (helper navigates), missing shell, slow CPU. Not confirmed: `userTypedEarly` race (synthetic input events count as typing — worth an `isTrusted` check anyway). | `test.skip` on CI only (2026-11-04), runs locally. Legacy-app test; v2 gets its own offline suite. Revisit if the legacy app keeps being developed. |
+| `offline-sync/session-recovery.spec.cjs` › "the snapshot survives with no connection" | ~~Known CI-only failure~~ → **real bug, fixed 2026-11-11.** Cause: the banner was not answered before the next page hide/navigation; `session-recovery.js` saw the still-empty form and deleted the snapshot (timing-dependent, hence CI-only in tests — on the iPad it happened reliably: data loss 10.11., cellar without signal). Fix: offered snapshot protected while the banner is unanswered + per-offer history („Älterer Stand“). 4 new cellar tests. | Skip removed; same fix on main (it-emc2/net-test#330). |
 
 ## Main sync 2026-11-05 (main@42150092: BU redesign, Hebeanlage, Terminplanung)
 - Merged `main` into the rewrite branch (no conflicts).

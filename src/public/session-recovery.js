@@ -11,10 +11,23 @@
 // So: snapshot buildPayload() as the user works, and offer to put it back on the
 // next load. Never applied automatically — a silent restore over a deliberate
 // fresh start would be its own bug.
+//
+// Data loss 10.11.2026 (cellar, no signal, iPad): iOS reloaded the tab, the
+// banner came up, and before it was answered the page went to the background
+// again (app switch / next discard). save() saw the still-empty form and
+// deleted the snapshot; typing next to the banner overwrote it. Twice, 53 and
+// 94 minutes of work were gone. Rules since then:
+//  1. A snapshot the banner offers is never deleted or overwritten while the
+//     banner is unanswered (bannerPending).
+//  2. Every offer additionally keeps its own last state ("h:<offerNumber>",
+//     newest MAX_HISTORY kept), so starting another offer never destroys the
+//     previous one; the banner lists them under „Älterer Stand“.
 const DB_NAME = "nt-session-recovery";
 const STORE = "snapshot";
 const KEY = "current";
-const DB_VERSION = 1;
+const HISTORY_PREFIX = "h:"; // + offerNumber (or "ohne-nummer")
+const MAX_HISTORY = 10;
+const DB_VERSION = 1; // same store, new keys only — no upgrade needed
 
 // Long enough not to write on every keystroke, short enough that little is lost
 // if the tab is killed without warning.
@@ -24,6 +37,7 @@ let dbPromise = null;
 let pristine = null; // serialized empty-form baseline
 let timer = null;
 let started = false;
+let bannerPending = false; // the banner offers `current`: never delete/overwrite it unanswered
 
 // initSessionRecovery() only runs after DOM-ready + drafts-ready, which can lag
 // behind a fast typist on a slow connection. If the user already started
@@ -65,6 +79,56 @@ const put = (record) => tx("readwrite", (s) => s.put(record, KEY));
 const clear = () => tx("readwrite", (s) => s.delete(KEY));
 const load = () => tx("readonly", (s) => s.get(KEY));
 
+const historyKey = (snap) =>
+  HISTORY_PREFIX + (String(snap?.payload?.offerNumber || "").trim() || "ohne-nummer");
+
+// Per-offer copy + pruning to the newest MAX_HISTORY, in one transaction.
+function archive(snap) {
+  if (!snap?.payload) return Promise.resolve();
+  return tx("readwrite", (s) => {
+    s.put(snap, historyKey(snap));
+    const all = s.getAll();
+    const keys = s.getAllKeys();
+    all.onsuccess = () => {
+      keys.onsuccess = () => {
+        const hist = keys.result
+          .map((k, i) => ({ k, at: all.result[i]?.savedAt || "" }))
+          .filter((x) => typeof x.k === "string" && x.k.startsWith(HISTORY_PREFIX))
+          .sort((a, b) => (a.at < b.at ? 1 : -1));
+        for (const old of hist.slice(MAX_HISTORY)) s.delete(old.k);
+      };
+    };
+  });
+}
+
+function loadHistory() {
+  return tx("readonly", (s) => {
+    const req = s.getAll();
+    const keys = s.getAllKeys();
+    const out = [];
+    req.onsuccess = () => {
+      keys.onsuccess = () => {
+        keys.result.forEach((k, i) => {
+          if (typeof k === "string" && k.startsWith(HISTORY_PREFIX) && req.result[i]?.payload) out.push(req.result[i]);
+        });
+        out.sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+      };
+    };
+    return out;
+  });
+}
+
+// First string value of a key named like `name` anywhere in the payload (label only).
+function findText(obj, name, depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 4) return "";
+  if (typeof obj[name] === "string" && obj[name].trim()) return obj[name].trim();
+  for (const v of Object.values(obj)) {
+    const hit = findText(v, name, depth + 1);
+    if (hit) return hit;
+  }
+  return "";
+}
+
 function currentSnapshot() {
   const payload = window.buildPayload?.();
   if (!payload) return null;
@@ -83,12 +147,17 @@ async function save() {
   try {
     const snap = currentSnapshot();
     if (!snap) return;
-    // An untouched form must never produce a "restore?" prompt on next load.
     if (fingerprint(snap) === pristine) {
-      await clear();
+      // Rule 1: the banner's snapshot survives an app switch / reload before it
+      // is answered. Otherwise an untouched form never produces a prompt.
+      if (!bannerPending) await clear();
       return;
     }
+    // Real new work while the banner is open: the offered snapshot is already in
+    // its per-offer history slot (initSessionRecovery), so `current` may move on.
+    bannerPending = false;
     await put(snap);
+    await archive(snap);
   } catch (err) {
     console.warn("[session-recovery] save failed:", err);
   }
@@ -127,7 +196,13 @@ function formatWhen(iso) {
   return today ? `heute ${time}` : `${d.toLocaleDateString("de-DE")} ${time}`;
 }
 
-function showBanner(snap, { onRestore, onDiscard }) {
+function snapLabel(snap) {
+  const name = findText(snap.payload, "lastName");
+  const nr = String(snap.payload?.offerNumber || "").trim();
+  return [formatWhen(snap.savedAt), String(snap.offerType || "").toUpperCase(), name, nr].filter(Boolean).join(" · ");
+}
+
+function showBanner(snap, { onRestore, onDiscard, history = [], onRestoreOlder }) {
   const bar = document.createElement("div");
   bar.id = "sessionRecoveryBar";
   bar.setAttribute("role", "alertdialog");
@@ -166,6 +241,22 @@ function showBanner(snap, { onRestore, onDiscard }) {
   discardBtn.addEventListener("click", () => onDiscard(bar));
 
   bar.append(text, restoreBtn, discardBtn);
+
+  // Rule 2: other offers' last states, newest first (not the one offered above).
+  const older = history.filter((h) => fingerprint(h) !== fingerprint(snap));
+  if (older.length && onRestoreOlder) {
+    const sel = document.createElement("select");
+    sel.id = "sessionRecoveryOlder";
+    sel.setAttribute("aria-label", "Älteren Stand wiederherstellen");
+    sel.style.cssText = "padding:8px 10px;border-radius:8px;border:1px solid #b45309;background:#fff;color:#78350f;max-width:100%";
+    const first = document.createElement("option");
+    first.value = ""; first.textContent = `Älterer Stand (${older.length}) …`;
+    sel.appendChild(first);
+    older.forEach((h, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = snapLabel(h); sel.appendChild(o); });
+    sel.addEventListener("change", () => { if (sel.value !== "") onRestoreOlder(bar, older[Number(sel.value)], sel); });
+    bar.appendChild(sel);
+  }
+
   document.body.insertBefore(bar, document.body.firstChild);
   return bar;
 }
@@ -233,15 +324,21 @@ export async function initSessionRecovery() {
     console.warn("[session-recovery] load failed:", err);
   }
 
+  if (existing?.payload) {
+    // Rule 1 before any listener can fire: the offered snapshot is protected and
+    // has its own per-offer copy, whatever happens next.
+    bannerPending = true;
+    await archive(existing).catch((err) => console.warn("[session-recovery] archive failed:", err));
+  }
+
   attachListeners();
 
   if (!existing?.payload) return null;
 
-  // The user was already typing before this async check resolved: showing a
-  // "restore old state?" banner now would interrupt live work over a
-  // baseline that never was actually empty. Keep the snapshot for next boot
-  // instead of interrupting this one.
-  if (userTypedEarly) return null;
+  // The user was already typing before this async check resolved. The old
+  // snapshot used to be "kept for next boot" here — and was overwritten by the
+  // first debounced save of the new input (10.11. loss). Now it sits in its
+  // history slot and the banner still offers it, without touching the form.
 
   // A save that failed with an expired session (script.js:
   // handleSaveAuthExpired) flushed this exact snapshot and flagged which kind
@@ -259,14 +356,32 @@ export async function initSessionRecovery() {
     return existing;
   }
 
+  let history = [];
+  try { history = await loadHistory(); } catch { history = []; }
+
   showBanner(existing, {
+    history,
+    onRestoreOlder: async (bar, snap, sel) => {
+      sel.disabled = true;
+      try {
+        bannerPending = false;
+        await restoreAndMaybeResave(snap, null);
+        bar.remove();
+      } catch (err) {
+        console.error("[session-recovery] restore (older) failed:", err);
+        sel.disabled = false; sel.value = "";
+        window.toast?.error?.("Wiederherstellen fehlgeschlagen", String(err?.message || err));
+      }
+    },
     onRestore: async (bar, button) => {
       button.disabled = true;
+      bannerPending = false;
       try {
         await restoreAndMaybeResave(existing, takePendingSaveFlag());
         bar.remove();
       } catch (err) {
         console.error("[session-recovery] restore failed:", err);
+        bannerPending = true;
         button.disabled = false;
         window.toast?.error?.(
           "Wiederherstellen fehlgeschlagen",
@@ -278,6 +393,9 @@ export async function initSessionRecovery() {
       // Clear before removing the bar, not after: the bar vanishing is the
       // user's cue that it is done, and if they navigate on that cue while the
       // delete is still in flight the snapshot comes back on the next load.
+      // „Verwerfen“ removes the offer from `current`; its per-offer history copy
+      // stays (newest MAX_HISTORY) as a safety net against a mis-tap.
+      bannerPending = false;
       await clear().catch(() => {});
       bar.remove();
     },
@@ -287,4 +405,4 @@ export async function initSessionRecovery() {
 }
 
 // Exposed for tests and for a manual "clear" if one is ever needed.
-export const __internals = { save, flush, load, clear };
+export const __internals = { save, flush, load, clear, loadHistory, isBannerPending: () => bannerPending };
