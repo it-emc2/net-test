@@ -2554,6 +2554,9 @@ function resetAllForms() {
     "form-admin",
     "form-as",
     "form-ah",
+    // AH Finanzierung: its flags feed the AH price and must not carry over
+    // to the next customer (Audit F10).
+    "form-Finanzierung",
     "form-hms",
     "form-wd",
   ];
@@ -2571,6 +2574,8 @@ function resetAllForms() {
       form.reset();
     }
   });
+  // Slider label and Umwidmung field follow the reset Finanzierung inputs.
+  window.__refreshFinanzierungUI?.();
   // A new offer starts without a Duschwanne; form.reset() unticks the switch
   // but does not touch the form's data-tray-off attribute.
   setDwTrayEnabled(false);
@@ -3946,6 +3951,7 @@ function filterPayloadByOffer(payload) {
     hl: "hl",
     bl: "bl",
     ah: "ah",
+    Finanzierung: "Finanzierung",
         hms: "hms",
             wd: "wd",
     admin: "admin",
