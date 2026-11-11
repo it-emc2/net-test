@@ -176,6 +176,22 @@ test("a failing PDF step keeps the signature; the retry completes once (S-01)", 
   expect(sendMail).toHaveBeenCalledTimes(1);
 });
 
+test("after a failed PDF step, a retry with a NEW signature still completes — with the first signature (S-01)", async () => {
+  const sr = await makeRequest();
+  htmlToPdfBuffer.mockRejectedValueOnce(new Error("renderer down"));
+  expect((await submit(sr.token, "zusatzblatt", PNG)).status).toBe(500);
+
+  const retry = await submit(sr.token, "zusatzblatt", PNG2); // customer signed again
+  expect(retry.status).toBe(200);
+  expect(retry.body).toMatchObject({ ok: true, completed: true });
+  const after = await SigningRequest.findById(sr._id).lean();
+  expect(after.documents[0].signatureImage).toBe(PNG); // first signature kept
+  expect(after.completionResult.ok).toBe(true);
+  expect(sendMail).toHaveBeenCalledTimes(1);
+  // once completed, a different signature is a conflict again
+  expect((await submit(sr.token, "zusatzblatt", PNG2)).status).toBe(409);
+});
+
 test("a failing confirmation mail is recorded, the signing still succeeds (S-01)", async () => {
   const sr = await makeRequest();
   sendMail.mockRejectedValueOnce(new Error("smtp down"));

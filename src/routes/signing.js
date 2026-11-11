@@ -971,14 +971,18 @@ async function completeSigning(sr) {
 // (Audit S-06). A different signature is still a conflict.
 async function answerAlreadySigned(res, current, key, sig) {
   const curDoc = (current?.documents || []).find((d) => d.key === key);
-  if (curDoc?.status === "signed" && sig && curDoc.signatureImage === sig) {
-    // The first attempt stored the signature but its completion failed
-    // (or was cut off): this retry runs it again (Audit S-01).
+  if (curDoc?.status === "signed" && sig) {
+    // The first attempt stored the signature but its completion failed (or was
+    // cut off): any retry runs it again with the signature already stored —
+    // also when the customer drew a new one, which would otherwise leave the
+    // request finished on paper but without PDFs, mail and filing (Audit S-01).
     const owner = await claimCompletion(current);
     if (owner) {
       const result = await completeSigning(owner);
       if (!result.ok) return res.status(500).json({ error: result.error });
       current = owner;
+    } else if (curDoc.signatureImage !== sig) {
+      return res.status(409).json({ error: "Dokument wurde bereits unterschrieben" });
     }
     return res.json({
       ok: true,
