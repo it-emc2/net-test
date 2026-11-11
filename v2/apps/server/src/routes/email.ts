@@ -3,6 +3,7 @@
 // 24 h duplicate lock per deal, same EmailLog/UserActionLog/Bitrix timeline side effects —
 // proven by the contract test against a local SMTP server and the recording Bitrix stub.
 // Product-image routes (/product-image-list, /preview-product-image-pdf) move with Phase 5.
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -22,6 +23,7 @@ import {
 } from "../email/builders.js";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "../email/send-lock.js";
 import type { OfferDocuments, SigningPort } from "../email/ports.js";
+import { SEND_ID, beginSend, finishSend, patchSend, recordStep, storeSendFile, type SendFile, type StepName, type StepStatus } from "../sends/store.js";
 
 export interface EmailDeps {
   mailer: Mailer; deals: DealWrites; documents: OfferDocuments; signing: SigningPort; businessConfig: BusinessConfig;
@@ -68,6 +70,14 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
     } else Object.assign(fields, (req.body ?? {}) as Record<string, string>);
 
     let lockedDealId = "";
+    // ---- send record (ADR 023): one record per send; the same sendId never sends twice ----
+    const clientSendId = SEND_ID.test(String(fields.sendId || "")) ? String(fields.sendId) : "";
+    const sendId = clientSendId || randomUUID();
+    let recordOpen = false, sendError = "";
+    // the record must never break a send: its own failures are logged only
+    const rec = async (what: string, fn: () => Promise<unknown>) => { try { await fn(); } catch (e) { req.log.warn({ err: e, sendId }, `send record: ${what} failed`); } };
+    const step = (name: StepName, status: StepStatus, error = "") => rec(`step ${name}`, () => recordStep(sendId, name, status, error));
+    const keep = (role: SendFile["role"], filename: string, content: Buffer) => rec(`file ${role}`, () => storeSendFile(sendId, role, filename, content));
     try {
       const to = String(fields.to || "").trim();
       const cc = String(fields.cc || "").trim();
@@ -84,6 +94,19 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       const contactId = String(fields.contactId || "").trim();
       if (dealId) payload.bitrixDealId = dealId;
       if (contactId) payload.bitrixContactId = contactId;
+
+      try {
+        const begun = await beginSend(sendId, {
+          channel: bitrixOnly ? "bitrix" : "email", by: String(req.user?.email || ""), dealId, contactId,
+          offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), to, cc, subject,
+        });
+        if (begun.state === "running") return fail(req, reply, 409, "SEND_IN_PROGRESS", "Dieser Versand läuft bereits. Bitte warten Sie einen Moment.", { sendId });
+        if (begun.state === "done") {
+          req.log.info({ sendId }, "repeated sendId — stored answer returned, nothing sent again");
+          return { ...(begun.result as object), duplicate: true };
+        }
+        recordOpen = true;
+      } catch (e) { req.log.warn({ err: e, sendId }, "send record: begin failed — sending without record"); }
 
       if (dealId && !bitrixOnly) {
         const existing = await claimSendLock(EmailSend, dealId, ["1", "true"].includes(String(fields.forceResend || "")), { inFlightMs: EMAIL_IN_FLIGHT_MS, resendBlockMs: EMAIL_RESEND_BLOCK_MS });
@@ -128,6 +151,21 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         ({ pdfBuffer: pdfBuf, computed: offerComputed, data: offerData } = await d.documents.renderOfferPdf(payload || {}));
       }
       const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
+      if (recordOpen) {
+        await step("pdf", "ok");
+        // the exact documents that leave the house, and the offer and price as sent
+        await keep("offer", angebotFilename, pdfBuf);
+        if (editedDocx) await keep("editedDocx", angebotFilename.replace(/\.pdf$/i, ".docx"), editedDocx.content);
+        const isAhOffer = offerType.toLowerCase() === "ah";
+        const payloadJson = JSON.stringify(payload ?? null);
+        await rec("snapshot", () => patchSend(sendId, {
+          // very large payloads (many sketches) would exceed the document limit — the stored PDF is the record then
+          payload: payloadJson.length <= 8 * 1024 * 1024 ? payload : null, payloadOmitted: payloadJson.length > 8 * 1024 * 1024,
+          pricing: offerComputed ?? null,
+          total: isAhOffer ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0,
+          selfPayAmount: isAhOffer ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0,
+        }));
+      }
       const sentBy = String(req.user?.email || "");
       const editedDocxInfo = editedDocx ? { name: editedDocx.filename || "", sha256: sha256(editedDocx.content), size: editedDocx.content.length } : null;
       const offerChanges = describeOfferChanges({ overrides: payload?.offerOverrides, editedDocx: editedDocxInfo, user: sentBy });
@@ -148,6 +186,11 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       const signaturePath = join(d.assetsDir, "signaturepicture.png");
       const presets = getPresetAttachments(d.assetsDir, excludePreset, isSelbstzahler, offerType);
       const uploads = files.attachments.map((f) => ({ filename: f.filename, content: f.content }));
+      if (recordOpen) {
+        if (productImageBuf && productImageFilename) await keep("productImages", productImageFilename, productImageBuf);
+        for (const u of uploads) await keep("upload", u.filename, u.content);
+        for (const f of files.bitrixDocs) await keep("bitrixDoc", f.filename, f.content);
+      }
       const inline = existsSync(signaturePath) ? [{ filename: "signaturepicture.png", path: signaturePath, cid: signatureCid }] : [];
       const mailAttachments = [
         { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
@@ -172,7 +215,9 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       let info: { messageId?: string } = { messageId: "" };
       if (!bitrixOnly) {
         const mail = { from: d.mailer.from, replyTo: d.mailer.replyTo, to, ...(cc ? { cc } : {}), subject, text: textBody, html: htmlBody, attachments: mailAttachments };
-        info = await d.mailer.send(mail);
+        try { info = await d.mailer.send(mail); }
+        catch (mailErr) { if (recordOpen) await step("mail", "failed", (mailErr as Error)?.message || String(mailErr)); throw mailErr; }
+        if (recordOpen) await step("mail", "ok");
         // record right after SMTP accepted it — later failures must not free the deal for a resend
         if (lockedDealId) {
           await EmailSend.updateOne({ dealId: lockedDealId }, { $set: { inFlightUntil: null, sentAt: new Date(), offerNumber: payload?.offerNumber || offerNumber } })
@@ -182,15 +227,25 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         try {
           const sent = await d.mailer.saveToSentFolder(mail);
           if (!sent.ok) req.log.warn({ reason: sent.reason }, "Sent copy skipped");
-        } catch (imapErr) { req.log.warn({ err: imapErr }, "saving to Sent folder failed"); }
-        await EmailLog.create({
+          if (recordOpen) await step("sentCopy", sent.ok ? "ok" : "skipped", sent.ok ? "" : String(sent.reason || ""));
+        } catch (imapErr) {
+          req.log.warn({ err: imapErr }, "saving to Sent folder failed");
+          if (recordOpen) await step("sentCopy", "failed", (imapErr as Error)?.message || String(imapErr));
+        }
+        // The mail is out: a failing log entry must not turn the answer into "Send failed" nor
+        // skip the Bitrix filing (audit send S-12) — it is recorded on the send instead.
+        try { await EmailLog.create({
           to, ...(cc ? { cc } : {}), subject, body: textBody, attachmentNames,
           offerNumber: payload?.offerNumber || offerNumber, offerType: payload?.activeOffer || offerType,
           ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
           ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
           sentBy,
-        });
-      }
+        }); if (recordOpen) await step("emailLog", "ok"); }
+        catch (logErr) {
+          req.log.error({ err: logErr, sendId }, "EmailLog entry failed after the mail was sent");
+          if (recordOpen) await step("emailLog", "failed", (logErr as Error)?.message || String(logErr));
+        }
+      } else if (recordOpen) await step("mail", "skipped", "nur Bitrix");
 
       const event = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
       void UserActionLog.create({ event, dealId: String(dealId || ""), offerNumber: payload?.offerNumber || offerNumber, offerType: payload?.activeOffer || offerType })
@@ -217,14 +272,24 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       // final gross total + Eigenanteil for the "ANG verschickt" dialog (AH prices client-side)
       const offerTotal = isAh ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0;
       const selfPayAmount = isAh ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0;
-      req.log.info({ dealId, offerNumber, bitrixOnly, attachments: attachmentNames.length }, "offer email done");
-      return { ok: true, bitrixOnly, messageId: info.messageId, attachmentNames, bitrixComment, offerTotal, selfPayAmount };
+      req.log.info({ dealId, offerNumber, bitrixOnly, attachments: attachmentNames.length, sendId }, "offer email done");
+      const result = { ok: true, bitrixOnly, messageId: info.messageId, attachmentNames, bitrixComment, offerTotal, selfPayAmount, ...(clientSendId ? { sendId } : {}) };
+      if (recordOpen) {
+        const bc = bitrixComment as { ok?: boolean; skipped?: boolean; error?: string; reason?: string } | null;
+        await step("bitrix", bc?.skipped ? "skipped" : bc?.ok === false ? "failed" : "ok", bc?.ok === false ? String(bc.error || "") : bc?.skipped ? String(bc.reason || "") : "");
+        await rec("finish", () => finishSend(sendId, "done", { result }));
+        recordOpen = false;
+      }
+      return result;
     } catch (e) {
-      req.log.error({ err: e }, "send-offer failed");
+      sendError = (e as Error)?.message || String(e);
+      req.log.error({ err: e, sendId }, "send-offer failed");
       return fail(req, reply, 500, "SEND_FAILED", "Send failed", { detail: (e as Error)?.message || String(e) });
     } finally {
       // nothing went out (validation, PDF or SMTP failure) → free the deal
       if (lockedDealId) await EmailSend.updateOne({ dealId: lockedDealId }, { $set: { inFlightUntil: null } }).catch(() => {});
+      // a record still open here means the send did not complete (validation, PDF or SMTP failure)
+      if (recordOpen) await rec("finish", () => finishSend(sendId, "failed", { error: (sendError || "abgebrochen").slice(0, 500) }));
     }
   });
 }

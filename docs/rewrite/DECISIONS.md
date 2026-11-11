@@ -175,3 +175,28 @@ Every rewrite session reads this first. Never silently change an ACCEPTED decisi
 - Approved from the before/after page `docs/rewrite/ux-proposals.html`: P7-1 one „Öffnen“ field, P7-2 min. 16 px text / 48 px buttons / plain German, P7-3 fewer buttons in the Dokumentenstudio (Adobe card gone, developer tools for admins only, Kalkulation keeps all four exports), P7-4 in-page messages instead of browser pop-ups, P7-5 option **A**: „Schnellspeichern“/„Speichern unter“ removed, a button „An Planung übergeben“ moves the Bitrix deal to „Zuteilen“.
 - Built as v2 add-ons (ADR 021) — today's app on `main` is unchanged. Parity suites keep comparing behaviour; v2-only specs check each change.
 - Addendum 2026-11-06 (owner, option A): offers started without a deal number autosave under a temporary key `t-<24 hex>` (same `deal_drafts` storage, address `?entwurf=…`); `POST /api/deals/:deal/draft/adopt {from}` makes that state a new revision of the deal's draft (on top of any existing one, nothing lost) and marks the temporary draft `adoptedInto` (kept, not deleted). UX-CHANGES U-007.
+
+## 023 — One record per send; a send is never lost and never goes out twice (ACCEPTED, technical, 2026-11-11 — owner said "start with v2")
+**Context.** Audit 2026-11 (`docs/audit-2026-11/`): "sent" was not a recorded fact. The client gave up after 60 s while the server carried on (mail out, nothing recorded, a retry sent a second mail — send S-01); a failing log entry after the mail turned the answer into "Send failed" and skipped Bitrix (S-12); the documents that left the house were rebuilt later from whatever the code then was, and the price in the customer's PDF was not kept anywhere (send S-03, signing S-04/S-05).
+
+**Decision.** Every send writes one record in a NEW collection `offer_sends` (legacy collections untouched; files in the GridFS bucket `offer_files`):
+- who, when, channel, deal, offer number, recipient, subject;
+- the offer payload and the computed price **as sent** (frozen);
+- the exact files: offer PDF, product-image PDF, hand-edited DOCX, uploads, Bitrix-only documents (with SHA-256);
+- the outcome of each step: `pdf`, `mail`, `sentCopy`, `emailLog`, `bitrix`;
+- the answer given to the client.
+
+Rules:
+1. The client sends a `sendId` (add-on `send-guard.js`). The same id never sends twice: running → `409 SEND_IN_PROGRESS`; done → the stored answer with `duplicate: true`; failed or stale (10 min) → may run again.
+2. The add-on removes the 60 s cut-off and, if the connection drops, asks `GET /api/sends/:sendId` until the send is finished, then hands the app the real answer.
+3. The record never breaks a send: its own failures are logged only.
+4. Without `sendId` the answer is byte-identical to legacy (contract test unchanged); the record is written anyway.
+5. Indexes only through migration `003-offer-send-indexes` (cut-over list).
+
+New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `GET /api/sends/:sendId/files/:fileId`.
+
+**Next increments (same record, not built yet).**
+- A2: post and on-site signing write the same record; "Bitrix-Ablage wiederholen" from the stored files; the app shows the real sent state from the record instead of `locked`.
+- B (needs owner): signing uses the record — prices frozen from the send, the signed PDF stored with a hash; a hand-edited DOCX is signed as the sent PDF (today the customer signs the standard rendering without the edits).
+- C (needs owner): a sent offer is immutable on the server (a changed payload under a sent number is refused → "Neue Version"); offer numbers issued by the server; `locked` only after a real send, not after a download.
+

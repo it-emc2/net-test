@@ -3,6 +3,7 @@
 // Production execution needs owner approval (ADR 001/016) and runs against a fresh backup.
 import type mongoose from "mongoose";
 import { migrateDealDraftIndexes } from "../deal-drafts/store.js";
+import { migrateOfferSendIndexes } from "../sends/store.js";
 
 export interface MigrationResult { id: string; dryRun: boolean; matched: number; changed: number; note: string }
 
@@ -24,7 +25,13 @@ export async function m002UnsetEmptyCustomerNumber(db: mongoose.mongo.Db, dryRun
   return { id: "002-unset-empty-customer-number", dryRun, matched, changed, note: 'unset customerNumber where it is ""' };
 }
 
-export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber];
+/** 003 — indexes for the NEW send record collection (ADR 023). */
+export async function m003OfferSendIndexes(_db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
+  if (!dryRun) await migrateOfferSendIndexes();
+  return { id: "003-offer-send-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 3, note: "creates uniq_sendId, offer_started, deal_started on offer_sends" };
+}
+
+export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes];
 
 /**
  * ROLLBACK tool (CUTOVER.md §4.2) — not a migration. Copies each deal's CURRENT autosaved draft

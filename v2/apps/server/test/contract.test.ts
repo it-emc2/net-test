@@ -844,6 +844,81 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     expect(mailNote.params).toContain("Handbearbeitete DOCX hochgeladen");
     expect(mailNote.params).toContain(`${BU.offerNumber}.docx`);
   }, 60000);
+  // ---- v2 only: one record per send (ADR 023) — legacy has no such thing ----
+  describe("send record (v2 only)", () => {
+    const get = async (url: string) => {
+      const r = await v2.inject({ method: "GET", url, headers: { authorization: `Bearer ${token}` } });
+      return { status: r.statusCode, body: r.headers["content-type"]?.toString().includes("json") ? r.json() : null, raw: r.rawPayload, headers: r.headers };
+    };
+    const fields = (sendId: string, extra: Record<string, Field> = {}) => ({
+      to: "kunde0001@example.invalid", subject: "Ihr Angebot", offerNumber: "ANG-REC-1", offerType: "bu", body: "Hallo {{SIGN_LINK}}",
+      payload: JSON.stringify({ ...BU, offerNumber: "ANG-REC-1" }), dealId: "9311", sendId, ...extra,
+    });
+    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/sends/store.js"); await migrateOfferSendIndexes(); });
+
+    it("records who/what/price/steps, stores the exact PDF, and answers a repeated sendId without sending again", async () => {
+      await clean(); smtp.take(); bx.take("v2");
+      const first = await sendTo("v2", fields("send-rec-0001", { attachments: { filename: "Notiz.txt", content: "Hallo" } }));
+      expect(first.status, JSON.stringify(first.body).slice(0, 300)).toBe(200);
+      expect(first.body).toMatchObject({ ok: true, sendId: "send-rec-0001" });
+      const mails = smtp.take();
+      expect(mails).toHaveLength(1);
+
+      const st = await get("/api/sends/send-rec-0001");
+      expect(st.status).toBe(200);
+      expect(st.body.send).toMatchObject({
+        status: "done", channel: "email", dealId: "9311", offerNumber: "ANG-REC-1", to: "kunde0001@example.invalid", by: USER.email,
+        steps: { pdf: { status: "ok" }, mail: { status: "ok" }, emailLog: { status: "ok" }, bitrix: { status: "ok" } },
+      });
+      expect(st.body.send.total).toBe(first.body.offerTotal); // the price as sent is frozen on the record
+      expect(st.body.result).toMatchObject({ ok: true, offerTotal: first.body.offerTotal });
+      expect(st.body.send.files.map((f: any) => f.role).sort()).toEqual(["offer", "upload"]);
+
+      // the stored offer PDF is byte-identical to the one in the customer's mail
+      const offerFile = st.body.send.files.find((f: any) => f.role === "offer");
+      const pdf = await get(`/api/sends/send-rec-0001/files/${offerFile.fileId}`);
+      expect(pdf.status).toBe(200);
+      expect(pdf.headers["content-type"]).toBe("application/pdf");
+      const mailed = mails[0].mail.attachments.find((a: any) => a.filename === offerFile.filename)!;
+      expect(Buffer.compare(pdf.raw, mailed.content)).toBe(0);
+
+      // same sendId again (retry after a dropped connection): stored answer, no second mail, no second Bitrix filing
+      bx.take("v2");
+      const again = await sendTo("v2", fields("send-rec-0001"));
+      expect(again.status).toBe(200);
+      expect(again.body).toMatchObject({ ok: true, duplicate: true, messageId: first.body.messageId });
+      await new Promise((r) => setTimeout(r, 200));
+      expect(smtp.take()).toHaveLength(0);
+      expect(bx.take("v2")).toHaveLength(0);
+
+      const list = await get("/api/offers/ANG-REC-1/sends");
+      expect(list.body.sends.map((x: any) => x.sendId)).toEqual(["send-rec-0001"]);
+      expect((await get("/api/sends/unknown-send-id")).status).toBe(404);
+    }, 60000);
+
+    it("a send that is still running is not started a second time", async () => {
+      const { OfferSend } = await import("../src/sends/store.js");
+      await OfferSend.create({ sendId: "send-rec-running", channel: "email", status: "running", startedAt: new Date() });
+      smtp.take();
+      const r = await sendTo("v2", fields("send-rec-running"));
+      expect(r.status).toBe(409);
+      expect(r.body.error.code).toBe("SEND_IN_PROGRESS");
+      expect(smtp.take()).toHaveLength(0);
+    }, 30000);
+
+    it("a failed send is recorded as failed and can be repeated with the same sendId", async () => {
+      await clean(); smtp.take();
+      const bad = await sendTo("v2", fields("send-rec-fail", { editedDocx: { filename: "a.pdf", content: "x" } }));
+      expect(bad.status).toBe(400);
+      // the answer goes out before the record is closed — a client that polls sees "running" for a moment
+      await expect.poll(async () => (await get("/api/sends/send-rec-fail")).body.send.status).toBe("failed");
+      expect(smtp.take()).toHaveLength(0);
+      const ok = await sendTo("v2", fields("send-rec-fail"));
+      expect(ok.status).toBe(200);
+      expect((await get("/api/sends/send-rec-fail")).body.send.status).toBe("done");
+      expect(smtp.take()).toHaveLength(1);
+    }, 60000);
+  });
 });
 
 // ---------------- group 4d: letters by post (onlinebrief24 stub + Bitrix stub) ----------------
@@ -1630,7 +1705,7 @@ describe("contract: web layer — same pages, files, redirects, security headers
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
     { // index: identical except v2's one add-on script tag before </body> (ADR 021)
       const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
-      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n</body>') });
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n</body>') });
     }
     { // admin page: + shim
       const l = await get("legacy", "/admin/", COOKIE()), v = await get("v2", "/admin/", COOKIE());
@@ -1640,7 +1715,7 @@ describe("contract: web layer — same pages, files, redirects, security headers
     // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
     {
       const v = await get("v2", "/irgendwo/tief", COOKIE());
-      const html = injectHead(readFileSync(ROOT + "src/public/index.html", "utf8")).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n</body>');
+      const html = injectHead(readFileSync(ROOT + "src/public/index.html", "utf8")).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n</body>');
       expect([v.status, v.body.toString()]).toEqual([200, html]);
     }
     // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>

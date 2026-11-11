@@ -13,6 +13,7 @@ import { vigorPriceFetcher } from "../vigor.js";
 import { registerOffersRead } from "./offers-read.js";
 import { registerOffersWrite } from "./offers-write.js";
 import { registerDealDrafts } from "../deal-drafts/routes.js";
+import { registerSends } from "../sends/routes.js";
 import { registerGroup3 } from "./group3.js";
 import { registerBitrixRead } from "./bitrix-read.js";
 import { BitrixClient } from "../integrations/bitrix.js";
@@ -173,7 +174,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerWeb(app, {
     publicDir: cfg.WEB_PUBLIC_DIR ?? LEGACY_PUBLIC, logicDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/src/logic`,
     fontAwesomeDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/node_modules/@fortawesome/fontawesome-free`, authSecret: cfg.AUTH_SECRET,
-    indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>', '<script src="/v2/addons/deal-draft.js" defer></script>', '<script src="/v2/addons/ux.js" defer></script>', '<script src="/v2/addons/header.js" defer></script>', '<script src="/v2/addons/quickwins.js" defer></script>'],
+    indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>', '<script src="/v2/addons/deal-draft.js" defer></script>', '<script src="/v2/addons/ux.js" defer></script>', '<script src="/v2/addons/header.js" defer></script>', '<script src="/v2/addons/quickwins.js" defer></script>', '<script src="/v2/addons/send-guard.js" defer></script>'],
   });
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
@@ -186,6 +187,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
+  await registerSends(app);
   await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   const bitrix = deps.bitrix ?? new BitrixClient({
     baseUrl: cfg.BITRIX_WEBHOOK_BASE,
