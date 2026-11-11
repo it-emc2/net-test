@@ -21246,8 +21246,10 @@ function initOptionalSonderprodukte() {
 }
 
 // Save a final offer snapshot after a successful export
+// Returns { ok, queued, offerNumber } so callers can stop when the offer was
+// not stored (ok=false and queued=false). Existing callers may ignore it.
 async function saveFinalOfferSnapshot() {
-  if (typeof buildPayload !== "function") return;
+  if (typeof buildPayload !== "function") return { ok: false, queued: false, offerNumber: "" };
 
   // 1) Build full payload from UI
   const fullPayload = buildPayload();
@@ -21302,24 +21304,28 @@ async function saveFinalOfferSnapshot() {
         "Offline",
         `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
       );
-      return;
+      return { ok: false, queued: true, offerNumber };
     }
 
     if (!res.ok) {
       const { handleSaveAuthExpired } = await import("./auth-recovery.js");
-      if (await handleSaveAuthExpired(res, "offer")) return;
+      if (await handleSaveAuthExpired(res, "offer")) {
+        return { ok: false, queued: false, authExpired: true, offerNumber };
+      }
       const body = await res.json().catch(() => ({}));
       window.toast?.error?.(
         "Speichern fehlgeschlagen",
         body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
       );
-      return;
+      return { ok: false, queued: false, status: res.status, offerNumber };
     }
 
     window.toast?.success?.("Gespeichert", `Angebot ${offerNumber} wurde gespeichert.`);
+    return { ok: true, queued: false, offerNumber };
   } catch (err) {
     console.error("Failed to save final offer snapshot:", err);
     window.toast?.error?.("Speichern fehlgeschlagen", `Angebot ${offerNumber}: ${err.message}`);
+    return { ok: false, queued: false, offerNumber };
   }
 }
 
@@ -27460,10 +27466,22 @@ async function sendPdfToAuftrag() {
     if (offerNumberInput && !offerNumberInput.value.trim() && typeof genOfferNumber === "function") {
       offerNumberInput.value = genOfferNumber();
     }
+    let saveResult;
     try {
-      await window.saveFinalOfferSnapshot?.();
+      saveResult = await window.saveFinalOfferSnapshot?.();
     } catch (err) {
       console.error("[signOnSite] Angebot konnte nicht gespeichert werden:", err);
+      saveResult = { ok: false, queued: false };
+    }
+    // Do not hand the iPad to the customer for an offer that was not stored:
+    // the signing view has no way back to it (Audit F12). The error toast
+    // was already shown by saveFinalOfferSnapshot().
+    if (saveResult && !saveResult.ok && !saveResult.queued) {
+      setStatus(
+        "Das Angebot konnte nicht gespeichert werden. Die Unterschrift wurde nicht gestartet – bitte versuchen Sie es erneut.",
+        "error",
+      );
+      return;
     }
 
     const payload = buildPayload();
