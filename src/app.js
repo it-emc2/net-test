@@ -726,7 +726,7 @@ app.get(/.*/, (req, res) => {
 });
 
 // ---------------- Listen ----------------
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
   console.log("Mounted: POST /pdf-template");
   console.log("Mounted: POST /docx-template");
@@ -739,4 +739,51 @@ app.listen(PORT, () => {
   console.log("Mounted: GET  /api/offers/:offerNumber");
     console.log("Mounted: GET  /pdf-preview/viewer");
   console.log("Mounted: POST /pdf-preview/generate");
+});
+
+// ---------------- Process lifecycle ----------------
+// A deploy/restart sends SIGTERM. Stop accepting new connections, let
+// in-flight requests (a save, the send pipeline between SMTP and Bitrix)
+// finish for up to SHUTDOWN_GRACE_MS, then close Mongo and exit.
+const SHUTDOWN_GRACE_MS = 25_000;
+let shuttingDown = false;
+
+function shutdown(reason, exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${reason}: no new connections, waiting up to ${SHUTDOWN_GRACE_MS / 1000} s for open requests`);
+
+  const forceExit = setTimeout(() => {
+    console.warn("[shutdown] grace period over, exiting with requests still open");
+    process.exit(exitCode || 1);
+  }, SHUTDOWN_GRACE_MS);
+  forceExit.unref();
+
+  server.close(async (err) => {
+    if (err) console.warn("[shutdown] server.close:", err?.message || err);
+    try {
+      await mongoose.disconnect();
+      console.log("[shutdown] MongoDB disconnected");
+    } catch (e) {
+      console.warn("[shutdown] MongoDB disconnect failed:", e?.message || e);
+    }
+    process.exit(exitCode);
+  });
+  server.closeIdleConnections?.();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+// A stray rejected promise outside a request handler used to terminate the
+// process (Node default) and with it every in-flight request. Log it and
+// keep serving.
+process.on("unhandledRejection", (reason) => {
+  console.error("[process] unhandledRejection:", reason);
+});
+// After an uncaught exception the process state is unknown: log it and shut
+// down gracefully (exit code 1) so the platform restarts a clean instance.
+process.on("uncaughtException", (err, origin) => {
+  console.error(`[process] uncaughtException (${origin}):`, err);
+  shutdown("uncaughtException", 1);
 });
