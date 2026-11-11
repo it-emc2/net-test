@@ -148,3 +148,111 @@ test("the snapshot survives with no connection", async ({ page, context }) => {
   await page.click("#sessionRecoveryRestore");
   expect((await readSurvey(page)).lastName).toBe("Graul");
 });
+
+// ---------------------------------------------------------------------------
+// Data loss 10.11.2026: technician in a cellar (no signal) on an iPad. iOS
+// reloaded the tab, the banner came up, and before it was answered the page was
+// hidden again (app switch to MagicPlan, lock screen, next discard) — the
+// snapshot was deleted. Or the technician started on the form next to the
+// banner — the snapshot was overwritten. 53 and 94 minutes of work were gone.
+// These tests replay exactly that, offline.
+// ---------------------------------------------------------------------------
+const hide = (page) =>
+  page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+// Office: app opened online once (worker + cache warm). Cellar: offline, work, tab discarded.
+async function workInTheCellar(page, context) {
+  await bootedWithRecovery(page);
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 30000 });
+  await bootedWithRecovery(page);
+  await context.setOffline(true);
+  await fillSurvey(page);
+  await hide(page); // app switch → flush
+  await page.waitForTimeout(400);
+  await page.reload(); // iOS discarded the tab
+  await page.waitForFunction(() => window.__sessionRecoveryReady !== undefined, null, { timeout: 30000 });
+  await page.evaluate(() => window.__sessionRecoveryReady);
+  await expect(page.locator(BAR)).toBeVisible();
+}
+const reloadOffline = async (page) => {
+  await page.reload();
+  await page.waitForFunction(() => window.__sessionRecoveryReady !== undefined, null, { timeout: 30000 });
+  await page.evaluate(() => window.__sessionRecoveryReady);
+};
+
+test("cellar: app switch while the banner is still unanswered keeps the work", async ({ page, context }) => {
+  await workInTheCellar(page, context);
+  await hide(page); // MagicPlan again, banner not answered
+  await page.waitForTimeout(800);
+  await reloadOffline(page); // next discard
+
+  await expect(page.locator(BAR)).toBeVisible();
+  await page.click("#sessionRecoveryRestore");
+  expect((await readSurvey(page)).lastName).toBe("Graul");
+});
+
+test("cellar: several app switches and discards in a row keep the work", async ({ page, context }) => {
+  await workInTheCellar(page, context);
+  for (let i = 0; i < 3; i++) {
+    await hide(page);
+    await page.waitForTimeout(300);
+    await reloadOffline(page);
+    await expect(page.locator(BAR)).toBeVisible();
+  }
+  await page.click("#sessionRecoveryRestore");
+  expect((await readSurvey(page)).lastName).toBe("Graul");
+});
+
+test("cellar: starting on a new offer next to the banner never destroys the old one", async ({ page, context }) => {
+  await workInTheCellar(page, context);
+  // technician ignores the banner and starts a new offer
+  await page.evaluate(() => {
+    const el = document.getElementById("lastName");
+    el.value = "Neu"; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
+    const nr = document.getElementById("offerNumber");
+    nr.value = "ANG2026-1110-150138"; nr.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.waitForTimeout(1700); // debounced save of the new work
+  await hide(page);
+  await reloadOffline(page);
+
+  // banner offers the newest work and, under „Älterer Stand“, the first offer
+  await expect(page.locator(BAR)).toBeVisible();
+  const older = page.locator("#sessionRecoveryOlder");
+  await expect(older).toBeVisible();
+  const label = await older.locator("option").nth(1).textContent();
+  expect(label).toContain("Graul");
+  await older.selectOption({ index: 1 });
+  await expect(page.locator(BAR)).toHaveCount(0);
+  const s = await readSurvey(page);
+  expect(s.lastName).toBe("Graul");
+  expect(s.offerNumber).toBe("ANG2026-0815-120000");
+});
+
+test("typing before the recovery check resolves does not overwrite the old work", async ({ page, context }) => {
+  await workInTheCellar(page, context);
+  // next start: the technician types before the (slow, offline) check is done
+  await page.addInitScript(() => {
+    document.addEventListener("DOMContentLoaded", () => {
+      const el = document.getElementById("firstName");
+      if (el) { el.value = "Früh"; el.dispatchEvent(new Event("input", { bubbles: true })); }
+    });
+  });
+  await reloadOffline(page);
+  await page.waitForTimeout(1700);
+  await hide(page);
+  await reloadOffline(page);
+
+  await expect(page.locator(BAR)).toBeVisible();
+  // the Graul offer is either the one offered or listed under „Älterer Stand“
+  const older = page.locator("#sessionRecoveryOlder");
+  const idx = (await older.count())
+    ? await older.evaluate((sel) => [...sel.options].findIndex((o) => o.textContent.includes("Graul")))
+    : -1;
+  if (idx > 0) await older.selectOption({ index: idx });
+  else await page.click("#sessionRecoveryRestore");
+  expect((await readSurvey(page)).lastName).toBe("Graul");
+});
