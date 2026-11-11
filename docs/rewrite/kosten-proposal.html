@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kosten bearbeiten – Vorschlag</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --text: #17202a; --muted: #5d6b7a; --border: #dfe4ea;
+    --accent: #1f7a5c; --accent-soft: #e6f3ee; --warn: #b45309; --warn-soft: #fef3c7; --danger: #b91c1c;
+    --ring: rgba(31,122,92,.35); --note: #eef2ff; --note-border: #c7d2fe;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12171c; --card: #1b2229; --text: #e8edf2; --muted: #9aa8b6; --border: #2e3943;
+      --accent: #4fc49b; --accent-soft: #17332b; --warn: #f0b35a; --warn-soft: #3a2c12; --danger: #f08a8a;
+      --ring: rgba(79,196,155,.4); --note: #1c2340; --note-border: #37427a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 28px 0 10px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .explain { background: var(--note); border: 1px solid var(--note-border); border-radius: 12px; padding: 14px 16px; margin: 14px 0 22px; }
+  .explain ul { margin: 6px 0 0; padding-left: 20px; }
+  .explain li { margin: 3px 0; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: var(--note-border); color: var(--text); }
+
+  /* ---- the mocked app page ---- */
+  .frame { border: 1px solid var(--border); border-radius: 16px; background: var(--card); overflow: hidden; }
+  .frame-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .frame-head h3 { margin: 0; font-size: 20px; flex: 1 1 200px; }
+  .total-pill { font-weight: 700; font-size: 17px; white-space: nowrap; }
+  .total-pill small { font-weight: 400; color: var(--muted); font-size: 14px; }
+  .changes-bar { display: none; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 18px; background: var(--warn-soft); color: var(--warn); border-bottom: 1px solid var(--border); font-weight: 600; }
+  .changes-bar.on { display: flex; }
+  .changes-bar span { flex: 1 1 240px; }
+  .group { padding: 6px 18px 14px; }
+  .group-title { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 14px 0 6px; font-weight: 700; font-size: 17px; border-bottom: 2px solid var(--border); }
+  .group-title .sum { white-space: nowrap; }
+  .line { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: start; }
+  .line:last-child { border-bottom: 0; }
+  .line-main { min-width: 0; }
+  .line-name { font-weight: 600; overflow-wrap: anywhere; }
+  .line-meta { color: var(--muted); font-size: 14px; }
+  .line-price { text-align: right; white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .was { text-decoration: line-through; color: var(--muted); font-weight: 400; font-size: 14px; display: block; }
+  .badge { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); vertical-align: middle; }
+  .reason { font-size: 14px; color: var(--warn); margin-top: 2px; }
+  .line-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; min-height: 48px; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  button.link { min-height: 44px; border: 0; background: none; color: var(--accent); padding: 4px 6px; font-weight: 600; text-decoration: underline; }
+  button.link.danger { color: var(--danger); }
+
+  .editor { grid-column: 1 / -1; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 12px; padding: 14px; margin-top: 6px; display: grid; gap: 12px; }
+  .editor label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .editor textarea, .editor input { width: 100%; font: inherit; min-height: 48px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+  .editor textarea { min-height: 72px; resize: vertical; }
+  .editor .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .editor .hint { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .editor .err { font-size: 14px; color: var(--danger); margin-top: 4px; font-weight: 600; }
+  .editor .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .preview { margin-top: 18px; border: 1px dashed var(--border); border-radius: 14px; padding: 16px 18px; background: var(--card); }
+  .preview h4 { margin: 0 0 4px; font-size: 16px; }
+  .preview .pos { margin: 12px 0 0; }
+  .preview .pos-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .preview ul { margin: 6px 0 0; padding-left: 20px; }
+  .preview li { margin: 2px 0; overflow-wrap: anywhere; }
+  .preview mark { background: var(--warn-soft); color: inherit; padding: 0 3px; border-radius: 4px; }
+  .preview .tot { display: flex; justify-content: space-between; font-weight: 700; font-size: 17px; margin-top: 12px; padding-top: 8px; border-top: 2px solid var(--border); }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 14px; color: var(--muted); font-weight: 700; }
+  tr:last-child td { border-bottom: 0; }
+  .table-scroll { overflow-x: auto; }
+  @media (max-width: 560px) { .line { grid-template-columns: 1fr; } .line-price { text-align: left; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="tag">Proposal · U-014 · not built</span>
+  <h1>Edit description and price per position on “Kosten”</h1>
+  <p class="muted">Clickable mock with sample data. The grey-bordered box is the app page; everything else is explanation.</p>
+
+  <div class="explain">
+    <strong>The idea</strong>
+    <ul>
+      <li>Every position on the Kosten page gets a <strong>“Bearbeiten”</strong> button. Staff can change its wording and its price for this one offer.</li>
+      <li>A changed position is marked, shows the original value crossed out, and can be reset with one tap.</li>
+      <li>Totals update at once. The offer PDF, the e-mail, the signing page and the Kalkulation all use the changed values, because the change is saved with the offer.</li>
+      <li>This replaces most cases where staff download the Word file and edit it by hand. A hand-edited offer has no online-signing link; an offer edited here keeps it.</li>
+    </ul>
+    <p style="margin-top:10px"><strong>Try it:</strong> tap “Bearbeiten” on a position, change text or price, tap “Übernehmen”. Watch the totals and the “So steht es im Angebot” box.</p>
+  </div>
+
+  <!-- ================= mocked app page ================= -->
+  <div class="frame" id="app">
+    <div class="frame-head">
+      <h3>Kosten</h3>
+      <div class="total-pill"><small>Gesamt brutto</small> <span id="grand"></span></div>
+    </div>
+    <div class="changes-bar" id="changesBar" role="status">
+      <span id="changesText"></span>
+      <button type="button" class="link danger" id="resetAll">Alle Änderungen zurücksetzen</button>
+    </div>
+    <div id="groups"></div>
+  </div>
+
+  <div class="preview" aria-live="polite">
+    <h4>So steht es im Angebot (Kundendokument)</h4>
+    <p class="muted" style="font-size:14px">Der Kunde sieht je Block die Beschreibungen und eine Summe – keine Einzelpreise. Geänderte Stellen sind hier gelb markiert, im echten Dokument nicht.</p>
+    <div id="previewBody"></div>
+  </div>
+
+  <!-- ================= explanation ================= -->
+  <h2>What changes for staff</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Today</th><th>With this proposal</th></tr>
+    <tr><td>Wording: a find-and-replace rule under “Angebot anpassen” on the send page, which changes the word everywhere in the document</td><td>Change the text of the one position, where it is listed</td></tr>
+    <tr><td>Price: add or subtract a net amount for the whole block “Arbeiten” or “Material”</td><td>Set the price of the one position; the block total follows</td></tr>
+    <tr><td>Anything else: download the Word file, edit by hand, upload it again (no online signing, no price check)</td><td>Rarely needed</td></tr>
+    <tr><td>Nobody sees later what was changed, except in the Bitrix note</td><td>Each change shows original and new value, with the reason; listed in the Bitrix note and the Kalkulation</td></tr>
+  </table>
+  </div>
+
+  <h2>Rules I would build in</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Rule</th><th>Why</th></tr>
+    <tr><td>A price change needs a short reason (one line)</td><td>The office can see later why a price differs from the catalog</td></tr>
+    <tr><td>The price entered is the <strong>net price per unit</strong>; quantity stays as configured</td><td>Same figures as the catalog and the Kalkulation; no rounding surprises</td></tr>
+    <tr><td>Markup (Aufschlag) and discount still apply on top, as for any position</td><td>One calculation path; totals in PDF, signing page and Kalkulation always agree</td></tr>
+    <tr><td>Changes are saved with the offer and carried into “Neue Version”</td><td>Same as “Angebot anpassen” today</td></tr>
+    <tr><td>A sent offer cannot be edited (button disabled, hint “Neue Version erstellen”)</td><td>Matches the rule that sent offers are protected</td></tr>
+    <tr><td>The catalog is never changed</td><td>The edit belongs to this one offer only</td></tr>
+    <tr><td>Hidden in Kundenmodus</td><td>The Kosten page is internal</td></tr>
+  </table>
+  </div>
+
+  <h2>Decisions for you</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>#</th><th>Question</th><th>My suggestion</th></tr>
+    <tr><td>1</td><td>Who may change prices?</td><td>Everyone, with a reason. Alternative: everyone may raise a price, only admins may lower one.</td></tr>
+    <tr><td>2</td><td>Is there a limit for lowering a price?</td><td>No hard limit, but a warning when a position goes below its catalog price by more than 20 %.</td></tr>
+    <tr><td>3</td><td>May staff add a free position (own text, own price)?</td><td>Yes, as a second step after this one. It covers the last common reason for hand-editing.</td></tr>
+    <tr><td>4</td><td>What happens to “Angebot anpassen” on the send page?</td><td>Keep “Hinweis hinzufügen” and the wording rules; hide the block price adjustment for new offers (old offers keep theirs).</td></tr>
+    <tr><td>5</td><td>Which offer types?</td><td>BU, BWT, HL and BL first (priced on the server). AH is priced differently and would follow separately.</td></tr>
+  </table>
+  </div>
+
+  <h2>Where it would be built</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Part</th><th>Change</th></tr>
+    <tr><td>Saved with the offer</td><td>A new list of position edits next to today’s adjustments (position, new text, new net unit price, reason). No database change: it is part of the offer data that is stored already.</td></tr>
+    <tr><td>Price calculation</td><td>The edited unit price replaces the catalog price for that position before markup and totals. Runs on the server and in the offline calculation.</td></tr>
+    <tr><td>Documents</td><td>The edited text replaces the position’s description in the offer, the signing page and the Kalkulation.</td></tr>
+    <tr><td>Kosten page</td><td>The editing shown above.</td></tr>
+    <tr><td>Tests</td><td>Totals with edits (server and offline agree), PDF text, reset, sent offer locked, old offers unchanged.</td></tr>
+  </table>
+  </div>
+  <p class="muted">Effort: about one week including tests. The calculation change is the sensitive part, because it touches how every offer is priced.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var TAX = 0.19, MARKUP = 0.5; // sample: 50 % Aufschlag on material
+  var DATA = [
+    { key: "arbeiten", title: "Auszuführende Arbeiten", pos: "Pos. 001", markup: 0, lines: [
+      { id: "remove_tub", name: "Entfernen und Entsorgen der Badewanne inkl. Befliesung", qty: 1, unit: "pauschal", price: 420.00 },
+      { id: "install_tray", name: "Einbau der Duschwanne inkl. Abdichtung", qty: 1, unit: "pauschal", price: 380.00 },
+      { id: "labour", name: "Arbeitszeit vor Ort (2 Monteure)", qty: 7, unit: "Std.", price: 139.00 },
+    ] },
+    { key: "material", title: "Material für Badumbau", pos: "Pos. 002", markup: MARKUP, lines: [
+      { id: "DW-90120", name: "Duschwanne Mineralguss 90 × 120 cm, weiß", qty: 1, unit: "Stk.", price: 289.00 },
+      { id: "GT-FLEX", name: "Gleittür Echtglas 120 cm, Klarglas", qty: 1, unit: "Stk.", price: 512.00 },
+      { id: "WV-MARMOR", name: "Wandverkleidung Marmor weiß, 100 × 205 cm", qty: 3, unit: "Platte", price: 96.50 },
+    ] },
+  ];
+  var edits = {}; // id → { name?, price?, reason? }
+  var open = "";
+  var euro = function (n) { return n.toLocaleString("de-DE", { style: "currency", currency: "EUR" }); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var num = function (s) { var m = String(s).trim().replace(/\./g, "").replace(",", "."); var n = Number(m); return /^-?\d+(\.\d+)?$/.test(m) && isFinite(n) ? n : NaN; };
+  var fmtIn = function (n) { return n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }); };
+
+  function cur(l) { var e = edits[l.id] || {}; return { name: e.name != null ? e.name : l.name, price: e.price != null ? e.price : l.price, reason: e.reason || "" }; }
+  function lineTotal(g, l, price) { return l.qty * price * (1 + g.markup); }
+  function groupSum(g, orig) { return g.lines.reduce(function (s, l) { return s + lineTotal(g, l, orig ? l.price : cur(l).price); }, 0); }
+
+  function render() {
+    var root = document.getElementById("groups");
+    root.innerHTML = DATA.map(function (g) {
+      var sum = groupSum(g), was = groupSum(g, true);
+      return '<div class="group"><div class="group-title"><span>' + esc(g.title) + ' <span class="muted" style="font-weight:400;font-size:14px">' + esc(g.pos) +
+        (g.markup ? " · inkl. " + Math.round(g.markup * 100) + " % Aufschlag" : "") + '</span></span><span class="sum">' +
+        (Math.abs(sum - was) > 0.004 ? '<span class="was">' + euro(was) + "</span>" : "") + euro(sum) + " netto</span></div>" +
+        g.lines.map(function (l) { return lineHtml(g, l); }).join("") + "</div>";
+    }).join("");
+
+    var net = DATA.reduce(function (s, g) { return s + groupSum(g); }, 0);
+    var netWas = DATA.reduce(function (s, g) { return s + groupSum(g, true); }, 0);
+    document.getElementById("grand").innerHTML = (Math.abs(net - netWas) > 0.004 ? '<span class="was" style="display:inline;margin-right:6px">' + euro(netWas * (1 + TAX)) + "</span>" : "") + euro(net * (1 + TAX));
+    var n = Object.keys(edits).length, diff = (net - netWas) * (1 + TAX);
+    var bar = document.getElementById("changesBar");
+    bar.classList.toggle("on", n > 0);
+    document.getElementById("changesText").textContent = n === 1 ? "1 Position geändert" + diffText(diff) : n + " Positionen geändert" + diffText(diff);
+
+    document.getElementById("previewBody").innerHTML = DATA.map(function (g) {
+      return '<div class="pos"><div class="pos-head"><span>' + esc(g.pos) + " – " + esc(g.title) + "</span><span>" + euro(groupSum(g)) + "</span></div><ul>" +
+        g.lines.map(function (l) { var c = cur(l); var ch = c.name !== l.name; return "<li>" + (ch ? "<mark>" + esc(c.name) + "</mark>" : esc(c.name)) + "</li>"; }).join("") + "</ul></div>";
+    }).join("") + '<div class="tot"><span>Gesamtbetrag inkl. 19 % MwSt.</span><span>' + euro(net * (1 + TAX)) + "</span></div>";
+
+    var ed = document.querySelector(".editor textarea");
+    if (ed) ed.focus();
+  }
+  function diffText(d) { return Math.abs(d) < 0.005 ? "" : " · Gesamt " + (d > 0 ? "+" : "−") + euro(Math.abs(d)).replace("-", "") + " brutto"; }
+
+  function lineHtml(g, l) {
+    var c = cur(l), e = edits[l.id], changedPrice = e && e.price != null && Math.abs(e.price - l.price) > 0.004, changedName = e && e.name != null && e.name !== l.name;
+    var h = '<div class="line" data-id="' + esc(l.id) + '"><div class="line-main"><div class="line-name">' + esc(c.name) + (e ? '<span class="badge">geändert</span>' : "") + "</div>" +
+      (changedName ? '<div class="was">' + esc(l.name) + "</div>" : "") +
+      '<div class="line-meta">' + l.qty.toLocaleString("de-DE") + " " + esc(l.unit) + " × " + euro(c.price) + " netto" + "</div>" +
+      (c.reason ? '<div class="reason">Grund: ' + esc(c.reason) + "</div>" : "") + "</div>" +
+      '<div class="line-price">' + (changedPrice ? '<span class="was">' + euro(lineTotal(g, l, l.price)) + "</span>" : "") + euro(lineTotal(g, l, c.price)) + "</div>";
+    if (open === l.id) {
+      h += '<div class="editor"><div><label for="edName">Beschreibung in diesem Angebot</label><textarea id="edName">' + esc(c.name) + "</textarea>" +
+        '<div class="hint">Katalogtext: ' + esc(l.name) + "</div></div>" +
+        '<div class="row"><div><label for="edPrice">Einzelpreis netto (€)</label><input id="edPrice" inputmode="decimal" value="' + fmtIn(c.price) + '">' +
+        '<div class="hint">Katalogpreis: ' + euro(l.price) + " · Menge bleibt " + l.qty.toLocaleString("de-DE") + " " + esc(l.unit) + '</div><div class="err" id="edPriceErr" hidden></div></div>' +
+        '<div><label for="edReason">Grund für die Preisänderung</label><input id="edReason" placeholder="z. B. Sonderpreis mit GL abgestimmt" value="' + esc(c.reason) + '">' +
+        '<div class="err" id="edReasonErr" hidden></div></div></div>' +
+        '<div class="btns"><button type="button" class="primary" data-act="apply">Übernehmen</button><button type="button" data-act="cancel">Abbrechen</button></div></div>';
+    } else {
+      h += '<div class="line-actions"><button type="button" class="link" data-act="edit">Bearbeiten</button>' + (e ? '<button type="button" class="link danger" data-act="reset">Zurücksetzen</button>' : "") + "</div>";
+    }
+    return h + "</div>";
+  }
+
+  function find(id) { for (var i = 0; i < DATA.length; i++) for (var j = 0; j < DATA[i].lines.length; j++) if (DATA[i].lines[j].id === id) return DATA[i].lines[j]; return null; }
+
+  document.getElementById("groups").addEventListener("click", function (ev) {
+    var btn = ev.target.closest("[data-act]"); if (!btn) return;
+    var row = btn.closest(".line"), id = row.getAttribute("data-id"), l = find(id), act = btn.getAttribute("data-act");
+    if (act === "edit") open = id;
+    if (act === "cancel") open = "";
+    if (act === "reset") { delete edits[id]; open = ""; }
+    if (act === "apply") {
+      var name = row.querySelector("#edName").value.trim(), price = num(row.querySelector("#edPrice").value), reason = row.querySelector("#edReason").value.trim();
+      var pe = row.querySelector("#edPriceErr"), re = row.querySelector("#edReasonErr");
+      pe.hidden = re.hidden = true;
+      if (!isFinite(price) || price < 0) { pe.textContent = "Bitte einen Preis eingeben, z. B. 289,00."; pe.hidden = false; return; }
+      var priceChanged = Math.abs(price - l.price) > 0.004;
+      if (priceChanged && !reason) { re.textContent = "Bitte kurz angeben, warum der Preis abweicht."; re.hidden = false; return; }
+      var nameChanged = !!name && name !== l.name;
+      if (!priceChanged && !nameChanged) delete edits[id];
+      else edits[id] = { name: nameChanged ? name : null, price: priceChanged ? price : null, reason: priceChanged ? reason : "" };
+      open = "";
+    }
+    render();
+  });
+  document.getElementById("resetAll").addEventListener("click", function () { edits = {}; open = ""; render(); });
+
+  // start with one example edit so the marked state is visible at once
+  edits["GT-FLEX"] = { name: "Flexibles Duschsystem Echtglas 120 cm, Klarglas", price: null, reason: "" };
+  render();
+})();
+</script>
+</body>
+</html>
