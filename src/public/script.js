@@ -15638,13 +15638,40 @@ function attachDuschwanneToPayload(payload) {
 }
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
+  // Identical requests that are still in flight share one fetch (same JSON
+  // body → same promise). Each caller gets its own copy of the result. A
+  // finished answer is never reused: the entry is dropped as soon as the
+  // request settles, so the offline fallback below still sees a real failing
+  // fetch every time (Audit F-01, safe part).
+  const inflightPrice = new Map();
+  const clonePriceResult = (data) => {
+    if (data == null || typeof data !== "object") return data;
+    try {
+      return typeof structuredClone === "function"
+        ? structuredClone(data)
+        : JSON.parse(JSON.stringify(data));
+    } catch {
+      return JSON.parse(JSON.stringify(data));
+    }
+  };
   async function fetchPrice(payload) {
+    const body = JSON.stringify(payload);
+    let shared = inflightPrice.get(body);
+    if (!shared) {
+      shared = fetchPriceOnce(payload, body).finally(() => {
+        inflightPrice.delete(body);
+      });
+      inflightPrice.set(body, shared);
+    }
+    return clonePriceResult(await shared);
+  }
+  async function fetchPriceOnce(payload, body) {
     let r;
     try {
       r = await fetch("/api/price", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body,
       });
     } catch (err) {
       // No signal. Run the server's own rules (logic/pricing-core.js) against
