@@ -4,6 +4,8 @@
  *
  * - Audit S-06: text fields larger than busboy's 1 MB default (offer payload
  *   with sketches, custom photos as data-URLs) must be accepted.
+ * - Audit S-12: a failing EmailLog write after SMTP success must not turn the
+ *   answer into "Send failed" nor skip the Bitrix filing.
  */
 import { jest } from "@jest/globals";
 import express from "express";
@@ -97,4 +99,15 @@ test("accepts a payload text field larger than 1 MB (Audit S-06)", async () => {
   expect(res.status).toBe(200);
   expect(res.body.ok).toBe(true);
   expect(sendMail).toHaveBeenCalledTimes(1);
+});
+
+test("a failing EmailLog write after SMTP success still answers ok and files in Bitrix (Audit S-12)", async () => {
+  emailLogCreate.mockRejectedValue(new Error("mongo hiccup"));
+  const res = await send({ bitrixDealId: "123" });
+  expect(res.status).toBe(200);
+  expect(res.body.ok).toBe(true);
+  expect(sendMail).toHaveBeenCalledTimes(1);
+  expect(emailLogCreate).toHaveBeenCalledTimes(1);
+  expect(addTimelineComment).toHaveBeenCalledTimes(1);
+  expect(res.body.bitrixComment).toEqual({ ok: true });
 });

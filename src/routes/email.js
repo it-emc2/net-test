@@ -841,18 +841,28 @@ router.post(
       }
 
       // ---- DB log (only names + content) ----
-      await EmailLog.create({
-        to,
-        ...(cc ? { cc } : {}),
-        subject,
-        body: textBody,
-        attachmentNames,
-        offerNumber: payload?.offerNumber || offerNumber,
-        offerType: payload?.activeOffer || offerType,
-        ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
-        ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
-        sentBy,
-      });
+      // The customer already has the mail: a failing log write must neither
+      // turn the answer into "Send failed" nor skip the Bitrix filing below.
+      try {
+        await EmailLog.create({
+          to,
+          ...(cc ? { cc } : {}),
+          subject,
+          body: textBody,
+          attachmentNames,
+          offerNumber: payload?.offerNumber || offerNumber,
+          offerType: payload?.activeOffer || offerType,
+          ...(payload?.offerOverrides ? { offerOverrides: payload.offerOverrides } : {}),
+          ...(editedDocxInfo ? { editedDocx: editedDocxInfo } : {}),
+          sentBy,
+        });
+      } catch (logErr) {
+        console.error("[email] EmailLog write failed after SMTP success:", {
+          offerNumber: payload?.offerNumber || offerNumber,
+          dealId,
+          error: logErr?.message || String(logErr),
+        });
+      }
     }
 
     const actionEvent = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
