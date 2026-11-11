@@ -642,13 +642,38 @@ export function initEmailManager(options = {}) {
     updatePreview();
   }
 
+  // Touched body: add/remove only the Neukundenbonus bullet, keep the rest.
+  const BONUS_LINE = "• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.";
+  function syncBonusLineInBody() {
+    if (getOfferType() === "ah") return;
+    const lines = ($body.value || "").split("\n");
+    const at = lines.findIndex((l) => l.trim() === BONUS_LINE);
+    const want = bonusOn("rb-bonus-300");
+    if (want === (at !== -1)) return;
+    if (!want) lines.splice(at, 1);
+    else {
+      const grab = lines.findIndex((l) => l.startsWith("• Gratis Haltegriff"));
+      let i = grab;
+      if (i === -1) {
+        i = lines.findIndex((l) => l.startsWith("• "));
+        if (i === -1) return; // no bullet list to anchor on
+        while (lines[i + 1]?.startsWith("• ")) i++;
+        i++;
+      }
+      lines.splice(i, 0, BONUS_LINE);
+    }
+    $body.value = lines.join("\n");
+    updatePreview();
+  }
+
   // Same gate as the payload in script.js: the tick only counts while Rabatt is "ja".
-  function bonusGrabOn() {
+  function bonusOn(id) {
     return (
       document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja" &&
-      !!document.getElementById("rb-bonus-grab")?.checked
+      !!document.getElementById(id)?.checked
     );
   }
+  const bonusGrabOn = () => bonusOn("rb-bonus-grab");
 
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
@@ -693,8 +718,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 
 ${isSelbstzahler ? "" : "• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n"}• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
-${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
-${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
+${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}${bonusOn("rb-bonus-300") ? "• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n" : ""}${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
@@ -964,7 +988,13 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
     el?.addEventListener("change", updateBodyDefault);
   });
 
-  document.getElementById("rb-bonus-grab")?.addEventListener("change", updateBodyDefault);
+  ["rb-bonus-grab", "rb-bonus-300"].forEach((id) =>
+    document.getElementById(id)?.addEventListener("change", updateBodyDefault));
+  document.getElementById("rb-bonus-300")?.addEventListener("change", () => {
+    if (bodyTouched) syncBonusLineInBody();
+  });
+  document.querySelectorAll('input[name="rb-add-rabatt"]').forEach((el) =>
+    el.addEventListener("change", () => { if (bodyTouched) syncBonusLineInBody(); }));
   document.querySelectorAll('input[name="rb-add-rabatt"]').forEach((el) => {
     el.addEventListener("change", updateBodyDefault);
   });
