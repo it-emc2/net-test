@@ -142,7 +142,6 @@ function selbstzahlerBlock(data) {
   if (!data.IsSZ) return "";
   const emps = data.Employees || [];
   return `
-  <div style="page-break-before:always; break-before:page;"></div>
   <div class="section-lbl" style="margin-top:0;">Selbstzahler &mdash; Arbeitskostenanteil</div>
   <table>
     <thead><tr><th>Handwerker</th><th class="num">Vor Ort</th><th class="num">Anfahrt</th><th class="num">Lohn vor Ort</th><th class="num">Lohn Anfahrt</th><th class="num">Summe Lohn</th></tr></thead>
@@ -258,8 +257,7 @@ export function buildKalkulationV2Html(data) {
 <div class="page">
   ${headerBlock(data)}
   ${posBlock("Pos001", data)}
-  ${selbstzahlerBlock(data)}
-  ${reisezeitKostenBlock(data)}
+  ${data.IsSZ ? "" : reisezeitKostenBlock(data)}
 </div>
 
 <div class="page">
@@ -278,6 +276,12 @@ export function buildKalkulationV2Html(data) {
       : ""
   }
 </div>
+
+${data.IsSZ ? `<div class="page">
+  ${headerBlock(data)}
+  ${selbstzahlerBlock(data)}
+  ${reisezeitKostenBlock(data)}
+</div>` : ""}
 
 </body></html>`;
 }
