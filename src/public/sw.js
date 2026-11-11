@@ -37,6 +37,14 @@ const DA_CONFIG_MODEL_PATHS = new Set([
 // failed. "/" is deliberately absent — see warmShell, which needs the
 // redirect guard.
 //
+// The server answers every request with `Vary: Origin` (CORS middleware). A
+// module loaded with import() is a CORS-mode request and can carry an Origin
+// header the precache request did not — with Vary honoured, the cached copy
+// then "does not match" and the module is missing offline (seen 11.11.2026:
+// restoring work offline failed with "Failed to fetch dynamically imported
+// module: /pricing-client.js"). Our own files do not differ by origin.
+const MATCH = { ignoreVary: true };
+
 // Only modules reached through a dynamic import() need to be listed here.
 // Anything referenced from index.html is discovered automatically at install
 // (see discoverShellAssets), because a hand-maintained list drifts: it silently
@@ -248,7 +256,7 @@ self.addEventListener("activate", (event) => {
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE);
-  const hit = await cache.match(request);
+  const hit = await cache.match(request, MATCH);
   if (hit) return hit;
 
   const res = await fetch(request);
@@ -269,7 +277,7 @@ async function cacheFirst(request) {
 function staleWhileRevalidate(event) {
   return (async () => {
     const cache = await caches.open(CACHE);
-    const hit = await cache.match(event.request);
+    const hit = await cache.match(event.request, MATCH);
 
     const fromNetwork = fetch(event.request)
       .then(async (res) => {
@@ -301,8 +309,8 @@ async function navigationHandler(request) {
     return res;
   } catch {
     return (
-      (await cache.match(request)) ||
-      (await cache.match("/")) ||
+      (await cache.match(request, MATCH)) ||
+      (await cache.match("/", MATCH)) ||
       Response.error()
     );
   }
