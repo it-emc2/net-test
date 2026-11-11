@@ -145,6 +145,21 @@ export function initDrawingPadManager(options = {}) {
     ctx.restore();
   }
 
+  // Draw only the newest segment of the stroke in progress (no full replay).
+  function drawStrokeSegment(op, from, to) {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = op.tool === "eraser" ? "#ffffff" : (op.color || "#111827");
+    ctx.lineWidth = op.size || 4;
+    ctx.globalCompositeOperation = op.tool === "eraser" ? "destination-out" : "source-over";
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawLine(op) {
     if (!op?.from || !op?.to) return;
     ctx.save();
@@ -182,7 +197,9 @@ export function initDrawingPadManager(options = {}) {
     if (op.type === "ruler") return drawRuler(op);
   }
 
-  function redraw() {
+  // sync=false: repaint only (live preview while drawing a line/ruler); the
+  // PNG export in syncHidden() runs at stroke end, undo, clear and restore.
+  function redraw(sync = true) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const imageOps = ops.filter((op) => op?.type === "image");
@@ -197,7 +214,7 @@ export function initDrawingPadManager(options = {}) {
           drawOp(preview);
           ctx.restore();
         }
-        syncHidden();
+        if (sync) syncHidden();
       });
       return;
     }
@@ -209,7 +226,7 @@ export function initDrawingPadManager(options = {}) {
       drawOp(preview);
       ctx.restore();
     }
-    syncHidden();
+    if (sync) syncHidden();
   }
 
   function syncHidden() {
@@ -286,15 +303,16 @@ export function initDrawingPadManager(options = {}) {
     if (tool === "line" || tool === "ruler") {
       if (currentOp?.from) {
         preview = { ...currentOp, to: p };
-        redraw();
+        redraw(false);
       }
       return;
     }
 
     if (!pointerDown || !currentOp) return;
+    const last = currentOp.points[currentOp.points.length - 1];
     currentOp.points.push(p);
     preview = currentOp;
-    redraw();
+    drawStrokeSegment(currentOp, last, p);
   }
 
   function pointerEnd() {

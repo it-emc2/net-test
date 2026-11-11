@@ -70,3 +70,22 @@ test("restore into a hidden pad keeps the saved sketch and stops polling", async
   expect(t.exports()).toBeGreaterThanOrEqual(1);
   expect(t.hidden().dataUrl).toMatch(/EXPORT/);
 });
+
+test("a stroke exports the PNG once at the end, not on every move", () => {
+  const t = makePad({ visible: true });
+  const ev = (type, x, y) => {
+    const e = new Event(type);
+    Object.assign(e, { clientX: x, clientY: y, pointerId: 1 });
+    t.canvas.dispatchEvent(e);
+  };
+  // One finished stroke first, so the pad is not empty during the next one.
+  ev("pointerdown", 1, 1);
+  ev("pointerup", 1, 1);
+  const before = t.exports();
+  ev("pointerdown", 10, 10);
+  for (let i = 0; i < 50; i += 1) ev("pointermove", 10 + i, 10 + i);
+  expect(t.exports()).toBe(before);
+  ev("pointerup", 60, 60);
+  expect(t.exports()).toBe(before + 1);
+  expect(JSON.parse(t.hidden().json).ops[1].points).toHaveLength(51);
+});
