@@ -47,6 +47,7 @@ import {
   ABTRETUNG_REQUIRED_FIELDS,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
+import { isValidSignatureDataUrl } from "../lib/signatureImage.js";
 import { verifyToken, tokenFromReq } from "../services/authService.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -788,8 +789,13 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
     }
 
     const sig = String(req.body?.signatureImage || "");
-    if (!/^data:image\/png;base64,/.test(sig)) {
+    if (!sig) {
       return res.status(400).json({ error: "Unterschrift fehlt" });
+    }
+    // Strict PNG data URL only: it is stored and later placed into the HTML
+    // that is rendered into the signed PDF (Audit S-10).
+    if (!isValidSignatureDataUrl(sig)) {
+      return res.status(400).json({ error: "Die Unterschrift ist ungültig. Bitte unterschreiben Sie erneut." });
     }
 
     // For the BU Angebot the payment term is mandatory, but only when the
@@ -815,11 +821,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
     if (key === "zusatzblatt") {
       const bevName = String(editedFields.bevollmaechtigterName || "").trim();
       const bevSig = String(extraFields.bevollmaechtigterSignature || "");
-      if (bevName && !/^data:image\/png;base64,/.test(bevSig)) {
+      if (bevName && !bevSig) {
         return res
           .status(400)
           .json({ error: "Bitte lassen Sie den/die Bevollmächtigte/n unterschreiben" });
       }
+    }
+    // Any second signature that is sent at all must be a valid PNG data URL.
+    if (
+      req.body?.extraFields?.bevollmaechtigterSignature &&
+      !isValidSignatureDataUrl(String(req.body.extraFields.bevollmaechtigterSignature))
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Die Unterschrift des/der Bevollmächtigten ist ungültig. Bitte erneut unterschreiben." });
     }
 
     // Vollmacht/Abtretung: every displayed field is mandatory.
