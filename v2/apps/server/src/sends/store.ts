@@ -14,10 +14,18 @@ import { identityDifferences, offerIdentity, type OfferIdentity } from "./identi
 const model = <T>(name: string, schema: Schema<T>) =>
   (mongoose.models[name] as mongoose.Model<T>) ?? mongoose.model<T>(name, schema);
 
-export type SendChannel = "email" | "bitrix" | "post" | "onsite";
+export type SendChannel = "email" | "bitrix" | "post" | "onsite" | "signlink";
+
+/** One completion per signing request (ADR 023, increment 3): claimed atomically, outcome recorded. */
+export const SigningCompletion = model("SigningCompletion", new Schema({
+  token: { type: String, required: true },
+  claimedAt: { type: Date, required: true },
+  /** null while running; { ok, email, bitrix, partnerFiling, dealMove, error? } afterwards */
+  result: { type: Schema.Types.Mixed, default: null },
+}, { minimize: false, collection: "signing_completions" }));
 export type StepName = "pdf" | "mail" | "sentCopy" | "emailLog" | "bitrix" | "provider";
 export type StepStatus = "ok" | "failed" | "skipped";
-export interface SendFile { role: "offer" | "productImages" | "editedDocx" | "upload" | "bitrixDoc" | "preset" | "letter"; filename: string; fileId: string; size: number; sha256: string }
+export interface SendFile { role: "offer" | "productImages" | "editedDocx" | "upload" | "bitrixDoc" | "preset" | "letter" | "signed"; filename: string; fileId: string; size: number; sha256: string }
 
 export const OfferSend = model("OfferSend", new Schema({
   sendId: { type: String, required: true },
@@ -41,6 +49,11 @@ export const OfferSend = model("OfferSend", new Schema({
   bitrixCall: { type: Schema.Types.Mixed, default: null },
   recipient: { type: Schema.Types.Mixed, default: null },
   resendOf: { type: String, default: "" },
+  /** the online-signing request created by this send (or, for on-site signing, the request itself) */
+  signingToken: { type: String, default: "" },
+  /** on-site signing: the identity that becomes binding with the first signature */
+  identityOnSign: { type: Schema.Types.Mixed, default: null },
+  signedAt: { type: Date, default: null },
   bitrixRetryAt: { type: Date, default: null },
   total: { type: Number, default: null },
   selfPayAmount: { type: Number, default: null },
@@ -58,6 +71,8 @@ export async function migrateOfferSendIndexes() {
   await OfferSend.collection.createIndex({ sendId: 1 }, { unique: true, name: "uniq_sendId" });
   await OfferSend.collection.createIndex({ offerNumber: 1, startedAt: -1 }, { name: "offer_started" });
   await OfferSend.collection.createIndex({ dealId: 1, startedAt: -1 }, { name: "deal_started" });
+  await OfferSend.collection.createIndex({ signingToken: 1 }, { name: "signing_token", sparse: true });
+  await SigningCompletion.collection.createIndex({ token: 1 }, { unique: true, name: "uniq_token" });
 }
 
 export const SEND_ID = /^[A-Za-z0-9_-]{8,64}$/;
@@ -169,6 +184,38 @@ export function sendView(s: any) {
     to: s.to, cc: s.cc, subject: s.subject, total: s.total, selfPayAmount: s.selfPayAmount,
     ansprechpartner: s.identity?.ansprechpartner || "", customer: s.identity?.customer || "", resendOf: s.resendOf || "",
     steps: s.steps ?? {}, files: (s.files ?? []).map((f: SendFile) => ({ role: f.role, filename: f.filename, fileId: f.fileId, size: f.size, sha256: f.sha256 })),
-    error: s.error || "", startedAt: s.startedAt, finishedAt: s.finishedAt,
+    error: s.error || "", startedAt: s.startedAt, finishedAt: s.finishedAt, signedAt: s.signedAt ?? null, signing: !!s.signingToken,
   };
+}
+
+/** a completion that never reported back (crash, restart) may be run again after this */
+export const COMPLETION_STALE_MS = 10 * 60 * 1000;
+
+/** True for exactly one caller per signing request — also again after a failed or stale completion. */
+export async function claimSigningCompletion(token: string, now = new Date()): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const cur: any = await SigningCompletion.findOne({ token }).lean();
+    if (!cur) {
+      try { await SigningCompletion.create({ token, claimedAt: now, result: null }); return true; }
+      catch (e) { if ((e as { code?: number })?.code === 11000) continue; throw e; }
+    }
+    const failed = cur.result && cur.result.ok === false;
+    const stale = !cur.result && now.getTime() - new Date(cur.claimedAt).getTime() > COMPLETION_STALE_MS;
+    if (!failed && !stale) return false;
+    const won = await SigningCompletion.findOneAndUpdate({ _id: cur._id, claimedAt: cur.claimedAt }, { $set: { claimedAt: now, result: null } });
+    if (won) return true;
+  }
+  return false;
+}
+export async function finishSigningCompletion(token: string, result: Record<string, unknown>) {
+  await SigningCompletion.updateOne({ token }, { $set: { result: { ...result, finishedAt: new Date() } } });
+}
+export async function signingCompletion(token: string): Promise<any | null> {
+  return SigningCompletion.findOne({ token }).lean();
+}
+
+/** The send record a signing request belongs to (created by the e-mail send or by POST /api/signing). */
+export async function sendForSigning(token: string): Promise<any | null> {
+  if (!token) return null;
+  return OfferSend.findOne({ signingToken: token }).sort({ startedAt: -1 }).lean();
 }

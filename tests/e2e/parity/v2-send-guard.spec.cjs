@@ -142,3 +142,69 @@ test("mail sent but Bitrix filing failed → offer to repeat the filing from the
   await page.locator("#appConfirmOk").click();
   await expect.poll(() => retried).toContain(`/api/sends/${r.sendId}/retry-bitrix`);
 });
+
+// ---- increment 3: offer number registered, on-site hand-over recorded, Versandverlauf ----
+async function openBuSend(page, { sends = [], claim } = {}) {
+  await page.route("**/api/offer-numbers/claim", (route) => {
+    const b = JSON.parse(route.request().postData());
+    return route.fulfill({ json: claim ? claim(b) : { ok: true, offerNumber: b.current, changed: false, reason: "reserved" } });
+  });
+  await page.route(/\/api\/offers\/[^/]+\/sends$/, (route) => route.fulfill({ json: { ok: true, sends } }));
+  await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar a.side-link[data-step]").length > 0);
+}
+
+test("Versandverlauf shows what really went out — channel, recipient, signature, Bitrix state, stored document, retry", async ({ page }) => {
+  let retried = "";
+  await page.route("**/api/sends/*/retry-bitrix", (route) => { retried = route.request().url(); return route.fulfill({ json: { ok: true } }); });
+  await openBuSend(page, { sends: [
+    { sendId: "s-post", status: "done", channel: "post", to: "Kunde, Teststr. 1, 95028 Hof", finishedAt: "2026-11-11T10:00:00Z", steps: { bitrix: { status: "failed" } }, files: [{ role: "letter", fileId: "f2", filename: "a.pdf" }] },
+    { sendId: "s-onsite", status: "done", channel: "onsite", signing: true, signedAt: "2026-11-09T12:00:00Z", finishedAt: "2026-11-09T11:50:00Z", steps: {}, files: [{ role: "signed", fileId: "f3", filename: "angebot.pdf" }] },
+    { sendId: "s-mail", status: "done", channel: "email", to: "kunde@example.invalid", finishedAt: "2026-11-08T09:30:00Z", steps: { bitrix: { status: "ok" } }, files: [{ role: "offer", fileId: "f1", filename: "a.pdf" }, { role: "preset", fileId: "fx", filename: "v.pdf" }] },
+  ] });
+  await page.evaluate(() => window.setStep("Zusammenfassung"));
+  const box = page.locator("#ocSendHistory");
+  await expect(box).toBeVisible({ timeout: 10000 });
+  await expect(box.locator("li")).toHaveCount(3);
+  await expect(box.locator("li").nth(0)).toContainText("per Post an Kunde, Teststr. 1, 95028 Hof");
+  await expect(box.locator("li").nth(0)).toContainText("Bitrix-Ablage fehlgeschlagen");
+  await expect(box.locator("li").nth(1)).toContainText("Unterschrift vor Ort");
+  await expect(box.locator("li").nth(1)).toContainText("unterschrieben am");
+  await expect(box.locator("li").nth(2)).toContainText("per E-Mail an kunde@example.invalid");
+  await expect(box.locator("li").nth(2)).toContainText("in Bitrix abgelegt");
+  await expect(box.locator('li').nth(2).locator("a")).toHaveAttribute("href", "/api/sends/s-mail/files/f1"); // only the offer, not the enclosures
+  await box.getByRole("button", { name: "Ablage wiederholen" }).click();
+  await expect.poll(() => retried).toContain("/api/sends/s-post/retry-bitrix");
+});
+
+test("Versandverlauf: an offer that never went out says so", async ({ page }) => {
+  await openBuSend(page);
+  await page.evaluate(() => window.setStep("Zusammenfassung"));
+  await expect(page.locator("#ocSendHistory")).toContainText("noch nicht versendet", { timeout: 10000 });
+});
+
+test("the offer number is registered; a number that is taken is replaced in the form with a notice", async ({ page }) => {
+  const claims = [];
+  await openBuSend(page, { claim: (b) => { claims.push(b); return { ok: true, offerNumber: "ANG2026-1111-101501", changed: true, reason: "taken" }; } });
+  await expect.poll(() => page.evaluate(() => document.getElementById("offerNumber").value), { timeout: 15000 }).toBe("ANG2026-1111-101501");
+  expect(claims[0].current).toMatch(/^ANG/);
+  expect(claims[0].claimId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
+  await expect(page.locator(".oc-notice").last()).toContainText("ANG2026-1111-101501");
+  // the new number is not claimed again and again
+  const n = claims.length;
+  await page.waitForTimeout(7000);
+  expect(claims.length).toBe(n);
+});
+
+test("on-site signing: the request carries a sendId; a changed sent offer is refused with the notice", async ({ page }) => {
+  let body = null;
+  await page.route("**/api/signing", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    body = JSON.parse(route.request().postData());
+    return route.fulfill({ status: 409, json: { error: { code: "OFFER_CHANGED", message: "…" } } });
+  });
+  const status = await page.evaluate(async () => (await fetch("/api/signing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payload: {}, offerNumber: "ANG-X" }) })).status);
+  expect(status).toBe(409);
+  expect(body.sendId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
+  await expect(page.locator(".oc-notice").last()).toContainText("neue Version");
+});

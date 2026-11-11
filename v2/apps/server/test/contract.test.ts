@@ -1021,6 +1021,28 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
       expect(smtp.take()).toHaveLength(0);
     }, 60000);
 
+    it("offer numbers are registered: free → reserved; held by another unsaved offer → a new unique number; saved work keeps its number", async () => {
+      const { migrateOfferNumberIndexes } = await import("../src/sends/numbers.js");
+      await migrateOfferNumberIndexes();
+      await db().collection("offer_numbers").deleteMany({});
+      const claim = async (current: string, claimId: string) => {
+        const r = await v2.inject({ method: "POST", url: "/api/offer-numbers/claim", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: { current, claimId } });
+        return { status: r.statusCode, body: r.json() };
+      };
+      // device A registers its number; asking again changes nothing
+      expect((await claim("ANG2026-1111-101500", "device-aaaa-0001")).body).toMatchObject({ ok: true, offerNumber: "ANG2026-1111-101500", changed: false, reason: "reserved" });
+      expect((await claim("ANG2026-1111-101500", "device-aaaa-0001")).body).toMatchObject({ changed: false });
+      // device B minted the same number in the same second → gets a new, unique one in the same format
+      const b = await claim("ANG2026-1111-101500", "device-bbbb-0002");
+      expect(b.body).toMatchObject({ ok: true, changed: true, reason: "taken" });
+      expect(b.body.offerNumber).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
+      expect(b.body.offerNumber).not.toBe("ANG2026-1111-101500");
+      expect((await claim(b.body.offerNumber, "device-bbbb-0002")).body).toMatchObject({ changed: false, offerNumber: b.body.offerNumber });
+      // a number with saved work (here: the sent offer from the test above) belongs to whoever opens that offer
+      expect((await claim("ANG-REC-1", "device-cccc-0003")).body).toMatchObject({ changed: false, reason: "in-use" });
+      expect((await claim("kaputt", "device-cccc-0003")).status).toBe(400);
+    }, 30000);
+
     it("a failed send is recorded as failed and can be repeated with the same sendId", async () => {
       await clean(); smtp.take();
       const bad = await sendTo("v2", fields("send-rec-fail", { editedDocx: { filename: "a.pdf", content: "x" } }));
@@ -1343,7 +1365,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       await step(app, ctx, "no signature", send(app, "POST", `/api/signing/${tok}/documents/angebot`, {}, { auth: false }));
       await step(app, ctx, "no payment term", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG }, { auth: false }));
       await step(app, ctx, "sign", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG, extraFields: { paymentTermIdx: 1 }, place: "Hof" }, { auth: false }));
-      await step(app, ctx, "sign again → 409", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG, extraFields: { paymentTermIdx: 1 } }, { auth: false }));
+      await step(app, ctx, "sign again → 409", send(app, "POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: PNG + "A", extraFields: { paymentTermIdx: 1 } }, { auth: false })); // a DIFFERENT signature; the identical one is answered with the first result in v2 (see "v2 only" below)
       await step(app, ctx, "status", send(app, "GET", "/api/signing/status/T-SZ-1"));
       await step(app, ctx, "page (customer)", send(app, "GET", `/sign/${tok}`, undefined, { auth: false }));
       await step(app, ctx, "page (rep, cookie)", send(app, "GET", `/sign/${tok}`, undefined, { auth: false, cookie: true }));
@@ -1446,6 +1468,96 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       }
     });
   }, 120000);
+  // ---- v2 only (ADR 023, increment 3): signature first, one completion, stored signed PDFs, on-site record ----
+  describe("signing record (v2 only)", () => {
+    const J = { authorization: `Bearer ${"x"}` };
+    const call = async (method: "GET" | "POST", url: string, body?: unknown, auth = true) => {
+      const r = await v2.inject({ method, url, headers: { ...(auth ? { authorization: `Bearer ${token}` } : {}), ...(body !== undefined ? { "content-type": "application/json" } : {}) }, payload: body as any });
+      return { status: r.statusCode, body: r.headers["content-type"]?.toString().includes("json") ? r.json() : null, raw: r.rawPayload };
+    };
+    void J;
+    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/sends/store.js"); await migrateOfferSendIndexes(); });
+
+    it("on-site: record + locked offer on the server; sent from the first signature; identical re-submit = first result; signed PDF stored and served", async () => {
+      const db = mongoose.connection.db!;
+      await db.collection("signingrequests").deleteMany({ offerNumber: "T-ONSITE-1" });
+      await db.collection("offers").deleteMany({ offerNumber: "T-ONSITE-1" });
+      smtp.take(); bx.take("v2");
+      const P = { ...byNo("ANG2026-1103-134214"), offerNumber: "T-ONSITE-1" };
+      const created = await call("POST", "/api/signing", { payload: P, offerNumber: "T-ONSITE-1", offerType: "bu", dealId: "9401", sendEmail: false, sendId: "onsite-send-0001" });
+      expect(created.status, JSON.stringify(created.body).slice(0, 300)).toBe(201);
+      const tok = created.body.token;
+
+      // hand-over recorded; the locked offer exists without any browser save; not "sent" yet
+      const rec1 = await call("GET", "/api/sends/onsite-send-0001");
+      expect(rec1.body.send).toMatchObject({ channel: "onsite", status: "done", offerNumber: "T-ONSITE-1", signing: true, signedAt: null });
+      expect(await db.collection("offers").countDocuments({ offerNumber: "T-ONSITE-1", locked: true })).toBe(1);
+      // before any signature the rep may still change the offer (customer is watching) …
+      const changed = { ...P, Kundendaten: { ...P.Kundendaten, street: "Neue Str. 5" } };
+      expect((await call("POST", "/api/offers", { offerNumber: "T-ONSITE-1", offerType: "bu", payload: changed })).status).toBe(200);
+      expect((await call("POST", "/api/offers", { offerNumber: "T-ONSITE-1", offerType: "bu", payload: P })).status).toBe(200);
+
+      // sign
+      const sign = (sig: string) => call("POST", `/api/signing/${tok}/documents/angebot`, { signatureImage: sig, extraFields: { paymentTermIdx: 1 }, place: "Hof" }, false);
+      const first = await sign(PNG);
+      expect(first.status, JSON.stringify(first.body).slice(0, 300)).toBe(200);
+      expect(first.body).toMatchObject({ ok: true, status: "completed", completed: true });
+      await new Promise((r) => setTimeout(r, 200));
+      const mails = smtp.take();
+      expect(mails).toHaveLength(1);
+      const calls1 = bx.take("v2").length;
+      expect(calls1).toBeGreaterThan(0);
+
+      // identical submit again (double tap / retry): first result, nothing sent or filed twice
+      const again = await sign(PNG);
+      expect(again.status).toBe(200);
+      expect(again.body).toMatchObject({ ok: true, completed: true, duplicate: true });
+      await new Promise((r) => setTimeout(r, 200));
+      expect(smtp.take()).toHaveLength(0);
+      expect(bx.take("v2")).toHaveLength(0);
+      expect((await sign(PNG + "A")).status).toBe(409); // a different signature stays a conflict
+
+      // the signed PDF is stored with the record — byte-identical to the customer's copy — and served from there
+      const rec2 = await call("GET", "/api/sends/onsite-send-0001");
+      expect(rec2.body.send.signedAt).toBeTruthy();
+      const signedFile = rec2.body.send.files.find((f: any) => f.role === "signed");
+      expect(signedFile.filename).toBe("angebot_T-ONSITE-1.pdf");
+      const stored = (await call("GET", `/api/sends/onsite-send-0001/files/${signedFile.fileId}`)).raw;
+      const mailed = mails[0].mail.attachments.find((a: any) => a.filename === "angebot_T-ONSITE-1.pdf")!.content as Buffer;
+      expect(stored.equals(mailed)).toBe(true);
+      const { SigningCompletion } = await import("../src/sends/store.js");
+      expect((await SigningCompletion.findOne({ token: tok }).lean() as any).result).toMatchObject({ ok: true, stored: true, email: "ok" });
+
+      // signed = sent: changed content is refused now, for saving and for a new signing request
+      const save = await call("POST", "/api/offers", { offerNumber: "T-ONSITE-1", offerType: "bu", payload: changed });
+      expect(save.status).toBe(409);
+      expect(save.body.error.code).toBe("OFFER_CHANGED");
+      const again2 = await call("POST", "/api/signing", { payload: changed, offerNumber: "T-ONSITE-1", offerType: "bu", dealId: "9401", sendEmail: false, sendId: "onsite-send-0002" });
+      expect(again2.status).toBe(409);
+      expect(again2.body.error.code).toBe("OFFER_CHANGED");
+    }, 120000);
+
+    it("an offer the OLD app sent (no send record, but its mail log): changed content is refused; a never-sent saved offer is priced fresh", async () => {
+      const db = mongoose.connection.db!;
+      const P = { ...byNo("ANG2026-1103-134214"), offerNumber: "T-OLD-1" };
+      const changed = { ...P, Kundendaten: { ...P.Kundendaten, lastName: "Anders" } };
+      for (const n of ["T-OLD-1", "T-OLD-2"]) { await db.collection("offers").deleteMany({ offerNumber: n }); await db.collection("emaillogs").deleteMany({ offerNumber: n }); }
+      // saved, never sent → changing it is allowed and the price is computed fresh
+      expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-2", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-2" } })).status).toBe(200);
+      const fresh = await call("POST", "/api/offers", { offerNumber: "T-OLD-2", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-2", rabatt: { ...(P.rabatt || {}), sonderaufschlagValue: "80" } } });
+      expect(fresh.status).toBe(200);
+      const recomputed = await call("POST", "/api/offers", { offerNumber: "T-OLD-3", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-3", rabatt: { ...(P.rabatt || {}), sonderaufschlagValue: "80" } } });
+      expect(fresh.body.offer.pricing.total).toBe(recomputed.body.offer.pricing.total); // not the old pinned total
+      await db.collection("offers").deleteMany({ offerNumber: "T-OLD-3" });
+      // sent by the old app → refused
+      expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: P })).status).toBe(200);
+      await db.collection("emaillogs").insertOne({ offerNumber: "T-OLD-1", to: "k@example.invalid", subject: "x", createdAt: new Date() });
+      expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: P })).status).toBe(200); // unchanged
+      const no = await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: changed });
+      expect(no.status).toBe(409);
+      expect(no.body.error.code).toBe("OFFER_CHANGED");
+    }, 60000);
+  });
 });
 
 // ---------------- remaining small endpoints (vigor, catalog bulk, submissions, external lookup) ----------------
@@ -1820,7 +1932,7 @@ describe("contract: web layer — same pages, files, redirects, security headers
   it("logged in: index, sub pages, SPA fallback, offline pricing sources", async () => {
     { // index: identical except v2's one add-on script tag before </body> (ADR 021)
       const l = await get("legacy", "/", COOKIE()), v = await get("v2", "/", COOKIE());
-      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n</body>') });
+      expect({ ...norm(v, true), body: v.body.toString() }).toEqual({ ...norm(l, true), body: injectHead(l.body.toString()).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n<script src="/v2/addons/offer-record.js" defer></script>\n</body>') });
     }
     { // admin page: + shim
       const l = await get("legacy", "/admin/", COOKIE()), v = await get("v2", "/admin/", COOKIE());
@@ -1830,7 +1942,7 @@ describe("contract: web layer — same pages, files, redirects, security headers
     // (local worktrees under .claude/) → compare v2 with the file there. v2 adds its add-on script.
     {
       const v = await get("v2", "/irgendwo/tief", COOKIE());
-      const html = injectHead(readFileSync(ROOT + "src/public/index.html", "utf8")).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n</body>');
+      const html = injectHead(readFileSync(ROOT + "src/public/index.html", "utf8")).replace("</body>", '<script src="/v2/addons/deal-link.js" defer></script>\n<script src="/v2/addons/deal-draft.js" defer></script>\n<script src="/v2/addons/ux.js" defer></script>\n<script src="/v2/addons/header.js" defer></script>\n<script src="/v2/addons/quickwins.js" defer></script>\n<script src="/v2/addons/send-guard.js" defer></script>\n<script src="/v2/addons/offer-record.js" defer></script>\n</body>');
       expect([v.status, v.body.toString()]).toEqual([200, html]);
     }
     // deal links are a v2 addition (ADR 006): /deal/<id> → /?deal=<id>

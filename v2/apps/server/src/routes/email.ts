@@ -23,6 +23,7 @@ import {
 } from "../email/builders.js";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "../email/send-lock.js";
 import type { OfferDocuments, SigningPort } from "../email/ports.js";
+import type { EnsureSentOffer } from "../sends/offer-record.js";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, offerChangedBody, patchSend, recordStep, storeSendFile,
   type SendFile, type StepName, type StepStatus,
@@ -32,6 +33,8 @@ import { offerIdentity } from "../sends/identity.js";
 export interface EmailDeps {
   mailer: Mailer; deals: DealWrites; documents: OfferDocuments; signing: SigningPort; businessConfig: BusinessConfig;
   assetsDir: string; publicBaseUrl?: string | undefined; apDefaultEmail: string; smtpTestPort: number; smtpHost?: string | undefined;
+  /** makes the locked offer exist once a send went out (price pinned for signing) — only for sends with a sendId */
+  ensureSentOffer?: EnsureSentOffer | undefined;
 }
 
 const TRUE = ["1", "true", "on", "yes"];
@@ -118,6 +121,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       // Ansprechpartner and the pricing/rendering code touches the payload, so that the same
       // offer sent or saved again compares equal
       const identity = offerIdentity(payload, offerNumber);
+      const sentPayload = clientSendId ? structuredClone(payload) : null; // as the client sent it
       let resendOf = "";
       try {
         const prior = await assertUnchangedSinceSent(String(payload?.offerNumber || offerNumber), payload);
@@ -157,7 +161,8 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       else if (bitrixOnly) body = body.split("{{SIGN_LINK}}").join("");
       else try {
         const baseUrl = String(d.publicBaseUrl || "").trim() || `${req.protocol}://${req.headers.host}`;
-        const { link } = await d.signing.createRequest({ payload, offerNumber, offerType, dealId, contactId, baseUrl, force: true });
+        const { link, token: signingToken } = await d.signing.createRequest({ payload, offerNumber, offerType, dealId, contactId, baseUrl, force: true });
+        if (recordOpen && signingToken) await rec("signingToken", () => patchSend(sendId, { signingToken }));
         body = body.includes("{{SIGN_LINK}}") ? body.split("{{SIGN_LINK}}").join(link) : body;
       } catch (signErr) {
         req.log.warn({ err: signErr }, "signing link creation failed");
@@ -271,6 +276,10 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
           if (recordOpen) await step("emailLog", "failed", (logErr as Error)?.message || String(logErr));
         }
       } else if (recordOpen) await step("mail", "skipped", "nur Bitrix");
+
+      // the offer is out: the locked offer (pinned price) must exist — no longer left to the browser.
+      // Only for clients that send a sendId, so the answer and side effects without one stay as before.
+      if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload });
 
       const event = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
       void UserActionLog.create({ event, dealId: String(dealId || ""), offerNumber: payload?.offerNumber || offerNumber, offerType: payload?.activeOffer || offerType })

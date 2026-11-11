@@ -97,6 +97,7 @@
   // A2: the mail is out but the Bitrix filing failed → offer to repeat it from the stored files.
   function offerBitrixRetry(res, sendId) {
     if (!res || !res.ok) return res;
+    try { if (window.__ocOfferRecord) setTimeout(window.__ocOfferRecord.renderHistory, 800); } catch (e) { /* history is optional */ }
     res.clone().json().then(function (j) {
       if (j && j.signingLink === "off-hand-edited") notify("Handbearbeitetes Angebot: Die E-Mail enthält keinen Link zur Online-Unterschrift.");
       var filing = j && (j.bitrixComment || j.bitrix);

@@ -15,7 +15,7 @@ export interface OfferDocuments {
 }
 
 export interface SigningPort {
-  createRequest(a: { payload: any; offerNumber: string; offerType: string; dealId: string; contactId: string; baseUrl: string; force: boolean }): Promise<{ link: string }>;
+  createRequest(a: { payload: any; offerNumber: string; offerType: string; dealId: string; contactId: string; baseUrl: string; force: boolean }): Promise<{ link: string; token?: string }>;
 }
 
 const notYet = (what: string) => async (): Promise<never> => { throw new Error(`${what} ist in v2 noch nicht verfügbar`); };

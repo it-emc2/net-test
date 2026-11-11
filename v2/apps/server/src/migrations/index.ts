@@ -4,6 +4,7 @@
 import type mongoose from "mongoose";
 import { migrateDealDraftIndexes } from "../deal-drafts/store.js";
 import { migrateOfferSendIndexes } from "../sends/store.js";
+import { migrateOfferNumberIndexes } from "../sends/numbers.js";
 
 export interface MigrationResult { id: string; dryRun: boolean; matched: number; changed: number; note: string }
 
@@ -27,8 +28,8 @@ export async function m002UnsetEmptyCustomerNumber(db: mongoose.mongo.Db, dryRun
 
 /** 003 — indexes for the NEW send record collection (ADR 023). */
 export async function m003OfferSendIndexes(_db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
-  if (!dryRun) await migrateOfferSendIndexes();
-  return { id: "003-offer-send-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 3, note: "creates uniq_sendId, offer_started, deal_started on offer_sends" };
+  if (!dryRun) { await migrateOfferSendIndexes(); await migrateOfferNumberIndexes(); }
+  return { id: "003-offer-send-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 6, note: "creates uniq_sendId, offer_started, deal_started, signing_token on offer_sends and uniq_token on signing_completions, uniq_offerNumber on offer_numbers" };
 }
 
 export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes];

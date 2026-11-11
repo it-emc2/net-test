@@ -21,6 +21,12 @@ import {
   docKeysFor, docLabel, extractPrefill, hasPaymentChoice, isAhOffer, isExpired, isPartnerKey, recomputeStatus, resolveFields,
 } from "../signing/fields.js";
 import { documentHtml, documentPdf, signedPdf, type SigningRenderer } from "../signing/documents.js";
+import {
+  OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
+  sendForSigning, storeSendFile, type SendFile,
+} from "../sends/store.js";
+import { offerIdentity } from "../sends/identity.js";
+import type { EnsureSentOffer } from "../sends/offer-record.js";
 
 export interface SigningDeps {
   deals: Pick<DealWrites, "addTimelineComment" | "updateDealAfterSigning" | "ensurePartnerContact" | "getDealContactId">;
@@ -34,13 +40,24 @@ export interface SigningDeps {
   apDefaultEmail: string;
   authSecret: string;
   log: { warn(o: object, m: string): void; error(o: object, m: string): void };
+  /** makes the locked offer (pinned price) exist when an offer is handed over for signature */
+  ensureSentOffer?: EnsureSentOffer | undefined;
 }
 
 const SIGN_LINK_INTRO =
   "Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem – nutzen Sie " +
   "einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu " +
   "unterschreiben und direkt an uns zurückzuschicken:";
-const PNG = /^data:image\/png;base64,/;
+// Strict: the image is stored and later placed into the HTML that is rendered into the signed
+// PDF (audit signing S-10) — only base64 after the prefix, a size cap, and a real PNG header.
+const PNG_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const MAX_SIGNATURE_LENGTH = 5 * 1024 * 1024;
+export function isValidSignature(v: unknown): boolean {
+  if (typeof v !== "string" || v.length > MAX_SIGNATURE_LENGTH || !PNG_URL.test(v)) return false;
+  const head = Buffer.from(v.slice(22, 38), "base64");
+  return head.length >= 8 && head.subarray(0, 8).equals(PNG_MAGIC);
+}
 const msg = (e: unknown) => (e as Error)?.message || String(e);
 const pdfName = (sr: any, key: string) => `${key}_${sr.offerNumber || "signiert"}.pdf`;
 const toAttachments = (pdfs: { filename: string; buffer: Buffer }[]) => pdfs.map((p) => ({ filename: p.filename, base64: p.buffer.toString("base64") }));
@@ -104,10 +121,38 @@ export function signingService(d: SigningDeps) {
     return { sr, link, token, customerType, warning };
   }
 
-  async function signedPdfs(sr: any, docs: any[]) {
+  /** The signed PDF as it was produced at completion (stored on the send record), else rendered now. */
+  async function storedOrRendered(sr: any, doc: any): Promise<Buffer> {
+    try {
+      const rec = await sendForSigning(sr.token);
+      const file = (rec?.files as SendFile[] | undefined)?.find((f) => f.role === "signed" && f.filename === pdfName(sr, doc.key));
+      const stored = file ? await readSendFile(file.fileId) : null;
+      if (stored) return stored;
+    } catch (err) { d.log.warn({ err: msg(err) }, "signing: stored signed PDF not readable — rendering"); }
+    return signedPdf(d.renderer, sr, doc);
+  }
+
+  async function signedPdfs(sr: any, docs: any[], { fresh = false } = {}) {
     const out: { filename: string; buffer: Buffer }[] = [];
-    for (const doc of docs) out.push({ filename: pdfName(sr, doc.key), buffer: await signedPdf(d.renderer, sr, doc) });
+    for (const doc of docs) out.push({ filename: pdfName(sr, doc.key), buffer: fresh ? await signedPdf(d.renderer, sr, doc) : await storedOrRendered(sr, doc) });
     return out;
+  }
+
+  /** Keeps the signed PDFs exactly as the customer received them (with hashes) on the send record. */
+  async function storeSigned(sr: any, pdfs: { filename: string; buffer: Buffer }[]) {
+    let rec = await sendForSigning(sr.token);
+    if (!rec) {
+      // request created by the old app or without a send record: give it one now
+      const sendId = `sign-${String(sr.token).slice(0, 40)}`;
+      await OfferSend.create({
+        sendId, channel: "signlink", status: "done", offerNumber: sr.offerNumber || "", offerType: sr.offerType || "", dealId: sr.bitrixEntityType === "deal" ? sr.bitrixEntityId : "",
+        to: sr.customerEmail || "", signingToken: sr.token, identity: offerIdentity(sr.payloadSnapshot, sr.offerNumber), startedAt: sr.createdAt ?? new Date(), finishedAt: new Date(),
+      });
+      rec = await sendForSigning(sr.token);
+    }
+    const have = new Set(((rec?.files ?? []) as SendFile[]).filter((f) => f.role === "signed").map((f) => f.filename));
+    for (const p of pdfs) if (!have.has(p.filename)) await storeSendFile(rec.sendId, "signed", p.filename, p.buffer);
+    await patchSend(rec.sendId, { signedAt: new Date(), ...(rec.identity ? {} : { identity: rec.identityOnSign ?? offerIdentity(sr.payloadSnapshot, sr.offerNumber) }) });
   }
 
   /** Admin panel: push whatever is already signed to Bitrix. */
@@ -152,7 +197,11 @@ export function signingService(d: SigningDeps) {
   }
 
   async function complete(sr: any) {
-    const pdfs = await signedPdfs(sr, sr.documents);
+    const result: Record<string, unknown> = { ok: true, email: "skipped", bitrix: "skipped", partnerFiling: "skipped", dealMove: "skipped" };
+    const pdfs = await signedPdfs(sr, sr.documents, { fresh: true });
+    // first of all: keep what was signed — every later step may fail without losing it
+    try { await storeSigned(sr, pdfs); result.stored = true; }
+    catch (err) { d.log.error({ err: msg(err) }, "signing: storing the signed PDFs failed"); result.stored = false; }
     if (d.mailer.configured) {
       const attachments: any[] = pdfs.map((p) => ({ filename: p.filename, content: p.buffer, contentType: "application/pdf" }));
       const body = [
@@ -173,14 +222,18 @@ export function signingService(d: SigningDeps) {
           text: body, html: buildEmailHtml(body, { signatureCid: hasPic ? cid : null, contactName: "", isAh: isAhOffer(sr) }),
           attachments,
         });
+        result.email = "ok";
       } catch (err) {
         d.log.warn({ err: msg(err) }, "signing: completion email failed");
+        result.email = "failed"; result.emailError = msg(err);
       }
     }
-    await postTimeline(sr, `✅ Alle Dokumente unterschrieben` + (sr.offerNumber ? ` (${sr.offerNumber})` : "") + `\nSignierte PDFs sind angehängt.`, toAttachments(pdfs));
+    const filed: any = await postTimeline(sr, `✅ Alle Dokumente unterschrieben` + (sr.offerNumber ? ` (${sr.offerNumber})` : "") + `\nSignierte PDFs sind angehängt.`, toAttachments(pdfs));
     if (sr.documents.some((x: any) => isPartnerKey(x.key))) {
-      try { await filePerPersonDocs(sr, pdfs); } catch (err) { d.log.warn({ err: msg(err) }, "signing: per-contact filing failed"); }
+      try { await filePerPersonDocs(sr, pdfs); result.partnerFiling = "ok"; }
+      catch (err) { d.log.warn({ err: msg(err) }, "signing: per-contact filing failed"); result.partnerFiling = "failed"; }
     }
+    result.bitrix = filed?.skipped ? "skipped" : filed?.ok === false ? "failed" : "ok";
     if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
       try {
         // "Antrag an Kasse stellen" requires the Eigenanteil on Bitrix's side (not for AH).
@@ -193,13 +246,16 @@ export function signingService(d: SigningDeps) {
           dealId: sr.bitrixEntityId, customerType: sr.customerType, selfPayAmount,
           ...(isAhOffer(sr) && { categoryId: STAGES.AH_SIGNING.categoryId, stageId: STAGES.AH_SIGNING.stageId }),
         });
+        result.dealMove = "ok";
       } catch (err) {
         d.log.warn({ err: msg(err) }, "signing: Bitrix deal stage update failed");
+        result.dealMove = "failed";
       }
     }
+    return result;
   }
 
-  return { createRequest, sendSignedDocsToBitrix, postTimeline, complete };
+  return { createRequest, sendSignedDocsToBitrix, postTimeline, complete, storedOrRendered };
 }
 
 const PREFILL_CARRY_KEYS = ["lastName", "firstName", "street", "postalCode", "city", "phone", "geburtsdatum"];
@@ -230,6 +286,15 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const b = (req.body ?? {}) as any;
       const payload = b.payload;
       if (!payload || typeof payload !== "object") return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
+      // Decision C: an offer that was sent cannot be handed over for signature with changed content
+      const offerNo = String(b.offerNumber || payload?.offerNumber || "");
+      const identity = offerIdentity(payload, offerNo);
+      const asSent = structuredClone(payload);
+      try { await assertUnchangedSinceSent(offerNo, payload); }
+      catch (e) {
+        if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
+        req.log.warn({ err: e }, "sent-offer check failed — continuing");
+      }
       payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user, d.apDefaultEmail);
       const result: any = await svc.createRequest({
         payload, offerNumber: b.offerNumber, offerType: b.offerType, dealId: b.dealId, contactId: b.contactId, baseUrl: baseUrl(req), force: !!b.force,
@@ -238,6 +303,24 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const { sr, link, token, customerType, reused } = result;
       const prefill = sr.prefill || {};
       if (b.via === "post" && sr.via !== "post") { sr.via = "post"; await sr.save(); }
+
+      // Send record for the hand-over (clients that send a sendId): on-site signing counts as
+      // "sent" from the first signature on, a mailed link at once. The locked offer (pinned price)
+      // is made sure of on the server — before, that was the browser's best-effort save.
+      if (SEND_ID.test(String(b.sendId || ""))) {
+        try {
+          if (!(await sendForSigning(token))) {
+            const mailed = !!b.sendEmail;
+            await OfferSend.create({
+              sendId: String(b.sendId), channel: mailed ? "signlink" : "onsite", status: "done", by: String(req.user?.email || ""),
+              dealId: String(b.dealId || ""), contactId: String(b.contactId || ""), offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || ""),
+              to: mailed ? String(prefill.email || "") : "", subject: mailed ? "Link zur Online-Unterschrift" : "Unterschrift vor Ort",
+              payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, startedAt: new Date(), finishedAt: new Date(),
+            });
+          }
+          if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent });
+        } catch (e) { req.log.warn({ err: e }, "send record for signing failed"); }
+      }
 
       let emailResult: Record<string, unknown> = { skipped: true };
       if (b.sendEmail && prefill.email && d.mailer.configured) {
@@ -275,7 +358,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
         .sort({ completedAt: -1, createdAt: -1 });
       if (!sr) return fail(req, reply, 404, "NOT_FOUND", "Keine vollständig unterschriebenen Unterlagen gefunden.");
       const documents = [];
-      for (const x of sr.documents) documents.push({ key: x.key, filename: pdfName(sr, x.key), base64: (await signedPdf(d.renderer, sr, x)).toString("base64") });
+      for (const x of sr.documents) documents.push({ key: x.key, filename: pdfName(sr, x.key), base64: (await svc.storedOrRendered(sr, x)).toString("base64") });
       return { offerNumber: sr.offerNumber, completedAt: sr.completedAt, documents };
     } catch (err) { return err500(req, reply, "GET /api/signing/status/:offerNumber/signed", err); }
   });
@@ -334,17 +417,51 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
     } catch (err) { return err500(req, reply, "GET signing document pdf", err); }
   });
 
+  // Runs the completion (signed PDFs, confirmation mail, Bitrix filing, stage move) for a fully
+  // signed request — exactly once, also after a failed or interrupted attempt.
+  async function runCompletion(sr: any): Promise<{ ran: boolean; ok: boolean; error?: string }> {
+    if (!(await claimSigningCompletion(sr.token))) return { ran: false, ok: true };
+    try {
+      const result = await svc.complete(sr);
+      await finishSigningCompletion(sr.token, result);
+      // complete() may have linked the partner contact on the in-memory document
+      if (sr.partnerContactId) await SigningRequest.updateOne({ _id: sr._id }, { $set: { partnerContactId: sr.partnerContactId } });
+      return { ran: true, ok: true };
+    } catch (err) {
+      await finishSigningCompletion(sr.token, { ok: false, error: msg(err) }).catch(() => {});
+      return { ran: true, ok: false, error: msg(err) };
+    }
+  }
+  const docsView = (sr: any) => sr.documents.map((x: any) => ({ key: x.key, status: x.status }));
+
+  // The document is already signed: a repeated submit (double tap, retry after a dropped
+  // connection, second device) gets the first result. If the completion failed before, it is
+  // run again — with the signature that is already stored.
+  async function answerAlreadySigned(req: FastifyRequest, reply: FastifyReply, sr: any, key: string, sig: string) {
+    const cur = (sr.documents || []).find((x: any) => x.key === key);
+    const allSigned = sr.documents.length > 0 && sr.documents.every((x: any) => x.status === "signed");
+    if (cur?.status === "signed" && allSigned) {
+      const c = await runCompletion(sr);
+      if (c.ran && !c.ok) return reply.status(500).send({ error: { code: "SIGNING_FAILED", message: c.error, requestId: req.id } });
+      if (c.ran || cur.signatureImage === sig) return { ok: true, status: sr.status, documents: docsView(sr), completed: true, duplicate: true };
+    } else if (cur?.status === "signed" && cur.signatureImage === sig) {
+      return { ok: true, status: sr.status, documents: docsView(sr), completed: false, duplicate: true };
+    }
+    return fail(req, reply, 409, "ALREADY_SIGNED", "Dokument wurde bereits unterschrieben");
+  }
+
   app.post("/api/signing/:token/documents/:key", PUBLIC, async (req, reply) => {
     try {
-      const sr = await loadByToken(req, reply);
+      let sr = await loadByToken(req, reply);
       if (!sr) return reply;
       const b = (req.body ?? {}) as any;
       const key = String((req.params as any).key || "");
       const doc = (sr.documents || []).find((x: any) => x.key === key);
       if (!doc) return fail(req, reply, 404, "NOT_FOUND", "Dokument nicht gefunden");
-      if (doc.status === "signed") return fail(req, reply, 409, "ALREADY_SIGNED", "Dokument wurde bereits unterschrieben");
       const sig = String(b.signatureImage || "");
-      if (!PNG.test(sig)) return fail(req, reply, 400, "BAD_REQUEST", "Unterschrift fehlt");
+      if (doc.status === "signed") return answerAlreadySigned(req, reply, sr, key, sig);
+      if (!sig) return fail(req, reply, 400, "BAD_REQUEST", "Unterschrift fehlt");
+      if (!isValidSignature(sig)) return fail(req, reply, 400, "BAD_REQUEST", sig.startsWith("data:image/png;base64,") ? "Die Unterschrift ist ungültig. Bitte unterschreiben Sie erneut." : "Unterschrift fehlt");
 
       // BU Angebot: a payment term is required when the offer offers a choice (AH: none).
       const extraFields = b.extraFields || {};
@@ -359,9 +476,12 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const editedFields = b.editedFields || {};
       if (key === "zusatzblatt") {
         const bevName = String(editedFields.bevollmaechtigterName || "").trim();
-        if (bevName && !PNG.test(String(extraFields.bevollmaechtigterSignature || ""))) {
+        if (bevName && !isValidSignature(extraFields.bevollmaechtigterSignature)) {
           return fail(req, reply, 400, "BAD_REQUEST", "Bitte lassen Sie den/die Bevollmächtigte/n unterschreiben");
         }
+      }
+      if (extraFields.bevollmaechtigterSignature && !isValidSignature(extraFields.bevollmaechtigterSignature)) {
+        return fail(req, reply, 400, "BAD_REQUEST", "Die Unterschrift des/der Bevollmächtigten ist ungültig. Bitte erneut unterschreiben.");
       }
       // Vollmacht/Abtretung: every displayed field is mandatory.
       const required = Object.hasOwn(REQUIRED_FIELDS_BY_KEY, baseDocKey(key)) ? REQUIRED_FIELDS_BY_KEY[baseDocKey(key)] : undefined;
@@ -373,45 +493,55 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
 
       // Carry shared fields into the snapshot so the next document is prefilled.
       const partnerDoc = isPartnerKey(key);
+      let touchedPrefill = false, touchedSnapshot = false;
       if (["vollmacht", "abtretung", "abtretung_ah"].includes(baseDocKey(key))) {
         sr.prefill = sr.prefill || {};
-        let touchedPrefill = false;
         for (const k of partnerDoc ? ["street", "postalCode", "city", "phone"] : PREFILL_CARRY_KEYS) {
           const v = String(editedFields[k] || "").trim();
           if (v) { sr.prefill[k] = v; touchedPrefill = true; }
         }
-        if (touchedPrefill) sr.markModified("prefill");
         sr.payloadSnapshot = sr.payloadSnapshot || {};
         sr.payloadSnapshot.Kundendaten = sr.payloadSnapshot.Kundendaten || {};
-        let touchedSnapshot = false;
         const carryMap = partnerDoc ? PARTNER_CARRY : Object.fromEntries(KUNDENDATEN_CARRY_KEYS.map((k) => [k, k]));
         for (const [from, to] of Object.entries(carryMap)) {
           const v = String(editedFields[from] || "").trim();
           if (v) { sr.payloadSnapshot.Kundendaten[to] = v; touchedSnapshot = true; }
         }
-        if (touchedSnapshot) sr.markModified("payloadSnapshot");
       }
 
-      doc.signatureImage = sig;
-      doc.editedFields = editedFields;
-      doc.extraFields = extraFields;
-      doc.place = String(b.place || sr.prefill?.city || "").trim();
-      doc.signedAt = new Date();
-      doc.signedIp = String(req.headers["x-forwarded-for"] || "").split(",")[0]!.trim() || req.ip || "";
-      doc.userAgent = String(req.headers["user-agent"] || "").slice(0, 300);
-      doc.status = "signed";
+      // The signature is stored FIRST, atomically: only the request that turns this document
+      // from "pending" into "signed" goes on. Nothing after this line can lose it.
+      const signedAt = new Date();
+      const set: Record<string, unknown> = {
+        "documents.$.signatureImage": sig, "documents.$.editedFields": editedFields, "documents.$.extraFields": extraFields,
+        "documents.$.place": String(b.place || sr.prefill?.city || "").trim(), "documents.$.signedAt": signedAt,
+        "documents.$.signedIp": String(req.headers["x-forwarded-for"] || "").split(",")[0]!.trim() || req.ip || "",
+        "documents.$.userAgent": String(req.headers["user-agent"] || "").slice(0, 300), "documents.$.status": "signed",
+      };
+      if (touchedPrefill) set.prefill = sr.prefill;
+      if (touchedSnapshot) set.payloadSnapshot = sr.payloadSnapshot;
+      const claimed: any = await SigningRequest.findOneAndUpdate({ _id: sr._id, documents: { $elemMatch: { key, status: "pending" } } }, { $set: set }, { new: true });
+      if (!claimed) return answerAlreadySigned(req, reply, await SigningRequest.findById(sr._id), key, sig);
+      sr = claimed;
 
-      await svc.postTimeline(sr, `✍️ Dokument „${docLabel(sr, key)}" unterschrieben am ${doc.signedAt.toLocaleString("de-DE")}` + (sr.offerNumber ? ` (${sr.offerNumber})` : ""));
+      // on-site signing: from the first signature on the offer counts as sent (decision C)
+      try {
+        const rec = await sendForSigning(sr.token);
+        if (rec && !rec.identity && rec.identityOnSign) await patchSend(rec.sendId, { identity: rec.identityOnSign });
+      } catch (e) { req.log.warn({ err: e }, "send record update at signature failed"); }
 
-      const prevStatus = sr.status;
-      recomputeStatus(sr);
+      await svc.postTimeline(sr, `✍️ Dokument „${docLabel(sr, key)}" unterschrieben am ${signedAt.toLocaleString("de-DE")}` + (sr.offerNumber ? ` (${sr.offerNumber})` : ""));
+
+      recomputeStatus(sr); // sets completed + completedAt when everything is signed
+      await SigningRequest.updateOne({ _id: sr._id, status: { $ne: "expired" } }, { $set: { status: sr.status, completedAt: sr.completedAt ?? null } });
+
       let completion: { completed: boolean } = { completed: false };
-      if (sr.status === "completed" && prevStatus !== "completed") {
-        await svc.complete(sr);
-        completion = { completed: true };
+      if (sr.status === "completed") {
+        const c = await runCompletion(sr);
+        if (c.ran && !c.ok) return reply.status(500).send({ error: { code: "SIGNING_FAILED", message: c.error, requestId: req.id } });
+        completion = { completed: true }; // also when a parallel request ran the completion
       }
-      await sr.save();
-      return { ok: true, status: sr.status, documents: sr.documents.map((x: any) => ({ key: x.key, status: x.status })), ...completion };
+      return { ok: true, status: sr.status, documents: docsView(sr), ...completion };
     } catch (err) { return err500(req, reply, "POST signing document", err); }
   });
 
@@ -470,7 +600,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const key = String((req.params as any).key || "");
       const doc = (sr.documents || []).find((x: any) => x.key === key);
       if (!doc) return fail(req, reply, 404, "NOT_FOUND", "Dokument nicht gefunden");
-      const pdf = doc.status === "signed" ? await signedPdf(d.renderer, sr, doc) : await documentPdf(d.renderer, sr, key);
+      const pdf = doc.status === "signed" ? await svc.storedOrRendered(sr, doc) : await documentPdf(d.renderer, sr, key);
       return reply.header("Content-Type", "application/pdf").header("Content-Disposition", `inline; filename="${key}.pdf"`).send(pdf);
     } catch (err) { return err500(req, reply, "GET /admin/api/signing/:token/documents/:key/pdf", err); }
   });

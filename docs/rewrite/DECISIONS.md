@@ -202,6 +202,15 @@ New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `G
 - **Sent by e-mail, later by post:** the app asks first (when, how, to whom, Ansprechpartner); the server checks the open offer against the sent one and posts the **exact PDF that was sent**; if the open offer differs the user may post the original as it was sent (`useSentOriginal`).
 - Requests without `payload`/`sendId` (old client) behave exactly as before.
 
-**Not built yet.**
-- On-site signing writes the record; the app shows the real sent state from the record instead of `locked`; offer numbers issued by the server; `locked` only after a real send.
-- Signing: prices frozen from the send, signed PDF stored with a hash.
+**Increment 3 (built 2026-11-11, owner: "finish remaining recorded items").**
+- **On-site signing / signing link recorded.** `POST /api/signing` with a `sendId` (add-on `offer-record.js`) writes a send record (`onsite` / `signlink`) and the server itself makes sure the locked offer exists (pinned price) — before, that was the browser's best-effort save. On-site counts as "sent" from the **first signature** on (the rep may still adjust the offer while the customer watches); a mailed link at once.
+- **Signature first.** The signature is stored atomically before anything else; the completion (signed PDFs, mail, Bitrix, stage move) runs exactly once per request (`signing_completions`), its outcome is recorded, and a failed or interrupted completion is run again by any retry — with the stored signature. An identical re-submit returns the first result (legacy: 409). Signature images are checked strictly (real PNG, ≤ 5 MB).
+- **Signed PDFs stored.** At completion the signed PDFs are kept on the send record (GridFS, SHA-256) exactly as mailed; later uses (post download, admin view, manual Bitrix send) serve the stored file instead of rebuilding it.
+- **Saving a changed offer.** Sent (send record, or the old app's mail/post/signing logs) → refused. Never sent → priced **fresh** (before, the old total stayed pinned to the new positions — audit create F01).
+- **Offer numbers registered.** The app still mints the number on the device (offline). Online it registers it (`POST /api/offer-numbers/claim`, collection `offer_numbers`): free → reserved; held by another unsaved offer → the server hands out a new unique number and the form shows it. Residual gap: two devices offline in the same second, one of which saves before the other registers.
+- **Versandverlauf** on the Angebotsversand page: what really went out, when, how, to whom, signed or not, Bitrix state (with "Ablage wiederholen"), stored document.
+- New collections: `signing_completions`, `offer_numbers` (indexes in migration 003). Legacy collections: `offers` gains documents only (the same ones the browser used to save); `signingrequests` is written with the same fields as before.
+
+**Still open.**
+- `locked` is still set by every save (downloads); the app's own "sent" bar still reads it — the Versandverlauf is the reliable view.
+- E-mail-first offers: the app can put a different number into the PDF than it saves afterwards (audit create F06) — a fix belongs in the app's send code, not in an add-on.

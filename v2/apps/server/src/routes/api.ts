@@ -14,6 +14,8 @@ import { registerOffersRead } from "./offers-read.js";
 import { registerOffersWrite } from "./offers-write.js";
 import { registerDealDrafts } from "../deal-drafts/routes.js";
 import { registerSends } from "../sends/routes.js";
+import { sentOfferRecorder } from "../sends/offer-record.js";
+import { registerOfferNumbers } from "../sends/numbers.js";
 import { registerGroup3 } from "./group3.js";
 import { registerBitrixRead } from "./bitrix-read.js";
 import { BitrixClient } from "../integrations/bitrix.js";
@@ -174,7 +176,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerWeb(app, {
     publicDir: cfg.WEB_PUBLIC_DIR ?? LEGACY_PUBLIC, logicDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/src/logic`,
     fontAwesomeDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/node_modules/@fortawesome/fontawesome-free`, authSecret: cfg.AUTH_SECRET,
-    indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>', '<script src="/v2/addons/deal-draft.js" defer></script>', '<script src="/v2/addons/ux.js" defer></script>', '<script src="/v2/addons/header.js" defer></script>', '<script src="/v2/addons/quickwins.js" defer></script>', '<script src="/v2/addons/send-guard.js" defer></script>'],
+    indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>', '<script src="/v2/addons/deal-draft.js" defer></script>', '<script src="/v2/addons/ux.js" defer></script>', '<script src="/v2/addons/header.js" defer></script>', '<script src="/v2/addons/quickwins.js" defer></script>', '<script src="/v2/addons/send-guard.js" defer></script>', '<script src="/v2/addons/offer-record.js" defer></script>'],
   });
   await registerCatalog(app, {
     vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI,
@@ -199,7 +201,10 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerBitrixRead(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   await registerSends(app, { deals });
+  await registerOfferNumbers(app);
+  const ensureSentOffer = sentOfferRecorder(pricing, app.log);
   const signingSvc = await registerSigning(app, {
+    ensureSentOffer,
     deals, renderer: deps.signingRenderer ?? ownSigningRenderer,
     mailer: new Mailer({
       smtpHost: cfg.SMTP_HOST, smtpPort: cfg.SMTP_PORT || 587, secure: cfg.SMTP_SECURE === "true", requirePass: false,
@@ -212,7 +217,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const ownSigning: SigningPort = {
     createRequest: async (a) => {
       const r: any = await signingSvc.createRequest(a);
-      return { link: r.link };
+      return { link: r.link, token: r.token };
     },
   };
   await registerEmail(app, {
@@ -223,7 +228,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     }),
     deals, documents: deps.documents ?? ownDocuments, signing: deps.signing ?? ownSigning, businessConfig,
     assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "",
-    smtpTestPort: cfg.SMTP_PORT || 465, smtpHost: cfg.SMTP_HOST,
+    smtpTestPort: cfg.SMTP_PORT || 465, smtpHost: cfg.SMTP_HOST, ensureSentOffer,
   });
   const num = (v?: string) => parseFloat(v ?? "") || null; // legacy parseFloat(env) || null
   await registerRouting(app, {
@@ -237,7 +242,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerMagic(app, new MagicApi({ baseUrl: cfg.EXTERNAL_API_BASE, user: cfg.EXTERNAL_API_USER, password: cfg.EXTERNAL_API_PASSWORD }));
   await registerPost(app, {
     ob24: new Onlinebrief24({ baseUrl: cfg.OB24_BASE_URL, apiKey: cfg.OB24_API_KEY, apiSecret: cfg.OB24_API_SECRET, mode: cfg.OB24_MODE, allowProductionDefault: cfg.NODE_ENV === "production" }),
-    deals, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS,
+    deals, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, ensureSentOffer,
   });
   await registerBitrixWrite(app, {
     bx: bitrix,

@@ -11,7 +11,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 | D2 | Deployment tool: Coolify or Dokploy, or plain `docker compose` | Plain `docker compose` first (already tested in CI); a UI tool later if wanted |
 | D3 | Date/time of the switch | A quiet afternoon (no appointments), not before a weekend |
 | D4 | Database user (ADR 010): replace `atlasAdmin` with `readWrite@KonfiguratorDB` + `read@vigor` | Yes, before the switch (owner action in Atlas) |
-| D5 | Run migrations 001 (deal-draft indexes), 002 (B-1, one customer field) and 003 (indexes for the new send records `offer_sends`, ADR 023) | Yes — after a backup, dry run first |
+| D5 | Run migrations 001 (deal-draft indexes), 002 (B-1, one customer field) and 003 (indexes for the new record collections `offer_sends`, `signing_completions`, `offer_numbers`, ADR 023) | Yes — after a backup, dry run first |
 
 ## 1. Preparation (days before, no user impact)
 

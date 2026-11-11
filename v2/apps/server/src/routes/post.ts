@@ -89,7 +89,7 @@ export function buildBitrixPostalComment(a: { recipient: any; offerNumber: strin
   return lines.join("\n");
 }
 
-export interface PostDeps { ob24: Onlinebrief24; deals: DealWrites; assetsDir: string }
+export interface PostDeps { ob24: Onlinebrief24; deals: DealWrites; assetsDir: string; ensureSentOffer?: import("../sends/offer-record.js").EnsureSentOffer | undefined }
 
 export async function registerPost(app: FastifyInstance, d: PostDeps) {
   const failSend = (req: FastifyRequest, reply: FastifyReply, status: number, message: string, extra: Record<string, unknown>) =>
@@ -203,6 +203,10 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
         if (guardDealId) await PostalSend.updateOne({ dealId: guardDealId }, { $set: { inFlightUntil: null } }).catch(() => {});
         if (recordOpen) await step("provider", "failed", (err as Error)?.message || String(err));
         throw staged(err, "submit_printjob");
+      }
+      // the letter is with the printer: the locked offer (pinned price) must exist (see sends/offer-record.ts)
+      if (clientSendId && offerLetter && b.payload && !resendOf && d.ensureSentOffer) {
+        await d.ensureSentOffer({ offerNumber, offerType: String(meta?.offerType || b.payload?.activeOffer || "bu"), payload: b.payload });
       }
       if (recordOpen) {
         await step("provider", "ok");
