@@ -34091,12 +34091,21 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
 
-        setStatus(
+        const sentMsg =
           result.mode === "test"
             ? `Testmodus: Auftrag ${result.printjobId || "-"} liegt im onlinebrief24-Warenkorb · Anlagen: ${result.attachmentCount || 0}`
-            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
-          "success",
-        );
+            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`;
+        // Letter is out, but the Bitrix filing may have failed (Audit S-05).
+        if (result?.bitrix?.ok === false) {
+          const bxErr = String(result.bitrix.error || "").trim();
+          const warn =
+            `Der Brief wurde versendet, die Ablage in Bitrix hat nicht geklappt${bxErr ? ` (${bxErr})` : ""}. ` +
+            "Bitte legen Sie die Unterlagen im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.";
+          setStatus(`${sentMsg} – ${warn}`, "error");
+          window.toast?.warn?.("Bitrix-Ablage fehlgeschlagen", warn);
+        } else {
+          setStatus(sentMsg, "success");
+        }
 
         postalSent = true;
 
@@ -34229,12 +34238,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!response.ok || result?.ok === false) {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
-        setStatus(
+        const signedMsg =
           result.mode === "test"
             ? `Testmodus: unterschriebene Unterlagen liegen im onlinebrief24-Warenkorb (Auftrag ${result.printjobId || "-"}).`
-            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`,
-          "success",
-        );
+            : `Unterschriebene Unterlagen per Post versendet. Auftrag: ${result.printjobId || "-"}`;
+        if (result?.bitrix?.ok === false) {
+          const bxErr = String(result.bitrix.error || "").trim();
+          const warn =
+            `Der Brief wurde versendet, die Ablage in Bitrix hat nicht geklappt${bxErr ? ` (${bxErr})` : ""}. ` +
+            "Bitte legen Sie die Unterlagen im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.";
+          setStatus(`${signedMsg} – ${warn}`, "error");
+          window.toast?.warn?.("Bitrix-Ablage fehlgeschlagen", warn);
+        } else {
+          setStatus(signedMsg, "success");
+        }
       } catch (error) {
         console.error("[post] signed send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
