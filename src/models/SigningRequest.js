@@ -89,6 +89,12 @@ const SigningRequestSchema = new Schema(
 
     openedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    // Completion (signed PDFs, confirmation mail, Bitrix filing, deal move)
+    // runs after the signatures are stored. completionClaimedAt marks the
+    // request that runs it; completionResult records how each step went
+    // ({ ok, email, bitrixTimeline, partnerFiling, dealMove, error, … }).
+    completionClaimedAt: { type: Date, default: null },
+    completionResult: { type: Schema.Types.Mixed, default: null },
     expiresAt: { type: Date, default: null },
     // customer clicked "Neuen Link anfordern" on the expired page (once per link)
     newLinkRequestedAt: { type: Date, default: null },

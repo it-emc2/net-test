@@ -774,15 +774,212 @@ router.get("/:token/documents/:key/pdf", async (req, res) => {
   }
 });
 
-// POST /api/signing/:token/documents/:key
-// Body: { signatureImage (data URL), editedFields?, extraFields?, place? }
+// Completion of a fully signed request: signed PDFs, confirmation mail,
+// Bitrix filing and deal move. The signatures are already stored when this
+// runs (Audit S-01); its outcome is recorded in completionResult. Only a hard
+// failure (e.g. the PDF renderer) marks it ok:false, which lets the next
+// identical submit run it again — mail/Bitrix hiccups are recorded only, as
+// before they were only logged.
+const COMPLETION_STALE_MS = 10 * 60 * 1000;
+
+async function claimCompletion(srDoc) {
+  const now = new Date();
+  return SigningRequest.findOneAndUpdate(
+    {
+      _id: srDoc._id,
+      documents: { $not: { $elemMatch: { status: { $ne: "signed" } } } },
+      $or: [
+        { status: { $ne: "completed" } },
+        { "completionResult.ok": false },
+        // a crash/restart in the middle of a completion
+        { completionClaimedAt: { $lt: new Date(now.getTime() - COMPLETION_STALE_MS) }, completionResult: null },
+      ],
+    },
+    {
+      $set: {
+        status: "completed",
+        completedAt: srDoc.completedAt || now,
+        completionClaimedAt: now,
+        completionResult: null,
+      },
+    },
+    { new: true },
+  );
+}
+
+async function completeSigning(sr) {
+  const result = {
+    ok: true,
+    startedAt: new Date(),
+    email: "skipped",
+    bitrixTimeline: "skipped",
+    partnerFiling: "skipped",
+    dealMove: "skipped",
+  };
+  const partnerContactBefore = sr.partnerContactId || "";
+  try {
+    const signedPdfs = [];
+    for (const d of sr.documents) {
+      const buffer = await buildSignedPdf(sr, d);
+      signedPdfs.push({
+        filename: `${d.key}_${sr.offerNumber || "signiert"}.pdf`,
+        buffer,
+      });
+    }
+
+    // Email the customer directly; notify the office via bcc so the
+    // internal address never appears in the customer-visible headers.
+    const transporter = buildTransport();
+    const office = process.env.SIGNING_OFFICE_EMAIL;
+    if (transporter) {
+      const attachments = signedPdfs.map((p) => ({
+        filename: p.filename,
+        content: p.buffer,
+        contentType: "application/pdf",
+      }));
+
+      // Branded confirmation body (same styled template as the
+      // Zusammenfassung offer mail). Signed as generic "Ihr Team von emc2".
+      const greeting = buildGreetingLine(sr.prefill);
+      const confirmationBody = [
+        greeting,
+        "",
+        "Ihre Unterlagen haben uns erreicht - vielen Dank!",
+        "Anbei erhalten Sie jeweils eine Kopie im Anhang.",
+        "",
+        "Nach erfolgreicher Überprüfung der Unterlagen melden wir uns " +
+          "bzgl. des nächsten Schrittes umgehend bei Ihnen zurück.",
+        "",
+        "Für Rückfragen stehen wir Ihnen jederzeit gerne zur Verfügung!",
+      ].join("\n");
+
+      // Inline logo/signature image (referenced via cid in the template).
+      const signatureCid = "emc2-signature-picture";
+      const signatureImagePath = path.join(
+        process.cwd(),
+        "src",
+        "public",
+        "assets",
+        "signaturepicture.png",
+      );
+      if (fs.existsSync(signatureImagePath)) {
+        attachments.push({
+          filename: "signaturepicture.png",
+          path: signatureImagePath,
+          cid: signatureCid,
+        });
+      }
+
+      try {
+        await transporter.sendMail({
+          from: smtpFrom(),
+          replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
+          to: sr.customerEmail,
+          bcc: office || undefined,
+          subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
+          text: confirmationBody,
+          html: buildEmailHtml(confirmationBody, {
+            signatureCid: fs.existsSync(signatureImagePath) ? signatureCid : null,
+            contactName: "",
+            isAh: isAhOffer(sr),
+          }),
+          attachments,
+        });
+        result.email = "ok";
+      } catch (err) {
+        console.warn("[signing] completion email failed:", err?.message || err);
+        result.email = "failed";
+        result.emailError = err?.message || String(err);
+      }
+    }
+
+    const timeline = await postTimeline(
+      sr,
+      `✅ Alle Dokumente unterschrieben` +
+        (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
+        `\nSignierte PDFs sind angehängt.`,
+      signedPdfs.map((p) => ({
+        filename: p.filename,
+        base64: p.buffer.toString("base64"),
+      })),
+    );
+    // Two-person offers: file each person's signed PDFs on their own
+    // Bitrix contact (partner contact is created if it doesn't exist).
+    // Non-fatal, like the stage update below.
+    result.bitrixTimeline = timeline?.skipped ? "skipped" : timeline?.ok === false ? "failed" : "ok";
+    if (timeline?.ok === false) result.bitrixTimelineError = timeline.error || "";
+    if (sr.documents.some((d) => isPartnerKey(d.key))) {
+      try {
+        await filePerPersonDocs(sr, signedPdfs);
+        result.partnerFiling = "ok";
+      } catch (err) {
+        console.warn("[signing] per-contact filing failed:", err?.message || err);
+        result.partnerFiling = "failed";
+      }
+    }
+
+    // Move the deal to the post-signing stage. Non-fatal: a Bitrix hiccup
+    // shouldn't break the customer-facing signing confirmation.
+    if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
+      try {
+        // "Antrag an Kasse stellen" has a required-field rule on Bitrix's
+        // side (Eigenanteil von Angebot (Brutto)) — without it the deal
+        // silently bounces back out of the stage. Not relevant for AH.
+        let selfPayAmount;
+        if (sr.customerType === "KASSE" && !isAhOffer(sr)) {
+          const { computed } = await getOfferRenderData(sr.payloadSnapshot || {});
+          selfPayAmount = Number(computed?.selfPayAmount) || 0;
+        }
+        await updateDealAfterSigning({
+          dealId: sr.bitrixEntityId,
+          customerType: sr.customerType,
+          selfPayAmount,
+          // ponytail: AH placeholder — both Kasse and Selbstzahler land on
+          // the same post-signing stage until the supervisor confirms a
+          // separate Kasse target stage for AH.
+          ...(isAhOffer(sr) && {
+            categoryId: AH_SIGNING_CATEGORY_ID,
+            stageId: AH_SIGNING_STAGE_ID,
+          }),
+        });
+        result.dealMove = "ok";
+      } catch (err) {
+        console.warn("[signing] Bitrix deal stage update failed:", err?.message || err);
+        result.dealMove = "failed";
+      }
+    }
+
+
+  } catch (err) {
+    console.error("[signing] completion failed (signatures are stored):", err);
+    result.ok = false;
+    result.error = err?.message || String(err);
+  }
+  result.finishedAt = new Date();
+  const set = { completionResult: result };
+  // filePerPersonDocs() may have linked/created the partner contact.
+  if ((sr.partnerContactId || "") !== partnerContactBefore) set.partnerContactId = sr.partnerContactId;
+  await SigningRequest.updateOne({ _id: sr._id }, { $set: set }).catch((e) =>
+    console.error("[signing] completionResult write failed:", e?.message || e),
+  );
+  return result;
+}
+
 // A document that is already signed: the same submit again (double tap, a
 // retry after a dropped connection, a parallel request) gets the answer of
 // the first one instead of signing — and mailing/filing — a second time
 // (Audit S-06). A different signature is still a conflict.
-function answerAlreadySigned(res, current, key, sig) {
+async function answerAlreadySigned(res, current, key, sig) {
   const curDoc = (current?.documents || []).find((d) => d.key === key);
   if (curDoc?.status === "signed" && sig && curDoc.signatureImage === sig) {
+    // The first attempt stored the signature but its completion failed
+    // (or was cut off): this retry runs it again (Audit S-01).
+    const owner = await claimCompletion(current);
+    if (owner) {
+      const result = await completeSigning(owner);
+      if (!result.ok) return res.status(500).json({ error: result.error });
+      current = owner;
+    }
     return res.json({
       ok: true,
       status: current.status,
@@ -794,6 +991,8 @@ function answerAlreadySigned(res, current, key, sig) {
   return res.status(409).json({ error: "Dokument wurde bereits unterschrieben" });
 }
 
+// POST /api/signing/:token/documents/:key
+// Body: { signatureImage (data URL), editedFields?, extraFields?, place? }
 router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (req, res) => {
   try {
     let sr = await loadByToken(req, res);
@@ -962,11 +1161,7 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
     const allSigned = sr.documents.length > 0 && sr.documents.every((d) => d.status === "signed");
     let completionOwner = null;
     if (allSigned) {
-      completionOwner = await SigningRequest.findOneAndUpdate(
-        { _id: sr._id, status: { $ne: "completed" } },
-        { $set: { status: "completed", completedAt: sr.completedAt || new Date() } },
-        { new: true },
-      );
+      completionOwner = await claimCompletion(sr);
       if (completionOwner) sr = completionOwner;
     } else {
       await SigningRequest.updateOne(
@@ -974,142 +1169,13 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
         { $set: { status: "partially_signed" } },
       );
     }
-    const partnerContactBefore = sr.partnerContactId || "";
 
     // If everything is now signed, generate signed PDFs, email + attach to Bitrix.
     let completion = { completed: false };
     if (completionOwner) {
-      const signedPdfs = [];
-      for (const d of sr.documents) {
-        const buffer = await buildSignedPdf(sr, d);
-        signedPdfs.push({
-          filename: `${d.key}_${sr.offerNumber || "signiert"}.pdf`,
-          buffer,
-        });
-      }
-
-      // Email the customer directly; notify the office via bcc so the
-      // internal address never appears in the customer-visible headers.
-      const transporter = buildTransport();
-      const office = process.env.SIGNING_OFFICE_EMAIL;
-      if (transporter) {
-        const attachments = signedPdfs.map((p) => ({
-          filename: p.filename,
-          content: p.buffer,
-          contentType: "application/pdf",
-        }));
-
-        // Branded confirmation body (same styled template as the
-        // Zusammenfassung offer mail). Signed as generic "Ihr Team von emc2".
-        const greeting = buildGreetingLine(sr.prefill);
-        const confirmationBody = [
-          greeting,
-          "",
-          "Ihre Unterlagen haben uns erreicht - vielen Dank!",
-          "Anbei erhalten Sie jeweils eine Kopie im Anhang.",
-          "",
-          "Nach erfolgreicher Überprüfung der Unterlagen melden wir uns " +
-            "bzgl. des nächsten Schrittes umgehend bei Ihnen zurück.",
-          "",
-          "Für Rückfragen stehen wir Ihnen jederzeit gerne zur Verfügung!",
-        ].join("\n");
-
-        // Inline logo/signature image (referenced via cid in the template).
-        const signatureCid = "emc2-signature-picture";
-        const signatureImagePath = path.join(
-          process.cwd(),
-          "src",
-          "public",
-          "assets",
-          "signaturepicture.png",
-        );
-        if (fs.existsSync(signatureImagePath)) {
-          attachments.push({
-            filename: "signaturepicture.png",
-            path: signatureImagePath,
-            cid: signatureCid,
-          });
-        }
-
-        try {
-          await transporter.sendMail({
-            from: smtpFrom(),
-            replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
-            to: sr.customerEmail,
-            bcc: office || undefined,
-            subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
-            text: confirmationBody,
-            html: buildEmailHtml(confirmationBody, {
-              signatureCid: fs.existsSync(signatureImagePath) ? signatureCid : null,
-              contactName: "",
-              isAh: isAhOffer(sr),
-            }),
-            attachments,
-          });
-        } catch (err) {
-          console.warn("[signing] completion email failed:", err?.message || err);
-        }
-      }
-
-      await postTimeline(
-        sr,
-        `✅ Alle Dokumente unterschrieben` +
-          (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
-          `\nSignierte PDFs sind angehängt.`,
-        signedPdfs.map((p) => ({
-          filename: p.filename,
-          base64: p.buffer.toString("base64"),
-        })),
-      );
-      // Two-person offers: file each person's signed PDFs on their own
-      // Bitrix contact (partner contact is created if it doesn't exist).
-      // Non-fatal, like the stage update below.
-      if (sr.documents.some((d) => isPartnerKey(d.key))) {
-        try {
-          await filePerPersonDocs(sr, signedPdfs);
-        } catch (err) {
-          console.warn("[signing] per-contact filing failed:", err?.message || err);
-        }
-      }
-
-      // Move the deal to the post-signing stage. Non-fatal: a Bitrix hiccup
-      // shouldn't break the customer-facing signing confirmation.
-      if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
-        try {
-          // "Antrag an Kasse stellen" has a required-field rule on Bitrix's
-          // side (Eigenanteil von Angebot (Brutto)) — without it the deal
-          // silently bounces back out of the stage. Not relevant for AH.
-          let selfPayAmount;
-          if (sr.customerType === "KASSE" && !isAhOffer(sr)) {
-            const { computed } = await getOfferRenderData(sr.payloadSnapshot || {});
-            selfPayAmount = Number(computed?.selfPayAmount) || 0;
-          }
-          await updateDealAfterSigning({
-            dealId: sr.bitrixEntityId,
-            customerType: sr.customerType,
-            selfPayAmount,
-            // ponytail: AH placeholder — both Kasse and Selbstzahler land on
-            // the same post-signing stage until the supervisor confirms a
-            // separate Kasse target stage for AH.
-            ...(isAhOffer(sr) && {
-              categoryId: AH_SIGNING_CATEGORY_ID,
-              stageId: AH_SIGNING_STAGE_ID,
-            }),
-          });
-        } catch (err) {
-          console.warn("[signing] Bitrix deal stage update failed:", err?.message || err);
-        }
-      }
-
+      const result = await completeSigning(sr);
+      if (!result.ok) return res.status(500).json({ error: result.error });
       completion = { completed: true };
-    }
-
-    // filePerPersonDocs() may have linked/created the partner contact.
-    if ((sr.partnerContactId || "") !== partnerContactBefore) {
-      await SigningRequest.updateOne(
-        { _id: sr._id },
-        { $set: { partnerContactId: sr.partnerContactId } },
-      );
     }
 
     return res.json({

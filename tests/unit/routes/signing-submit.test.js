@@ -6,6 +6,8 @@
  * - Audit S-10: an invalid signature is rejected before it is stored.
  * - Audit S-06: a second identical submit returns the first result; mails
  *   and Bitrix filing happen once.
+ * - Audit S-01: the signature is stored before PDF/mail/Bitrix; a failing
+ *   later step cannot lose it, and the outcome is recorded.
  */
 import { jest } from "@jest/globals";
 import express from "express";
@@ -150,4 +152,37 @@ test("two people signing the last two documents at once complete exactly once (S
   expect(sendMail).toHaveBeenCalledTimes(1);
   // the Vollmacht edits were stored with the signature
   expect(after.prefill.street).toBe("Teststr. 1");
+});
+
+test("a failing PDF step keeps the signature; the retry completes once (S-01)", async () => {
+  const sr = await makeRequest();
+  htmlToPdfBuffer.mockRejectedValueOnce(new Error("renderer down"));
+  const first = await submit(sr.token, "zusatzblatt", PNG);
+  expect(first.status).toBe(500);
+  let after = await SigningRequest.findById(sr._id).lean();
+  expect(after.documents[0]).toMatchObject({ status: "signed", signatureImage: PNG });
+  expect(after.completionResult).toMatchObject({ ok: false, error: "renderer down" });
+  expect(sendMail).not.toHaveBeenCalled();
+
+  const retry = await submit(sr.token, "zusatzblatt", PNG);
+  expect(retry.status).toBe(200);
+  expect(retry.body).toMatchObject({ ok: true, completed: true });
+  expect(sendMail).toHaveBeenCalledTimes(1);
+  expect(completionComments()).toBe(1);
+  after = await SigningRequest.findById(sr._id).lean();
+  expect(after.completionResult).toMatchObject({ ok: true, email: "ok", bitrixTimeline: "ok" });
+
+  await submit(sr.token, "zusatzblatt", PNG); // nothing more to do
+  expect(sendMail).toHaveBeenCalledTimes(1);
+});
+
+test("a failing confirmation mail is recorded, the signing still succeeds (S-01)", async () => {
+  const sr = await makeRequest();
+  sendMail.mockRejectedValueOnce(new Error("smtp down"));
+  const res = await submit(sr.token, "zusatzblatt", PNG);
+  expect(res.status).toBe(200);
+  expect(res.body).toMatchObject({ ok: true, completed: true, status: "completed" });
+  const after = await SigningRequest.findById(sr._id).lean();
+  expect(after.status).toBe("completed");
+  expect(after.completionResult).toMatchObject({ ok: true, email: "failed", emailError: "smtp down" });
 });
