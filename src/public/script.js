@@ -540,8 +540,26 @@ function handleHashChange() {
   const hasOffer = !!(state && state.offerType);
   const manualAllowed = ["", "home"];
 
-  // Typing "/#home" or clearing the hash -> always go to a fresh home
+  // Typing "/#home", clearing the hash or browser back onto "#home".
+  // With an offer in progress this used to wipe every input silently; now it
+  // asks with the same dialog as the sidebar "Hauptmenü" link (Audit F03).
+  // The URL is put back on the current page while asking, so cancelling
+  // leaves everything as it was.
   if (manualAllowed.includes(hash)) {
+    if (hasOffer && typeof askBeforeGoingHome === "function") {
+      const backTo = normalizeStepForOffer(state.step, state.offerType);
+      if (backTo) {
+        try {
+          history.replaceState(null, "", "#" + backTo);
+        } catch {}
+      }
+      const overlay = document.getElementById("homeConfirmOverlay");
+      if (overlay?.classList.contains("visible")) return; // already asking
+      askBeforeGoingHome(() => {
+        setStep("home");
+      });
+      return;
+    }
     goHomeWithoutOffer();
     return;
   }
