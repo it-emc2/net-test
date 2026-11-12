@@ -2,12 +2,12 @@
 // only the active step is mounted). The address decides which offer is open.
 import { isDraftKey } from "@oc/api-contract";
 import { isNewOfferType, type NewOfferType } from "@oc/domain";
-import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { euro } from "../../shared/lib/format.js";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePrefs } from "../../shared/lib/prefs.js";
-import { Alert, Button, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
+import { Alert, Button, ButtonLink, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, useSaveStatus } from "./model/draft.js";
 import { useOfferStore } from "./model/store.js";
@@ -18,9 +18,9 @@ function Total() {
   const { total, pending, error } = usePrice();
   if (error) return <Alert kind="error">Der Preis kann gerade nicht berechnet werden.</Alert>;
   return (
-    <p className="m-0 text-lg" aria-live="polite">
+    <p className="m-0 whitespace-nowrap text-lg" aria-live="polite">
       <span>Gesamt</span> <strong>{euro(total)}</strong>
-      {pending ? <span className="text-[0.95rem] text-muted-foreground"> wird berechnet …</span> : null}
+      {pending ? <span className="hidden text-[0.95rem] text-muted-foreground lg:inline"> wird berechnet …</span> : null}
     </p>
   );
 }
@@ -122,26 +122,49 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   if (!isStepOf(type, step)) return <Navigate to={`${base}/${firstStep(type)}`} replace />;
 
   const temp = dealId.startsWith("t-");
+  const steps = STEPS[type];
+  const at = steps.indexOf(step);
+  const prev = steps[at - 1], next = steps[at + 1];
+  const title = `${OFFER_TITLES[type]}${temp ? " · noch ohne Auftragsnummer" : ` · Auftrag ${dealId}`}`;
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 px-4 pb-16 pt-6 md:grid-cols-[minmax(240px,300px)_1fr]">
-      {/* sidebar: stays in view on a wide screen; on a narrow one the step list folds away */}
-      <nav className="grid content-start gap-4 md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:pr-1" aria-label="Schritte">
-        <p className="m-0 font-bold">{OFFER_TITLES[type]}{temp ? " · noch ohne Auftragsnummer" : ` · Auftrag ${dealId}`}</p>
-        {/* narrow screens: the list folds away behind this button; wide screens always show it */}
+    // Wide screens (iPad landscape, desktop): the step list is a sidebar that stays in view.
+    // Narrower (iPad portrait, 834 px): the sidebar is CLOSED so the form has the full width; a
+    // slim bar under the header names the step, shows the total and opens the list on demand.
+    <div className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 lg:grid-cols-[minmax(240px,300px)_1fr] lg:gap-6 lg:pt-6">
+      <nav
+        aria-label="Schritte"
+        className={cn(
+          "sticky top-14 z-30 -mx-4 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 border-b border-border bg-background px-4 py-2",
+          "[grid-template-areas:'toggle_total''title_title''steps_steps''home_home']",
+          "lg:top-20 lg:z-auto lg:mx-0 lg:max-h-[calc(100dvh-6rem)] lg:grid-cols-1 lg:content-start lg:gap-4 lg:self-start lg:overflow-y-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pr-1",
+          "lg:[grid-template-areas:'title''steps''total''home']",
+        )}
+      >
+        <p className={cn(stepsOpen ? "block" : "hidden", "m-0 font-bold [grid-area:title] lg:block")}>{title}</p>
         <button
           type="button" aria-expanded={stepsOpen} aria-controls="offer-steps" onClick={() => setStepsOpen((o) => !o)}
-          className="flex min-h-12 cursor-pointer items-center justify-between rounded-lg border-2 border-input bg-card px-4 font-semibold text-foreground md:hidden"
+          className="flex min-h-12 min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-input bg-card px-4 text-left font-semibold text-foreground [grid-area:toggle] lg:hidden"
         >
-          <span>Schritt: {stepLabel(step)}</span>
-          <ChevronDown aria-hidden className={cn("size-5 transition-transform", stepsOpen && "rotate-180")} />
+          <span className="truncate"><span className="font-normal text-muted-foreground">{`Schritt ${at + 1} von ${steps.length} · `}</span>{stepLabel(step)}</span>
+          <ChevronDown aria-hidden className={cn("size-5 shrink-0 transition-transform", stepsOpen && "rotate-180")} />
         </button>
-        <div id="offer-steps" className={cn(stepsOpen ? "block" : "hidden", "md:block")}><StepList type={type} base={base} current={step} /></div>
-        <Total />
+        <div className="[grid-area:total]"><Total /></div>
+        <div id="offer-steps" className={cn(stepsOpen ? "block" : "hidden", "max-h-[60dvh] overflow-y-auto [grid-area:steps] lg:block lg:max-h-none lg:overflow-visible")}>
+          <StepList type={type} base={base} current={step} />
+        </div>
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
-        <Button variant="secondary" onClick={() => { void flushDraft().then(() => navigate("/")); }}>Zum Hauptmenü</Button>
+        {/* the wrapper carries the show/hide: the button's own display class must not be overridden (see cn) */}
+        <div className={cn(stepsOpen ? "grid" : "hidden", "[grid-area:home] lg:grid")}>
+          <Button variant="secondary" onClick={() => { void flushDraft().then(() => navigate("/")); }}>Zum Hauptmenü</Button>
+        </div>
       </nav>
-      <main className="grid content-start gap-4">
+      <main className="grid content-start gap-4 pt-2 lg:pt-0">
         <Outlet />
+        {/* with the sidebar closed these two are the way through the offer */}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {prev ? <ButtonLink to={`${base}/${prev}`} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
+          {next ? <Button asChild><Link to={`${base}/${next}`} aria-label={`Weiter zu ${stepLabel(next)}`}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
+        </div>
       </main>
     </div>
   );

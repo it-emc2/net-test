@@ -92,3 +92,27 @@ export function Check({ id, checked, onChange, disabled, children }: { id: strin
     </label>
   );
 }
+
+const CONTROL = "w-full rounded-lg border-2 border-input bg-card px-3.5 text-foreground placeholder:text-muted-foreground";
+
+/** Label + list to choose from. */
+export function SelectField({ label, id, value, onChange, options }: { label: string; id: string; value: string; onChange: (value: string) => void; options: readonly { value: string; label: string }[] }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={cn(CONTROL, "min-h-12 cursor-pointer")}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+/** Label + multi-line text. */
+export function TextAreaField({ label, id, value, onChange, placeholder, rows = 4 }: { label: string; id: string; value: string; onChange: (value: string) => void; placeholder?: string; rows?: number }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <textarea id={id} rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={cn(CONTROL, "py-2.5")} />
+    </div>
+  );
+}

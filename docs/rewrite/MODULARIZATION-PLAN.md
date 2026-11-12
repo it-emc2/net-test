@@ -195,7 +195,9 @@ Findings about today's UI (not changed here):
 - A corrected name or address is **not** carried to the letter recipient once that field was filled (fill-if-empty). The React screen does the same for now.
 - After a reload, today's UI with the v2 draft add-on shows an **empty letter recipient** (and country "DE" instead of "Deutschland") although the draft has it — seen with today's UI alone, independent of the new app.
 
-Still open for Kundendaten (in today's UI until rebuilt): the second person's details, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
+- **Kundendaten, slices 4 and 5**: the second person (`kundendaten-partner.json`, 16 recordings) and funding, property and notes (`kundendaten-object.json`, 50 recordings). "Miete" sets "Genehmigung des Vermieters erforderlich" to Ja by itself, "Eigentum" to Nein; "liegt vor" is asked and stored only for a rented home. Unticking "2 Personen" removes the second person's entries (the Anrede stays); ticking it again brings them back.
+
+Still open for Kundendaten: see the BU build order below.
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
 
@@ -211,6 +213,37 @@ Not yet: a link from today's UI into the new app (the way back is the address `/
 - **Preferences** (`shared/lib/prefs.ts`): theme, dark mode and automatic saving are stored under today's keys (`emc2.theme`, `emc2.mode`, `oc.autosave`), so a choice made in either UI applies in both. Theme "Je Angebotsart" (nothing stored) follows today's default per offer type.
 - **Sidebar**: stays in view on wide screens; on narrow screens the step list folds behind a button that names the open step.
 - Still to match: the "Versionen" button (list and restore of saved versions), icons of the Hauptmenü tiles.
+
+### BU (Badumbau) build order (owner 2026-11-12: build the whole BU section)
+
+Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtrennung, Duschvorhang, Kosten, Angebotscheck) hold most of their content in script-built widgets, so the input count understates them. Each step is built in slices; a slice is done when the recorded scenarios of today's UI match (stored data, changes elsewhere, visible parts) and it holds the pass mark at 6× CPU throttle.
+
+| # | Step | Today | State |
+|---|---|---|---|
+| 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes. **Open:** markup incl. target-price calculator, Wohnumfeld entries, uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
+| 2 | Arbeitszeit | 243 lines, 9 inputs | open — work-time suggestion, travel, distance lookup |
+| 3 | Arbeiten | 384 lines, 37 inputs | open |
+| 4 | Duschwanne | 173 lines, 23 inputs | open — tray search, bathtub wizard |
+| 5 | Fußboden | 363 lines, 53 inputs | open |
+| 6 | Wandverkleidung | 787 lines, 104 inputs | open — panels, decor, sketch |
+| 7 | Duschabtrennung | 134 lines + configurator | open |
+| 8 | Duschvorhang | configurator | open |
+| 9 | Optionale Produkte | 1,411 lines, 217 inputs | open — largest catalog |
+| 10 | Aufschlag / Rabatt | 128 lines, 6 inputs | open |
+| 11 | Kosten | script-built | open — incl. line edits (ADR 024) |
+| 12 | Angebotscheck | script-built | open |
+| 13 | Angebotsversand | 605 lines, 31 inputs | open — mail, letter, signing, documents |
+| 14 | Checkliste | 41 lines, 4 inputs | open |
+| 15–16 | Referenzbilder (Vorher / Nachher) | — | open |
+
+Steps 2–16 open in today's UI from the new app (same draft), so the offer can be finished at any time.
+
+### iPad Pro 11" portrait (834 × 1194)
+
+- Below 1024 px the **sidebar is closed**: the form has the full width (798 px, two columns). A slim bar under the header names the step ("Schritt 1 von 16 · Kundendaten"), shows the total and opens the step list on demand; the list closes again when a step is chosen.
+- From 1024 px (iPad landscape, desktop) the sidebar stays in view as before.
+- "Weiter" and "Zurück" under every step lead through the offer without the sidebar. They do not check required fields yet.
+- Checked at 834 × 1194 with touch: no control under 44 px, no sideways scrolling.
 
 ## 4. Risks
 
