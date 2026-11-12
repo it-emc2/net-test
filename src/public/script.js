@@ -560,6 +560,9 @@ function handleHashChange() {
       });
       return;
     }
+    // Hauptmenü already showing with nothing in progress: this is the hash
+    // event of the navigation that just reset everything — don't reset twice.
+    if (!hasOffer && document.getElementById("page-home")?.hidden === false) return;
     goHomeWithoutOffer();
     return;
   }
@@ -1894,13 +1897,18 @@ document.addEventListener("DOMContentLoaded", () => {
   bindCompactTimeHelper("travelTime", "travelTimeHelper");
 });
 
+// Any change can alter the suggestion. Mark it stale (every reader recomputes
+// on demand via `__arbeitszeitSuggestion || compute()`) and repaint once per
+// tick — a form reset fires hundreds of change events in one go.
+let azSuggestionRenderQueued = false;
 document.addEventListener("change", () => {
-  if (typeof computeArbeitszeitSuggestion === "function") {
-    computeArbeitszeitSuggestion();
-  }
-  if (typeof renderArbeitszeitSuggestion === "function") {
+  window.__arbeitszeitSuggestion = null;
+  if (azSuggestionRenderQueued) return;
+  azSuggestionRenderQueued = true;
+  queueMicrotask(() => {
+    azSuggestionRenderQueued = false;
     renderArbeitszeitSuggestion();
-  }
+  });
 });
 
 const ARBEITSZEIT_RULES = {
@@ -15758,7 +15766,24 @@ function attachDuschwanneToPayload(payload) {
     };
   };
 
-  window.updatePricing = async function updatePricing(payload) {
+  // Calls without a payload that happen in the same tick share ONE form read
+  // and ONE request, made once the calling code has finished. A form reset
+  // fires "change" on every checkbox/radio and dozens of those handlers ask
+  // for a refresh — each used to read all forms again (seconds on an iPad).
+  let pendingPricing = null;
+  window.updatePricing = function updatePricing(payload) {
+    const isAH = String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah";
+    if (payload != null || isAH) return runPricing(payload); // AH stays synchronous
+    if (!pendingPricing) {
+      pendingPricing = Promise.resolve().then(() => {
+        pendingPricing = null;
+        return runPricing();
+      });
+    }
+    return pendingPricing;
+  };
+
+  async function runPricing(payload) {
     // AH: all pricing is client-side — never call the server
     if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
       const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
@@ -15816,7 +15841,7 @@ function attachDuschwanneToPayload(payload) {
     });
 
     return data;
-  };
+  }
 
   window.requestPricingRefresh = function requestPricingRefresh({
     delay = 120,
