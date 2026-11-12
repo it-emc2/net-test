@@ -29,7 +29,7 @@ import { offerIdentity } from "../sends/identity.js";
 import type { EnsureSentOffer } from "../sends/offer-record.js";
 
 export interface SigningDeps {
-  deals: Pick<DealWrites, "addTimelineComment" | "updateDealAfterSigning" | "ensurePartnerContact" | "getDealContactId">;
+  deals: Pick<DealWrites, "addTimelineComment" | "updateDealAfterSigning" | "ensurePartnerContact" | "getDealContactId" | "addTask">;
   renderer: SigningRenderer;
   /** signing transport (legacy: SMTP_PORT || 587, SMTP_SECURE, SMTP_PASS optional) */
   mailer: Mailer;
@@ -370,11 +370,75 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
     if (!sr) { fail(req, reply, 404, "NOT_FOUND", "Ungültiger oder abgelaufener Link"); return null; }
     if (isExpired(sr)) {
       if (sr.status !== "completed") { sr.status = "expired"; await sr.save(); }
-      fail(req, reply, 410, "EXPIRED", "Dieser Link ist abgelaufen");
+      // 410 is cacheable by default — without no-store a reload shows the state from before
+      // "Neuen Link anfordern" (main PR #321)
+      reply.header("Cache-Control", "no-store").status(410).send({
+        error: { code: "EXPIRED", message: "Dieser Link ist abgelaufen", requestId: req.id },
+        expired: true, newLinkRequested: !!sr.newLinkRequestedAt,
+      });
       return null;
     }
     return sr;
   }
+
+  // Bitrix users for the "new link requested" task (main PR #321): HP responsible, JP + RF
+  // Mitwirkende, SW Beobachter.
+  const NEW_LINK_TASK = { responsible: 2586, accomplices: [2136, 2920], auditors: [6] };
+
+  // The customer on an expired link asks for a new one: one Bitrix task + timeline note per
+  // link; repeated clicks do nothing (atomic claim on newLinkRequestedAt).
+  app.post("/api/signing/:token/request-new-link", PUBLIC, async (req, reply) => {
+    try {
+      const token = String((req.params as any).token || "").trim();
+      const sr: any = await SigningRequest.findOne({ token });
+      if (!sr) return fail(req, reply, 404, "NOT_FOUND", "Ungültiger Link");
+      if (!isExpired(sr) && sr.status !== "expired") return fail(req, reply, 400, "BAD_REQUEST", "Dieser Link ist noch gültig");
+      const claimed = await SigningRequest.findOneAndUpdate({ _id: sr._id, newLinkRequestedAt: null }, { $set: { newLinkRequestedAt: new Date() } }, { new: true });
+      if (!claimed) return { ok: true, already: true };
+
+      const p = sr.prefill || {};
+      const name = [p.salutation, p.firstName, p.lastName].filter(Boolean).join(" ").trim() || sr.customerName;
+      const entity = sr.bitrixEntityType === "deal" ? "D" : sr.bitrixEntityType === "contact" ? "C" : "";
+      const entityUrl = entity ? `https://emczwei.bitrix24.de/crm/${entity === "D" ? "deal" : "contact"}/details/${sr.bitrixEntityId}/` : "";
+      const ocUrl = `${baseUrl(req)}/?offer=${encodeURIComponent(sr.offerNumber || "")}`;
+      const lines = [
+        `Kunde fordert über die Signaturseite einen neuen Signatur-Link an.`,
+        ``,
+        `Kunde: ${name}`,
+        `E-Mail: ${p.email || sr.customerEmail || "-"}`,
+        `Telefon: ${p.phone || "-"}`,
+        `Angebot: ${sr.offerNumber || "-"}`,
+        entityUrl ? `Bitrix: ${entityUrl}` : null,
+        `OC: ${ocUrl}`,
+        `Alter Link: /sign/${sr.token.slice(0, 8)}… (abgelaufen)`,
+        ``,
+        `Bitte Angebot in OC öffnen und den Signatur-Link neu an den Kunden senden.`,
+      ].filter((l) => l !== null);
+
+      let task: any;
+      try {
+        task = await d.deals.addTask({
+          TITLE: `Neuer Signatur-Link angefordert – ${sr.offerNumber || ""} – ${name}`,
+          DESCRIPTION: lines.join("\n"),
+          RESPONSIBLE_ID: NEW_LINK_TASK.responsible,
+          ACCOMPLICES: NEW_LINK_TASK.accomplices,
+          AUDITORS: NEW_LINK_TASK.auditors,
+          ...(entity ? { UF_CRM_TASK: [`${entity}_${sr.bitrixEntityId}`] } : {}),
+        });
+      } catch (err) {
+        // release the claim so the customer can try again instead of losing the request silently
+        req.log.error({ err: msg(err) }, "signing: new-link task failed");
+        await SigningRequest.updateOne({ _id: sr._id }, { $set: { newLinkRequestedAt: null } });
+        return fail(req, reply, 502, "BITRIX_FAILED", "Anfrage konnte nicht übermittelt werden. Bitte rufen Sie uns an.");
+      }
+      const taskId = task?.result?.task?.id;
+      await svc.postTimeline(sr,
+        `Kunde fordert einen neuen Signatur-Link an (${sr.offerNumber || ""})\n` +
+        `Der bisherige Link ist abgelaufen. Bitte neuen Signatur-Link an ${p.email || sr.customerEmail || "den Kunden"} senden.` +
+        (taskId ? `\nAufgabe: https://emczwei.bitrix24.de/company/personal/user/${NEW_LINK_TASK.responsible}/tasks/task/view/${taskId}/` : ""));
+      return { ok: true, taskId: taskId || null };
+    } catch (err) { return err500(req, reply, "POST signing request-new-link", err); }
+  });
 
   app.get("/api/signing/:token", PUBLIC, async (req, reply) => {
     try {
@@ -421,14 +485,27 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
   // signed request — exactly once, also after a failed or interrupted attempt.
   async function runCompletion(sr: any): Promise<{ ran: boolean; ok: boolean; error?: string }> {
     if (!(await claimSigningCompletion(sr.token))) return { ran: false, ok: true };
+    // The same facts on the signing request itself, in the shape main writes since PR #332
+    // (completionClaimedAt / completionResult) — legacy tools and the admin view read them there.
+    const startedAt = new Date();
+    const onRequest = (result: Record<string, unknown>) =>
+      SigningRequest.updateOne({ _id: sr._id }, { $set: { completionResult: { ...result, finishedAt: new Date() } } })
+        .catch((e) => d.log.error({ err: msg(e) }, "signing: completionResult write failed"));
+    await SigningRequest.updateOne({ _id: sr._id }, { $set: { completionClaimedAt: startedAt, completionResult: null } });
     try {
       const result = await svc.complete(sr);
       await finishSigningCompletion(sr.token, result);
       // complete() may have linked the partner contact on the in-memory document
       if (sr.partnerContactId) await SigningRequest.updateOne({ _id: sr._id }, { $set: { partnerContactId: sr.partnerContactId } });
+      await onRequest({
+        ok: true, startedAt, email: result.email, bitrixTimeline: result.bitrix, partnerFiling: result.partnerFiling, dealMove: result.dealMove,
+        ...(result.emailError ? { emailError: result.emailError } : {}),
+        ...(result.bitrixError ? { bitrixTimelineError: result.bitrixError } : {}),
+      });
       return { ran: true, ok: true };
     } catch (err) {
       await finishSigningCompletion(sr.token, { ok: false, error: msg(err) }).catch(() => {});
+      await onRequest({ ok: false, startedAt, email: "skipped", bitrixTimeline: "skipped", partnerFiling: "skipped", dealMove: "skipped", error: msg(err) });
       return { ran: true, ok: false, error: msg(err) };
     }
   }

@@ -6,4 +6,5 @@ bwt: visible=[page-bwt] modal=[] hash=#bwt
 Rabatt: visible=[page-Rabatt] modal=[] hash=#Rabatt
 Kosten: visible=[page-Kosten] modal=[] hash=#Kosten
 Zusammenfassung: visible=[page-Zusammenfassung] modal=[] hash=#Zusammenfassung
+referenzNachher: visible=[page-referenzNachher] modal=[] hash=#referenzNachher
 admin: visible=[page-admin] modal=[] hash=#admin

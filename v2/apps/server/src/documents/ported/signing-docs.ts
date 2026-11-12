@@ -1,5 +1,5 @@
 // @ts-nocheck
-// GENERATED copy of src/templates/signing-docs.js with 2 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// GENERATED copy of src/templates/signing-docs.js with 3 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
 // Drift guard: apps/server/test/verbatim-ports.test.ts
 // src/templates/signing-docs.js
 //
@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { replaceTextInHtml } from "./docx-text-replace.js";
 import { docsRoot } from "../shims/runtime.js";
+import { isValidSignatureDataUrl } from "./signature-image.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -211,7 +212,12 @@ function signatureBlock(doc, prefill, opts = {}) {
         }`.trim();
   const signedAt = doc.signedAt ? new Date(doc.signedAt) : new Date();
   const image = opts.image !== undefined ? opts.image : doc.signatureImage;
-  const img = image ? `<img class="sig-img" src="${image}" alt="Unterschrift">` : "";
+  // Only a strict PNG data URL is ever placed into the page, escaped
+  // (Audit S-10); older stored values that do not pass are left out.
+  const img =
+    image && isValidSignatureDataUrl(image)
+      ? `<img class="sig-img" src="${esc(image)}" alt="Unterschrift">`
+      : "";
   const audit =
     opts.showAudit === false
       ? ""

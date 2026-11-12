@@ -24,6 +24,7 @@ const PREPASS = [
   ["const resolved = lines.map(", "const resolved: any[] = lines.map("],
   ["const priorUnitById = new Map(", "const priorUnitById = new Map<string, number>("],
   ["const unique = [...new Set((ids || []).filter(Boolean))];", "const unique = [...new Set<string>((ids || []).filter(Boolean))];"],
+  ["const out = { services: 0, material: 0, applied: [] };", "const out: any = { services: 0, material: 0, applied: [] };"],
   ["const [narrow, ...wide] = [...codes].reverse();", "const [narrow, ...wide]: any[] = [...codes].reverse();"],
 ];
 

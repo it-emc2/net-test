@@ -110,6 +110,20 @@ export const USER_ACTION_EVENTS = [
   "offer_sent", "offer_bitrix_only", "move_dialog_shown", "move_dialog_dismissed", "move_succeeded",
   "move_failed", "termin_opened", "configurator_opened", "duschabtrennung_leaf_selected", "server_started",
 ] as const;
+// One row per DOCX→PDF / HTML→PDF conversion (main PR #322, admin "PDF-Engine" view). v2 always
+// converts through the PDF engine, so it writes engine "gotenberg"; rows expire after 180 days.
+export const PDF_LOG_APP = process.env.FLY_APP_NAME || "local";
+const PdfLogSchema = new Schema({
+  app: { type: String, required: true },
+  kind: { type: String, enum: ["docx", "html"], required: true },
+  engine: { type: String, enum: ["gotenberg", "fallback", "local"], required: true },
+  ms: { type: Number, required: true },
+  ok: { type: Boolean, required: true },
+  error: { type: String, default: undefined },
+}, { timestamps: { createdAt: true, updatedAt: false } });
+PdfLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 180 });
+export const PdfLog = model("PdfLog", PdfLogSchema);
+
 export const UserActionLog = model("UserActionLog", new Schema({
   event: { type: String, required: true, trim: true, enum: USER_ACTION_EVENTS },
   dealId: { type: String, default: "" },
@@ -180,7 +194,13 @@ export const SigningRequest = model("SigningRequest", new Schema({
   status: { type: String, enum: ["sent", "opened", "partially_signed", "completed", "expired"], default: "sent", index: true },
   openedAt: { type: Date, default: null },
   completedAt: { type: Date, default: null },
+  // completion (signed PDFs, mail, Bitrix filing, deal move) runs once: the request that sets
+  // completionClaimedAt runs it; completionResult records how each step went
+  completionClaimedAt: { type: Date, default: null },
+  completionResult: { type: Schema.Types.Mixed, default: null },
   expiresAt: { type: Date, default: null },
+  // customer clicked "Neuen Link anfordern" on the expired page (once per link)
+  newLinkRequestedAt: { type: Date, default: null },
 }, { timestamps: true, minimize: false, collection: "signingrequests" }));
 
 // Legacy "Submissions" (price + save button in the old JSON panel): payload + computed price.

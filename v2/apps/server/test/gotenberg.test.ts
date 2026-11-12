@@ -1,6 +1,6 @@
 // Gotenberg client: units + request shape (fake fetch). Real conversions: documents-golden.test.ts.
 import { describe, expect, it } from "vitest";
-import { Gotenberg, toInches } from "../src/integrations/gotenberg.js";
+import { Gotenberg, toInches, withPdfLog } from "../src/integrations/gotenberg.js";
 import { runLegacy } from "../src/documents/express-adapter.js";
 import Fastify from "fastify";
 
@@ -22,6 +22,29 @@ describe("Gotenberg client", () => {
     expect(Number(seen[0].form.marginTop)).toBeCloseTo(10 / 25.4);
     await expect(g.docxToPdf(Buffer.from("x"))).rejects.toThrow("PDF engine error: HTTP 503 - boom");
     expect(seen[1].url).toBe("http://pdf.test/forms/libreoffice/convert");
+  });
+});
+
+describe("PDF engine: main sync 2026-11-12", () => {
+  it("DOCX conversion sends main's image export settings (PR #320)", async () => {
+    let form: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init: any) => {
+      form = Object.fromEntries([...(init.body as FormData).entries()].map(([k, v]) => [k, typeof v === "string" ? v : (v as File).name]));
+      return new Response("%PDF-1");
+    }) as unknown as typeof fetch;
+    await new Gotenberg({ baseUrl: "http://pdf.test", fetchImpl }).docxToPdf(Buffer.from("x"));
+    expect(form).toMatchObject({ reduceImageResolution: "true", maxImageResolution: "300", quality: "90", files: "document.docx" });
+  });
+  it("withPdfLog records kind, duration and outcome; a failed conversion still throws", async () => {
+    const rows: any[] = [];
+    const engine = withPdfLog({
+      docxToPdf: async () => Buffer.from("ok"),
+      htmlToPdf: async () => { throw new Error("engine down"); },
+    }, (r) => rows.push(r));
+    expect((await engine.docxToPdf(Buffer.from("x"))).toString()).toBe("ok");
+    await expect(engine.htmlToPdf("<p>x</p>")).rejects.toThrow("engine down");
+    expect(rows.map((r) => [r.kind, r.ok, r.error])).toEqual([["docx", true, undefined], ["html", false, "engine down"]]);
+    expect(rows.every((r) => typeof r.ms === "number" && r.ms >= 0)).toBe(true);
   });
 });
 

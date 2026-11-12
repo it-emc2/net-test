@@ -19,7 +19,7 @@ import { registerOfferNumbers } from "../sends/numbers.js";
 import { registerGroup3 } from "./group3.js";
 import { registerBitrixRead } from "./bitrix-read.js";
 import { BitrixClient } from "../integrations/bitrix.js";
-import { BitrixLog } from "../models.js";
+import { BitrixLog, PDF_LOG_APP, PdfLog } from "../models.js";
 import { dealWrites } from "../integrations/bitrix-deal.js";
 import { PlanningClient } from "../integrations/planning.js";
 import { registerBitrixWrite } from "./bitrix-write.js";
@@ -35,7 +35,7 @@ import { registerCatalog } from "./catalog.js";
 import { registerDocuments } from "./documents.js";
 import { registerRetired } from "./retired.js";
 import { registerWeb } from "../web/register.js";
-import { Gotenberg, type PdfEngine } from "../integrations/gotenberg.js";
+import { Gotenberg, withPdfLog, type PdfEngine } from "../integrations/gotenberg.js";
 import type { SigningRenderer } from "../signing/documents.js";
 import { MagicApi } from "../integrations/magic.js";
 import { RoutingService } from "../routing/providers.js";
@@ -163,7 +163,10 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
 
   await registerOffersRead(app);
   // ---------------- documents (phase 5) ----------------
-  const pdfEngine = deps.pdfEngine ?? new Gotenberg({ baseUrl: cfg.GOTENBERG_URL, timeoutMs: cfg.GOTENBERG_TIMEOUT_MS });
+  const pdfEngine = deps.pdfEngine ?? withPdfLog(
+    new Gotenberg({ baseUrl: cfg.GOTENBERG_URL, timeoutMs: cfg.GOTENBERG_TIMEOUT_MS }),
+    (row) => { PdfLog.create({ app: PDF_LOG_APP, engine: "gotenberg", ...row }).catch(() => {}); },
+  );
   const vigorPrices = vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI);
   const { offerDocuments, signingRenderer: ownSigningRenderer } = await registerDocuments(app, {
     businessConfig, fetchVigourNetPrices: vigorPrices, vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI, root: cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT, pdf: pdfEngine,

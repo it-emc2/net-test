@@ -1289,7 +1289,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   const PNG = "data:image/png;base64,iVBORw0KGgo=";
   const HDR = { "x-forwarded-for": "203.0.113.7", "user-agent": "contract-test" };
   const TOKEN_RE = /[0-9a-f]{48}/g;
-  const normText = (s: string) => (normaliseHtml(s) as string).replace(TOKEN_RE, "<TOKEN>").replace(/<[0-9a-f-]{36}@test\.local>/g, "<MSGID>");
+  const normText = (s: string) => (normaliseHtml(s) as string).replace(TOKEN_RE, "<TOKEN>").replace(/\/sign\/[0-9a-f]{8}…/g, "/sign/<TOKEN8>…").replace(/<[0-9a-f-]{36}@test\.local>/g, "<MSGID>");
 
   type Res = { status: number; type: string; text: string; body: any };
   const send = async (app: "legacy" | "v2", method: string, url: string, body?: unknown, { auth = true, cookie = false } = {}): Promise<Res> => {
@@ -1420,6 +1420,11 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       const n = await step(app, ctx, "force → new", create(app, { payload: changed, offerNumber: "T-RE-1", dealId: "9001", force: true }));
       await db().collection("signingrequests").updateOne({ token: n.body.token }, { $set: { expiresAt: new Date(Date.now() - 1000) } });
       await step(app, ctx, "expired → 410", send(app, "GET", `/api/signing/${n.body.token}`, undefined, { auth: false }));
+      // main PR #321: the customer asks for a new link — one Bitrix task + note, repeated clicks do nothing
+      await step(app, ctx, "valid link → 400", send(app, "POST", `/api/signing/${tok}/request-new-link`, {}, { auth: false }));
+      await step(app, ctx, "request new link", send(app, "POST", `/api/signing/${n.body.token}/request-new-link`, {}, { auth: false }));
+      await step(app, ctx, "request again → already", send(app, "POST", `/api/signing/${n.body.token}/request-new-link`, {}, { auth: false }));
+      await step(app, ctx, "expired → 410, requested", send(app, "GET", `/api/signing/${n.body.token}`, undefined, { auth: false }));
       await step(app, ctx, "unknown token → 404", send(app, "GET", "/api/signing/doesnotexist", undefined, { auth: false }));
       await step(app, ctx, "no payload → 400", create(app, {}));
       await step(app, ctx, "status needs login", send(app, "GET", "/api/signing/status/T-RE-1", undefined, { auth: false }));
