@@ -172,10 +172,10 @@ describe("supplier codes (Kürzel)", () => {
     expect([dw("SLA12090"), dw("DW015"), dw("V2PT83LC"), dw("")]).toEqual(["DW-SL", "DW-BX", "DW-HM", "DW-FP"]);
     expect(supplierCodes({ duschwanne: { chosenTrayProductId: "SLA12090" } }, []).dw).toBe(null);
   });
-  test("quality texts exist for winwall, VIGOUR and Slate", () => {
-    expect(SUPPLIER_QUALITY["WV-WW"]).toMatch(/EN 13501-1.*Greenguard Gold.*5 Jahre/);
+  test("quality texts exist for VIGOUR and Slate (none for winwall)", () => {
+    expect(SUPPLIER_QUALITY["WV-WW"]).toBeUndefined();
     expect(SUPPLIER_QUALITY["WV-HM"]).toMatch(/DIN 4102-1/);
-    expect(SUPPLIER_QUALITY["DW-SL"]).toMatch(/DIN 51097.*EN 14527/);
+    expect(SUPPLIER_QUALITY["DW-SL"]).toBe("Rutschfestigkeit Klasse C nach DIN 51097");
   });
   test("the price result carries the codes", async () => {
     const r = await computePrices({
