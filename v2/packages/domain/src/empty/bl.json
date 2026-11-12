@@ -1,0 +1,156 @@
+{
+  "Arbeitszeit": {
+    "ArbeitHoursNumeric": 7,
+    "ReiseHoursNumeric": 0,
+    "ahTravelZone": 0,
+    "autoSuggestedHoursHHMM": "00:00",
+    "autoSuggestedHoursNumeric": 0,
+    "autoSuggestedTasks": [],
+    "distanceKm": "",
+    "laborHoursHHMM": "07:00",
+    "laborHoursSource": "manual",
+    "totalHoursHHMM": "7:00",
+    "totalHoursNumeric": 7,
+    "travelDays": 1,
+    "travelTimeHHMM": "",
+    "uebernachten": 0,
+    "workDays": 1
+  },
+  "Finanzierung": {},
+  "Kundendaten": {
+    "ah_allergien": "",
+    "ah_demenz": "",
+    "ah_mobilitaet": "",
+    "ah_sonstiges": "",
+    "ah_sprache": "",
+    "ansprechpartner": "",
+    "aufschlag": "50%",
+    "bitrixContactId": "",
+    "budgetOptionsPanel": "",
+    "city": "",
+    "copayAmount": 0,
+    "cp_city": "",
+    "cp_email": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_postalCode": "",
+    "cp_state": "",
+    "cp_street": "",
+    "customerNumber": "",
+    "customerType": "Neu",
+    "date": "",
+    "deployment": "",
+    "email": "",
+    "emailCc": "",
+    "emc2_contact": "",
+    "firstName": "",
+    "greetingLine": "",
+    "hasContactPerson": "Nein",
+    "kassenkundeName": "",
+    "kk_geburtsdatum": "",
+    "kk_krankenkasseAdresse": "",
+    "kk_pflegegradSeit": "",
+    "kk_rechnungskopie": "nein",
+    "kk_versichertennr": "",
+    "kundenName": "",
+    "lastName": "",
+    "notes": "",
+    "p2FirstName": "",
+    "p2LastName": "",
+    "parkDetails": "",
+    "partnerSalutation": "",
+    "payer": "Kassenkunde",
+    "phone": "",
+    "postalCode": "",
+    "sonderaufschlagValue": "50",
+    "state": "",
+    "street": "",
+    "wohnumfeld": {
+      "amount": 0,
+      "done": false,
+      "entries": []
+    },
+    "wohnumfeldDone": "Nein"
+  },
+  "activeOffer": "bl",
+  "ah": {},
+  "auftragId": "",
+  "bl": {
+    "blNote": "",
+    "quickAdd": [
+      {
+        "group": "Badelift",
+        "kind": "bl-item",
+        "label": "Juwel Tuchlift Premium",
+        "productId": "BRS-912",
+        "qty": 1
+      }
+    ],
+    "sketch": {
+      "dataUrl": "",
+      "json": ""
+    }
+  },
+  "bwt": {},
+  "docSelection": {
+    "abtretung": true,
+    "barrierefrei": true,
+    "vollmacht": true
+  },
+  "duschabtrennung": {},
+  "duschwanne": {},
+  "hl": {},
+  "hms": {},
+  "includeOurSignature": true,
+  "mail": {
+    "auftragId": "",
+    "body": "",
+    "subject": "",
+    "to": ""
+  },
+  "offerNumber": "",
+  "optional": {},
+  "ourSignatureUser": "",
+  "postal": {
+    "attachments": [
+      {
+        "filename": "Abtretungserklärung.pdf",
+        "id": "abtretung",
+        "label": "Default",
+        "size": 0,
+        "type": "static"
+      },
+      {
+        "filename": "Vollmacht.pdf",
+        "id": "vollmacht",
+        "label": "Default",
+        "size": 0,
+        "type": "static"
+      }
+    ],
+    "auftragId": "",
+    "recipient": {
+      "city": "",
+      "country": "Deutschland",
+      "firstName": "",
+      "lastName": "",
+      "street": "",
+      "zipCode": ""
+    }
+  },
+  "pricingRules": {},
+  "rabatt": {},
+  "wandverkleidung": {},
+  "wd": {},
+  "zusammenfassung": {
+    "checkAck": {},
+    "checkliste": {
+      "fotosErstellt": false,
+      "skizzeErstellt": false
+    },
+    "versand": {
+      "art": null,
+      "versendetAm": null
+    }
+  }
+}

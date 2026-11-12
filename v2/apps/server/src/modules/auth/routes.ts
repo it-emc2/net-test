@@ -1,5 +1,6 @@
 // Login, logout, session check and password confirmation (legacy /api/auth/*; contract test).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { LoginResponse, MeResponse, PublicUser } from "@oc/api-contract";
 import {
   clearSessionCookie, createToken, sessionCookie, shouldRefresh, tokenFromHeaders, verifyPassword, verifyToken,
 } from "../../platform/auth.js";
@@ -7,7 +8,7 @@ import { User } from "../../platform/models.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>
   reply.status(status).send({ error: { code, message, requestId: req.id } });
-const publicUser = (u: any) => ({ email: u.email, name: u.name, firstName: u.firstName, lastName: u.lastName, role: u.role });
+const publicUser = (u: any): PublicUser => ({ email: u.email, name: u.name, firstName: u.firstName, lastName: u.lastName, role: u.role });
 
 export async function registerAuth(app: FastifyInstance, d: { authSecret: string; secureCookie: boolean }) {
   const cfg = { AUTH_SECRET: d.authSecret };
@@ -25,7 +26,7 @@ export async function registerAuth(app: FastifyInstance, d: { authSecret: string
     reply.header("set-cookie", sessionCookie(token, secureCookie));
     user.lastLoginAt = new Date();
     await user.save();
-    return { token, user: publicUser(user) };
+    return { token, user: publicUser(user) } satisfies LoginResponse;
   });
 
   app.post("/api/auth/logout", { config: { public: true } }, async (_req, reply) => {
@@ -40,7 +41,7 @@ export async function registerAuth(app: FastifyInstance, d: { authSecret: string
     const user = (await User.findOne({ email: t.email, active: true }).lean()) as any;
     if (!user) return fail(req, reply, 401, "UNAUTHORIZED", "Unauthorized");
     if (shouldRefresh(raw)) reply.header("set-cookie", sessionCookie(createToken(user.email, cfg.AUTH_SECRET), secureCookie));
-    return { user: publicUser(user) };
+    return { user: publicUser(user) } satisfies MeResponse;
   });
 
   app.post("/api/auth/confirm-password", async (req, reply) => {

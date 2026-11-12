@@ -141,6 +141,19 @@ Still open in phase 1:
 - Inside the modules, routes, rules and database access are still in the same files (`routes` / `service` / `repo` split) — do it module by module when a module is touched for the React rebuild, starting with `offers`, `pricing` and `catalog`.
 - `modules/documents/ported/docx-template.ts` (generated copy, 2,700 lines) stays as it is until main stops changing the original.
 
+### Phase 2 status (2026-11-12)
+
+Done:
+
+- **Typed offer** in `@oc/domain` (`offer.ts`): the offer of the React app IS the stored wizard payload, strictly typed — not a second model with converters (the pricing engine, the documents and old offers all read this shape). Types and defaults come from what today's UI stores for a new offer: `packages/domain/src/empty/<type>.json`, written by `v2/scripts/capture-empty-offers.cjs` (add-ons blocked; repeatable). `emptyOffer(type, context)` returns a fresh copy; day-, user- and settings-dependent values (date, contact person, signature user, `pricingRules`, mail text) are not defaults and come from the context. `withSection()` replaces fields of one section without changing the offer.
+- **`@oc/api-contract`** (new package): shapes of the endpoints the React app needs first (login, session, version, price, price inputs, deal draft) plus `pathOf()`. The server's login, version and price-input routes are typed against it.
+- Tests: every empty offer parses losslessly, carries nothing personal, and is priced by the engine as it is.
+
+Changed against the plan:
+
+- **`pricing/src/core.ts` is not split.** It is generated from main's `src/logic/pricing-core.js` and guarded to compile to exactly that file (`sync-with-legacy.test.ts`); a hand-made split would break every main sync. Split it after the cut-over, when main no longer changes the original — same rule as for `docx-template.ts`.
+- Values the UI derives and stores (e.g. `Arbeitszeit.travelCostDebug`) are left out of the empty offer; each React screen adds its derived values through selectors and its parity test compares the stored payload with today's.
+
 ## 4. Risks
 
 | Risk | Mitigation |
