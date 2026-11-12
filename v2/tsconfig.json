@@ -5,6 +5,9 @@
       "path": "packages/config"
     },
     {
+      "path": "packages/api-contract"
+    },
+    {
       "path": "packages/domain"
     },
     {

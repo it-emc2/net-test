@@ -2,6 +2,7 @@
 // which connects, writes a boot log and spawns soffice on import) — everything is explicit
 // so tests can build the app in-process.
 import { randomUUID } from "node:crypto";
+import type { VersionResponse } from "@oc/api-contract";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import type { AppConfig } from "@oc/config";
 import { dbState } from "./platform/db.js";
@@ -77,7 +78,7 @@ export async function buildApp(cfg: AppConfig, opts: BuildOptions = {}): Promise
     const db = dbState();
     return reply.status(db === "connected" ? 200 : 503).send({ ok: db === "connected", db, time: new Date().toISOString() });
   });
-  app.get("/api/version", { config: { public: true } }, async () => ({ buildId: cfg.BUILD_ID }));
+  app.get("/api/version", { config: { public: true } }, async () => ({ buildId: cfg.BUILD_ID }) satisfies VersionResponse);
   app.get("/health", { config: { public: true } }, async () => ({ ok: true, time: new Date().toISOString() }));
 
   if (opts.register) await opts.register(app);

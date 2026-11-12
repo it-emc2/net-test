@@ -1,0 +1,205 @@
+{
+  "Arbeitszeit": {
+    "ArbeitHoursNumeric": 5,
+    "ReiseHoursNumeric": 0,
+    "ahTravelZone": 0,
+    "autoSuggestedHoursHHMM": "00:00",
+    "autoSuggestedHoursNumeric": 0,
+    "autoSuggestedTasks": [],
+    "distanceKm": "",
+    "laborHoursHHMM": "05:00",
+    "laborHoursSource": "manual",
+    "totalHoursHHMM": "5:00",
+    "totalHoursNumeric": 5,
+    "travelDays": 1,
+    "travelTimeHHMM": "",
+    "uebernachten": 0,
+    "workDays": 1
+  },
+  "Finanzierung": {},
+  "Kundendaten": {
+    "ah_allergien": "",
+    "ah_demenz": "",
+    "ah_mobilitaet": "",
+    "ah_sonstiges": "",
+    "ah_sprache": "",
+    "ansprechpartner": "",
+    "aufschlag": "50%",
+    "bitrixContactId": "",
+    "budgetOptionsPanel": "",
+    "city": "",
+    "copayAmount": 0,
+    "cp_city": "",
+    "cp_email": "",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_postalCode": "",
+    "cp_state": "",
+    "cp_street": "",
+    "customerNumber": "",
+    "customerType": "Neu",
+    "date": "",
+    "deployment": "",
+    "email": "",
+    "emailCc": "",
+    "emc2_contact": "",
+    "firstName": "",
+    "greetingLine": "",
+    "hasContactPerson": "Nein",
+    "kassenkundeName": "",
+    "kk_geburtsdatum": "",
+    "kk_krankenkasseAdresse": "",
+    "kk_pflegegradSeit": "",
+    "kk_rechnungskopie": "nein",
+    "kk_versichertennr": "",
+    "kundenName": "",
+    "lastName": "",
+    "notes": "",
+    "p2FirstName": "",
+    "p2LastName": "",
+    "parkDetails": "",
+    "partnerSalutation": "",
+    "payer": "Kassenkunde",
+    "phone": "",
+    "postalCode": "",
+    "state": "",
+    "street": "",
+    "wohnumfeld": {
+      "amount": 0,
+      "done": false,
+      "entries": []
+    },
+    "wohnumfeldDone": "Nein"
+  },
+  "activeOffer": "bwt",
+  "ah": {},
+  "auftragId": "",
+  "bl": {},
+  "bwt": {
+    "bwtAidsHaltegriff30Qty": "0",
+    "bwtAidsHaltegriff40Qty": "0",
+    "bwtAidsHaltegriff60Qty": "0",
+    "bwtAidsHaltegriff80Qty": "0",
+    "bwtDoorBudgetColor": "weiß",
+    "bwtDoorBudgetQty": "0",
+    "bwtDoorIndWienColor": "weiß",
+    "bwtDoorIndWienDepthBottom": "",
+    "bwtDoorIndWienDepthTop": "",
+    "bwtDoorIndWienGlasDepthBottom": "",
+    "bwtDoorIndWienGlasDepthTop": "",
+    "bwtDoorIndWienGlasFrameColor": "weiß",
+    "bwtDoorIndWienGlasHeight": "",
+    "bwtDoorIndWienGlasQty": "0",
+    "bwtDoorIndWienGlasStdWidth": "",
+    "bwtDoorIndWienGlasWidth": "",
+    "bwtDoorIndWienHeight": "",
+    "bwtDoorIndWienQty": "0",
+    "bwtDoorIndWienStdWidth": "",
+    "bwtDoorIndWienWidth": "",
+    "bwtDoorStdColor": "weiß",
+    "bwtDoorStdQty": "1",
+    "bwtDoorType": "Universal / Standard Tür",
+    "bwtDoorVariodoorColor": "weiß",
+    "bwtDoorVariodoorQty": "0",
+    "bwtNote": "",
+    "bwtProxyNoteText": "Gemäß Ihren Angaben soll für Ihre Mutter ein Angebot erstellt werden. Da uns der Name Ihrer Mutter zum Zeitpunkt der Erstellung noch nicht vorlag, erhalten zunächst Sie dieses Angebot stellvertretend.",
+    "bwtSketchDataUrl": "",
+    "bwtSketchJson": "",
+    "bwtSteelNoteText": "Bitte beachten Sie, dass bei der Montage einer Badewannentür an der Schnittkante die Emaillierung abplatzen kann. Diese Stelle wird selbstverständlich fachgerecht und wasserdicht verschlossen, jedoch ist eine Ausführung im Originalfarbton der Badewanne nicht möglich.",
+    "bwtinfoTasks": [
+      "flat_surface",
+      "fixture_free",
+      "not_whirlpool"
+    ],
+    "doorInfoById": {
+      "1226": [
+        "• Höhen 40 bis 33cm abschneidbar",
+        "• Fix Bereite 40,5 cm",
+        "• Tiefe O 25cm U 25cm"
+      ]
+    },
+    "extraTasks": [],
+    "sketch": {
+      "dataUrl": "",
+      "json": ""
+    },
+    "workTasks": [
+      "deliver_install_bwt_door"
+    ]
+  },
+  "docSelection": {
+    "abtretung": true,
+    "barrierefrei": true,
+    "vollmacht": true
+  },
+  "duschabtrennung": {},
+  "duschwanne": {},
+  "hl": {},
+  "hms": {},
+  "includeOurSignature": true,
+  "mail": {
+    "auftragId": "",
+    "body": "",
+    "subject": "",
+    "to": ""
+  },
+  "materials": [
+    {
+      "name": "Universal / Standard Tür",
+      "productId": "1226",
+      "qty": 1
+    }
+  ],
+  "offerNumber": "",
+  "optional": {},
+  "ourSignatureUser": "",
+  "postal": {
+    "attachments": [
+      {
+        "filename": "Abtretungserklärung.pdf",
+        "id": "abtretung",
+        "label": "Default",
+        "size": 0,
+        "type": "static"
+      },
+      {
+        "filename": "Vollmacht.pdf",
+        "id": "vollmacht",
+        "label": "Default",
+        "size": 0,
+        "type": "static"
+      }
+    ],
+    "auftragId": "",
+    "recipient": {
+      "city": "",
+      "country": "Deutschland",
+      "firstName": "",
+      "lastName": "",
+      "street": "",
+      "zipCode": ""
+    }
+  },
+  "pricingRules": {},
+  "rabatt": {
+    "bonus300": false,
+    "bonusGrab": false,
+    "materialDiscountPct": 0,
+    "rabattEnabled": false,
+    "rb-add-rabatt": "nein",
+    "sonderaufschlagValue": "50"
+  },
+  "wandverkleidung": {},
+  "wd": {},
+  "zusammenfassung": {
+    "checkAck": {},
+    "checkliste": {
+      "fotosErstellt": false,
+      "skizzeErstellt": false
+    },
+    "versand": {
+      "art": null,
+      "versendetAm": null
+    }
+  }
+}

@@ -1,0 +1,88 @@
+// Request and response shapes shared by the server routes and the web client (ADR 026): one
+// source, so both sides are typed from the same definition and a change breaks the build of
+// the side that was not updated. Covers the endpoints the React app needs first; the others
+// are added when their screen is rebuilt.
+//
+// Schemas are lenient where the server passes legacy data through (unknown keys are kept).
+import { z } from "zod";
+
+// ---------- errors: every v2 error answer ----------
+export const ApiErrorSchema = z.looseObject({
+  error: z.object({ code: z.string(), message: z.string(), requestId: z.string() }),
+});
+export type ApiError = z.infer<typeof ApiErrorSchema>;
+export const isApiError = (v: unknown): v is ApiError => ApiErrorSchema.safeParse(v).success;
+
+// ---------- auth ----------
+export const PublicUserSchema = z.object({
+  email: z.string(),
+  name: z.string().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  role: z.string().optional(),
+});
+export type PublicUser = z.infer<typeof PublicUserSchema>;
+
+export const LoginRequestSchema = z.object({ email: z.string().min(1), password: z.string().min(1) });
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+export const LoginResponseSchema = z.object({ token: z.string(), user: PublicUserSchema });
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+export const MeResponseSchema = z.object({ user: PublicUserSchema });
+export type MeResponse = z.infer<typeof MeResponseSchema>;
+
+// ---------- version ----------
+export const VersionResponseSchema = z.object({ buildId: z.string() });
+export type VersionResponse = z.infer<typeof VersionResponseSchema>;
+
+// ---------- pricing ----------
+/** What the browser needs to compute prices itself: the business settings and the price list. */
+export const PriceInputsResponseSchema = z.object({
+  buildId: z.string(),
+  config: z.record(z.string(), z.unknown()),
+  products: z.array(z.looseObject({ productId: z.string(), price: z.number().nullish(), name: z.string().nullish() })),
+});
+export type PriceInputsResponse = z.infer<typeof PriceInputsResponseSchema>;
+
+/** POST /api/price: the request is the offer itself; the answer keeps every legacy field. */
+export const PriceResponseSchema = z.looseObject({ total: z.number().nullish(), selfPayAmount: z.number().nullish() });
+export type PriceResponse = z.infer<typeof PriceResponseSchema>;
+
+// ---------- deal drafts (ADR 007): one draft per deal, versioned ----------
+export const DealDraftResponseSchema = z.object({
+  dealId: z.string(),
+  offerType: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+  revision: z.number().int(),
+  updatedAt: z.union([z.string(), z.date()]),
+  updatedBy: z.string().nullish(),
+});
+export type DealDraftResponse = z.infer<typeof DealDraftResponseSchema>;
+
+export const SaveDealDraftRequestSchema = z.object({
+  offerType: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+  /** the revision this change is based on (0 = no draft yet); a newer one on the server → 409 */
+  baseRevision: z.number().int().min(0),
+});
+export type SaveDealDraftRequest = z.infer<typeof SaveDealDraftRequestSchema>;
+
+// ---------- the endpoints: method, path and shapes in one place ----------
+export const endpoints = {
+  login: { method: "POST", path: "/api/auth/login", request: LoginRequestSchema, response: LoginResponseSchema },
+  logout: { method: "POST", path: "/api/auth/logout", response: z.object({ ok: z.literal(true) }) },
+  me: { method: "GET", path: "/api/auth/me", response: MeResponseSchema },
+  version: { method: "GET", path: "/api/version", response: VersionResponseSchema },
+  price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
+  priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
+  dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
+  saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema },
+} as const;
+export type EndpointName = keyof typeof endpoints;
+
+/** "/api/deals/:dealId/draft" + { dealId: "4711" } → "/api/deals/4711/draft" */
+export function pathOf(name: EndpointName, params: Record<string, string | number> = {}): string {
+  return endpoints[name].path.replace(/:([A-Za-z]+)/g, (_m, key: string) => {
+    if (!(key in params)) throw new Error(`pathOf(${name}): missing parameter "${key}"`);
+    return encodeURIComponent(String(params[key]));
+  });
+}

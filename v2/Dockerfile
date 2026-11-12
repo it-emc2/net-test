@@ -7,6 +7,7 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app/v2
 COPY v2/package.json v2/package-lock.json ./
+COPY v2/packages/api-contract/package.json packages/api-contract/
 COPY v2/packages/config/package.json packages/config/
 COPY v2/packages/domain/package.json packages/domain/
 COPY v2/packages/pricing/package.json packages/pricing/

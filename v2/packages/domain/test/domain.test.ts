@@ -85,3 +85,57 @@ describe("loose scalars", () => {
   it.each([["8", 8], ["12,5", 12.5], ["", 0], ["abc", 0], [3, 3], [null, 0]])("number %j", (v, n) =>
     expect(looseNumber(v)).toBe(n));
 });
+
+// ---- the typed offer (ADR 026) ----
+import { NEW_OFFER_TYPES, emptyOffer, isNewOfferType, withSection, type BuOffer } from "../src/index.js";
+
+describe("emptyOffer — what today's UI stores for a new offer", () => {
+  const ctx = { date: "2026-11-12", ansprechpartner: "ap@example.test", contactName: "AP", signatureUser: "ap", pricingRules: { bonusNeuGross: 250 } };
+
+  it.each(NEW_OFFER_TYPES.map((t) => [t] as const))("%s: has its own type, the context values, and parses losslessly", (type) => {
+    const o = emptyOffer(type, ctx);
+    expect(o.activeOffer).toBe(type);
+    expect(offerTypeForPricing(o)).toBe(type);
+    expect(o.Kundendaten.date).toBe("2026-11-12");
+    expect(o.Kundendaten.ansprechpartner).toBe("ap@example.test");
+    expect(o.Kundendaten.emc2_contact).toBe("AP");
+    expect(o.ourSignatureUser).toBe("ap");
+    expect(o.pricingRules).toEqual({ bonusNeuGross: 250 });
+    const r = readPayload(o);
+    expect(r.success && r.data).toEqual(o);
+  });
+
+  it("the stored defaults carry nothing that depends on the day, the user or the settings", () => {
+    for (const type of NEW_OFFER_TYPES) {
+      const o: any = emptyOffer(type, { date: "" });
+      expect([o.Kundendaten.date, o.Kundendaten.ansprechpartner, o.Kundendaten.emc2_contact, o.ourSignatureUser, o.offerNumber, o.auftragId]).toEqual(["", "", "", "", "", ""]);
+      expect(o.pricingRules).toEqual({});
+      expect([o.mail.body, o.mail.subject]).toEqual(["", ""]);
+      expect(JSON.stringify(o)).not.toMatch(/@|ANG20\d\d/); // no address, no offer number
+    }
+  });
+
+  it("every call returns its own copy — a new offer is one assignment, nothing leaks from the last one", () => {
+    const a = emptyOffer("bu", ctx);
+    a.Kundendaten.firstName = "Erika";
+    a.optional.qty_TEST = "3";
+    (a.Arbeitszeit.autoSuggestedTasks as unknown[]).push({ key: "x" });
+    const b = emptyOffer("bu", ctx);
+    expect(b.Kundendaten.firstName).toBe("");
+    expect(b.optional.qty_TEST).toBeUndefined();
+    expect(b.Arbeitszeit.autoSuggestedTasks).toEqual([]);
+  });
+
+  it("withSection replaces fields of one section and leaves the original untouched", () => {
+    const a: BuOffer = emptyOffer("bu", ctx);
+    const b = withSection(a, "Kundendaten", { firstName: "Erika", payer: "Selbstzahler" });
+    expect([b.Kundendaten.firstName, b.Kundendaten.payer, b.Kundendaten.date]).toEqual(["Erika", "Selbstzahler", "2026-11-12"]);
+    expect(a.Kundendaten.firstName).toBe("");
+    expect(b.duschwanne).toBe(a.duschwanne); // untouched sections are shared, not copied
+  });
+
+  it("isNewOfferType: the five types of the new UI, not HMS/WD", () => {
+    expect(NEW_OFFER_TYPES.every(isNewOfferType)).toBe(true);
+    expect([isNewOfferType("hms"), isNewOfferType("wd"), isNewOfferType("BU"), isNewOfferType(null)]).toEqual([false, false, false, false]);
+  });
+});
