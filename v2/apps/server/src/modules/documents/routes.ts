@@ -10,7 +10,7 @@ import type { OfferDocuments } from "../email/index.js";
 import type { CapturingRouter } from "./shims/express.js";
 import type { SigningRenderer } from "../signing/index.js";
 import { productImages } from "./product-images.js";
-import { externalKeyGuard } from "../misc/index.js";
+import { externalKeyGuard } from "../../platform/external-key.js";
 
 export interface DocumentsDeps extends DocumentsContext { externalApiKey?: string | undefined }
 

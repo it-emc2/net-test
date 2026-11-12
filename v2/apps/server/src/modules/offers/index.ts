@@ -2,3 +2,4 @@
 export * from "./read.js";
 export * from "./search.js";
 export * from "./write.js";
+export * from "./external.js";

@@ -78,6 +78,7 @@ export async function buildApp(cfg: AppConfig, opts: BuildOptions = {}): Promise
     return reply.status(db === "connected" ? 200 : 503).send({ ok: db === "connected", db, time: new Date().toISOString() });
   });
   app.get("/api/version", { config: { public: true } }, async () => ({ buildId: cfg.BUILD_ID }));
+  app.get("/health", { config: { public: true } }, async () => ({ ok: true, time: new Date().toISOString() }));
 
   if (opts.register) await opts.register(app);
   return app;

@@ -4,12 +4,11 @@ import type { FastifyInstance } from "fastify";
 import type { AppConfig as Cfg } from "@oc/config";
 import { createPricingEngine } from "@oc/pricing";
 import { registerAuth } from "./modules/auth/index.js";
-import { registerPricing } from "./modules/pricing/index.js";
+import { registerPricing, registerSubmissions } from "./modules/pricing/index.js";
 import { BusinessConfig } from "./platform/business-config.js";
 import { AppConfig, Draft, Offer, Product } from "./platform/models.js";
 import { vigorPriceFetcher } from "./integrations/vigor.js";
-import { registerOffersRead } from "./modules/offers/index.js";
-import { registerOffersWrite } from "./modules/offers/index.js";
+import { registerOffersExternal, registerOffersRead, registerOffersWrite } from "./modules/offers/index.js";
 import { registerDealDrafts } from "./modules/deal-drafts/index.js";
 import { registerSends } from "./modules/sends/index.js";
 import { sentOfferRecorder } from "./modules/sends/index.js";
@@ -28,8 +27,7 @@ import { registerPost } from "./modules/post/index.js";
 import { registerRouting, registerTodaysCustomers } from "./modules/planning/index.js";
 import { registerMagic } from "./modules/catalog/index.js";
 import { registerSigning } from "./modules/signing/index.js";
-import { registerMisc } from "./modules/misc/index.js";
-import { registerCatalog, registerProductsRead } from "./modules/catalog/index.js";
+import { registerCatalog, registerCatalogBulk, registerProductsRead, registerVigorPrices } from "./modules/catalog/index.js";
 import { registerDocuments } from "./modules/documents/index.js";
 import { registerRetired } from "./modules/web/index.js";
 import { registerWeb } from "./modules/web/index.js";
@@ -100,9 +98,10 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     badoluxModelFile: `${LEGACY_PUBLIC}/configurator/badolux-model.json`,
     vorhangAssetsDir: `${cfg.ASSETS_DIR ?? LEGACY_ASSETS}/vorhang`,
   });
-  await registerMisc(app, {
-    vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI, computePrices: (p) => pricing.computePrices(p), externalApiKey: cfg.EXTERNAL_API_KEY,
-  });
+  await registerVigorPrices(app, { vigorUri: cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI });
+  await registerCatalogBulk(app);
+  await registerSubmissions(app, { computePrices: (p) => pricing.computePrices(p) });
+  await registerOffersExternal(app, { externalApiKey: cfg.EXTERNAL_API_KEY });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
   await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });

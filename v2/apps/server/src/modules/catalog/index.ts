@@ -5,3 +5,5 @@ export * from "./products.js";
 export * from "./routes.js";
 export * from "./ported/wanne-describe.js";
 export * from "./ported/wanne-sets.js";
+export * from "./bulk.js";
+export * from "./vigor-prices.js";
