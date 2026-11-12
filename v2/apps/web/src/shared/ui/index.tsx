@@ -82,3 +82,13 @@ export function Switch({ id, checked, onChange, label }: { id: string; checked: 
     </span>
   );
 }
+
+/** A tick box with a large tappable row. */
+export function Check({ id, checked, onChange, disabled, children }: { id: string; checked: boolean; onChange: (on: boolean) => void; disabled?: boolean | undefined; children: ReactNode }) {
+  return (
+    <label htmlFor={id} className={cn("flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border-2 border-input bg-card px-4 py-2 has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold", disabled && "cursor-default opacity-60")}>
+      <input id={id} type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span>{children}</span>
+    </label>
+  );
+}

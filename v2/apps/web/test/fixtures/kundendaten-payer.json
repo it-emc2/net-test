@@ -93,7 +93,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -177,7 +182,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -272,7 +282,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -366,7 +381,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -461,7 +481,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -545,7 +570,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -640,7 +670,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -734,7 +769,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -829,7 +869,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -913,7 +958,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -1008,7 +1058,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -1102,7 +1157,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -1198,7 +1258,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -1283,7 +1348,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -1379,7 +1449,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -1474,7 +1549,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": true
       }
     },
     {
@@ -1570,7 +1650,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -1655,7 +1740,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": true,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -1751,7 +1841,12 @@
         "kk_geburtsdatum": false,
         "kk_versichertennr": false,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": false
+        "pflegekasseAntragRow": false,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     },
     {
@@ -1846,7 +1941,12 @@
         "kk_geburtsdatum": true,
         "kk_versichertennr": true,
         "pflegegradSection": false,
-        "pflegekasseAntragRow": true
+        "pflegekasseAntragRow": true,
+        "pflegegradLevelRow": false,
+        "budgetOptionsPanel": false,
+        "copayField": false,
+        "ehepaarPartnerPanel": false,
+        "wohnumfeldPanel": false
       }
     }
   ]

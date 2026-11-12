@@ -186,7 +186,16 @@ Done:
 
 - **Kundendaten, slice 2**: payer and insurance details. Recorded for all five offer types (`kundendaten-payer.json`, 20 scenarios): Selbstzahler stores no insurance details and no `wohnumfeldDone`, stores the care-level/budget/Pflegekasse answers blank and deselects Abtretung and Vollmacht (also as letter attachments); back to Kassenkunde brings the entries back (not `wohnumfeldDone`, as today). The whole switch is one change of the offer. Birth date and insurance number are asked for every type except BU.
 
-Still open for Kundendaten (in today's UI until rebuilt): care level and budget, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
+- **Kundendaten, slice 3**: care level and budget options (`care.ts`), recorded for all offer types (`kundendaten-care.json`, 68 scenarios). Only one of maximal / 2 Personen / Premium; co-payment needs one of them; the readout "Anrechenbares Budget" is display only. For two persons, name and greeting of both follow the entered names unless changed by hand. Not for Alltagshilfe: the budget options. Quirks of today's UI reproduced on purpose: "Premium" stays ticked when the care level is switched to "Nein"; when another option replaces "2 Personen", the empty fields of the second person stay stored; after Selbstzahler → Kassenkunde the care level and "Premium" are back, the other budget ticks are gone.
+- **What Kundendaten fills in elsewhere** (found while recording, now recorded in `kundendaten-contact.json` as `outside`): the mail recipient follows the e-mail address; the letter recipient takes name and address when the field is left, but only while the letter's own field is still empty.
+- Recorder: `CAPTURE_ONLY=<part>` records one file; every scenario now records the changes outside `Kundendaten`.
+
+Findings about today's UI (not changed here):
+
+- A corrected name or address is **not** carried to the letter recipient once that field was filled (fill-if-empty). The React screen does the same for now.
+- After a reload, today's UI with the v2 draft add-on shows an **empty letter recipient** (and country "DE" instead of "Deutschland") although the draft has it — seen with today's UI alone, independent of the new app.
+
+Still open for Kundendaten (in today's UI until rebuilt): the second person's details, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
 

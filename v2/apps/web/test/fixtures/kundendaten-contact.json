@@ -119,6 +119,14 @@
           "entries": []
         },
         "wohnumfeldDone": "Nein"
+      },
+      "outside": {
+        "mail.to": "erika@example.test",
+        "postal.recipient.city": "Hof",
+        "postal.recipient.firstName": "Erika",
+        "postal.recipient.lastName": "Mustermann",
+        "postal.recipient.street": "Teststraße 1",
+        "postal.recipient.zipCode": "95028"
       }
     },
     {
@@ -240,6 +248,137 @@
           "entries": []
         },
         "wohnumfeldDone": "Nein"
+      },
+      "outside": {
+        "postal.recipient.firstName": "Max",
+        "postal.recipient.lastName": "Beispiel"
+      }
+    },
+    {
+      "name": "name, address and e-mail entered in two goes (what follows them elsewhere)",
+      "steps": [
+        [
+          "text",
+          "firstName",
+          "Er"
+        ],
+        [
+          "text",
+          "lastName",
+          "Muster"
+        ],
+        [
+          "text",
+          "street",
+          "Teststr"
+        ],
+        [
+          "text",
+          "postalCode",
+          "950"
+        ],
+        [
+          "text",
+          "city",
+          "Ho"
+        ],
+        [
+          "text",
+          "email",
+          "er@example.test"
+        ],
+        [
+          "text",
+          "firstName",
+          "Erika"
+        ],
+        [
+          "text",
+          "lastName",
+          "Mustermann"
+        ],
+        [
+          "text",
+          "street",
+          "Teststraße 1"
+        ],
+        [
+          "text",
+          "postalCode",
+          "95028"
+        ],
+        [
+          "text",
+          "city",
+          "Hof"
+        ],
+        [
+          "text",
+          "email",
+          "erika@example.test"
+        ]
+      ],
+      "kundendaten": {
+        "ah_allergien": "",
+        "ah_demenz": "",
+        "ah_mobilitaet": "",
+        "ah_sonstiges": "",
+        "ah_sprache": "",
+        "ansprechpartner": "",
+        "aufschlag": "50%",
+        "bitrixContactId": "",
+        "budgetOptionsPanel": "",
+        "city": "Hof",
+        "copayAmount": 0,
+        "cp_city": "",
+        "cp_email": "",
+        "cp_name": "",
+        "cp_phone": "",
+        "cp_postalCode": "",
+        "cp_state": "",
+        "cp_street": "",
+        "customerNumber": "",
+        "customerType": "Neu",
+        "date": "",
+        "deployment": "",
+        "email": "erika@example.test",
+        "emailCc": "",
+        "emc2_contact": "",
+        "firstName": "Erika",
+        "greetingLine": "",
+        "hasContactPerson": "Nein",
+        "kassenkundeName": "",
+        "kk_geburtsdatum": "",
+        "kk_krankenkasseAdresse": "",
+        "kk_pflegegradSeit": "",
+        "kk_rechnungskopie": "nein",
+        "kk_versichertennr": "",
+        "kundenName": "",
+        "lastName": "Mustermann",
+        "notes": "",
+        "p2FirstName": "",
+        "p2LastName": "",
+        "parkDetails": "",
+        "partnerSalutation": "",
+        "payer": "Kassenkunde",
+        "phone": "",
+        "postalCode": "95028",
+        "state": "",
+        "street": "Teststraße 1",
+        "wohnumfeld": {
+          "amount": 0,
+          "done": false,
+          "entries": []
+        },
+        "wohnumfeldDone": "Nein"
+      },
+      "outside": {
+        "mail.to": "erika@example.test",
+        "postal.recipient.city": "Ho",
+        "postal.recipient.firstName": "Er",
+        "postal.recipient.lastName": "Muster",
+        "postal.recipient.street": "Teststr",
+        "postal.recipient.zipCode": "950"
       }
     },
     {
@@ -341,6 +480,10 @@
           "entries": []
         },
         "wohnumfeldDone": "Nein"
+      },
+      "outside": {
+        "postal.recipient.firstName": "Anna",
+        "postal.recipient.lastName": "Probe"
       }
     }
   ]

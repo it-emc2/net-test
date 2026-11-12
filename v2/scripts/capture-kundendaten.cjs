@@ -14,6 +14,7 @@ const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const FIXTURES = path.join(__dirname, "..", "apps", "web", "test", "fixtures");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
+const NOT_AH = ["bu", "bwt", "hl", "bl"];
 // steps: ["text", name, value] | ["radio", name, value]   — invented test data only
 const FILES = {
   "kundendaten-contact.json": {
@@ -28,6 +29,10 @@ const FILES = {
       ["radio", "hasContactPerson", "Ja"], ["text", "cp_name", "Petra Beispiel"], ["text", "cp_phone", "+49 9281 111111"],
       ["radio", "cp_salutation", "Frau"], ["text", "cp_email", "petra@example.test"], ["text", "cp_street", "Nebenweg 2"],
       ["text", "cp_city", "Rehau"], ["text", "cp_state", "Bayern"], ["text", "cp_postalCode", "95111"],
+    ],
+    "name, address and e-mail entered in two goes (what follows them elsewhere)": [
+      ["text", "firstName", "Er"], ["text", "lastName", "Muster"], ["text", "street", "Teststr"], ["text", "postalCode", "950"], ["text", "city", "Ho"], ["text", "email", "er@example.test"],
+      ["text", "firstName", "Erika"], ["text", "lastName", "Mustermann"], ["text", "street", "Teststraße 1"], ["text", "postalCode", "95028"], ["text", "city", "Hof"], ["text", "email", "erika@example.test"],
     ],
     "contact person filled, then switched back to Nein": [
       ["radio", "salutation", "Familie"], ["text", "firstName", "Anna"], ["text", "lastName", "Probe"],
@@ -52,10 +57,32 @@ const FILES = {
       ["radio", "payer", "Selbstzahler"], ["radio", "payer", "Kassenkunde"],
     ],
   },
+  // care level and budget. `only`: offer types the scenario applies to (the budget options are
+  // not offered for Alltagshilfe); ["check", name, "on"|"off"] ticks or unticks a checkbox.
+  "kundendaten-care.json": {
+    "care level 3": [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"]],
+    "care level 3, budget 4.180 maximal": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"]] },
+    "names entered, then two persons (name and greeting of both)": { only: NOT_AH, steps: [["radio", "salutation", "Frau"], ["text", "firstName", "Erika"], ["text", "lastName", "Mustermann"], ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"]] },
+    "two persons, then the name is changed": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"], ["radio", "salutation", "Herr"], ["text", "lastName", "Beispiel"]] },
+    "two persons, then maximal instead": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"], ["check", "budgetMax", "on"]] },
+    "premium, then no care level": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "premium", "on"], ["radio", "hasPflegegrad", "Nein"]] },
+    "premium with co-payment, then Selbstzahler and back": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "2"], ["check", "premium", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "100"], ["radio", "payer", "Selbstzahler"], ["radio", "payer", "Kassenkunde"]] },
+    "care level 2, maximal with co-payment 500": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "2"], ["check", "budgetMax", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "500"]] },
+    "care level 4, two persons": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "4"], ["check", "twoPersons", "on"]] },
+    "care level 5, premium": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "5"], ["check", "premium", "on"]] },
+    "maximal, then two persons (only one main option)": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["check", "twoPersons", "on"]] },
+    "maximal with co-payment, then maximal unticked": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "300"], ["check", "budgetMax", "off"]] },
+    "care level and budget chosen, then no care level": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "300"], ["radio", "hasPflegegrad", "Nein"]] },
+    "no care level": [["radio", "hasPflegegrad", "Nein"]],
+    "care level applied for (beantragt)": { only: ["bu", "ah"], steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "beantragt"]] },
+    "care level 3 with budget, Selbstzahler, back to Kassenkunde": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "250"], ["radio", "payer", "Selbstzahler"], ["radio", "payer", "Kassenkunde"]] },
+    "care level 3 with budget, then Selbstzahler": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["radio", "payer", "Selbstzahler"]] },
+  },
 };
 const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
 // what is on the page (not hidden) after the steps — the React screen shows the same parts
-const PROBE = ["kassenkundeDetails", "kkRechnungskopieArtField", "kk_geburtsdatum", "kk_versichertennr", "pflegegradSection", "pflegekasseAntragRow"];
+const PROBE = ["kassenkundeDetails", "kkRechnungskopieArtField", "kk_geburtsdatum", "kk_versichertennr", "pflegegradSection", "pflegekasseAntragRow",
+  "pflegegradLevelRow", "budgetOptionsPanel", "copayField", "ehepaarPartnerPanel", "wohnumfeldPanel"];
 
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;
@@ -81,11 +108,14 @@ function changesOutside(base, now) {
 (async () => {
   const browser = await chromium.launch({ headless: true });
   for (const [file, scenarios] of Object.entries(FILES)) {
+    if (process.env.CAPTURE_ONLY && !file.includes(process.env.CAPTURE_ONLY)) continue; // e.g. CAPTURE_ONLY=care
     const out = { note: "generated by v2/scripts/capture-kundendaten.cjs — do not edit", scenarios: [] };
     // the contact part is the same form for every offer type (recorded for BU); the payer part
     // has rules per offer type and is recorded for each
     const types = file === "kundendaten-contact.json" ? ["bu"] : Object.keys(TILES);
-    for (const type of types) for (const [name, steps] of Object.entries(scenarios)) {
+    for (const type of types) for (const [name, spec] of Object.entries(scenarios)) {
+      const steps = Array.isArray(spec) ? spec : spec.steps;
+      if (!Array.isArray(spec) && !spec.only.includes(type)) continue;
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
       await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
       const page = await ctx.newPage();
@@ -104,6 +134,11 @@ function changesOutside(base, now) {
           const el = k === "radio"
             ? document.querySelector(`#form-Kundendaten input[type=radio][name="${f}"][value="${v}"]`)
             : document.querySelector(`#form-Kundendaten [name="${f}"]`);
+          if (k === "check") { // a real click: the page's own handlers decide what else changes
+            const box = document.querySelector(`#form-Kundendaten input[type=checkbox][name="${f}"]`);
+            if (box.checked !== (v === "on")) box.click();
+            return;
+          }
           if (k === "radio") el.checked = true; else el.value = v;
           el.dispatchEvent(new Event("input", { bubbles: true }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -119,7 +154,9 @@ function changesOutside(base, now) {
       const kd = now.Kundendaten;
       for (const k of ["date", "ansprechpartner", "emc2_contact"]) if (k in kd) kd[k] = ""; // day and user, not input
       const entry = { name, steps, kundendaten: sortKeys(kd) };
-      if (file !== "kundendaten-contact.json") { entry.type = type; entry.outside = sortKeys(changesOutside(base, now)); entry.shown = shown; }
+      entry.outside = sortKeys(changesOutside(base, now));
+      if (file !== "kundendaten-contact.json") { entry.type = type; entry.shown = shown; }
+      if (file === "kundendaten-care.json") entry.budgetText = await page.evaluate(() => (document.getElementById("pgbBudgetOut")?.innerText || "").replace(/\s+/g, " ").trim());
       out.scenarios.push(entry);
       console.log(`${file} · ${type} · ${name}: ${Object.keys(kd).length} keys`);
       await ctx.close();
