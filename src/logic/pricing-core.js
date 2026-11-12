@@ -1320,7 +1320,7 @@ function grossToNet(gross, taxRate) {
         for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
           const f = l.format;
           const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
-          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f.price, null,
+          add(l.productId, l.qty, `- ${l.panels} Stk winwall Wandverkleidung als Fußboden ${f.widthCm}×${f.heightCm} cm${f.set ? " (Set)" : ""} — Dekor: ${decorText}`, f.price, null,
             { name: `winwall Wandverkleidung ${decorText} ${what}` });
         }
       } else if (wallCladdingQty > 0)
@@ -1603,7 +1603,8 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
           const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
           // Price from the price list: any decor (also a typed one) costs the same per format.
           // name for a typed decor that has no product in the DB
-          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
+          // Label in panels ("2 Stk … (Set)"); qty/price stay per set for the order.
+          add(l.productId, l.qty, `- ${l.panels} Stk winwall Duschrückwand ${f.widthCm}×${f.heightCm} cm${f.set ? " (Set)" : ""} — Dekor: ${decorText}`, f.price, null,
             { name: `winwall Duschrückwand ${decorText} ${what}` });
         }
       }
