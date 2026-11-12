@@ -13,7 +13,8 @@ import { registerDealDrafts } from "./modules/deal-drafts/index.js";
 import { registerSends } from "./modules/sends/index.js";
 import { sentOfferRecorder } from "./modules/sends/index.js";
 import { registerOfferNumbers } from "./modules/sends/index.js";
-import { registerGroup3 } from "./modules/admin/index.js";
+import { registerAdmin } from "./modules/admin/index.js";
+import { registerCustomers } from "./modules/customers/index.js";
 import { registerBitrixRead } from "./modules/bitrix/index.js";
 import { BitrixClient } from "./integrations/bitrix.js";
 import { BitrixLog, PDF_LOG_APP, PdfLog } from "./platform/models.js";
@@ -104,7 +105,8 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerOffersExternal(app, { externalApiKey: cfg.EXTERNAL_API_KEY });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
   await registerDealDrafts(app);
-  await registerGroup3(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
+  await registerCustomers(app);
+  await registerAdmin(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   const bitrix = deps.bitrix ?? new BitrixClient({
     baseUrl: cfg.BITRIX_WEBHOOK_BASE,
     minGapMs: cfg.BITRIX_MIN_GAP_MS,
