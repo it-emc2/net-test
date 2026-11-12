@@ -15,6 +15,9 @@ function isPublicAsset(p) {
   // Shipped to the browser for offline pricing, but still business logic —
   // must not ride the blanket ".js is public" rule below.
   if (p.startsWith("/logic/")) return false;
+  // API responses are never static assets, whatever the path ends in
+  // (e.g. /api/offers/<id>.pdf must stay behind the session).
+  if (p === "/api" || p.startsWith("/api/")) return false;
   return (
     ASSET_RE.test(p) ||
     p.startsWith("/pdfjs") ||
@@ -25,13 +28,19 @@ function isPublicAsset(p) {
   );
 }
 
+// Token-scoped customer signing APIs (routes/signing.js), exact shapes only:
+//   GET  /api/signing/:token
+//   GET  /api/signing/:token/documents/:key/html|pdf
+//   POST /api/signing/:token/documents/:key
+// NOT POST /api/signing[/] (create) and NOT /api/signing/status* (dashboard).
+const SIGNING_TOKEN_API_RE =
+  /^\/api\/signing\/([^/]+)(?:\/documents\/[^/]+(?:\/(?:html|pdf))?)?\/?$/;
+
 function isPublicSigning(p) {
-  // Customer signing page + its token-scoped APIs. NOT /api/signing (create)
-  // and NOT /api/signing/status (internal dashboard feed).
-  if (p.startsWith("/sign/")) return true;
-  if (p === "/sign") return true;
-  if (p.startsWith("/api/signing/") && !p.startsWith("/api/signing/status")) return true;
-  return false;
+  // Customer signing page.
+  if (p === "/sign" || /^\/sign\/[^/]+\/?$/.test(p)) return true;
+  const m = SIGNING_TOKEN_API_RE.exec(p);
+  return Boolean(m && m[1] !== "status");
 }
 
 function isAlwaysPublic(p) {
@@ -49,10 +58,26 @@ function isExternalApi(p) {
   return p.startsWith("/api/offers/external") || p.startsWith("/api/arbeitsbericht/external");
 }
 
-export function authGate(req, res, next) {
-  const p = req.path;
+function isPublicPath(p) {
+  return isPublicAsset(p) || isPublicSigning(p) || isAlwaysPublic(p);
+}
 
-  if (isPublicAsset(p) || isPublicSigning(p) || isAlwaysPublic(p)) return next();
+function decodePath(p) {
+  try {
+    return decodeURIComponent(p);
+  } catch {
+    return p;
+  }
+}
+
+export function authGate(req, res, next) {
+  // Express routing is case-insensitive (/api/signing/STATUS/x hits the
+  // /status route), so every check below runs on the lower-cased path.
+  const p = String(req.path || "").toLowerCase();
+
+  // Public only if both the raw and the percent-decoded path qualify, so an
+  // encoded segment can't sneak a private route past the allowlist.
+  if (isPublicPath(p) && isPublicPath(decodePath(p))) return next();
 
   // External machine callers (bau-formular): shared API key.
   if (isExternalApi(p)) {
