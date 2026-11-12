@@ -408,9 +408,8 @@ export function winwallPanelPlan(situation, widths = {}, { heightCm = null } = {
 // Supplier codes (Kürzel) for offer, Bitrix deal and order lists, and the
 // "Qualität und Normen" text per product (wording as agreed 2026-10, SW/TR).
 export const SUPPLIER_QUALITY = {
-  "WV-WW": "Brandverhalten D-s2,d0 nach EN 13501-1 · Lack antibakteriell (in Anlehnung an DIN EN ISO 20743, Prüfgrundlage ISO 22196) · Druckfarben Greenguard Gold · Aluminium nach EN 485-4 · Maßtoleranz 0/+0,2 mm · 5 Jahre Produktgarantie",
-  "WV-HM": "Brandklasse B2 nach DIN 4102-1 · Lichtechtheit Wollblau Stufe 5 (DIN EN 15187)",
-  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097 · CE nach EN 14527",
+  "WV-HM": "Brandklasse B2 nach DIN 4102-1",
+  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097",
   // ponytail: DW-BX (Badolux) follows once SW has the data sheet; DW-HM / WV-BX have none yet.
 };
 
