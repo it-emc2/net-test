@@ -45,8 +45,8 @@ export function v2Routes() {
   }
   // legacy routers ported mechanically (documents/ported) are mounted by v2 under these prefixes
   // retired endpoints (ADR 020) answer 410 — listed as ["METHOD", "/url"] pairs
-  for (const m of read("v2/apps/server/src/routes/retired.ts").matchAll(/\["(GET|POST)",\s*"([^"]+)"\]/g)) out.add(`${m[1]} ${m[2]}`);
-  const P = "v2/apps/server/src/documents/ported/";
+  for (const m of read("v2/apps/server/src/modules/web/retired.ts").matchAll(/\["(GET|POST)",\s*"([^"]+)"\]/g)) out.add(`${m[1]} ${m[2]}`);
+  const P = "v2/apps/server/src/modules/documents/ported/";
   const PORTED_ROUTERS = {
     [`${P}docx-template.ts`]: ["/docx-template"], [`${P}kalkulation.ts`]: ["/kalkulation"], [`${P}pdf-preview.ts`]: ["/api/docx"],
     [`${P}arbeitsbericht.ts`]: ["/arbeitsbericht", "/api/arbeitsbericht"],

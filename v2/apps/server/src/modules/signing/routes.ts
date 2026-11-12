@@ -15,7 +15,7 @@ import type { Mailer } from "../../integrations/mail.js";
 import { buildEmailHtml } from "../email/index.js";
 import { resolveAnsprechpartner } from "../offers/index.js";
 import { tokenFromHeaders, verifyToken } from "../../platform/auth.js";
-import { injectHead } from "../../web/register.js";
+import { injectHead } from "../web/index.js";
 import {
   DEFAULT_EXPIRY_DAYS, REQUIRED_FIELDS_BY_KEY, baseDocKey, buildGreetingLine, deriveBitrixTarget, deriveCustomerType,
   docKeysFor, docLabel, extractPrefill, hasPaymentChoice, isAhOffer, isExpired, isPartnerKey, recomputeStatus, resolveFields,

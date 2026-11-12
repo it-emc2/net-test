@@ -8,9 +8,9 @@ import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BusinessConfig } from "../src/platform/business-config.js";
-import { registerDocuments } from "../src/routes/documents.js";
+import { registerDocuments } from "../src/modules/documents/routes.js";
 import { vigorPriceFetcher } from "../src/integrations/vigor.js";
-import { lineDescription } from "../src/documents/ported/docx-text-replace.js";
+import { lineDescription } from "../src/modules/documents/ported/docx-text-replace.js";
 import { Gotenberg } from "../src/integrations/gotenberg.js";
 // @ts-expect-error plain .mjs harness from the legacy golden suite
 import { normaliseDocx, selectDocCases, ENDPOINTS } from "../../../../tests/golden/docs-harness.mjs";

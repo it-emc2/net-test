@@ -10,7 +10,7 @@ import fastifyStatic from "@fastify/static";
 import mime from "mime-types";
 import { REWRITES, applyRewrites } from "./rewrites.js";
 import { isAlwaysPublic, isPublicAsset, isPublicSigning } from "./ported/public-paths.js";
-import { tokenFromHeaders, verifyToken } from "../platform/auth.js";
+import { tokenFromHeaders, verifyToken } from "../../platform/auth.js";
 
 export interface WebDeps {
   /** legacy src/public */
@@ -66,7 +66,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
 
   // ---- phase 6 add-ons (ADR 021): small scripts injected into index.html, served from v2
   // source folder (works from src/ and from the built dist/; tsc does not copy .js assets)
-  const ADDONS = new URL("../../src/web/addons/", import.meta.url);
+  const ADDONS = new URL("../../../src/modules/web/addons/", import.meta.url);
   const addonSrc = (f: string) => fs.readFileSync(new URL(f, ADDONS), "utf8");
   for (const f of ["error-compat.js", "deal-link.js", "local-store.js", "deal-draft.js", "ux.js", "header.js", "quickwins.js", "send-guard.js", "offer-record.js", "kosten-edit.js"]) {
     app.get(`/v2/addons/${f}`, { config: { public: true } }, async (_req, reply) =>

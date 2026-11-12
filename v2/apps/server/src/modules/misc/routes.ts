@@ -7,10 +7,10 @@
 // ADR 018; legacy: any logged-in user).
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { buildExternalSearchResult, mapSearchResult, nameSearchRegex } from "../modules/offers/index.js";
-import { Draft, Offer, Product, Service, Submission } from "../platform/models.js";
-import { getVigorDb, vigorPriceFetcher } from "../integrations/vigor.js";
-import { SEARCH_FIELDS } from "../modules/offers/index.js";
+import { buildExternalSearchResult, mapSearchResult, nameSearchRegex } from "../offers/index.js";
+import { Draft, Offer, Product, Service, Submission } from "../../platform/models.js";
+import { getVigorDb, vigorPriceFetcher } from "../../integrations/vigor.js";
+import { SEARCH_FIELDS } from "../offers/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });

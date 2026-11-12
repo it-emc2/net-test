@@ -1,7 +1,7 @@
 // v2-only (intentional difference): without EXTERNAL_API_KEY the external lookup is closed (legacy: open).
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { registerMisc } from "../src/routes/misc.js";
+import { registerMisc } from "../src/modules/misc/routes.js";
 
 const app = async (externalApiKey?: string) => {
   const a = Fastify();

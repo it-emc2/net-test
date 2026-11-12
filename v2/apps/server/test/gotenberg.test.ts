@@ -1,7 +1,7 @@
 // Gotenberg client: units + request shape (fake fetch). Real conversions: documents-golden.test.ts.
 import { describe, expect, it } from "vitest";
 import { Gotenberg, toInches, withPdfLog } from "../src/integrations/gotenberg.js";
-import { runLegacy } from "../src/documents/express-adapter.js";
+import { runLegacy } from "../src/modules/documents/express-adapter.js";
 import Fastify from "fastify";
 
 describe("Gotenberg client", () => {
@@ -76,7 +76,7 @@ describe("legacy handler adapter", () => {
 
 describe("retired endpoints (ADR 020)", () => {
   it("answer 410 with the German hint", async () => {
-    const { registerRetired, RETIRED_ROUTES, RETIRED_MESSAGE } = await import("../src/routes/retired.js");
+    const { registerRetired, RETIRED_ROUTES, RETIRED_MESSAGE } = await import("../src/modules/web/retired.js");
     const app = Fastify();
     await registerRetired(app);
     for (const [method, url] of RETIRED_ROUTES) {

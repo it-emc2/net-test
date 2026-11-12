@@ -2,8 +2,8 @@
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { registerWeb } from "../src/web/register.js";
-import { registerSecurity } from "../src/web/security.js";
+import { registerWeb } from "../src/modules/web/register.js";
+import { registerSecurity } from "../src/modules/web/security.js";
 import { createToken } from "../src/platform/auth.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, beforeAll } from "vitest";
 import { EJSON } from "bson";
-import { configureDocuments } from "../src/documents/context.js";
+import { configureDocuments } from "../src/modules/documents/context.js";
 import { Gotenberg } from "../src/integrations/gotenberg.js";
 import { extractPrefill } from "../src/modules/signing/fields.js";
 
@@ -18,7 +18,7 @@ beforeAll(async () => {
     businessConfig: { get: (_k: string, f?: unknown) => f }, fetchVigourNetPrices: async () => new Map(), vigorUri: "mongodb://127.0.0.1:9/none", root: ROOT,
     log: { debug: quiet, warn: quiet, error: quiet }, pdf: { docxToPdf: async () => Buffer.alloc(0), htmlToPdf: async () => Buffer.alloc(0) },
   });
-  tpl = await import("../src/documents/ported/signing-docs.js");
+  tpl = await import("../src/modules/documents/ported/signing-docs.js");
 });
 
 const offers = (EJSON.parse(readFileSync(ROOT + "tests/golden/fixtures/docs-db/offers.json", "utf8")) as any[]);

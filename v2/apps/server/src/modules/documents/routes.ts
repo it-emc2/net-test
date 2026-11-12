@@ -4,13 +4,13 @@
 //   /api/arbeitsbericht/* · /api/docx/pdf-preview · /material-overview/* (carts, online orders,
 //   PDF) · /api/hl/parse-flexofit-offer (upload) · /pdf (request summary) · product images.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { configureDocuments, type DocumentsContext } from "../documents/context.js";
-import { runLegacy } from "../documents/express-adapter.js";
-import type { OfferDocuments } from "../modules/email/index.js";
-import type { CapturingRouter } from "../documents/shims/express.js";
-import type { SigningRenderer } from "../modules/signing/index.js";
-import { productImages } from "../documents/product-images.js";
-import { externalKeyGuard } from "./misc.js";
+import { configureDocuments, type DocumentsContext } from "./context.js";
+import { runLegacy } from "./express-adapter.js";
+import type { OfferDocuments } from "../email/index.js";
+import type { CapturingRouter } from "./shims/express.js";
+import type { SigningRenderer } from "../signing/index.js";
+import { productImages } from "./product-images.js";
+import { externalKeyGuard } from "../misc/index.js";
 
 export interface DocumentsDeps extends DocumentsContext { externalApiKey?: string | undefined }
 
@@ -19,14 +19,14 @@ const fail = (req: FastifyRequest, reply: FastifyReply, status: number, message:
 
 export async function registerDocuments(app: FastifyInstance, ctx: DocumentsDeps): Promise<{ offerDocuments: OfferDocuments; signingRenderer: SigningRenderer }> {
   configureDocuments(ctx);
-  const docx: any = await import("../documents/ported/docx-template.js");
-  const kalk: any = await import("../documents/ported/kalkulation.js");
-  const arb: any = await import("../documents/ported/arbeitsbericht.js");
-  const preview: any = await import("../documents/ported/pdf-preview.js");
-  const img: any = await import("../documents/ported/product-image-pdf.js");
-  const material: any = await import("../documents/ported/material-overview.js");
-  const hl: any = await import("../documents/ported/hl-parse.js");
-  const summary: any = await import("../documents/ported/pdf-summary.js");
+  const docx: any = await import("./ported/docx-template.js");
+  const kalk: any = await import("./ported/kalkulation.js");
+  const arb: any = await import("./ported/arbeitsbericht.js");
+  const preview: any = await import("./ported/pdf-preview.js");
+  const img: any = await import("./ported/product-image-pdf.js");
+  const material: any = await import("./ported/material-overview.js");
+  const hl: any = await import("./ported/hl-parse.js");
+  const summary: any = await import("./ported/pdf-summary.js");
 
   const mount = (router: CapturingRouter, prefix: string, opts: (sub: string) => Record<string, unknown> = () => ({})) => {
     for (const [key, handler] of router.routes) {
@@ -72,7 +72,7 @@ export async function registerDocuments(app: FastifyInstance, ctx: DocumentsDeps
   });
 
   // ---- signing documents (5c) ----
-  const tpl: any = await import("../documents/ported/signing-docs.js");
+  const tpl: any = await import("./ported/signing-docs.js");
   const signingRenderer: SigningRenderer = {
     renderData: (p) => docx.getOfferRenderData(p),
     offerPdf: async (p) => (await docx.generateOfferPdfBuffer(p)).pdfBuffer,
