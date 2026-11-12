@@ -3,14 +3,19 @@
 //   /neu/:type                     a new offer without a deal number → gets a temporary key
 //   /deal/:dealId/:type[/:step]    an offer of a deal (or of a temporary key)
 // Every feature is its own chunk and is loaded only when its route is opened (ADR 026).
+import { lazy, Suspense } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { RequireLogin } from "../features/auth/index.js";
 import { ErrorPage, NotFoundPage } from "./ErrorPage.js";
+
+// the toast library is its own chunk: it is not needed to show the first page
+const Toaster = lazy(() => import("../shared/ui/toaster.js").then((m) => ({ default: m.Toaster })));
 
 function Root() {
   return (
     <RequireLogin>
       <Outlet />
+      <Suspense fallback={null}><Toaster /></Suspense>
     </RequireLogin>
   );
 }

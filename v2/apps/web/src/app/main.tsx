@@ -3,8 +3,10 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { Providers } from "./providers.js";
 import { BASENAME, routes } from "./router.js";
+import { applyStoredMode } from "../shared/lib/theme.js";
 import "../styles.css";
 
+applyStoredMode();
 const router = createBrowserRouter(routes, { basename: BASENAME });
 
 // Every uncaught browser error is logged (and later shipped to the error tracker).

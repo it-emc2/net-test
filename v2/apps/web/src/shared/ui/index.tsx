@@ -1,45 +1,73 @@
-// Small UI kit: large type, 48 px touch targets, visible focus (styles.css). No inline styles —
-// the server's content security policy does not allow them.
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+// The UI kit: shadcn/ui components (button, input, card, alert, toaster) themed with today's
+// colours, plus the few compositions the screens use everywhere.
+import type { InputHTMLAttributes, ReactNode } from "react";
 import { Link, type LinkProps } from "react-router";
+import { cn } from "../lib/cn.js";
+import { Alert } from "./alert.js";
+import { Button, buttonVariants } from "./button.js";
+import { Card, CardTitle } from "./card.js";
+import { Input, Label } from "./input.js";
+
+export { Alert, Button, Card, CardTitle, Input, Label, buttonVariants };
+// toasts live in ./toaster.js and are imported from there directly: the toast library is loaded
+// with the first screen that needs it, not with the start script
+export { cn };
 
 export function Page({ title, lead, children }: { title: string; lead?: string; children?: ReactNode }) {
   return (
-    <main className="page">
+    <main className="mx-auto grid max-w-3xl gap-4 px-4 pb-16 pt-8">
       <h1>{title}</h1>
-      {lead ? <p className="lead">{lead}</p> : null}
+      {lead ? <p className="text-lg text-muted-foreground">{lead}</p> : null}
       {children}
     </main>
   );
 }
 
-export function Button({ variant = "primary", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" }) {
-  return <button type="button" {...rest} className={variant === "secondary" ? "button-secondary" : undefined} />;
+/** A link that looks like a secondary button. */
+export function ButtonLink({ className, ...props }: LinkProps) {
+  return <Link {...props} className={cn(buttonVariants({ variant: "secondary" }), className)} />;
 }
 
-export function ButtonLink(props: LinkProps) {
-  return <Link {...props} className="button-secondary" />;
-}
-
-export function Field({ label, id, hint, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: string; id: string; hint?: string }) {
+/** Label + input + optional hint, wired for screen readers. */
+export function Field({ label, id, hint, className, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label: string; id: string; hint?: string | undefined }) {
   return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} aria-describedby={hint ? `${id}-hint` : undefined} {...rest} />
-      {hint ? <p className="hint" id={`${id}-hint`}>{hint}</p> : null}
+    <div className={cn("grid gap-1.5", className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} aria-describedby={hint ? `${id}-hint` : undefined} {...rest} />
+      {hint ? <p className="text-[0.95rem] text-muted-foreground" id={`${id}-hint`}>{hint}</p> : null}
     </div>
   );
 }
 
-export function Notice({ kind = "info", children }: { kind?: "info" | "error"; children: ReactNode }) {
-  return <p className={`notice notice-${kind}`} role={kind === "error" ? "alert" : "status"}>{children}</p>;
-}
+/** @deprecated name kept for the first screens — same as Alert */
+export const Notice = Alert;
 
+/** A large tile on the Hauptmenü. */
 export function Tile({ to, title, text }: { to: string; title: string; text?: string }) {
   return (
-    <Link className="tile" to={to}>
-      <span className="tile-title">{title}</span>
-      {text ? <span className="tile-text">{text}</span> : null}
+    <Link to={to} className="grid min-h-24 content-center gap-1 rounded-lg border-2 border-border bg-card px-5 py-4 text-card-foreground no-underline transition-colors hover:border-accent hover:bg-accent-weak">
+      <span className="text-xl font-bold">{title}</span>
+      {text ? <span className="text-muted-foreground">{text}</span> : null}
     </Link>
+  );
+}
+
+/** One question with a few answers, as large tappable pills (native radio buttons). */
+export function Choices({ legend, name, options, value, onChange, required }: {
+  legend: string; name: string; value: string | undefined; required?: boolean | undefined;
+  options: readonly { value: string; label: string }[]; onChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="m-0 grid min-w-0 gap-1.5 border-0 p-0">
+      <legend className="mb-1.5 p-0 font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <label key={o.value} className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border-2 border-input bg-card px-4 has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
+            <input type="radio" className="size-5 accent-[var(--primary)]" name={name} value={o.value} checked={value === o.value} required={required} onChange={() => onChange(o.value)} />
+            {o.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

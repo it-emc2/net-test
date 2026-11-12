@@ -190,6 +190,16 @@ Still open for Kundendaten (in today's UI until rebuilt): care level and budget,
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
 
+### UI kit (owner decision 2026-11-12: shadcn/ui)
+
+- `apps/web` uses **Tailwind CSS 4** and **shadcn/ui-style components** in `src/shared/ui/` (button, input/label, card, alert, toaster, plus `Page`, `Field`, `Tile`, `Choices`). They are our own files; a further shadcn component is added by copying its source into `shared/ui/` and importing `cn` from `../lib/cn.js`.
+- **Theme** (`src/styles.css`): today's colours as CSS variables — default purple `#7c3aed`, the per-offer accents with today's names (`wohnen` for BU, `gesundheit` for BWT, `pflege` for AH and HL), light/dark via `<html data-mode>`. The mode is read from the same storage key as today's UI (`emc2.mode`), so the choice made there applies in the new app. Filled buttons use the strong accent so white text stays readable.
+- **Sidebar**: today's progress marks (steps before the open one are done) and the numbered groups for BU, BWT and HL.
+- **Toasts** (sonner): a failed or conflicting save and a failed handover are shown as a toast that stays until closed, in addition to the inline message. The toast library is its own chunk.
+- **Size**: start script 142 kB gzip (limit 150 kB). To stay under it, `cn` is `clsx` only — no `tailwind-merge` — so a component's own classes and a passed `className` must not set the same property.
+- Not chosen: Material UI (size, runtime-injected styles, Google look).
+- Still to match: the user's own theme choice (today's theme picker), the header with the user menu, icons of the Hauptmenü tiles.
+
 ## 4. Risks
 
 | Risk | Mitigation |

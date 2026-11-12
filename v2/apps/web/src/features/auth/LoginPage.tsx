@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Field, Notice, Page } from "../../shared/ui/index.js";
+import { Alert, Button, Card, Field, Page } from "../../shared/ui/index.js";
 import { useLogin } from "./session.js";
 
 export function LoginPage() {
@@ -12,12 +12,14 @@ export function LoginPage() {
   };
   return (
     <Page title="Anmeldung" lead="Bitte melden Sie sich an.">
-      <form className="card" onSubmit={submit}>
+      <Card>
+      <form className="grid gap-4" onSubmit={submit}>
         <Field label="E-Mail" id="login-email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
         <Field label="Passwort" id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-        {login.error ? <Notice kind="error">{login.error.message}</Notice> : null}
-        <button type="submit" disabled={login.isPending}>{login.isPending ? "Anmeldung läuft …" : "Anmelden"}</button>
+        {login.error ? <Alert kind="error">{login.error.message}</Alert> : null}
+        <Button type="submit" disabled={login.isPending}>{login.isPending ? "Anmeldung läuft …" : "Anmelden"}</Button>
       </form>
+      </Card>
     </Page>
   );
 }
