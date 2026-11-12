@@ -106,7 +106,7 @@ describe("app shell", () => {
     renderApp("/deal/4711/bu/Kundendaten");
     await userEvent.type(await screen.findByLabelText("Vorname"), "E");
     await userEvent.click(screen.getByRole("link", { name: "Weitere Angaben in der bisherigen Ansicht" })); // saves at once
-    expect(await screen.findByRole("alert")).toHaveTextContent(/an anderer Stelle geändert/);
+    expect(await screen.findByText("Nicht gespeichert – an anderer Stelle geändert")).toHaveAttribute("role", "alert");
     expect(S().savedVersion).toBe(0);
   });
 
@@ -117,3 +117,80 @@ describe("app shell", () => {
     expect(r1.state.location.pathname).toBe("/");
   });
 });
+
+// The user menu is a native popover. The test browser (jsdom) never opens popovers, so the menu's
+// controls are queried with `hidden: true`; opening and closing it is the browser's own job.
+describe("header and sidebar", () => {
+  it("header: logo, title and the user menu with the user's name; the save state only while an offer is open", async () => {
+    fakeServer(BASE);
+    renderApp("/");
+    await screen.findByRole("heading", { name: "Hauptmenü" });
+    const header = screen.getByRole("banner");
+    expect(header).toHaveTextContent("Angebotskonfigurator");
+    expect(screen.getByRole("img", { name: "EmC2" })).toHaveAttribute("src", "/assets/logo.png");
+    expect(screen.getByLabelText("Benutzermenü")).toHaveTextContent("ap@example.test");
+    expect(header.querySelector("[role=status]")).toBeNull();
+  });
+
+  it("user menu: theme, dark mode and automatic saving use the same browser keys as today's UI", async () => {
+    fakeServer(BASE);
+    renderApp(`/deal/${TEMP}/bu/Kundendaten`);
+    await screen.findByLabelText("Vorname");
+    const root = document.documentElement;
+    expect(root.dataset.theme).toBe("wohnen"); // BU's accent while nothing is chosen
+    await userEvent.selectOptions(screen.getByLabelText("Farbthema"), "pflege");
+    expect([root.dataset.theme, localStorage.getItem("emc2.theme")]).toEqual(["pflege", "pflege"]);
+    await userEvent.selectOptions(screen.getByLabelText("Farbthema"), "");
+    expect([root.dataset.theme, localStorage.getItem("emc2.theme")]).toEqual(["wohnen", null]);
+    await userEvent.click(screen.getByRole("switch", { name: "Dunkler Modus", hidden: true }));
+    expect([root.dataset.mode, localStorage.getItem("emc2.mode")]).toEqual(["dark", "dark"]);
+    await userEvent.click(screen.getByRole("switch", { name: "Dunkler Modus", hidden: true }));
+    expect(root.dataset.mode).toBe("light");
+    await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true }));
+    expect(localStorage.getItem("oc.autosave")).toBe("off");
+    await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true }));
+    expect(localStorage.getItem("oc.autosave")).toBe("on");
+  });
+
+  it("automatic saving off: nothing is saved by itself; the „Speichern“ button in the header saves", async () => {
+    const s = fakeServer({ ...BASE, [`PUT /api/deals/${TEMP}/draft`]: { body: { dealId: TEMP, revision: 1, changed: true } } });
+    renderApp(`/deal/${TEMP}/bu/Kundendaten`);
+    await screen.findByLabelText("Vorname");
+    await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true }));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    act(() => { S().patch("Kundendaten", { city: "Hof" }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(AUTOSAVE_MS * 2); });
+    vi.useRealTimers();
+    expect(s.calls.some((c) => c.key.startsWith("PUT "))).toBe(false);
+    expect(screen.getByText("Nicht gespeicherte Änderungen")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await screen.findByText(/^Gespeichert · /);
+    expect(s.calls.filter((c) => c.key.startsWith("PUT "))).toHaveLength(1);
+    await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true })); // back on for the other tests
+  });
+
+  it("log out from the menu: the login form appears", async () => {
+    fakeServer({ ...BASE, "POST /api/auth/logout": { body: { ok: true } } });
+    renderApp("/");
+    await screen.findByRole("heading", { name: "Hauptmenü" });
+    await userEvent.click(screen.getByRole("button", { name: "Abmelden", hidden: true }));
+    await screen.findByRole("heading", { name: "Anmeldung" });
+    expect(screen.queryByRole("banner")).toBeNull();
+  });
+
+  it("sidebar: steps before the open one are marked done, the open one active; groups as today", async () => {
+    fakeServer(BASE);
+    renderApp(`/deal/${TEMP}/bu/Duschwanne`);
+    const nav = await screen.findByRole("navigation", { name: "Schritte" });
+    const state = (name: string) => Array.from(nav.querySelectorAll("a")).find((a) => a.textContent?.startsWith(name))?.getAttribute("data-state");
+    expect([state("Kundendaten"), state("Arbeitszeit"), state("Arbeiten"), state("Duschwanne"), state("Fußboden"), state("Kosten")]).toEqual(["done", "done", "done", "active", "idle", "idle"]);
+    expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
+    expect(nav).toHaveTextContent("II · Material für Badumbau");
+    // narrow screens: the list folds behind a button that names the open step
+    const toggle = screen.getByRole("button", { name: /Schritt: Duschwanne/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+});
+

@@ -198,7 +198,10 @@ Not yet: a link from today's UI into the new app (the way back is the address `/
 - **Toasts** (sonner): a failed or conflicting save and a failed handover are shown as a toast that stays until closed, in addition to the inline message. The toast library is its own chunk.
 - **Size**: start script 142 kB gzip (limit 150 kB). To stay under it, `cn` is `clsx` only — no `tailwind-merge` — so a component's own classes and a passed `className` must not set the same property.
 - Not chosen: Material UI (size, runtime-injected styles, Google look).
-- Still to match: the user's own theme choice (today's theme picker), the header with the user menu, icons of the Hauptmenü tiles.
+- **Header** (`app/Header.tsx`, as today's since U-008): logo and title; on the right the save state while an offer is open (and the "Speichern" button when automatic saving is off) and one user menu — name and e-mail, Farbthema, Dunkler Modus, Automatisch speichern, Zur bisherigen Ansicht, App neu laden, Abmelden. The menu is a native popover (no library in the start script; needs Safari 17 or newer).
+- **Preferences** (`shared/lib/prefs.ts`): theme, dark mode and automatic saving are stored under today's keys (`emc2.theme`, `emc2.mode`, `oc.autosave`), so a choice made in either UI applies in both. Theme "Je Angebotsart" (nothing stored) follows today's default per offer type.
+- **Sidebar**: stays in view on wide screens; on narrow screens the step list folds behind a button that names the open step.
+- Still to match: the "Versionen" button (list and restore of saved versions), icons of the Hauptmenü tiles.
 
 ## 4. Risks
 

@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { RequireLogin } from "../features/auth/index.js";
 import { ErrorPage, NotFoundPage } from "./ErrorPage.js";
+import { Header } from "./Header.js";
 
 // the toast library is its own chunk: it is not needed to show the first page
 const Toaster = lazy(() => import("../shared/ui/toaster.js").then((m) => ({ default: m.Toaster })));
@@ -14,6 +15,7 @@ const Toaster = lazy(() => import("../shared/ui/toaster.js").then((m) => ({ defa
 function Root() {
   return (
     <RequireLogin>
+      <Header />
       <Outlet />
       <Suspense fallback={null}><Toaster /></Suspense>
     </RequireLogin>
