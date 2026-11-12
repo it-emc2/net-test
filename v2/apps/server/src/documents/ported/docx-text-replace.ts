@@ -73,3 +73,25 @@ export function replaceTextInHtml(html, replacements) {
     return next === txt ? m : `>${next}<`;
   });
 }
+
+// A priced line reads "- 2 Stk Haltegriff 40 cm": quantity first, then the description.
+// Only the description can be reworded for a single position (Kosten page).
+const QTY_RE = /^[\d.,]+\s*(?:Stk\.?|Stück|m²|m2|qm|lfm|km|m|h|Std\.?|Set|Paar)?\s+/i;
+export function lineDescription(label) {
+  const s = String(label ?? "").replace(/^\s*-\s*/, "").trim();
+  return s.replace(QTY_RE, "").trim();
+}
+
+// Wording rules for the finished document: the user's own rules plus one rule per position
+// whose description was changed on the Kosten page (offerOverrides.lineEdits: origLabel = the
+// line as priced, label = the new description). `strip` = how the document shows a line's
+// text (brand names removed), so the rule matches what is actually printed.
+export function wordingRules(overrides, strip = (s) => s) {
+  const rules = [...(Array.isArray(overrides?.textReplacements) ? overrides.textReplacements : [])];
+  for (const e of Array.isArray(overrides?.lineEdits) ? overrides.lineEdits : []) {
+    const to = String(e?.label ?? "").trim();
+    const from = lineDescription(strip(String(e?.origLabel ?? "")));
+    if (from && to && from !== to) rules.push({ from, to });
+  }
+  return rules;
+}

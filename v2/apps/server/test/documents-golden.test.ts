@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BusinessConfig } from "../src/business-config.js";
 import { registerDocuments } from "../src/routes/documents.js";
 import { vigorPriceFetcher } from "../src/vigor.js";
+import { lineDescription } from "../src/documents/ported/docx-text-replace.js";
 import { Gotenberg } from "../src/integrations/gotenberg.js";
 // @ts-expect-error plain .mjs harness from the legacy golden suite
 import { normaliseDocx, selectDocCases, ENDPOINTS } from "../../../../tests/golden/docs-harness.mjs";
@@ -59,6 +60,36 @@ describe("DOCX golden master — v2 port", () => {
     expect(res.headers["content-type"]).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     expect(normaliseDocx(res.rawPayload)).toEqual(snapshots.get(id as string).docx);
   }, 60000);
+
+  // U-014: description and price of single positions changed on the Kosten page.
+  it("a reworded and repriced position reaches the offer document (every offer type with material lines)", async () => {
+    const seen: Record<string, number> = {};
+    for (const c of cases) {
+      const type = String(c.offerType || "bu");
+      if (!["bu", "bwt", "hl", "bl"].includes(type) || (seen[type] ?? 0) >= 3) continue;
+      const before = await app.inject({ method: "POST", url: "/docx-template", payload: structuredClone(c.payload) });
+      expect(before.statusCode, `${c.id}: ${before.body.slice(0, 300)}`).toBe(200);
+      const textBefore = JSON.stringify(normaliseDocx(before.rawPayload));
+      // a material line whose description is printed in this document
+      const line = (c.expected?.materialsDisplayDocx?.lines ?? []).find((l: any) => {
+        const d = lineDescription(String(l?.label ?? "").replace(/\b(Vigour|TRINNITY|winwall)\b/gi, "").replace(/\s{2,}/g, " "));
+        return d.length > 8 && Number(l?.unitPrice) > 0 && textBefore.includes(d) && textBefore.split(d).length === 2;
+      });
+      if (!line) continue;
+      const payload = structuredClone(c.payload);
+      payload.offerOverrides = { ...(payload.offerOverrides ?? {}), lineEdits: [{
+        block: "material", id: String(line.productId), source: line.source ?? "", origLabel: line.label,
+        label: "Sonderanfertigung XYZ nach Aufmaß", unitPriceNet: Number(line.unitPrice) + 1000, origUnitPriceNet: line.unitPrice, reason: "Test",
+      }] };
+      const after = await app.inject({ method: "POST", url: "/docx-template", payload });
+      expect(after.statusCode, c.id).toBe(200);
+      const textAfter = JSON.stringify(normaliseDocx(after.rawPayload));
+      expect(textAfter, c.id).toContain("Sonderanfertigung XYZ nach Aufmaß");
+      expect(textAfter, c.id).not.toBe(textBefore.replace(/Sonderanfertigung XYZ nach Aufmaß/g, "")); // prices moved too
+      seen[type] = (seen[type] ?? 0) + 1;
+    }
+    expect(seen).toEqual({ bu: 3, bwt: 3, hl: 3, bl: 3 });
+  }, 120000);
 
   it("offer PDF goes through the PDF engine", async () => {
     const res = await app.inject({ method: "POST", url: "/docx-template/pdf", payload: structuredClone(cases[0].payload) });

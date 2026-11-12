@@ -10,6 +10,7 @@ import {
   renderDocx,
   convertDocxToPdf,
   sanitizeRenderData,
+  offerWordingRules,
 } from "./docx-template.js";
 
 const router = express.Router();
@@ -22,7 +23,7 @@ router.post("/pdf-preview", async (req, res) => {
     const dataRaw = await mapData(req.body || {}, computed);
     const data = sanitizeRenderData(dataRaw);
 
-    const docxBuffer = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
+    const docxBuffer = await renderDocx(templatePath, data, offerWordingRules(req.body?.offerOverrides));
     const pdfBuffer = await convertDocxToPdf(docxBuffer);
 
     res.setHeader("Content-Type", "application/pdf");

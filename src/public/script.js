@@ -16247,7 +16247,7 @@ function escapeHtml(s) {
           ? ` <span class="kosten-tag">ohne Aufschlag</span>`
           : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${driftTag}${finishHTML}</div>
+      <div style="white-space:pre-line" data-line-id="${escapeHtml(String(l.productId || l.id || l.key || ""))}" data-line-source="${escapeHtml(String(l.source ?? ""))}">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${driftTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right">${euroC(l.lineTotal ?? 0)}</div>

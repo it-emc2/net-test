@@ -18,7 +18,7 @@ import ProductModel from "../models/Product.js";
 import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
 import cfg from "../services/configService.js";
-import { replaceTextInDocx } from "../lib/docxTextReplace.js";
+import { replaceTextInDocx, wordingRules } from "../lib/docxTextReplace.js";
 
 
 // ============================
@@ -63,6 +63,10 @@ function stripBrandNames(text) {
   }
   return result.replace(/\s{2,}/g, ' ').trim();
 }
+
+// User wording rules + reworded single positions (Kosten page), matched against the text
+// as this document prints it.
+export const offerWordingRules = (overrides) => wordingRules(overrides, stripBrandNames);
 
 function escapeRegExpDocx(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -650,7 +654,7 @@ async function getOfferRenderData(body) {
   const dataRaw = await mapData(body || {}, computed);
   const data = sanitizeRenderData(dataRaw);
   // The wording rules, for pages that render their own HTML, e.g. the signing page.
-  data.TextReplacements = body?.offerOverrides?.textReplacements || [];
+  data.TextReplacements = offerWordingRules(body?.offerOverrides);
   return { data, computed };
 }
 
@@ -663,7 +667,7 @@ async function generateOfferPdfBuffer(body) {
 
   console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
-  const docxBuffer = await renderDocx(templatePath, data, body?.offerOverrides?.textReplacements);
+  const docxBuffer = await renderDocx(templatePath, data, offerWordingRules(body?.offerOverrides));
 
   try {
     const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
@@ -2549,7 +2553,7 @@ router.post("/", async (req, res) => {
     console.log("[docx] SignatureImage present?", !!data.SignatureImage);
 
     // ✅ use shared image-enabled renderer
-    const out = await renderDocx(templatePath, data, req.body?.offerOverrides?.textReplacements);
+    const out = await renderDocx(templatePath, data, offerWordingRules(req.body?.offerOverrides));
 
     try {
       const verifyOut = path.join(process.cwd(), "out-Angebot.docx");

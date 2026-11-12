@@ -54,3 +54,28 @@ test('a sent (locked) offer number returns its frozen price, flagged _locked; a 
   expect(live._locked).toBeUndefined();
   expect(live.priceAdjustments.material).toBe(1500);
 });
+
+// ---- single positions (payload.offerOverrides.lineEdits, Kosten page) ----
+import { lineEditDeltas } from '../../src/logic/pricing-core.js';
+
+const edit = (rows) => ({ ...base, offerOverrides: { lineEdits: rows } });
+
+test('line edit: only known positions with a valid price count; first of a duplicate wins', () => {
+  const mats = [{ productId: 'A', source: null, qty: 2, unitPrice: 10 }, { productId: 'B', source: 'optional', qty: 1, unitPrice: 5 }];
+  const svcs = [{ key: 'fahrzeug', qty: 1, unitPrice: 80, amount: 80 }, { key: 'kilometer', amount: 95.55 }];
+  const out = lineEditDeltas({ offerOverrides: { lineEdits: [
+    { block: 'material', id: 'A', unitPriceNet: 12.5 },            // +2.5 × 2
+    { block: 'material', id: 'A', unitPriceNet: 99 },              // duplicate → ignored
+    { block: 'material', id: 'B', source: 'optional', unitPriceNet: 0 }, // −5
+    { block: 'material', id: 'B', unitPriceNet: 1 },               // wrong source → ignored
+    { block: 'services', id: 'kilometer', unitPriceNet: 90 },      // amount-only line
+    { block: 'services', id: 'fahrzeug', unitPriceNet: null, label: 'x' }, // wording only
+    { block: 'material', id: 'ZZ', unitPriceNet: 3 },              // unknown
+    { block: 'material', id: 'A2', unitPriceNet: -1 }, { block: 'x', id: 'A', unitPriceNet: 1 },
+  ] } }, mats, svcs);
+  expect(out.material).toBe(0);
+  expect(out.services).toBe(-5.55);
+  expect(out.applied.map((a) => [a.id, a.deltaNet])).toEqual([['A', 5], ['B', -5], ['kilometer', -5.55]]);
+  expect(lineEditDeltas({}, mats, svcs)).toEqual({ services: 0, material: 0, applied: [] });
+});
+// totals on real offers: v2/packages/pricing/test/line-edits.test.ts (legacy and TS engine)

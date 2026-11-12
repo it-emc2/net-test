@@ -1,6 +1,7 @@
 // Public, typed surface of the pricing engine. The engine itself (core.ts) is a 1:1 port
 // of the legacy JS; this file only names its inputs/outputs for the rest of v2.
 import createPricingCore, {
+  lineEditDeltas,
   computeFingerprint,
   NO_MARKUP_IDS,
   sumPriceAdjustments,
@@ -10,7 +11,7 @@ import createPricingCore, {
 } from "./core.js";
 
 export type { PricingDeps, PricingProductModel, PricingSnapshotModel };
-export { computeFingerprint, NO_MARKUP_IDS, sumPriceAdjustments };
+export { computeFingerprint, lineEditDeltas, NO_MARKUP_IDS, sumPriceAdjustments };
 export { SUPPLIER_QUALITY, supplierCodes } from "./core.js";
 export * from "./tray-search.js";
 

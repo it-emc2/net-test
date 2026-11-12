@@ -623,6 +623,49 @@ export function sumPriceAdjustments(payload: any) {
   return out;
 }
 
+// Price set for a single position on the Kosten page (payload.offerOverrides.lineEdits):
+// { block: "material"|"services", id, source?, unitPriceNet } = the position's net unit
+// price in THIS offer. The difference × quantity moves its block exactly like a hand-set
+// adjustment (net, after Aufschlag, not discounted). The line itself keeps the catalogue
+// price, so Aufschlag, Bestellliste and Kalkulation still see the real purchase cost.
+// Unknown positions and anything outside 0 … 100 000 € are ignored.
+export function lineEditDeltas(payload: any, materialLines: any, serviceLines: any) {
+  const out: any = { services: 0, material: 0, applied: [] };
+  const rows = payload?.offerOverrides?.lineEdits;
+  if (!Array.isArray(rows)) return out;
+  const r2 = (n: any) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const seen = new Set();
+  for (const e of rows) {
+    if (e?.unitPriceNet === null || e?.unitPriceNet === undefined || e?.unitPriceNet === "") continue;
+    const unit = Number(e.unitPriceNet);
+    if (!Number.isFinite(unit) || unit < 0 || unit > 100000) continue;
+    const block = e?.block === "services" ? "services" : e?.block === "material" ? "material" : null;
+    const id = String(e?.id ?? "").trim();
+    if (!block || !id) continue;
+    const source = e?.source == null ? "" : String(e.source);
+    const k = `${block}|${id}|${source}`;
+    if (seen.has(k)) continue;
+    const lines = Array.isArray(block === "services" ? serviceLines : materialLines)
+      ? (block === "services" ? serviceLines : materialLines)
+      : [];
+    const line = lines.find((l: any) =>
+      block === "services"
+        ? String(l?.key ?? "") === id
+        : String(l?.productId ?? l?.id ?? "").trim() === id && String(l?.source ?? "") === source,
+    );
+    if (!line) continue;
+    seen.add(k);
+    // lines without a unit price (e.g. Kilometerpauschale) carry only their amount
+    const hasUnit = line.unitPrice != null && Number.isFinite(Number(line.unitPrice));
+    const qty = hasUnit ? Number(line.qty ?? 1) || 0 : 1;
+    const original = hasUnit ? Number(line.unitPrice) : Number(line.amount ?? line.lineTotal ?? 0) || 0;
+    const deltaNet = r2((unit - original) * qty);
+    out[block] = r2(out[block] + deltaNet);
+    out.applied.push({ block, id, source, qty, originalUnitNet: original, unitNet: unit, deltaNet });
+  }
+  return out;
+}
+
 /** One material line as built by computeMaterials (legacy shape, open for extra fields). */
 export interface MaterialLine {
   id: string;
@@ -3262,8 +3305,12 @@ try {
       // Applied before the totals, so MwSt, Gesamt, Selbstkostenanteil and the
       // Bitrix amount all follow.
       const adj = sumPriceAdjustments(payload);
-      if (adj.services) {
-        services = { ...services, sum: round2(Number(services?.sum || 0) + adj.services) };
+      // … plus prices set for single positions on the Kosten page (lineEdits).
+      const lineAdj = lineEditDeltas(payload, materials?.lines, services?.lines);
+      const adjServices = round2(adj.services + lineAdj.services);
+      const adjMaterial = round2(adj.material + lineAdj.material);
+      if (adjServices) {
+        services = { ...services, sum: round2(Number(services?.sum || 0) + adjServices) };
       }
 
       // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
@@ -3401,7 +3448,7 @@ try {
 
       // Nettobetrag
       const baseSubtotal = round2(
-        productsSubtotal + (services?.sum ?? 0) + markup + adj.material,
+        productsSubtotal + (services?.sum ?? 0) + markup + adjMaterial,
       );
       const TAX_RATE = cfg.get('TAX_RATE', 0.19);
       const baseVat = round2(baseSubtotal * TAX_RATE);
@@ -3603,6 +3650,8 @@ try {
 
         // hand-set price changes that went into the totals (net €), for display/audit
         priceAdjustments: adj,
+        // prices set for single positions (only present when one applied)
+        ...(lineAdj.applied.length ? { lineEdits: lineAdj } : {}),
 
         // Produkte + Material in kosten-details
         material_afterRabatt_and_aufschlag,

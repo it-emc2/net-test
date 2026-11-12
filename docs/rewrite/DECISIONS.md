@@ -214,3 +214,17 @@ New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `G
 **Still open.**
 - `locked` is still set by every save (downloads); the app's own "sent" bar still reads it — the Versandverlauf is the reliable view.
 - E-mail-first offers: the app can put a different number into the PDF than it saves afterwards (audit create F06) — a fix belongs in the app's send code, not in an add-on.
+
+## ADR 024 — Single positions can be reworded and repriced per offer (U-014, 2026-11-12)
+
+**Decision (owner: "use your suggestions"):** everyone may change a position's description and net unit price for one offer, with a reason for price changes; warning (no limit) below −20 %; BU/BWT/HL/BL; block adjustment hidden for new offers; free positions later.
+
+| Topic | How |
+|---|---|
+| Data | `payload.offerOverrides.lineEdits[]`: `{block, id, source, origLabel, label, unitPriceNet, origUnitPriceNet, reason}`. No DB change; unknown to old code = ignored. |
+| Price | `lineEditDeltas()` in the pricing core (TS **and** the legacy copy the browser runs offline): (new − catalogue) × quantity moves the block like a hand-set adjustment — net, after Aufschlag, not discounted. The line keeps its catalogue price, so Aufschlag, Bestellliste and Kalkulation still see the real purchase cost. Result key `lineEdits` only when something applied (old results byte-identical). |
+| Wording | one wording rule per reworded position (`wordingRules()`), applied to the finished document like the user's own rules → DOCX/PDF, preview and signing page agree. Quantity prefix stays live. |
+| UI | add-on `kosten-edit.js`; two small edits in today's UI: `OfferOverrides.js` carries `lineEdits`, Kosten rows carry `data-line-id/-source`. |
+| Audit | mail/Bitrix change note names each changed position, price, old price and reason. |
+| Limits | description only for material lines printed once in the document; same product listed twice → first line carries the change; a sent offer is frozen (new version first). |
+

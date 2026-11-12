@@ -20,6 +20,17 @@ export function describeOfferChanges({ overrides, editedDocx, user }: { override
     const net = Number(r.amountNet);
     lines.push(`• Preis ${POSITION[r.target] || r.target}: ${eur(net)} netto (${eur(net * 1.19)} brutto)`);
   }
+  // single positions changed on the Kosten page (same text as legacy offerChanges.js)
+  for (const e of overrides?.lineEdits || []) {
+    const name = String(e?.origLabel || e?.id || "").replace(/^\s*-\s*/, "").trim();
+    const hasPrice = e?.unitPriceNet !== null && e?.unitPriceNet !== undefined && e?.unitPriceNet !== "" && Number.isFinite(Number(e.unitPriceNet));
+    if (hasPrice) {
+      const fmt = (n: unknown) => Number(n).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+      const was = Number.isFinite(Number(e?.origUnitPriceNet)) ? ` statt ${fmt(e.origUnitPriceNet)}` : "";
+      lines.push(`• Preis „${name}“: ${fmt(e.unitPriceNet)} netto je Einheit${was}${e?.reason ? ` – Grund: ${e.reason}` : ""}`);
+    }
+    if (String(e?.label ?? "").trim()) lines.push(`• Beschreibung „${name}“ → „${String(e.label).trim()}“`);
+  }
   for (const t of overrides?.extraHinweise || []) lines.push(`• Zusätzlicher Hinweis: ${t}`);
   if (editedDocx) lines.push(`• ⚠️ Handbearbeitete DOCX hochgeladen: ${editedDocx.name} (SHA-256 ${String(editedDocx.sha256).slice(0, 12)})`);
   if (!lines.length) return [];
