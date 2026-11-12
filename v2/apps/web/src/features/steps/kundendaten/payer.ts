@@ -6,6 +6,7 @@
 //  - back to Kassenkunde: everything entered before is there again — except `wohnumfeldDone`
 //    (today's UI does not bring it back either).
 import { emptyOffer, type NewOfferType } from "@oc/domain";
+import { budgetPanelOf } from "./care.js";
 
 type Fields = Record<string, unknown>;
 export interface PayerChange {
@@ -24,6 +25,10 @@ const BLANK_FOR_SZ: Fields = {
   pflegekasseAntrag: "", pflegekasseGenehmigung: "", pflegekasseEmc2Antrag: "",
 };
 
+/** of those, what is there again after switching back: the care level, "Premium" and the
+ *  Pflegekasse answers. The budget ticks (maximal, 2 Personen, co-payment) are gone, as today. */
+const KEPT_FOR_THE_WAY_BACK = ["hasPflegegrad", "pflegegrad", "premium", "pflegekasseAntrag", "pflegekasseGenehmigung", "pflegekasseEmc2Antrag"] as const;
+
 const pick = (o: Fields, keys: readonly string[]): Fields => Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]]));
 const remove = (keys: readonly string[]): Fields => Object.fromEntries(keys.map((k) => [k, undefined]));
 
@@ -33,12 +38,12 @@ export function choosePayer(offer: Record<string, any>, payer: "Selbstzahler" | 
     if (kd.payer === "Selbstzahler") return { changes: { Kundendaten: {}, docSelection: {}, postal: {} }, parked };
     return {
       changes: {
-        Kundendaten: { payer, ...remove(INSURANCE), wohnumfeldDone: undefined, ...BLANK_FOR_SZ },
+        Kundendaten: { payer, ...remove(INSURANCE), wohnumfeldDone: undefined, ...BLANK_FOR_SZ, copayAmount: 0, budgetOptionsPanel: "", kundenName: "", greetingLine: "" },
         docSelection: { abtretung: false, vollmacht: false },
         postal: { attachments: [] },
       },
       parked: {
-        kundendaten: pick(kd, [...INSURANCE, ...Object.keys(BLANK_FOR_SZ)]),
+        kundendaten: pick(kd, [...INSURANCE, ...KEPT_FOR_THE_WAY_BACK]),
         docSelection: pick(offer.docSelection ?? {}, ["abtretung", "vollmacht"]),
         attachments: offer.postal?.attachments,
       },
@@ -50,7 +55,7 @@ export function choosePayer(offer: Record<string, any>, payer: "Selbstzahler" | 
   const back: Parked = parked ?? { kundendaten: INSURANCE_DEFAULTS, docSelection: pick(fresh.docSelection, ["abtretung", "vollmacht"]), attachments: fresh.postal.attachments };
   return {
     changes: {
-      Kundendaten: { payer, ...remove(Object.keys(BLANK_FOR_SZ)), ...INSURANCE_DEFAULTS, ...back.kundendaten },
+      Kundendaten: { payer, ...remove(Object.keys(BLANK_FOR_SZ)), ...INSURANCE_DEFAULTS, ...back.kundendaten, budgetOptionsPanel: budgetPanelOf(back.kundendaten) },
       docSelection: back.docSelection,
       postal: { attachments: back.attachments },
     },

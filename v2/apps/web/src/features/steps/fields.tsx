@@ -7,9 +7,22 @@ import { Choices, Field } from "../../shared/ui/index.js";
 type Section = Parameters<ReturnType<typeof useOfferStore.getState>["patch"]>[0];
 const patch = (section: string, fields: Record<string, unknown>) => useOfferStore.getState().patch(section as Section, fields as never);
 
-export function OfferText({ section, name, label, ...rest }: { section: string; name: string; label: string } & Omit<InputHTMLAttributes<HTMLInputElement>, "name" | "value" | "onChange" | "id">) {
+export function OfferText({ section, name, label, onValue, onCommit, ...rest }: {
+  section: string; name: string; label: string;
+  /** replaces the plain "store the value" — for a field that changes more than itself */
+  onValue?: (value: string) => void;
+  /** called when the field is left (today's UI reacts to some fields only then) */
+  onCommit?: (value: string) => void;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "name" | "value" | "onChange" | "onBlur" | "id">) {
   const value = useOfferField<string>(section, name) ?? "";
-  return <Field label={label} id={`${section}-${name}`} name={name} value={value} onChange={(e) => patch(section, { [name]: e.target.value })} {...rest} />;
+  return (
+    <Field
+      label={label} id={`${section}-${name}`} name={name} value={value}
+      onChange={(e) => (onValue ? onValue(e.target.value) : patch(section, { [name]: e.target.value }))}
+      {...(onCommit ? { onBlur: (e: React.FocusEvent<HTMLInputElement>) => onCommit(e.target.value) } : {})}
+      {...rest}
+    />
+  );
 }
 
 type Option = string | { value: string; label: string };

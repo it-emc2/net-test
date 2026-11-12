@@ -7,6 +7,7 @@ import { emptyOffer, type NewOfferType } from "@oc/domain";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import contact from "./fixtures/kundendaten-contact.json" with { type: "json" };
+import care from "./fixtures/kundendaten-care.json" with { type: "json" };
 import payer from "./fixtures/kundendaten-payer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -18,10 +19,15 @@ const LABEL: Record<string, string> = {
   cp_street: "Adresse des Ansprechpartners", cp_city: "Stadt des Ansprechpartners", cp_state: "Bundesland des Ansprechpartners",
   cp_postalCode: "PLZ des Ansprechpartners",
   kassenkundeName: "Name der Krankenkasse", kk_krankenkasseAdresse: "Adresse der Krankenkasse", kk_pflegegradSeit: "Pflegegrad seit",
+  copayAmount: "Zuzahlung in €",
+};
+const TICK: Record<string, string> = {
+  budgetMax: "4.180 € MAXIMAL", budgetCopay: "Mögliche Zuzahlung durch Kunden", twoPersons: "2 Personen mit Pflegegrad (+ 4.180 €)", premium: "Premium",
 };
 const GROUP: Record<string, string> = {
   salutation: "Anrede", customerType: "Neukunde oder Bestandskunde?", hasContactPerson: "Ansprechpartner vorhanden?", cp_salutation: "Anrede des Ansprechpartners",
   payer: "Ist der Kunde Selbstzahler oder Kassenkunde?", kk_rechnungskopie: "Kassen-Rechnungskopie gewünscht?", kk_rechnungskopie_art: "Rechnungskopie per Post oder per E-Mail?",
+  hasPflegegrad: "Kunde hat Pflegegrad?", pflegegrad: "Welchen Pflegegrad?",
 };
 const CONTEXT = ["date", "ansprechpartner", "emc2_contact"]; // the day and the user — not input
 const KEY = "t-0123456789abcdef01234567";
@@ -38,12 +44,30 @@ async function play(steps: [string, string, string][]) {
     if (kind === "radio") {
       const group = screen.getByRole("group", { name: GROUP[field]! });
       await user.click(Array.from(group.querySelectorAll("input")).find((i) => i.value === value)!);
+    } else if (kind === "check") {
+      const box = screen.getByRole("checkbox", { name: TICK[field]! }) as HTMLInputElement;
+      if (box.checked !== (value === "on")) await user.click(box);
     } else {
       const input = screen.getByLabelText(LABEL[field]!, { exact: true }) as HTMLInputElement;
-      if (input.type === "month" || input.type === "date") fireEvent.change(input, { target: { value } });
+      if (input.type === "month" || input.type === "date" || input.type === "number") fireEvent.change(input, { target: { value } });
       else { await user.clear(input); await user.type(input, value); }
     }
   }
+  await user.tab(); // the user goes on: the last field is left
+}
+/** what differs from a new offer outside Kundendaten, as dotted paths — like the recorder */
+function outsideChanges(type: string): Record<string, unknown> {
+  const fresh = emptyOffer(type as NewOfferType, { date: "" }) as Record<string, any>;
+  const out: Record<string, unknown> = {};
+  const isObj = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v);
+  const walk = (a: any, b: any, p: string) => {
+    if (JSON.stringify(a) === JSON.stringify(b)) return;
+    if (isObj(a) && isObj(b)) { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], p ? `${p}.${k}` : k); return; }
+    out[p] = b === undefined ? "<removed>" : b;
+  };
+  const now = offer();
+  for (const k of new Set([...Object.keys(fresh), ...Object.keys(now)])) if (k !== "Kundendaten") walk(fresh[k], now[k], k);
+  return out;
 }
 const stored = () => { const kd: Record<string, unknown> = { ...offer().Kundendaten }; for (const k of CONTEXT) kd[k] = ""; return kd; };
 
@@ -52,6 +76,7 @@ describe("Kundendaten stores what today's UI stores — contact, address, contac
     await open("bu");
     await play(scenario.steps as [string, string, string][]);
     expect(stored()).toEqual(scenario.kundendaten);
+    expect(outsideChanges("bu")).toEqual(scenario.outside); // mail recipient and letter recipient
   });
 
   it("the contact person's fields are on the page only when there is one", async () => {
@@ -77,11 +102,7 @@ describe("Kundendaten stores what today's UI stores — payer and insurance deta
     expect(stored()).toEqual(scenario.kundendaten);
 
     // what the payer changes outside Kundendaten: the selected documents and the letter's attachments
-    const fresh = emptyOffer(scenario.type as NewOfferType, { date: "" }) as Record<string, any>;
-    const outside: Record<string, unknown> = {};
-    for (const k of ["abtretung", "vollmacht"]) if (offer().docSelection[k] !== fresh.docSelection[k]) outside[`docSelection.${k}`] = offer().docSelection[k];
-    if (JSON.stringify(offer().postal.attachments) !== JSON.stringify(fresh.postal.attachments)) outside["postal.attachments"] = offer().postal.attachments;
-    expect(outside).toEqual(scenario.outside);
+    expect(outsideChanges(scenario.type)).toEqual(scenario.outside);
 
     // the same parts are on the page
     expect(!!screen.queryByLabelText("Name der Krankenkasse")).toBe(scenario.shown.kassenkundeDetails);
@@ -118,5 +139,51 @@ describe("Kundendaten stores what today's UI stores — payer and insurance deta
     expect("kk_rechnungskopie_art" in offer().Kundendaten).toBe(false);
     await play([["radio", "kk_rechnungskopie", "ja"]]);
     expect(offer().Kundendaten.kk_rechnungskopie_art).toBe("email");
+  });
+});
+
+describe("Kundendaten stores what today's UI stores — care level and budget, every offer type", () => {
+  it.each(care.scenarios.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, scenario) => {
+    await open(scenario.type);
+    await play(scenario.steps as [string, string, string][]);
+    expect(stored()).toEqual(scenario.kundendaten);
+
+    expect(outsideChanges(scenario.type)).toEqual(scenario.outside);
+
+    // the same parts are on the page, and the budget readout says the same
+    expect(!!screen.queryByRole("group", { name: "Welchen Pflegegrad?" })).toBe(scenario.shown.pflegegradLevelRow);
+    expect(!!screen.queryByRole("group", { name: "Budget" })).toBe(scenario.shown.budgetOptionsPanel);
+    if (scenario.shown.budgetOptionsPanel) expect(screen.getByText(/^Anrechenbares Budget/).textContent).toBe(scenario.budgetText);
+  });
+
+  it("the second person is unticked by hand: its fields are no longer stored", async () => {
+    await open("bu");
+    await play([["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"]]);
+    expect("partnerFirstName" in offer().Kundendaten).toBe(true);
+    await play([["check", "twoPersons", "off"]]);
+    expect(["partnerFirstName" in offer().Kundendaten, offer().Kundendaten.kundenName, offer().Kundendaten.greetingLine, offer().Kundendaten.budgetOptionsPanel]).toEqual([false, "", "", ""]);
+  });
+
+  it("a greeting changed by hand (in today's UI) is not overwritten when the name changes", async () => {
+    await open("bu");
+    await play([["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"]]);
+    useOfferStore.getState().patch("Kundendaten" as never, { greetingLine: "Liebe Familie Probe" } as never);
+    await play([["text", "lastName", "Probe"]]);
+    expect([offer().Kundendaten.greetingLine, offer().Kundendaten.kundenName]).toEqual(["Liebe Familie Probe", "Probe und"]);
+  });
+
+  it("co-payment needs a main option; the amount field appears only with the tick", async () => {
+    await open("bwt");
+    await play([["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "2"]]);
+    expect(screen.getByRole("checkbox", { name: TICK.budgetCopay! })).toBeDisabled();
+    expect(screen.queryByLabelText("Zuzahlung in €")).toBeNull();
+    await play([["check", "budgetMax", "on"], ["check", "budgetCopay", "on"]]);
+    expect(screen.getByLabelText("Zuzahlung in €")).toBeInTheDocument();
+  });
+
+  it("Alltagshilfe: care level without budget options; „beantragt“ only for Badumbau and Alltagshilfe", async () => {
+    await open("ah");
+    await play([["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "beantragt"]]);
+    expect(screen.queryByRole("group", { name: "Budget" })).toBeNull();
   });
 });
