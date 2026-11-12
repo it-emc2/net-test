@@ -1,10 +1,11 @@
-// Kundendaten (ADR 026, phase 4). Rebuilt so far: contact, address, customer type and the
-// contact person. The stored fields are exactly today's (test/kundendaten.test.tsx compares with
-// what today's UI stores for the same inputs). The other sections of this step — payer, care
-// level and budget, markup, property details, notes — are still edited in today's UI.
+// Kundendaten (ADR 026, phase 4). Rebuilt so far: contact, address, customer type, the contact
+// person, and the payer with the insurance details. The stored fields are exactly today's (test/kundendaten.test.tsx compares with
+// what today's UI stores for the same inputs). The other sections of this step — care level and
+// budget, markup, property details, notes — are still edited in today's UI.
 import { useParams } from "react-router";
-import { LegacyLink, useOfferField } from "../../offer/index.js";
+import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
+import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 
 const KD = "Kundendaten";
 
@@ -51,7 +52,7 @@ function ContactPerson() {
       <OfferChoice
         section={KD} name="hasContactPerson" label="Ansprechpartner vorhanden?" options={["Ja", "Nein"]} required
         // as today: switching back to "Nein" empties the name; the other entries are kept
-        onChoose={(v) => (v === "Nein" ? { cp_name: "" } : {})}
+        onChoose={(v) => useOfferStore.getState().patch(KD as never, (v === "Nein" ? { hasContactPerson: v, cp_name: "" } : { hasContactPerson: v }) as never)}
       />
       {has ? (
         <>
@@ -73,6 +74,51 @@ function ContactPerson() {
   );
 }
 
+function Payer() {
+  const type = useOfferType();
+  const payer = useOfferField<string>(KD, "payer");
+  const copy = useOfferField<string>(KD, "kk_rechnungskopie");
+  const pickPayer = (v: string) => {
+    const st = useOfferStore.getState();
+    if (!st.offer) return;
+    const r = choosePayer(st.offer, v as "Selbstzahler" | "Kassenkunde", (st.scratch.payerParked as Parked | undefined) ?? null);
+    st.patchAll(r.changes);
+    st.remember("payerParked", r.parked);
+  };
+  const pickCopy = (v: string) => {
+    const st = useOfferStore.getState();
+    const kd = (st.offer as Record<string, any> | null)?.Kundendaten ?? {};
+    if (kd.kk_rechnungskopie_art) st.remember("invoiceCopyKind", kd.kk_rechnungskopie_art);
+    st.patch(KD as never, chooseInvoiceCopy(v as "ja" | "nein", kd.kk_rechnungskopie_art ?? st.scratch.invoiceCopyKind) as never);
+  };
+  return (
+    <section className="card" aria-labelledby="kd-payer">
+      <h2 id="kd-payer">Kostenträger</h2>
+      <OfferChoice section={KD} name="payer" label="Ist der Kunde Selbstzahler oder Kassenkunde?" options={["Selbstzahler", "Kassenkunde"]} onChoose={pickPayer} />
+      {payer === "Kassenkunde" ? (
+        <>
+          {/* birth date and insurance number are not asked for a Badumbau (as today) */}
+          {type !== "bu" ? (
+            <div className="grid-2">
+              <OfferText section={KD} name="kk_geburtsdatum" label="Geburtsdatum" type="date" />
+              <OfferText section={KD} name="kk_versichertennr" label="Versicherungsnummer" placeholder="z. B. A123456789" autoComplete="off" />
+            </div>
+          ) : null}
+          <div className="grid-2">
+            <OfferText section={KD} name="kassenkundeName" label="Name der Krankenkasse" placeholder="z. B. AOK Nord" autoComplete="off" />
+            <OfferText section={KD} name="kk_krankenkasseAdresse" label="Adresse der Krankenkasse" placeholder="Straße, PLZ Ort" autoComplete="off" />
+          </div>
+          <OfferText section={KD} name="kk_pflegegradSeit" label="Pflegegrad seit" type="month" />
+          <OfferChoice section={KD} name="kk_rechnungskopie" label="Kassen-Rechnungskopie gewünscht?" options={[{ value: "ja", label: "Ja" }, { value: "nein", label: "Nein" }]} onChoose={pickCopy} />
+          {copy === "ja" ? (
+            <OfferChoice section={KD} name="kk_rechnungskopie_art" label="Rechnungskopie per Post oder per E-Mail?" options={[{ value: "post", label: "Per Post" }, { value: "email", label: "Per E-Mail" }]} />
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 export function Kundendaten() {
   const { dealId = "" } = useParams();
   return (
@@ -80,9 +126,10 @@ export function Kundendaten() {
       <Contact />
       <Address />
       <ContactPerson />
+      <Payer />
       <section className="card" aria-labelledby="kd-more">
         <h2 id="kd-more">Weitere Angaben</h2>
-        <p>Kostenträger, Pflegegrad und Budget, Aufschlag, Angaben zum Objekt und Notizen werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
+        <p>Pflegegrad und Budget, Aufschlag, Angaben zum Objekt und Notizen werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
       </section>
     </>

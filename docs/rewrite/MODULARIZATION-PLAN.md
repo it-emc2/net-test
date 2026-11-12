@@ -184,7 +184,9 @@ Done:
 - **Kundendaten, slice 1** (`features/steps/kundendaten`): contact, address, customer type, contact person. Reference: `apps/web/test/fixtures/kundendaten-contact.json`, recorded from today's UI by `v2/scripts/capture-kundendaten.cjs` (three scenarios); `test/kundendaten.test.tsx` types the same inputs into the React screen and compares the stored `Kundendaten`. Reproduced on purpose: switching "Ansprechpartner vorhanden" back to "Nein" empties only the name.
 - Measured (preview, 834×1194, CPU 6×): typing 15 characters blocks 0 ms and causes 1 price request.
 
-Still open for Kundendaten (in today's UI until rebuilt): payer and insurance details, care level and budget, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
+- **Kundendaten, slice 2**: payer and insurance details. Recorded for all five offer types (`kundendaten-payer.json`, 20 scenarios): Selbstzahler stores no insurance details and no `wohnumfeldDone`, stores the care-level/budget/Pflegekasse answers blank and deselects Abtretung and Vollmacht (also as letter attachments); back to Kassenkunde brings the entries back (not `wohnumfeldDone`, as today). The whole switch is one change of the offer. Birth date and insurance number are asked for every type except BU.
+
+Still open for Kundendaten (in today's UI until rebuilt): care level and budget, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
 
