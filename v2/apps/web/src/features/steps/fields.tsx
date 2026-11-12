@@ -12,10 +12,13 @@ export function OfferText({ section, name, label, ...rest }: { section: string; 
   return <Field label={label} id={`${section}-${name}`} name={name} value={value} onChange={(e) => patch(section, { [name]: e.target.value })} {...rest} />;
 }
 
+type Option = string | { value: string; label: string };
+const val = (o: Option) => (typeof o === "string" ? o : o.value);
+
 export function OfferChoice({ section, name, label, options, required, onChoose }: {
-  section: string; name: string; label: string; options: readonly string[]; required?: boolean;
-  /** further fields that change together with this choice (same store update) */
-  onChoose?: (value: string) => Record<string, unknown>;
+  section: string; name: string; label: string; options: readonly Option[]; required?: boolean;
+  /** replaces the plain "store the value" — for a choice that changes more than its own field */
+  onChoose?: (value: string) => void;
 }) {
   const value = useOfferField<string>(section, name);
   return (
@@ -23,12 +26,12 @@ export function OfferChoice({ section, name, label, options, required, onChoose 
       <legend>{label}</legend>
       <div className="choices">
         {options.map((o) => (
-          <label className="choice" key={o}>
+          <label className="choice" key={val(o)}>
             <input
-              type="radio" name={`${section}-${name}`} value={o} checked={value === o} required={required}
-              onChange={() => patch(section, { [name]: o, ...(onChoose ? onChoose(o) : {}) })}
+              type="radio" name={`${section}-${name}`} value={val(o)} checked={value === val(o)} required={required}
+              onChange={() => (onChoose ? onChoose(val(o)) : patch(section, { [name]: val(o) }))}
             />
-            {o}
+            {typeof o === "string" ? o : o.label}
           </label>
         ))}
       </div>
