@@ -154,6 +154,25 @@ Changed against the plan:
 - **`pricing/src/core.ts` is not split.** It is generated from main's `src/logic/pricing-core.js` and guarded to compile to exactly that file (`sync-with-legacy.test.ts`); a hand-made split would break every main sync. Split it after the cut-over, when main no longer changes the original — same rule as for `docx-template.ts`.
 - Values the UI derives and stores (e.g. `Arbeitszeit.travelCostDebug`) are left out of the empty offer; each React screen adds its derived values through selectors and its parity test compares the stored payload with today's.
 
+### Phase 3 status (2026-11-12)
+
+Done — the foundation of the React app (`v2/apps/web/src`):
+
+- `app/`: entry, providers, route table with lazy feature chunks, error and not-found pages. Addresses: `/` Hauptmenü, `/neu/:type/:step`, `/deal/:dealId/:type/:step`.
+- `features/offer`: the offer store (Zustand; `start`, `load`, `close`, `patch`, narrow selectors), the price hook (TanStack Query; changes are collected for 250 ms, a running request is aborted when the offer changes), the step lists per offer type (guarded against the Playwright snapshots of today's UI) and the frame around the steps (only the active step is mounted).
+- `features/home`, `features/auth`: Hauptmenü with the five offer types; login form in place of a page when not logged in.
+- `shared/`: API client typed by `@oc/api-contract`, UI kit (page, field, button, notice, tile), formatting.
+- v2 serves the built app under **`/app`** (`modules/web/register.ts`, Dockerfile); today's UI stays at `/` and is the default. A step without a React screen shows a link to the same step in today's UI.
+- Measured (preview, 834×1194, CPU 6×): BU tile 52 ms blocked, 1 price request; back to Hauptmenü 0 ms, 0 requests; first load 213 ms blocked. Initial script 138 kB gzip (limit 150 kB).
+
+Still open in phase 3:
+
+- **Offline layer** (`shared/offline`): local-first saving (ADR 025), autosave to the deal draft, service worker for `/app`.
+- **Price in the browser**: today the hook asks the server once per change; computing with `@oc/pricing` locally (server only confirms) comes with the first screens that change prices.
+- **Offer context**: `emptyOffer` gets only the date so far; contact person, signature user and `pricingRules` are filled when Kundendaten is rebuilt.
+- **Switch per screen**: there is no switch yet because no screen is rebuilt; the first rebuilt step (phase 4) adds it to `BUILT_STEPS` and the link from today's UI.
+- The Hauptmenü chunk also loads the offer chunk (it needs the store and the titles) — 5.6 kB gzip, acceptable; split if it grows.
+
 ## 4. Risks
 
 | Risk | Mitigation |

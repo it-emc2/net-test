@@ -3,6 +3,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  // served by v2 under /app (today's UI keeps "/" until every screen has moved)
+  base: "/app/",
   server: {
     port: 5180,
     // API calls go to the v2 server during development
@@ -11,7 +13,7 @@ export default defineConfig({
   test: {
     name: "web",
     environment: "jsdom",
-    include: ["test/**/*.test.tsx"],
+    include: ["test/**/*.test.{ts,tsx}"],
     setupFiles: ["./test/setup.ts"],
   },
 });
