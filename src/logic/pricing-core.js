@@ -487,6 +487,24 @@ export function winwallProfileSuggestion(plan) {
   return { WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0) };
 }
 
+/**
+ * Area the Abdichtungsset covers (2026-11-12): a typed Wandfläche wins; else the
+ * wall area from the calculator (Σ widths × height) plus every panel beyond the
+ * wall plan (e.g. one for the WC box); without walls, what the panels cover.
+ */
+export function winwallSealingArea(wv, qtyByFormat = {}) {
+  const num = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const typed = num(wv?.wvArea);
+  if (typed > 0) return typed;
+  const m2 = (c) => (wwFormat(c).widthCm * wwFormat(c).heightCm) / 10000;
+  const q = (c) => Math.max(0, Math.round(num(qtyByFormat[c])));
+  const plan = winwallPanelPlan(wv?.wvKSituation, { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts }, { heightCm: wv?.wvKHoehe });
+  if (!plan.pieces.length) return WINWALL_SINGLE_FORMATS.reduce((a, c) => a + q(c) * m2(c), 0);
+  const H = num(wv?.wvKHoehe) || plan.panelHeightCm;
+  const wall = (plan.walls.reduce((a, w) => a + w.cm, 0) * H) / 10000;
+  return wall + WINWALL_SINGLE_FORMATS.reduce((a, c) => a + Math.max(0, q(c) - (plan.qty[c] || 0)) * m2(c), 0);
+}
+
 /** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */
 export function winwallSealingSets(areaM2) {
   const a = Number(areaM2) || 0;
@@ -1592,14 +1610,14 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
         groups.set(winwallDecor(wv).code, qtyByFormat);
       }
-      let coverM2 = 0;
+      const totals = {}; // panels per format over all decors, for the sealing area
+      for (const g of groups.values()) for (const c of WINWALL_SINGLE_FORMATS) totals[c] = (totals[c] || 0) + (Number(g[c]) || 0);
       for (const [code, qtyByFormat] of groups) {
         const decor = { code, name: WINWALL_CATALOG[code] || null };
         const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
         for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
           const f = l.format;
           winwallPanels += l.panels;
-          coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
           const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
           // Price from the price list: any decor (also a typed one) costs the same per format.
           // name for a typed decor that has no product in the DB
@@ -1618,9 +1636,9 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // joints is in the Kleinmaterial flat rate.
       if (wwQty("R_4260602") > 0)
         add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
-      // Sealing sets by area: the Wandfläche, else what the panels cover.
+      // Sealing sets by area: Wandfläche, else wall plan + extra panels (winwallSealingArea).
       if (wv?.wvWwSealing) {
-        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
+        const area = winwallSealingArea(wv, totals);
         for (const l of sealingLines(wv, area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
       }
       if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);

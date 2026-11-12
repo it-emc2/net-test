@@ -2609,6 +2609,8 @@ function resetAllForms() {
   // form.reset() keeps whatever the last restored offer set (e.g. "hm").
   const wvSupplierEl = document.getElementById("wvSupplier");
   if (wvSupplierEl) wvSupplierEl.value = "ww";
+  const wwManualEl = document.getElementById("wvWwAccManual"); // same hidden-input rule
+  if (wwManualEl) wwManualEl.value = "";
   try { syncWwCustomDecor(); } catch {} // form.reset() left the tile on WS 203
   if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
@@ -12892,12 +12894,14 @@ function setWvSupplier(v) {
   if (!window.__restoring && !window.__RESTORING__) window.requestPricingRefresh?.({ delay: 180, reason: "wv-supplier" });
 }
 
-// Panels per format from the page; Kleber 1 Kartusche je Platte, 1,5 bei 125/150 cm
-// (winwall's recommendation); Verbindungsprofile = Platten − 1.
+// Panels per format from the page. Kleber 2 Pkg per panel; Verbindungsprofile from the
+// wall plan (extra panels, e.g. for the WC box, add none). An accessory the user set by
+// hand (listed in wvWwAccManual) is never overwritten (recording 2026-11-12).
 function wwPanelCounts() {
   const n = (c) => Math.max(0, parseInt(document.getElementById(`wvWwQty_${c}`)?.value, 10) || 0);
   return { 13: n(13), 15: n(15), 16: n(16), 17: n(17) };
 }
+const wwAccManual = () => new Set(String(document.getElementById("wvWwAccManual")?.value || "").split(",").filter(Boolean));
 function updateWwSuggestions({ write = true } = {}) {
   const std = !!document.getElementById("wvLineToggle")?.checked;
   const q = std ? { 13: 0, 15: 0, 16: 0, 17: 0 } : wwPanelCounts();
@@ -12906,23 +12910,26 @@ function updateWwSuggestions({ write = true } = {}) {
   const set = (sku, v) => {
     const qty = document.getElementById(`wvWwQty_${sku}`);
     const cb = document.getElementById(`wvWw_${sku}`);
-    if (!qty || !cb || qty.disabled) return;
+    if (!qty || !cb || qty.disabled || wwAccManual().has(sku)) return;
     qty.value = String(v);
     cb.checked = v > 0;
   };
   if (write && !window.__restoring && !window.__RESTORING__) {
     set("R_4260602", 2 * panels); // Flächenkleber, as VIGOUR: 2 Pkg per panel
     // Verbindungsprofile from the calculator's wall plan (joints on straight walls,
-    // none at corners) when it matches the panels entered, else panels − 1.
+    // none at corners); no walls entered → panels − 1.
     const plan = std ? null : window.__wwPlan;
-    const fits = plan?.qty && ["13", "15", "16", "17"].every((c) => (plan.qty[c] || 0) === q[c]);
-    const prof = fits ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
+    const prof = plan?.pieces?.length ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
     set("WS80113", prof ? prof.WS80113 : Math.max(0, panels - 1));
   }
   const hint = document.getElementById("wvWwSealingHint");
   if (hint) {
-    const area = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) ||
-      (std ? kPanels * 2.4225 : q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+    const typed = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) || 0;
+    let area = typed || (std ? kPanels * 2.4225 : q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+    if (!std && !typed && window.__pricingCore?.winwallSealingArea) {
+      try { area = window.__pricingCore.winwallSealingArea(formToObject(document.getElementById("form-wandverkleidung")), q); } catch {}
+    }
+    area = Math.round(area * 100) / 100;
     let sets = [];
     try { sets = window.__pricingCore?.winwallSealingSets?.(area); } catch {}
     if (!Array.isArray(sets)) sets = [];
@@ -12934,7 +12941,7 @@ function updateWwSuggestions({ write = true } = {}) {
     if (qEl) { qEl.placeholder = String(auto); qEl.dataset.auto = String(auto); }
     hint.innerHTML = manual > 0
       ? `berechnet: ${escapeHtml(txt || "–")} · <b>manuell: ${manual} × 5 m²</b> · <button type="button" class="wv-seal-reset">Automatisch</button>`
-      : `nach Plattenfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${escapeHtml(txt)}` : ""} · automatisch`;
+      : `nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${escapeHtml(txt)}` : ""} · automatisch`;
   }
   const ph = document.getElementById("wvWwPanelsHint");
   if (ph && !std) {
@@ -13015,18 +13022,35 @@ function syncWwCustomDecor() {
   panels.addEventListener("input", () => updateWwSuggestions());
   panels.addEventListener("change", () => updateWwSuggestions());
   // Switch ↔ quantity, like the Badolux accessories.
+  // Any edit by the user (switch, stepper, typing) marks that accessory as manual —
+  // only real user events: page start-up and restores fire synthetic change events.
+  const markManual = (sku) => {
+    const el = document.getElementById("wvWwAccManual");
+    if (!el || !sku) return;
+    const set = wwAccManual();
+    set.add(sku);
+    el.value = [...set].join(",");
+  };
   acc.addEventListener("change", (e) => {
     const t = e.target;
+    if (e.isTrusted && t?.name?.startsWith("wvWwQty_")) markManual(t.name.slice(8));
     if (t?.type !== "checkbox" || !t.name.startsWith("wvWw_")) return;
+    if (e.isTrusted) markManual(t.name.slice(5));
     const q = document.getElementById(`wvWwQty_${t.name.slice(5)}`);
     if (q) q.value = t.checked ? (Number(q.value) > 0 ? q.value : "1") : "0";
   });
   acc.addEventListener("input", (e) => {
     const t = e.target;
     if (t?.type !== "number" || !t.name.startsWith("wvWwQty_")) return;
+    if (e.isTrusted) markManual(t.name.slice(8));
     const cb = document.getElementById(`wvWw_${t.name.slice(8)}`);
     if (cb) cb.checked = Number(t.value) > 0;
   });
+  // − / + taps (the stepper re-dispatches synthetic input events, so mark here)
+  acc.addEventListener("click", (e) => {
+    const q = e.isTrusted && e.target.closest?.(".ios-stepper button[data-step]")?.parentElement.querySelector('input[name^="wvWwQty_"]');
+    if (q) markManual(q.name.slice(8));
+  }, true);
   document.getElementById("wvArea")?.addEventListener("input", () => updateWwSuggestions({ write: false }));
   document.getElementById("wvWwSealingQty")?.addEventListener("input", () => {
     updateWwSuggestions({ write: false });
@@ -18627,6 +18651,7 @@ function restoreWV(wv) {
     for (const c of ["13", "15", "16", "17"]) setInputByNameOrId(`wvWwQty_${c}`, wv[`wvWwQty_${c}`] || "0");
     setInputByNameOrId("wvWwRows", wv.wvWwRows || "");
     window.pullWwRows?.();
+    setInputByNameOrId("wvWwAccManual", wv.wvWwAccManual || "");
     document.querySelectorAll('#wvWwAccSection input[type="checkbox"]').forEach((cb) => {
       cb.checked = !!wv[cb.name];
       if (cb.name.startsWith("wvWw_")) setInputByNameOrId(`wvWwQty_${cb.name.slice(5)}`, wv[`wvWwQty_${cb.name.slice(5)}`] || "0");
