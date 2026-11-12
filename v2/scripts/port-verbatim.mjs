@@ -62,7 +62,7 @@ const KALK_V2_TEMPLATE_TRANSFORMS = [
 const MATERIAL_TRANSFORMS = [
   ...ROUTE_BASE,
   ['from "../logic/badolux-cart.js"', 'from "./badolux-cart.js"'],
-  ['from "../lib/wanneSets.js"', 'from "../../catalog/ported/wanne-sets.js"'],
+  ['from "../lib/wanneSets.js"', 'from "../../catalog/index.js"'],
   // module-relative data file → legacy data folder under DOCUMENTS_ROOT
   ['new URL("../logic/cleverbad-catalog.json", import.meta.url)', 'path.join(docsRoot(), "src", "logic", "cleverbad-catalog.json")'],
 ];
@@ -72,25 +72,25 @@ const HL_TRANSFORMS = [
 ];
 
 export const PORTS = [
-  { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/catalog/ported/wanne-sets.ts" },
-  { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/catalog/ported/wanne-describe.ts" },
-  { from: "src/lib/docxTextReplace.js", to: "v2/apps/server/src/documents/ported/docx-text-replace.ts" },
-  { from: "src/routes/docx-template.js", to: "v2/apps/server/src/documents/ported/docx-template.ts", transforms: DOCS_TRANSFORMS },
-  { from: "src/routes/kalkulation.js", to: "v2/apps/server/src/documents/ported/kalkulation.ts", transforms: KALK_TRANSFORMS },
-  { from: "src/templates/kalkulation-v2.js", to: "v2/apps/server/src/documents/ported/kalkulation-v2.ts", transforms: KALK_V2_TEMPLATE_TRANSFORMS },
-  { from: "src/routes/arbeitsbericht.js", to: "v2/apps/server/src/documents/ported/arbeitsbericht.ts", transforms: ARB_TRANSFORMS },
-  { from: "src/routes/pdf-preview.js", to: "v2/apps/server/src/documents/ported/pdf-preview.ts", transforms: ROUTE_BASE },
-  { from: "src/lib/productImagePdf.js", to: "v2/apps/server/src/documents/ported/product-image-pdf.ts", transforms: PRODUCT_IMAGE_TRANSFORMS },
-  { from: "src/routes/material-overview.js", to: "v2/apps/server/src/documents/ported/material-overview.ts", transforms: MATERIAL_TRANSFORMS },
-  { from: "src/logic/badolux-cart.js", to: "v2/apps/server/src/documents/ported/badolux-cart.ts" },
-  { from: "src/routes/hl-parse.js", to: "v2/apps/server/src/documents/ported/hl-parse.ts", transforms: HL_TRANSFORMS },
-  { from: "src/routes/pdf.js", to: "v2/apps/server/src/documents/ported/pdf-summary.ts", transforms: ROUTE_BASE },
+  { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/modules/catalog/ported/wanne-sets.ts" },
+  { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/modules/catalog/ported/wanne-describe.ts" },
+  { from: "src/lib/docxTextReplace.js", to: "v2/apps/server/src/modules/documents/ported/docx-text-replace.ts" },
+  { from: "src/routes/docx-template.js", to: "v2/apps/server/src/modules/documents/ported/docx-template.ts", transforms: DOCS_TRANSFORMS },
+  { from: "src/routes/kalkulation.js", to: "v2/apps/server/src/modules/documents/ported/kalkulation.ts", transforms: KALK_TRANSFORMS },
+  { from: "src/templates/kalkulation-v2.js", to: "v2/apps/server/src/modules/documents/ported/kalkulation-v2.ts", transforms: KALK_V2_TEMPLATE_TRANSFORMS },
+  { from: "src/routes/arbeitsbericht.js", to: "v2/apps/server/src/modules/documents/ported/arbeitsbericht.ts", transforms: ARB_TRANSFORMS },
+  { from: "src/routes/pdf-preview.js", to: "v2/apps/server/src/modules/documents/ported/pdf-preview.ts", transforms: ROUTE_BASE },
+  { from: "src/lib/productImagePdf.js", to: "v2/apps/server/src/modules/documents/ported/product-image-pdf.ts", transforms: PRODUCT_IMAGE_TRANSFORMS },
+  { from: "src/routes/material-overview.js", to: "v2/apps/server/src/modules/documents/ported/material-overview.ts", transforms: MATERIAL_TRANSFORMS },
+  { from: "src/logic/badolux-cart.js", to: "v2/apps/server/src/modules/documents/ported/badolux-cart.ts" },
+  { from: "src/routes/hl-parse.js", to: "v2/apps/server/src/modules/documents/ported/hl-parse.ts", transforms: HL_TRANSFORMS },
+  { from: "src/routes/pdf.js", to: "v2/apps/server/src/modules/documents/ported/pdf-summary.ts", transforms: ROUTE_BASE },
   // web layer (phase 6, ADR 021): settings that live inline in legacy app.js / authGate.js
-  { from: "src/app.js", to: "v2/apps/server/src/web/ported/helmet-options.ts", extract: { start: "  helmet({", object: true, prefix: "export default ", suffix: ";\n" } },
-  { from: "src/app.js", to: "v2/apps/server/src/web/ported/cors-origins.ts", extract: { start: "const allowedExact = new Set([", end: "app.use(\n  cors(", suffix: "export { isAllowedOrigin };\n" } },
-  { from: "src/middleware/authGate.js", to: "v2/apps/server/src/web/ported/public-paths.ts", extract: { start: "const ASSET_RE =", end: "function isExternalApi(p)", suffix: "export { isPublicAsset, isPublicSigning, isAlwaysPublic };\n" } },
-  { from: "src/lib/signatureImage.js", to: "v2/apps/server/src/documents/ported/signature-image.ts" },
-  { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
+  { from: "src/app.js", to: "v2/apps/server/src/modules/web/ported/helmet-options.ts", extract: { start: "  helmet({", object: true, prefix: "export default ", suffix: ";\n" } },
+  { from: "src/app.js", to: "v2/apps/server/src/modules/web/ported/cors-origins.ts", extract: { start: "const allowedExact = new Set([", end: "app.use(\n  cors(", suffix: "export { isAllowedOrigin };\n" } },
+  { from: "src/middleware/authGate.js", to: "v2/apps/server/src/modules/web/ported/public-paths.ts", extract: { start: "const ASSET_RE =", end: "function isExternalApi(p)", suffix: "export { isPublicAsset, isPublicSigning, isAlwaysPublic };\n" } },
+  { from: "src/lib/signatureImage.js", to: "v2/apps/server/src/modules/documents/ported/signature-image.ts" },
+  { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/modules/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>
   `// @ts-nocheck\n// GENERATED ${rules ? `copy of ${from} with ${rules} import/runtime rewrites (see v2/scripts/port-verbatim.mjs)` : `verbatim copy of ${from}`} — do not edit. Re-port: node v2/scripts/port-verbatim.mjs\n// Drift guard: apps/server/test/verbatim-ports.test.ts\n`;

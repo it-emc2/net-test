@@ -1,11 +1,11 @@
 // v2-only (intentional difference): without EXTERNAL_API_KEY the external lookup is closed (legacy: open).
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { registerMisc } from "../src/routes/misc.js";
+import { registerOffersExternal } from "../src/modules/offers/index.js";
 
 const app = async (externalApiKey?: string) => {
   const a = Fastify();
-  await registerMisc(a, { vigorUri: "mongodb://127.0.0.1:9/none", computePrices: async () => ({}), externalApiKey });
+  await registerOffersExternal(a, { externalApiKey });
   return a;
 };
 

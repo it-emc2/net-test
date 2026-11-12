@@ -6,7 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { REWRITES, applyRewrites } from "../src/web/rewrites.js";
+import { REWRITES, applyRewrites } from "../src/modules/web/rewrites.js";
 
 const PUBLIC = fileURLToPath(new URL("../../../../src/public/", import.meta.url));
 

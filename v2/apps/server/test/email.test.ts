@@ -2,8 +2,8 @@
 // (src/lib/emailTemplate.js, src/lib/offerChanges.js) on the same inputs.
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { buildEmailHtml, renderBodyHtmlFromText } from "../src/email/template.js";
-import { buildEmailTextBody, describeOfferChanges, getBitrixTargetFromPayload, safeOfferFilename } from "../src/email/builders.js";
+import { buildEmailHtml, renderBodyHtmlFromText } from "../src/modules/email/template.js";
+import { buildEmailTextBody, describeOfferChanges, getBitrixTargetFromPayload, safeOfferFilename } from "../src/modules/email/builders.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 let L: any, LC: any;

@@ -16,11 +16,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "@oc/config";
 import { buildApp } from "../src/app.js";
-import { hashPassword } from "../src/auth.js";
-import { connectDb, disconnectDb } from "../src/db.js";
-import { registerApi } from "../src/routes/api.js";
-import { applyRewrites } from "../src/web/rewrites.js";
-import { injectHead } from "../src/web/register.js";
+import { hashPassword } from "../src/platform/auth.js";
+import { connectDb, disconnectDb } from "../src/platform/db.js";
+import { registerApi } from "../src/compose.js";
+import { applyRewrites } from "../src/modules/web/rewrites.js";
+import { injectHead } from "../src/modules/web/register.js";
 import { BitrixStub } from "./helpers/bitrix-stub.js";
 import { BITRIX_HANDLERS } from "./helpers/bitrix-fixtures.js";
 import { SmtpSink, mailView } from "./helpers/smtp-sink.js";
@@ -870,7 +870,7 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
       to: "kunde0001@example.invalid", subject: "Ihr Angebot", offerNumber: "ANG-REC-1", offerType: "bu", body: "Hallo {{SIGN_LINK}}",
       payload: JSON.stringify({ ...BU, offerNumber: "ANG-REC-1" }), dealId: "9311", sendId, ...extra,
     });
-    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/sends/store.js"); await migrateOfferSendIndexes(); });
+    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/modules/sends/store.js"); await migrateOfferSendIndexes(); });
 
     it("records who/what/price/steps, stores the exact PDF, and answers a repeated sendId without sending again", async () => {
       await clean(); smtp.take(); bx.take("v2");
@@ -914,7 +914,7 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     }, 60000);
 
     it("a send that is still running is not started a second time", async () => {
-      const { OfferSend } = await import("../src/sends/store.js");
+      const { OfferSend } = await import("../src/modules/sends/store.js");
       await OfferSend.create({ sendId: "send-rec-running", channel: "email", status: "running", startedAt: new Date() });
       smtp.take();
       const r = await sendTo("v2", fields("send-rec-running"));
@@ -953,8 +953,8 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
 
     it("e-mail first, post a few days later: unchanged → the letter is the exact PDF that was mailed; changed → refused, original on request", async () => {
       await clean(); await db().collection("postalsends").deleteMany({}); bx.take("v2");
-      const { OfferSend, storeSendFile } = await import("../src/sends/store.js");
-      const { offerIdentity } = await import("../src/sends/identity.js");
+      const { OfferSend, storeSendFile } = await import("../src/modules/sends/store.js");
+      const { offerIdentity } = await import("../src/modules/sends/identity.js");
       const pdf = async (text: string) => { const d = await PDFDocument.create(); d.addPage([595.28, 841.89]).drawText(text, { x: 50, y: 700 }); return Buffer.from(await d.save()); };
       const P = { ...BU, offerNumber: "ANG-REC-P" };
       // the e-mail send of a few days ago (the contract-test PDF engine returns placeholder bytes, so the record is seeded with a real PDF)
@@ -1005,7 +1005,7 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     it("a failed Bitrix filing can be repeated from the stored files — nothing is mailed again", async () => {
       await clean(); smtp.take(); bx.take("v2");
       const P = { ...BU, offerNumber: "ANG-REC-B" };
-      const { OfferSend } = await import("../src/sends/store.js");
+      const { OfferSend } = await import("../src/modules/sends/store.js");
       expect((await sendTo("v2", { ...fields("send-b-0001"), offerNumber: "ANG-REC-B", payload: JSON.stringify(P), dealId: "9314" })).status).toBe(200);
       smtp.take(); bx.take("v2");
       const retry = () => v2.inject({ method: "POST", url: "/api/sends/send-b-0001/retry-bitrix", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: {} });
@@ -1022,7 +1022,7 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
     }, 60000);
 
     it("offer numbers are registered: free → reserved; held by another unsaved offer → a new unique number; saved work keeps its number", async () => {
-      const { migrateOfferNumberIndexes } = await import("../src/sends/numbers.js");
+      const { migrateOfferNumberIndexes } = await import("../src/modules/sends/numbers.js");
       await migrateOfferNumberIndexes();
       await db().collection("offer_numbers").deleteMany({});
       const claim = async (current: string, claimId: string) => {
@@ -1481,7 +1481,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       return { status: r.statusCode, body: r.headers["content-type"]?.toString().includes("json") ? r.json() : null, raw: r.rawPayload };
     };
     void J;
-    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/sends/store.js"); await migrateOfferSendIndexes(); });
+    beforeAll(async () => { const { migrateOfferSendIndexes } = await import("../src/modules/sends/store.js"); await migrateOfferSendIndexes(); });
 
     it("on-site: record + locked offer on the server; sent from the first signature; identical re-submit = first result; signed PDF stored and served", async () => {
       const db = mongoose.connection.db!;
@@ -1530,7 +1530,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       const stored = (await call("GET", `/api/sends/onsite-send-0001/files/${signedFile.fileId}`)).raw;
       const mailed = mails[0].mail.attachments.find((a: any) => a.filename === "angebot_T-ONSITE-1.pdf")!.content as Buffer;
       expect(stored.equals(mailed)).toBe(true);
-      const { SigningCompletion } = await import("../src/sends/store.js");
+      const { SigningCompletion } = await import("../src/modules/sends/store.js");
       expect((await SigningCompletion.findOne({ token: tok }).lean() as any).result).toMatchObject({ ok: true, stored: true, email: "ok" });
 
       // signed = sent: changed content is refused now, for saving and for a new signing request

@@ -120,6 +120,27 @@ BL comes first among the offer types because it has the fewest steps; BU comes l
 
 The two columns come from different harnesses (local preview vs. the Playwright test stack), so they show the order of magnitude, not an exact comparison. The pass mark for React screens stays 200 ms and one price call.
 
+### Phase 1 status (2026-11-12)
+
+Done, without behaviour change (files moved, imports and paths adjusted; all v2 tests and the build green):
+
+- `apps/server/src` now holds only `app.ts`, `server.ts`, `compose.ts` (composition root, no routes), `cli/`, `migrations/`, `platform/`, `integrations/` and `modules/`. The old `routes/` folder is gone.
+- `platform/`: `auth`, `auth-gate`, `db`, `business-config`, `models`.
+- `modules/`: `admin`, `auth`, `bitrix`, `catalog`, `deal-drafts`, `documents`, `email`, `misc`, `offers`, `planning`, `post`, `pricing`, `sends`, `signing`, `web`. Each has an `index.ts`; cross-module imports go through it (guard green).
+- Tool for further moves: `v2/scripts/move-files.mjs`.
+
+Also done (second round):
+
+- Models: one file per topic in `platform/models/` behind the barrel `platform/models.ts`. They stay in `platform/` on purpose: most collections are read by many modules (offers 7, products 6, users 6), so module-owned models would only create import cycles. This replaces the "`model.ts` per module" idea of section 2.2.
+- `misc` dissolved: Vigour prices and bulk import → `catalog`, submissions → `pricing`, external lookup → `offers`, API-key guard → `platform/external-key.ts`, `/health` → `app.ts`.
+- `admin` split into `guard`, `settings`, `logs`, `users`; customers are their own module.
+- Every `index.ts` lists exactly the names other code uses (no `export *`).
+
+Still open in phase 1:
+
+- Inside the modules, routes, rules and database access are still in the same files (`routes` / `service` / `repo` split) — do it module by module when a module is touched for the React rebuild, starting with `offers`, `pricing` and `catalog`.
+- `modules/documents/ported/docx-template.ts` (generated copy, 2,700 lines) stays as it is until main stops changing the original.
+
 ## 4. Risks
 
 | Risk | Mitigation |

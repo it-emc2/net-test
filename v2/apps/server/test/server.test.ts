@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadConfig } from "@oc/config";
 import { buildApp } from "../src/app.js";
-import { connectDb, disconnectDb, ReadOnlyDatabaseError } from "../src/db.js";
+import { connectDb, disconnectDb, ReadOnlyDatabaseError } from "../src/platform/db.js";
 
 const silentLog = { info: () => {} };
 

@@ -2,9 +2,9 @@
 // Each migration is idempotent and supports a dry run that only REPORTS what it would do.
 // Production execution needs owner approval (ADR 001/016) and runs against a fresh backup.
 import type mongoose from "mongoose";
-import { migrateDealDraftIndexes } from "../deal-drafts/store.js";
-import { migrateOfferSendIndexes } from "../sends/store.js";
-import { migrateOfferNumberIndexes } from "../sends/numbers.js";
+import { migrateDealDraftIndexes } from "../modules/deal-drafts/index.js";
+import { migrateOfferSendIndexes } from "../modules/sends/index.js";
+import { migrateOfferNumberIndexes } from "../modules/sends/index.js";
 
 export interface MigrationResult { id: string; dryRun: boolean; matched: number; changed: number; note: string }
 

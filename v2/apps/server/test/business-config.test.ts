@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — untyped legacy module from the current app
 import { CONFIG_SCHEMA as LEGACY } from "../../../../src/services/configService.js";
-import { BusinessConfig, CONFIG_SCHEMA } from "../src/business-config.js";
+import { BusinessConfig, CONFIG_SCHEMA } from "../src/platform/business-config.js";
 
 describe("business config", () => {
   it("schema is identical to legacy", () => expect(JSON.parse(JSON.stringify(CONFIG_SCHEMA))).toEqual(JSON.parse(JSON.stringify(LEGACY))));

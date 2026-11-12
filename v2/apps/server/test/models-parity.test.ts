@@ -2,7 +2,7 @@
 // Mongoose models on this branch (a new field on main fails here until ported).
 import { describe, expect, it } from "vitest";
 import mongoose from "mongoose";
-import * as v2 from "../src/models.js";
+import * as v2 from "../src/platform/models.js";
 
 // legacy models come from the repo root (they use the root's own mongoose copy → no collisions)
 const legacyModel = async (file: string) => {

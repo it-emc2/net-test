@@ -25,7 +25,7 @@ COPY --from=build /app/v2/packages ./packages
 COPY --from=build /app/v2/apps/server/package.json ./apps/server/
 COPY --from=build /app/v2/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build /app/v2/apps/server/dist ./apps/server/dist
-COPY --from=build /app/v2/apps/server/src/web/addons ./apps/server/src/web/addons
+COPY --from=build /app/v2/apps/server/src/modules/web/addons ./apps/server/src/modules/web/addons
 # today's UI, templates and offline pricing sources (served/used unchanged)
 COPY src/public /app/src/public
 COPY src/templates /app/src/templates

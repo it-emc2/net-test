@@ -5,7 +5,7 @@
 // Uses the normal config (MONGODB_URI …): outside NODE_ENV=production only a local DB is accepted.
 import { loadConfig } from "@oc/config";
 import mongoose from "mongoose";
-import { connectDb, disconnectDb } from "../db.js";
+import { connectDb, disconnectDb } from "../platform/db.js";
 import { MIGRATIONS, exportDealDraftsToLegacy } from "../migrations/index.js";
 
 const args = process.argv.slice(2);
