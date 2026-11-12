@@ -5,9 +5,10 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router";
 import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
-import { Card, CardTitle, Check, Field } from "../../../shared/ui/index.js";
+import { Card, CardTitle, Check, Field, SelectField, TextAreaField } from "../../../shared/ui/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
-import { MAIN_OPTIONS, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
+import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
+import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 
 const KD = "Kundendaten";
@@ -149,7 +150,6 @@ const kdNow = (): Record<string, unknown> => (useOfferStore.getState().offer as 
 const setKd = (fields: Record<string, unknown>) => useOfferStore.getState().patch(KD as never, fields as never);
 
 function CareLevel() {
-  const { dealId = "" } = useParams();
   const type = useOfferType();
   const payer = useOfferField<string>(KD, "payer");
   const has = useOfferField<string>(KD, "hasPflegegrad");
@@ -161,6 +161,12 @@ function CareLevel() {
   const copayAmount = useOfferField<number>(KD, "copayAmount") ?? 0;
   if (payer !== "Kassenkunde") return null; // not asked for a Selbstzahler (as today)
   const ticked = { budgetMax, twoPersons, premium };
+  const pickMain = (m: MainOption, on: boolean) => {
+    const st = useOfferStore.getState();
+    const kd = kdNow();
+    if (m === "twoPersons" && !on) st.remember("partner", Object.fromEntries(PARTNER_ENTRIES.filter((f) => f in kd && kd[f] !== "").map((f) => [f, kd[f]])));
+    setKd(toggleMainOption(kd, m, on, m === "twoPersons" && on ? ((st.scratch.partner as Record<string, unknown> | undefined) ?? {}) : {}));
+  };
   const anyMain = budgetMax || twoPersons || premium;
   // "beantragt" is offered for Badumbau and Alltagshilfe only; the budget options not for Alltagshilfe
   const levels = ["1", "2", "3", "4", "5", ...(type === "bu" || type === "ah" ? ["beantragt"] : [])];
@@ -176,7 +182,7 @@ function CareLevel() {
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
           <legend className="mb-1.5 p-0 font-semibold">Budget</legend>
           {(Object.keys(MAIN_OPTIONS) as MainOption[]).map((m) => (
-            <Check key={m} id={`kd-${m}`} checked={ticked[m]} onChange={(on) => setKd(toggleMainOption(kdNow(), m, on))}>{MAIN_OPTIONS[m].label}</Check>
+            <Check key={m} id={`kd-${m}`} checked={ticked[m]} onChange={(on) => pickMain(m, on)}>{MAIN_OPTIONS[m].label}</Check>
           ))}
           <Check id="kd-budgetCopay" checked={copay} disabled={!anyMain} onChange={(on) => setKd(toggleCopay(kdNow(), on))}>Mögliche Zuzahlung durch Kunden</Check>
           {copay ? (
@@ -186,14 +192,65 @@ function CareLevel() {
             />
           ) : null}
           <p className="m-0" aria-live="polite">Anrechenbares Budget <strong>{budgetReadout({ budgetMax, twoPersons, copayAmount })}</strong></p>
-          {twoPersons ? (
-            <>
-              <p className="m-0 text-[0.95rem] text-muted-foreground">Die Angaben zur zweiten Person werden noch in der bisherigen Ansicht eingetragen.</p>
-              <LegacyLink dealId={dealId} step="Kundendaten">Zweite Person in der bisherigen Ansicht eintragen</LegacyLink>
-            </>
-          ) : null}
         </fieldset>
       ) : null}
+    </Card>
+  );
+}
+
+/** The second person of a two-person offer. On the page while "2 Personen" is ticked — and, as
+ *  today, also while its entries are still stored after another budget option replaced it. */
+function SecondPerson() {
+  const payer = useOfferField<string>(KD, "payer");
+  const two = !!useOfferField(KD, "twoPersons");
+  const kept = useOfferField(KD, "partnerFirstName") !== undefined;
+  const salutation = useOfferField<string>(KD, "partnerSalutation") ?? "";
+  if (payer !== "Kassenkunde" || !(two || kept)) return null;
+  return (
+    <Card aria-labelledby="kd-partner">
+      <CardTitle id="kd-partner">Zweite Person</CardTitle>
+      <SelectField label="Anrede Partner" id="kd-partnerSalutation" value={salutation} onChange={(v) => setKd({ partnerSalutation: v })} options={[{ value: "", label: "Bitte wählen" }, { value: "Herr", label: "Herr" }, { value: "Frau", label: "Frau" }]} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <OfferText section={KD} name="partnerFirstName" label="Vorname Partner" autoComplete="off" />
+        <OfferText section={KD} name="partnerLastName" label="Nachname Partner" autoComplete="off" />
+      </div>
+      <OfferChoice section={KD} name="partnerPflegegrad" label="Pflegegrad Partner" options={["1", "2", "3", "4", "5"]} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <OfferText section={KD} name="partnerGeburtsdatum" label="Geburtsdatum Partner" type="date" />
+        <OfferText section={KD} name="partnerKvnr" label="KVNR Partner" autoComplete="off" />
+        <OfferText section={KD} name="partnerKassenkundeName" label="Name der Krankenkasse Partner" placeholder="z. B. AOK Nord" autoComplete="off" />
+        <OfferText section={KD} name="partnerPflegegradSeit" label="Pflegegrad seit (Partner)" type="month" />
+      </div>
+      <OfferText section={KD} name="partnerKrankenkasseAdresse" label="Adresse der Krankenkasse (Partner)" autoComplete="off" />
+    </Card>
+  );
+}
+
+/** Funding (application to the Pflegekasse), living situation, landlord, parking and notes. */
+function Property() {
+  const type = useOfferType();
+  const payer = useOfferField<string>(KD, "payer");
+  const application = useOfferField<string>(KD, "pflegekasseAntrag");
+  const living = useOfferField<string>(KD, "wohnsituation");
+  const notes = useOfferField<string>(KD, "notes") ?? "";
+  const notAh = type !== "ah"; // Alltagshilfe asks only about parking and notes here
+  const JA_NEIN = ["Ja", "Nein"];
+  return (
+    <Card aria-labelledby="kd-property">
+      <CardTitle id="kd-property">Förderung und Objekt</CardTitle>
+      {notAh && payer === "Kassenkunde" ? (
+        <>
+          <OfferChoice section={KD} name="pflegekasseAntrag" label="Antrag auf Zuschuss bei Pflegekasse gestellt?" options={JA_NEIN} onChoose={(v) => setKd(chooseApplication(v))} />
+          {application === "Ja" ? <OfferChoice section={KD} name="pflegekasseGenehmigung" label="Genehmigung von Pflegekasse ist vorhanden?" options={JA_NEIN} /> : null}
+          {application === "Nein" ? <OfferChoice section={KD} name="pflegekasseEmc2Antrag" label="Darf EmC2 für Sie diesen Antrag stellen?" options={JA_NEIN} /> : null}
+        </>
+      ) : null}
+      {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd(chooseLivingSituation(v))} /> : null}
+      {type === "bu" || type === "bwt" || type === "hl" ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
+      {notAh && living === "Miete" ? <OfferChoice section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]} /> : null}
+      <OfferChoice section={KD} name="parkenMoeglich" label="Parken vor dem Objekt möglich?" options={JA_NEIN} />
+      <OfferText section={KD} name="parkDetails" label="Weitere Angaben zur Parksituation" placeholder="z. B. Hinterhof, Halteverbot, Fußweg zum Objekt" autoComplete="off" />
+      <TextAreaField label="Notizen" id="kd-notes" value={notes} onChange={(v) => setKd({ notes: v })} placeholder="Freie Notizen …" />
     </Card>
   );
 }
@@ -221,9 +278,11 @@ export function Kundendaten() {
       <ContactPerson />
       <Payer />
       <CareLevel />
+      <SecondPerson />
+      <Property />
       <Card aria-labelledby="kd-more">
         <CardTitle id="kd-more">Weitere Angaben</CardTitle>
-        <p className="m-0">Aufschlag, zweite Person, Wohnumfeld, Angaben zum Objekt und Notizen werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0">Aufschlag, Wohnumfeld, hochgeladene Bestätigungen (Kasse, Vermieter) und interne Aufgaben werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
       </Card>
     </>

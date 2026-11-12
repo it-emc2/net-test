@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import contact from "./fixtures/kundendaten-contact.json" with { type: "json" };
 import care from "./fixtures/kundendaten-care.json" with { type: "json" };
+import object from "./fixtures/kundendaten-object.json" with { type: "json" };
+import partner from "./fixtures/kundendaten-partner.json" with { type: "json" };
 import payer from "./fixtures/kundendaten-payer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -20,6 +22,10 @@ const LABEL: Record<string, string> = {
   cp_postalCode: "PLZ des Ansprechpartners",
   kassenkundeName: "Name der Krankenkasse", kk_krankenkasseAdresse: "Adresse der Krankenkasse", kk_pflegegradSeit: "Pflegegrad seit",
   copayAmount: "Zuzahlung in €",
+  partnerSalutation: "Anrede Partner", partnerFirstName: "Vorname Partner", partnerLastName: "Nachname Partner", partnerKassenkundeName: "Name der Krankenkasse Partner",
+  partnerGeburtsdatum: "Geburtsdatum Partner", partnerKvnr: "KVNR Partner", partnerPflegegradSeit: "Pflegegrad seit (Partner)",
+  partnerKrankenkasseAdresse: "Adresse der Krankenkasse (Partner)", parkDetails: "Weitere Angaben zur Parksituation", notes: "Notizen",
+  stockwerkBadSonst: "Bitte Stockwerk angeben",
 };
 const TICK: Record<string, string> = {
   budgetMax: "4.180 € MAXIMAL", budgetCopay: "Mögliche Zuzahlung durch Kunden", twoPersons: "2 Personen mit Pflegegrad (+ 4.180 €)", premium: "Premium",
@@ -27,8 +33,14 @@ const TICK: Record<string, string> = {
 const GROUP: Record<string, string> = {
   salutation: "Anrede", customerType: "Neukunde oder Bestandskunde?", hasContactPerson: "Ansprechpartner vorhanden?", cp_salutation: "Anrede des Ansprechpartners",
   payer: "Ist der Kunde Selbstzahler oder Kassenkunde?", kk_rechnungskopie: "Kassen-Rechnungskopie gewünscht?", kk_rechnungskopie_art: "Rechnungskopie per Post oder per E-Mail?",
-  hasPflegegrad: "Kunde hat Pflegegrad?", pflegegrad: "Welchen Pflegegrad?",
+  hasPflegegrad: "Kunde hat Pflegegrad?", pflegegrad: "Welchen Pflegegrad?", partnerPflegegrad: "Pflegegrad Partner",
+  pflegekasseAntrag: "Antrag auf Zuschuss bei Pflegekasse gestellt?", pflegekasseGenehmigung: "Genehmigung von Pflegekasse ist vorhanden?",
+  pflegekasseEmc2Antrag: "Darf EmC2 für Sie diesen Antrag stellen?", wohnsituation: "Angabe zur Wohnsituation",
+  vermieterGenehmigungErforderlich: "Genehmigung des Vermieters erforderlich?", vermieterGenehmigung: "Genehmigung des Vermieters liegt vor?",
+  parkenMoeglich: "Parken vor dem Objekt möglich?", zugangWohnung: "Zugang zur Wohnung", badStockwerk: "In welchem Stockwerk befindet sich das Bad?",
 };
+/** is the question of this field on the React page? */
+const onPage = (field: string) => (GROUP[field] ? !!screen.queryByRole("group", { name: GROUP[field] }) : !!screen.queryByLabelText(LABEL[field]!, { exact: true }));
 const CONTEXT = ["date", "ansprechpartner", "emc2_contact"]; // the day and the user — not input
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -38,10 +50,19 @@ async function open(type: string) {
   renderApp(`/deal/${KEY}/${type}/Kundendaten`);
   await screen.findByRole("heading", { name: "Kontaktdaten des Kunden" });
 }
-async function play(steps: [string, string, string][]) {
+/** `skipped`: fields whose control today's UI does not show for this offer type — the step is
+ *  not made, and the React page must not offer that control either. */
+async function play(steps: [string, string, string][], skipped: string[] = []) {
   const user = userEvent.setup();
   for (const [kind, field, value] of steps) {
-    if (kind === "radio") {
+    if (skipped.includes(field)) {
+      const option = kind === "radio" && GROUP[field] ? screen.queryByRole("group", { name: GROUP[field] })?.querySelector(`input[value="${value}"]`) : null;
+      expect(kind === "radio" ? option ?? null : onPage(field) ? "on page" : null, `${field} must not be offered`).toBeNull();
+      continue;
+    }
+    if (kind === "select") {
+      await user.selectOptions(screen.getByLabelText(LABEL[field]!, { exact: true }), value);
+    } else if (kind === "radio") {
       const group = screen.getByRole("group", { name: GROUP[field]! });
       await user.click(Array.from(group.querySelectorAll("input")).find((i) => i.value === value)!);
     } else if (kind === "check") {
@@ -49,7 +70,7 @@ async function play(steps: [string, string, string][]) {
       if (box.checked !== (value === "on")) await user.click(box);
     } else {
       const input = screen.getByLabelText(LABEL[field]!, { exact: true }) as HTMLInputElement;
-      if (input.type === "month" || input.type === "date" || input.type === "number") fireEvent.change(input, { target: { value } });
+      if (input.type === "month" || input.type === "date" || input.type === "number") { fireEvent.change(input, { target: { value } }); fireEvent.blur(input); }
       else { await user.clear(input); await user.type(input, value); }
     }
   }
@@ -185,5 +206,26 @@ describe("Kundendaten stores what today's UI stores — care level and budget, e
     await open("ah");
     await play([["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "beantragt"]]);
     expect(screen.queryByRole("group", { name: "Budget" })).toBeNull();
+  });
+});
+
+describe.each([
+  ["the second person", partner.scenarios],
+  ["funding, property and notes", object.scenarios],
+] as const)("Kundendaten stores what today's UI stores — %s, every offer type", (_part, scenarios) => {
+  it.each(scenarios.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, scenario) => {
+    await open(scenario.type);
+    await play(scenario.steps as [string, string, string][], scenario.skipped);
+    expect(stored()).toEqual(scenario.kundendaten);
+    expect(outsideChanges(scenario.type)).toEqual(scenario.outside);
+    // the same questions are on the page. (Left out: after Selbstzahler → Kassenkunde today's UI
+    // shows the Pflegekasse question in Alltagshilfe although it never offers it there otherwise.)
+    for (const [field, shown] of Object.entries(scenario.questions)) {
+      if (scenario.type === "ah" && field === "pflegekasseAntrag") continue;
+      // Also left out: after that switch today's UI stores the approval answer but hides its
+      // question until the application answer is touched again; the React page shows it.
+      if (scenario.name.includes("back to Kassenkunde") && field === "pflegekasseGenehmigung") continue;
+      expect([field, onPage(field)]).toEqual([field, shown]);
+    }
   });
 });

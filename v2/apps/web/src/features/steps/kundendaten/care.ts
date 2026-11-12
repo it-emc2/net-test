@@ -56,8 +56,13 @@ export function chooseHasCareLevel(kd: Fields, answer: "Ja" | "Nein"): Fields {
   };
 }
 
-/** Tick or untick one of the three main options; only one of them can be set. */
-export function toggleMainOption(kd: Fields, option: MainOption, on: boolean): Fields {
+/** the second person's entries that go when "2 Personen" is unticked by hand (the Anrede stays, as today) */
+export const PARTNER_ENTRIES = [...PARTNER_FIELDS, "partnerPflegegrad"] as const;
+
+/** Tick or untick one of the three main options; only one of them can be set.
+ *  `rememberedPartner`: the second person's entries from before "2 Personen" was unticked — they
+ *  come back when it is ticked again (as today). */
+export function toggleMainOption(kd: Fields, option: MainOption, on: boolean, rememberedPartner: Fields = {}): Fields {
   const out: Fields = {};
   for (const m of MAINS) out[m] = m === option && on ? MAIN_OPTIONS[m].value : m === option ? undefined : on ? undefined : kd[m];
   const after = { ...kd, ...out };
@@ -66,9 +71,10 @@ export function toggleMainOption(kd: Fields, option: MainOption, on: boolean): F
   if (option === "twoPersons") {
     if (on) {
       for (const f of PARTNER_FIELDS) if (!(f in kd)) out[f] = "";
+      Object.assign(out, rememberedPartner);
       Object.assign(out, twoPersonsTexts({ ...kd, ...out }));
     } else {
-      for (const f of PARTNER_FIELDS) out[f] = undefined; // unticked by the user: the second person is no longer stored
+      for (const f of PARTNER_ENTRIES) out[f] = undefined; // unticked by the user: the second person is no longer stored
       Object.assign(out, { kundenName: "", greetingLine: "" });
     }
   } else if (on && kd.twoPersons) {

@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEBOUNCE_MS } from "../src/features/offer/model/usePrice.js";
@@ -187,10 +187,24 @@ describe("header and sidebar", () => {
     expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
     expect(nav).toHaveTextContent("II · Material für Badumbau");
     // narrow screens: the list folds behind a button that names the open step
-    const toggle = screen.getByRole("button", { name: /Schritt: Duschwanne/ });
+    const toggle = screen.getByRole("button", { name: /Schritt 4 von 16 ·\s*Duschwanne/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("Weiter and Zurück lead through the steps in order; none before the first, none after the last", async () => {
+    fakeServer(BASE);
+    const router = renderApp(`/deal/${TEMP}/bl/Kundendaten`);
+    await screen.findByLabelText("Vorname");
+    expect(screen.queryByRole("link", { name: /^Zurück zu/ })).toBeNull();
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${TEMP}/bl/Arbeitszeit`));
+    await userEvent.click(await screen.findByRole("link", { name: "Zurück zu Kundendaten" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${TEMP}/bl/Kundendaten`));
+    await userEvent.click(within(screen.getByRole("navigation", { name: "Schritte" })).getByRole("link", { name: /Angebotsversand/ }));
+    await screen.findByRole("link", { name: "Zurück zu Kosten" });
+    expect(screen.queryByRole("link", { name: /^Weiter zu/ })).toBeNull();
   });
 });
 

@@ -78,7 +78,50 @@ const FILES = {
     "care level 3 with budget, Selbstzahler, back to Kassenkunde": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["check", "budgetCopay", "on"], ["text", "copayAmount", "250"], ["radio", "payer", "Selbstzahler"], ["radio", "payer", "Kassenkunde"]] },
     "care level 3 with budget, then Selbstzahler": { only: NOT_AH, steps: [["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "budgetMax", "on"], ["radio", "payer", "Selbstzahler"]] },
   },
+  // the second person of a two-person offer (["select", name, value] chooses from a list)
+  "kundendaten-partner.json": {
+    "second person with all details": { only: NOT_AH, steps: [
+      ["radio", "salutation", "Frau"], ["text", "firstName", "Erika"], ["text", "lastName", "Mustermann"],
+      ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"],
+      ["select", "partnerSalutation", "Herr"], ["text", "partnerFirstName", "Max"], ["text", "partnerLastName", "Mustermann"], ["radio", "partnerPflegegrad", "2"],
+      ["text", "partnerKassenkundeName", "BKK Test"], ["text", "partnerGeburtsdatum", "1941-05-06"], ["text", "partnerKvnr", "B987654321"],
+      ["text", "partnerPflegegradSeit", "2023-09"], ["text", "partnerKrankenkasseAdresse", "Kassenweg 2, 95028 Hof"],
+    ] },
+    "second person entered, then two persons unticked": { only: NOT_AH, steps: [
+      ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"],
+      ["select", "partnerSalutation", "Frau"], ["text", "partnerFirstName", "Eva"], ["text", "partnerLastName", "Probe"], ["radio", "partnerPflegegrad", "4"],
+      ["check", "twoPersons", "off"],
+    ] },
+    "second person entered, then maximal instead": { only: NOT_AH, steps: [
+      ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"],
+      ["select", "partnerSalutation", "Frau"], ["text", "partnerFirstName", "Eva"], ["text", "partnerLastName", "Probe"], ["radio", "partnerPflegegrad", "4"],
+      ["check", "budgetMax", "on"],
+    ] },
+    "second person entered, unticked and ticked again": { only: NOT_AH, steps: [
+      ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"],
+      ["select", "partnerSalutation", "Frau"], ["text", "partnerFirstName", "Eva"], ["text", "partnerLastName", "Probe"],
+      ["check", "twoPersons", "off"], ["check", "twoPersons", "on"],
+    ] },
+  },
+  // funding and property details, notes. A step whose control is not on the page for that offer
+  // type is not made; it is listed under `skipped`.
+  "kundendaten-object.json": {
+    "application made and approved": [["radio", "pflegekasseAntrag", "Ja"], ["radio", "pflegekasseGenehmigung", "Ja"]],
+    "application approved, then not made: may EmC2 apply": [["radio", "pflegekasseAntrag", "Ja"], ["radio", "pflegekasseGenehmigung", "Nein"], ["radio", "pflegekasseAntrag", "Nein"], ["radio", "pflegekasseEmc2Antrag", "Ja"]],
+    "rented, landlord approval needed and pending": [["radio", "wohnsituation", "Miete"], ["radio", "vermieterGenehmigungErforderlich", "Ja"], ["radio", "vermieterGenehmigung", "Noch ausstehend"]],
+    "rented with approval, then owned": [["radio", "wohnsituation", "Miete"], ["radio", "vermieterGenehmigungErforderlich", "Nein"], ["radio", "vermieterGenehmigung", "Ja"], ["radio", "wohnsituation", "Eigentum"]],
+    "stairs only, bathroom on another floor": [["radio", "zugangWohnung", "Nur Treppe"], ["radio", "badStockwerk", "Anderes OG"], ["text", "stockwerkBadSonst", "3. OG"]],
+    "another floor named, then ground floor": [["radio", "zugangWohnung", "Aufzug vorhanden"], ["radio", "badStockwerk", "Anderes OG"], ["text", "stockwerkBadSonst", "DG"], ["radio", "badStockwerk", "EG"]],
+    "parking and notes": [["radio", "parkenMoeglich", "Nein"], ["text", "parkDetails", "Hinterhof, Halteverbot"], ["text", "notes", "Bitte klingeln bei Probe"]],
+    "living with relatives, parking possible": [["radio", "wohnsituation", "bei Angehörigen"], ["radio", "parkenMoeglich", "Ja"]],
+    "application answers, Selbstzahler, back to Kassenkunde": [["radio", "pflegekasseAntrag", "Ja"], ["radio", "pflegekasseGenehmigung", "Ja"], ["radio", "wohnsituation", "Miete"], ["radio", "payer", "Selbstzahler"], ["radio", "payer", "Kassenkunde"]],
+    "application answers, then Selbstzahler": [["radio", "pflegekasseAntrag", "Nein"], ["radio", "pflegekasseEmc2Antrag", "Nein"], ["radio", "wohnsituation", "Miete"], ["radio", "payer", "Selbstzahler"]],
+  },
 };
+// which of these questions are on the page at the end (by field name)
+const QUESTIONS = ["pflegekasseAntrag", "pflegekasseGenehmigung", "pflegekasseEmc2Antrag", "wohnsituation", "vermieterGenehmigungErforderlich", "vermieterGenehmigung",
+  "zugangWohnung", "badStockwerk", "stockwerkBadSonst", "parkenMoeglich", "parkDetails", "notes",
+  "partnerSalutation", "partnerFirstName", "partnerPflegegrad", "partnerKvnr"];
 const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
 // what is on the page (not hidden) after the steps — the React screen shows the same parts
 const PROBE = ["kassenkundeDetails", "kkRechnungskopieArtField", "kk_geburtsdatum", "kk_versichertennr", "pflegegradSection", "pflegekasseAntragRow",
@@ -128,8 +171,9 @@ function changesOutside(base, now) {
       await page.waitForFunction(() => location.hash === "#Kundendaten");
       await page.waitForTimeout(1500);
       const base = await page.evaluate(() => window.buildPayload());
+      const skipped = [];
       for (const [kind, field, value] of steps) {
-        await page.evaluate(([k, f, v]) => {
+        const made = await page.evaluate(([k, f, v]) => {
           // choosing / typing like a user: set the control, then tell the page
           const el = k === "radio"
             ? document.querySelector(`#form-Kundendaten input[type=radio][name="${f}"][value="${v}"]`)
@@ -137,12 +181,16 @@ function changesOutside(base, now) {
           if (k === "check") { // a real click: the page's own handlers decide what else changes
             const box = document.querySelector(`#form-Kundendaten input[type=checkbox][name="${f}"]`);
             if (box.checked !== (v === "on")) box.click();
-            return;
+            return true;
           }
+          // a control that is not on the page for this offer type cannot be used by anyone
+          if (!el || (el.closest("label") || el).getClientRects().length === 0 || el.disabled) return false;
           if (k === "radio") el.checked = true; else el.value = v;
           el.dispatchEvent(new Event("input", { bubbles: true }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
         }, [kind, field, value]);
+        if (!made) skipped.push(field);
         await page.waitForTimeout(60);
       }
       await page.waitForTimeout(600);
@@ -156,6 +204,13 @@ function changesOutside(base, now) {
       const entry = { name, steps, kundendaten: sortKeys(kd) };
       entry.outside = sortKeys(changesOutside(base, now));
       if (file !== "kundendaten-contact.json") { entry.type = type; entry.shown = shown; }
+      if (file === "kundendaten-object.json" || file === "kundendaten-partner.json") {
+        entry.skipped = skipped;
+        entry.questions = await page.evaluate((names) => Object.fromEntries(names.map((n) => {
+          const el = document.querySelector(`#form-Kundendaten [name="${n}"]`);
+          return [n, !!el && !el.disabled && (el.closest("label") || el).getClientRects().length > 0];
+        })), QUESTIONS);
+      }
       if (file === "kundendaten-care.json") entry.budgetText = await page.evaluate(() => (document.getElementById("pgbBudgetOut")?.innerText || "").replace(/\s+/g, " ").trim());
       out.scenarios.push(entry);
       console.log(`${file} · ${type} · ${name}: ${Object.keys(kd).length} keys`);
