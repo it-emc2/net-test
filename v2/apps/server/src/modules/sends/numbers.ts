@@ -7,8 +7,8 @@
 // → the server hands out a new unique number, which the app puts into the form.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose, { Schema } from "mongoose";
-import { Draft, Offer } from "../models.js";
-import { DealDraft } from "../deal-drafts/store.js";
+import { Draft, Offer } from "../../platform/models.js";
+import { DealDraft } from "../deal-drafts/index.js";
 import { OfferSend } from "./store.js";
 
 const model = <T>(name: string, schema: Schema<T>) =>

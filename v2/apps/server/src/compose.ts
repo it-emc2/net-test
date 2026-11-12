@@ -1,4 +1,5 @@
-// API routes ported from the legacy app (phase 4, group 1: auth, catalog, pricing).
+// Composition root: builds the shared services and registers every module (ADR 026). Still holds
+// the auth, catalog-read and price routes of phase 4 group 1 until they move into their modules.
 // Success payloads are identical to legacy (contract test: test/contract.test.ts).
 // Errors use the v2 format { error: { code, message, requestId } } with the legacy German text.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -6,48 +7,48 @@ import type { AppConfig as Cfg } from "@oc/config";
 import { createPricingEngine } from "@oc/pricing";
 import {
   clearSessionCookie, createToken, sessionCookie, shouldRefresh, tokenFromHeaders, verifyPassword, verifyToken,
-} from "../auth.js";
-import { BusinessConfig, CONFIG_SCHEMA } from "../business-config.js";
-import { AppConfig, Draft, Offer, Product, Service, User } from "../models.js";
-import { vigorPriceFetcher } from "../vigor.js";
-import { registerOffersRead } from "./offers-read.js";
-import { registerOffersWrite } from "./offers-write.js";
-import { registerDealDrafts } from "../deal-drafts/routes.js";
-import { registerSends } from "../sends/routes.js";
-import { sentOfferRecorder } from "../sends/offer-record.js";
-import { registerOfferNumbers } from "../sends/numbers.js";
-import { registerGroup3 } from "./group3.js";
-import { registerBitrixRead } from "./bitrix-read.js";
-import { BitrixClient } from "../integrations/bitrix.js";
-import { BitrixLog, PDF_LOG_APP, PdfLog } from "../models.js";
-import { dealWrites } from "../integrations/bitrix-deal.js";
-import { PlanningClient } from "../integrations/planning.js";
-import { registerBitrixWrite } from "./bitrix-write.js";
+} from "./platform/auth.js";
+import { BusinessConfig, CONFIG_SCHEMA } from "./platform/business-config.js";
+import { AppConfig, Draft, Offer, Product, Service, User } from "./platform/models.js";
+import { vigorPriceFetcher } from "./integrations/vigor.js";
+import { registerOffersRead } from "./routes/offers-read.js";
+import { registerOffersWrite } from "./routes/offers-write.js";
+import { registerDealDrafts } from "./modules/deal-drafts/index.js";
+import { registerSends } from "./modules/sends/index.js";
+import { sentOfferRecorder } from "./modules/sends/index.js";
+import { registerOfferNumbers } from "./modules/sends/index.js";
+import { registerGroup3 } from "./routes/group3.js";
+import { registerBitrixRead } from "./routes/bitrix-read.js";
+import { BitrixClient } from "./integrations/bitrix.js";
+import { BitrixLog, PDF_LOG_APP, PdfLog } from "./platform/models.js";
+import { dealWrites } from "./integrations/bitrix-deal.js";
+import { PlanningClient } from "./integrations/planning.js";
+import { registerBitrixWrite } from "./routes/bitrix-write.js";
 import { fileURLToPath } from "node:url";
-import { Mailer, type MailConfig } from "../integrations/mail.js";
-import { registerEmail } from "./email.js";
-import { registerPost } from "./post.js";
-import { registerRouting, registerTodaysCustomers } from "./routing.js";
-import { registerMagic } from "./magic.js";
-import { registerSigning } from "./signing.js";
-import { registerMisc } from "./misc.js";
-import { registerCatalog } from "./catalog.js";
-import { registerDocuments } from "./documents.js";
-import { registerRetired } from "./retired.js";
-import { registerWeb } from "../web/register.js";
-import { Gotenberg, withPdfLog, type PdfEngine } from "../integrations/gotenberg.js";
-import type { SigningRenderer } from "../signing/documents.js";
-import { MagicApi } from "../integrations/magic.js";
-import { RoutingService } from "../routing/providers.js";
-import { todaysCustomers } from "../integrations/todays-customers.js";
-import { Onlinebrief24 } from "../integrations/onlinebrief24.js";
-import { UNAVAILABLE_DOCUMENTS, type OfferDocuments, type SigningPort } from "../email/ports.js";
+import { Mailer, type MailConfig } from "./integrations/mail.js";
+import { registerEmail } from "./routes/email.js";
+import { registerPost } from "./routes/post.js";
+import { registerRouting, registerTodaysCustomers } from "./routes/routing.js";
+import { registerMagic } from "./routes/magic.js";
+import { registerSigning } from "./routes/signing.js";
+import { registerMisc } from "./routes/misc.js";
+import { registerCatalog } from "./routes/catalog.js";
+import { registerDocuments } from "./routes/documents.js";
+import { registerRetired } from "./routes/retired.js";
+import { registerWeb } from "./web/register.js";
+import { Gotenberg, withPdfLog, type PdfEngine } from "./integrations/gotenberg.js";
+import type { SigningRenderer } from "./signing/documents.js";
+import { MagicApi } from "./integrations/magic.js";
+import { RoutingService } from "./routing/providers.js";
+import { todaysCustomers } from "./integrations/todays-customers.js";
+import { Onlinebrief24 } from "./integrations/onlinebrief24.js";
+import { UNAVAILABLE_DOCUMENTS, type OfferDocuments, type SigningPort } from "./email/ports.js";
 
 /** Until the frontend moves (phase 6) v2 serves the legacy app's static assets. */
-const LEGACY_ASSETS = fileURLToPath(new URL("../../../../../src/public/assets", import.meta.url));
-const LEGACY_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
-const LEGACY_PUBLIC = fileURLToPath(new URL("../../../../../src/public", import.meta.url));
-const LEGACY_SIGN_PAGE = fileURLToPath(new URL("../../../../../src/public/signpage/index.html", import.meta.url));
+const LEGACY_ASSETS = fileURLToPath(new URL("../../../../src/public/assets", import.meta.url));
+const LEGACY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+const LEGACY_PUBLIC = fileURLToPath(new URL("../../../../src/public", import.meta.url));
+const LEGACY_SIGN_PAGE = fileURLToPath(new URL("../../../../src/public/signpage/index.html", import.meta.url));
 
 /** Escape user input for RegExp (fixes SECURITY-FINDINGS #11: ReDoS / regex injection). */
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

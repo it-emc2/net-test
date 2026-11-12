@@ -8,8 +8,8 @@
 import { timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildExternalSearchResult, mapSearchResult, nameSearchRegex } from "../legacy/search.js";
-import { Draft, Offer, Product, Service, Submission } from "../models.js";
-import { getVigorDb, vigorPriceFetcher } from "../vigor.js";
+import { Draft, Offer, Product, Service, Submission } from "../platform/models.js";
+import { getVigorDb, vigorPriceFetcher } from "../integrations/vigor.js";
 import { SEARCH_FIELDS } from "./offers-read.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>

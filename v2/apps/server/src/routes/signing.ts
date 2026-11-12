@@ -8,13 +8,13 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { SigningRequest } from "../models.js";
+import { SigningRequest } from "../platform/models.js";
 import type { DealWrites } from "../integrations/bitrix-deal.js";
 import { STAGES } from "../integrations/bitrix-deal.js";
 import type { Mailer } from "../integrations/mail.js";
 import { buildEmailHtml } from "../email/template.js";
 import { resolveAnsprechpartner } from "./offers-write.js";
-import { tokenFromHeaders, verifyToken } from "../auth.js";
+import { tokenFromHeaders, verifyToken } from "../platform/auth.js";
 import { injectHead } from "../web/register.js";
 import {
   DEFAULT_EXPIRY_DAYS, REQUIRED_FIELDS_BY_KEY, baseDocKey, buildGreetingLine, deriveBitrixTarget, deriveCustomerType,
@@ -24,9 +24,9 @@ import { documentHtml, documentPdf, signedPdf, type SigningRenderer } from "../s
 import {
   OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
   sendForSigning, storeSendFile, type SendFile,
-} from "../sends/store.js";
-import { offerIdentity } from "../sends/identity.js";
-import type { EnsureSentOffer } from "../sends/offer-record.js";
+} from "../modules/sends/index.js";
+import { offerIdentity } from "../modules/sends/index.js";
+import type { EnsureSentOffer } from "../modules/sends/index.js";
 
 export interface SigningDeps {
   deals: Pick<DealWrites, "addTimelineComment" | "updateDealAfterSigning" | "ensurePartnerContact" | "getDealContactId" | "addTask">;

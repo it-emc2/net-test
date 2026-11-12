@@ -4,9 +4,9 @@
 // "public" config subset requires a login (legacy: reachable without session).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
-import { createToken, hashPassword, sessionCookie, verifyPassword } from "../auth.js";
-import { CONFIG_SCHEMA, type BusinessConfig } from "../business-config.js";
-import { AppConfig, BitrixLog, Customer, PDF_LOG_APP, PdfLog, User, UserActionLog } from "../models.js";
+import { createToken, hashPassword, sessionCookie, verifyPassword } from "../platform/auth.js";
+import { CONFIG_SCHEMA, type BusinessConfig } from "../platform/business-config.js";
+import { AppConfig, BitrixLog, Customer, PDF_LOG_APP, PdfLog, User, UserActionLog } from "../platform/models.js";
 
 declare module "fastify" { interface FastifyContextConfig { admin?: boolean } }
 

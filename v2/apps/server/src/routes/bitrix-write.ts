@@ -5,7 +5,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { BitrixClient } from "../integrations/bitrix.js";
 import { AH_FIELD, DEAL_ENTITY_TYPE_ID, DEAL_UPLOADS, INVOICE_COPY_ENUM, STAGES, buildAhBitrixFields, type DealWrites } from "../integrations/bitrix-deal.js";
 import type { PlanningClient } from "../integrations/planning.js";
-import { BitrixLog, User, UserActionLog } from "../models.js";
+import { BitrixLog, User, UserActionLog } from "../platform/models.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });

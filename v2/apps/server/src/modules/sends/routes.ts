@@ -1,7 +1,7 @@
 // Send records API (ADR 023) — new in v2. Read-only: status of one send (the client polls it
 // when its connection dropped mid-send), the sends of an offer, and the stored files.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { buildInternalNoteComment, type DealWrites } from "../integrations/bitrix-deal.js";
+import { buildInternalNoteComment, type DealWrites } from "../../integrations/bitrix-deal.js";
 import { OfferSend, SEND_ID, readSendFile, recordStep, sendView, type SendFile } from "./store.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>

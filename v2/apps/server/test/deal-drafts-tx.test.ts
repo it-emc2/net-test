@@ -5,7 +5,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DealDraft, DealDraftRevision, RevisionConflictError, migrateDealDraftIndexes, resetTransactionSupportCache, saveDealDraft, supportsTransactions,
-} from "../src/deal-drafts/store.js";
+} from "../src/modules/deal-drafts/store.js";
 
 let rs: MongoMemoryReplSet;
 beforeAll(async () => {

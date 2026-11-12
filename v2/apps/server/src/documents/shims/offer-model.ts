@@ -1,2 +1,2 @@
-import { Offer } from "../../models.js";
+import { Offer } from "../../platform/models.js";
 export default Offer;

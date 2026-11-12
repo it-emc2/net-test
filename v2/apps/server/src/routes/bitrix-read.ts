@@ -3,7 +3,7 @@
 // recording Bitrix stub). Writes to Bitrix (stage moves, timeline, uploads) follow in part 2.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { BitrixClient } from "../integrations/bitrix.js";
-import { UserActionLog } from "../models.js";
+import { UserActionLog } from "../platform/models.js";
 
 const OWNER_TYPE = { contact: 3, company: 4 };
 const VERMIETER_FIELD = "UF_CRM_1791270927983";

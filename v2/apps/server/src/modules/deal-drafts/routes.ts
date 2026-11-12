@@ -1,7 +1,7 @@
 // Deal draft API (ADR 007) — new in v2, used by /deal/:dealId in the web app.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
-import { Draft, Offer } from "../models.js";
+import { Draft, Offer } from "../../platform/models.js";
 import {
   adoptTempDraft, getDealDraft, listRevisions, payloadAt, RevisionConflictError, saveDealDraft, TEMP_KEY,
 } from "./store.js";

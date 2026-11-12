@@ -35,11 +35,11 @@ export function legacyRoutes() {
 
 export function v2Routes() {
   const out = new Set();
-  const files = [
-    ...fs.readdirSync(path.join(ROOT, "v2/apps/server/src/routes")).map((f) => `v2/apps/server/src/routes/${f}`),
-    "v2/apps/server/src/app.ts",
-    "v2/apps/server/src/web/register.ts",
-  ];
+  // every v2 source file that registers routes itself (generated legacy copies are handled below)
+  const SRC = "v2/apps/server/src";
+  const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? (e.name === "ported" || e.name === "addons" ? [] : walk(`${dir}/${e.name}`)) : e.name.endsWith(".ts") ? [`${dir}/${e.name}`] : []);
+  const files = walk(SRC);
   for (const f of files) {
     for (const m of read(f).matchAll(new RegExp(`app\\.(${M})\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g"))) out.add(`${m[1].toUpperCase()} ${m[2]}`);
   }

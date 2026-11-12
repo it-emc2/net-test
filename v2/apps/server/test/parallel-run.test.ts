@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error untyped legacy module
 import legacyCore from "../../../../src/logic/pricing-core.js";
 import { createPricingEngine } from "@oc/pricing";
-import { BusinessConfig } from "../src/business-config.js";
+import { BusinessConfig } from "../src/platform/business-config.js";
 import { isLocalMongo } from "@oc/config";
 
 const URI = process.env.OC_PARALLEL_RUN_URI;

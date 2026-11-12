@@ -2,8 +2,8 @@
 // process-level error logging (nothing fails silently).
 import { loadConfig } from "@oc/config";
 import { buildApp } from "./app.js";
-import { connectDb, disconnectDb } from "./db.js";
-import { registerApi } from "./routes/api.js";
+import { connectDb, disconnectDb } from "./platform/db.js";
+import { registerApi } from "./compose.js";
 
 const cfg = loadConfig(); // throws on invalid config / remote DB outside production
 // DB first: registerApi loads the business settings (prices, rates) at startup — before the fix

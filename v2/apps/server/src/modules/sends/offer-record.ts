@@ -5,7 +5,7 @@
 // not pinned: every later view of the signing page and the final signed PDF recomputed it
 // (audit signing S-04). The server now makes sure the locked offer exists itself.
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
-import { EmailLog, Offer, PostalSend, SigningRequest } from "../models.js";
+import { EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
 
 export type EnsureSentOffer = (a: { offerNumber: string; offerType: string; payload: unknown }) => Promise<"created" | "exists" | "skipped">;
 

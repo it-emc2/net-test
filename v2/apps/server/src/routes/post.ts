@@ -12,14 +12,14 @@ import { PDFDocument, type PDFPage } from "pdf-lib";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildInternalNoteComment, type DealWrites } from "../integrations/bitrix-deal.js";
 import type { Onlinebrief24 } from "../integrations/onlinebrief24.js";
-import { PostalSend } from "../models.js";
+import { PostalSend } from "../platform/models.js";
 import { claimSendLock } from "../email/send-lock.js";
 import { randomUUID } from "node:crypto";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, lastSentOffer, offerChangedBody, patchSend, readSendFile, recordStep,
   storeSendFile, type SendFile, type StepName, type StepStatus,
-} from "../sends/store.js";
-import { offerIdentity } from "../sends/identity.js";
+} from "../modules/sends/index.js";
+import { offerIdentity } from "../modules/sends/index.js";
 
 const RESEND_BLOCK_MS = 24 * 60 * 60 * 1000;
 const IN_FLIGHT_MS = 2 * 60 * 1000;
@@ -89,7 +89,7 @@ export function buildBitrixPostalComment(a: { recipient: any; offerNumber: strin
   return lines.join("\n");
 }
 
-export interface PostDeps { ob24: Onlinebrief24; deals: DealWrites; assetsDir: string; ensureSentOffer?: import("../sends/offer-record.js").EnsureSentOffer | undefined }
+export interface PostDeps { ob24: Onlinebrief24; deals: DealWrites; assetsDir: string; ensureSentOffer?: import("../modules/sends/offer-record.js").EnsureSentOffer | undefined }
 
 export async function registerPost(app: FastifyInstance, d: PostDeps) {
   const failSend = (req: FastifyRequest, reply: FastifyReply, status: number, message: string, extra: Record<string, unknown>) =>

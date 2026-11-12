@@ -1,2 +1,2 @@
-import { Draft } from "../../models.js";
+import { Draft } from "../../platform/models.js";
 export default Draft;

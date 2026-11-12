@@ -10,7 +10,7 @@ import fastifyStatic from "@fastify/static";
 import mime from "mime-types";
 import { REWRITES, applyRewrites } from "./rewrites.js";
 import { isAlwaysPublic, isPublicAsset, isPublicSigning } from "./ported/public-paths.js";
-import { tokenFromHeaders, verifyToken } from "../auth.js";
+import { tokenFromHeaders, verifyToken } from "../platform/auth.js";
 
 export interface WebDeps {
   /** legacy src/public */

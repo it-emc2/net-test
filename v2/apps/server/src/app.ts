@@ -4,8 +4,8 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import type { AppConfig } from "@oc/config";
-import { dbState } from "./db.js";
-import { registerAuthGate } from "./plugins/auth-gate.js";
+import { dbState } from "./platform/db.js";
+import { registerAuthGate } from "./platform/auth-gate.js";
 import { registerSecurity } from "./web/security.js";
 
 /** Hook for error aggregation (GlitchTip/Sentry wiring lands with self-hosting, ADR 009). */

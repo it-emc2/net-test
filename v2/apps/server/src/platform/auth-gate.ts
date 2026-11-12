@@ -2,7 +2,7 @@
 // every route requires a valid session UNLESS its route options say `config: { public: true }`.
 // No path patterns → no case / trailing-slash / file-extension bypasses.
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { tokenFromHeaders, verifyToken } from "../auth.js";
+import { tokenFromHeaders, verifyToken } from "./auth.js";
 
 declare module "fastify" {
   interface FastifyContextConfig { public?: boolean }

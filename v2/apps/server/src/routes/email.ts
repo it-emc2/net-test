@@ -11,10 +11,10 @@ import dns from "node:dns";
 import net from "node:net";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
-import type { BusinessConfig } from "../business-config.js";
+import type { BusinessConfig } from "../platform/business-config.js";
 import { buildInternalNoteComment, type DealWrites } from "../integrations/bitrix-deal.js";
 import type { Mailer } from "../integrations/mail.js";
-import { EmailLog, EmailSend, UserActionLog } from "../models.js";
+import { EmailLog, EmailSend, UserActionLog } from "../platform/models.js";
 import { resolveAnsprechpartner } from "./offers-write.js";
 import { buildEmailHtml } from "../email/template.js";
 import {
@@ -23,12 +23,12 @@ import {
 } from "../email/builders.js";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "../email/send-lock.js";
 import type { OfferDocuments, SigningPort } from "../email/ports.js";
-import type { EnsureSentOffer } from "../sends/offer-record.js";
+import type { EnsureSentOffer } from "../modules/sends/index.js";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, offerChangedBody, patchSend, recordStep, storeSendFile,
   type SendFile, type StepName, type StepStatus,
-} from "../sends/store.js";
-import { offerIdentity } from "../sends/identity.js";
+} from "../modules/sends/index.js";
+import { offerIdentity } from "../modules/sends/index.js";
 
 export interface EmailDeps {
   mailer: Mailer; deals: DealWrites; documents: OfferDocuments; signing: SigningPort; businessConfig: BusinessConfig;

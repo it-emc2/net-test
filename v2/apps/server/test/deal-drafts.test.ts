@@ -8,11 +8,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "@oc/config";
 import { buildApp } from "../src/app.js";
-import { createToken } from "../src/auth.js";
-import { connectDb, disconnectDb } from "../src/db.js";
-import { apply, diff } from "../src/deal-drafts/patch.js";
-import { registerDealDrafts } from "../src/deal-drafts/routes.js";
-import { migrateDealDraftIndexes, SNAPSHOT_EVERY } from "../src/deal-drafts/store.js";
+import { createToken } from "../src/platform/auth.js";
+import { connectDb, disconnectDb } from "../src/platform/db.js";
+import { apply, diff } from "../src/modules/deal-drafts/patch.js";
+import { registerDealDrafts } from "../src/modules/deal-drafts/routes.js";
+import { migrateDealDraftIndexes, SNAPSHOT_EVERY } from "../src/modules/deal-drafts/store.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const SECRET = "deal-draft-test-secret-0123456789";
