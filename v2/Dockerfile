@@ -15,7 +15,7 @@ COPY v2/apps/server/package.json apps/server/
 COPY v2/apps/web/package.json apps/web/
 RUN npm ci --no-audit --no-fund
 COPY v2/ ./
-RUN npx tsc -b && npm prune --omit=dev --no-audit --no-fund
+RUN npx tsc -b && npm run build -w @oc/web && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080
@@ -27,6 +27,8 @@ COPY --from=build /app/v2/apps/server/package.json ./apps/server/
 COPY --from=build /app/v2/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build /app/v2/apps/server/dist ./apps/server/dist
 COPY --from=build /app/v2/apps/server/src/modules/web/addons ./apps/server/src/modules/web/addons
+# the React app (ADR 026), served under /app
+COPY --from=build /app/v2/apps/web/dist ./apps/web/dist
 # today's UI, templates and offline pricing sources (served/used unchanged)
 COPY src/public /app/src/public
 COPY src/templates /app/src/templates

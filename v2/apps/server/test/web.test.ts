@@ -1,4 +1,7 @@
 // Web layer unit checks (no legacy needed): files, types, fallback, redirects, add-on injection.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
@@ -60,5 +63,35 @@ describe("web layer", () => {
     const addon = await app.inject({ url: "/v2/addons/deal-link.js" });
     expect([addon.statusCode, addon.headers["content-type"]]).toEqual([200, "text/javascript; charset=utf-8"]);
     expect(addon.body).toContain("btnLoadDeal");
+  });
+
+  it("the React app under /app: built files, hashed assets cached for good, any other address → its index.html; no login needed", async () => {
+    const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "oc-app-"));
+    fs.mkdirSync(path.join(appDir, "assets"));
+    fs.writeFileSync(path.join(appDir, "index.html"), "<!doctype html><div id=root></div>");
+    fs.writeFileSync(path.join(appDir, "assets", "index-abc.js"), "console.log(1)");
+    const app = Fastify();
+    await registerSecurity(app);
+    await registerWeb(app, { publicDir: ROOT + "src/public", logicDir: ROOT + "src/logic", fontAwesomeDir: ROOT + "node_modules/@fortawesome/fontawesome-free", authSecret: SECRET, appDir });
+    for (const url of ["/app", "/app/", "/app/neu/bu/Kundendaten", "/app/deal/4711/bwt"]) {
+      const r = await app.inject({ url });
+      expect([url, r.statusCode, r.headers["content-type"], r.body]).toEqual([url, 200, "text/html; charset=UTF-8", "<!doctype html><div id=root></div>"]);
+      expect(r.headers["cache-control"]).toBe("no-cache");
+    }
+    const js = await app.inject({ url: "/app/assets/index-abc.js" });
+    expect([js.statusCode, js.body, js.headers["cache-control"]]).toEqual([200, "console.log(1)", "public, max-age=31536000, immutable"]);
+    expect(String(js.headers["content-type"])).toMatch(/javascript/);
+    expect((await app.inject({ url: "/app/assets/missing.js" })).statusCode).toBe(404);
+    expect((await app.inject({ url: "/app/..%2F..%2Fpackage.json" })).body).toBe("<!doctype html><div id=root></div>"); // never a file outside
+    // today's UI at "/" is untouched and still needs a session
+    expect((await app.inject({ url: "/", headers: { accept: "text/html" } })).statusCode).toBe(302);
+    fs.rmSync(appDir, { recursive: true, force: true });
+  });
+
+  it("/app without a build answers 503 with a clear message", async () => {
+    const app = Fastify();
+    await registerWeb(app, { publicDir: ROOT + "src/public", logicDir: ROOT + "src/logic", fontAwesomeDir: ROOT + "node_modules/@fortawesome/fontawesome-free", authSecret: SECRET, appDir: path.join(os.tmpdir(), "oc-app-missing") });
+    const r = await app.inject({ url: "/app/" });
+    expect([r.statusCode, r.json().error.code]).toEqual([503, "APP_NOT_BUILT"]);
   });
 });

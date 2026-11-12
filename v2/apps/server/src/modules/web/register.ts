@@ -4,6 +4,7 @@
 // the SPA fallback. Public-path rules are the extracted legacy authGate functions.
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import compress from "@fastify/compress";
 import fastifyStatic from "@fastify/static";
@@ -22,6 +23,8 @@ export interface WebDeps {
   authSecret: string;
   /** extra <script> tags injected before </body> of index.html (phase 6 add-ons) */
   indexInjections?: string[];
+  /** built files of the React app (apps/web/dist); default: next to the server in the workspace */
+  appDir?: string;
 }
 
 /** Loaded first in every page v2 serves: v2 error objects → the text today's screens expect. */
@@ -86,6 +89,27 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   app.get("/deal/:dealId/:step", { config: { public: true } }, dealLink);
   const sendIndexOrLogin = (req: FastifyRequest, reply: FastifyReply) =>
     loggedIn(req) ? sendIndex(reply) : reply.redirect("/login");
+
+  // ---- the React app (ADR 026) under /app: the built files of apps/web. Any other /app address
+  // gets its index.html (the app reads the address itself). The files carry no data — data comes
+  // from /api and needs a login — so they are public like the login page.
+  const appDir = d.appDir ?? fileURLToPath(new URL("../../../../web/dist/", import.meta.url));
+  const reactApp = async (req: FastifyRequest, reply: FastifyReply) => {
+    let rest: string;
+    try { rest = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/app\/?/, ""); }
+    catch { return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "Ungültige Adresse", requestId: req.id } }); }
+    if (rest && exists(appDir, rest)) {
+      // file names of the build contain a content hash → may be cached for good
+      if (rest.startsWith("assets/")) return reply.sendFile(rest, appDir, { maxAge: "365d", immutable: true });
+      return reply.sendFile(rest, appDir);
+    }
+    if (rest.startsWith("assets/")) return reply.status(404).send("Not Found");
+    const index = exists(appDir, "index.html");
+    if (!index) return reply.status(503).send({ error: { code: "APP_NOT_BUILT", message: "Die neue Oberfläche ist auf diesem Server nicht installiert.", requestId: req.id } });
+    return reply.type("text/html; charset=UTF-8").header("Cache-Control", "no-cache").send(fs.readFileSync(index, "utf8"));
+  };
+  app.get("/app", { config: { public: true } }, reactApp);
+  app.get("/app/*", { config: { public: true } }, reactApp);
 
   // ---- everything else: legacy authGate rules + express.static + SPA fallback
   // Content-Type exactly like legacy: Express static (send@1 → mime-types 3 contentType), plus the
