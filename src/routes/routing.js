@@ -1,7 +1,16 @@
 // src/routes/routing.js
 import express from "express";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const router = express.Router();
+
+// One deadline for the whole lookup behind /suggest-distance (geocoding with
+// variants + routing with fallbacks). Every outbound fetch below takes its
+// signal from here, so a slow or hanging provider ends the request after
+// ~5 s with a clean 504 instead of holding it open.
+export const SUGGEST_TIMEOUT_MS = 5000;
+const outboundDeadline = new AsyncLocalStorage();
+const outboundSignal = () => outboundDeadline.getStore() || AbortSignal.timeout(SUGGEST_TIMEOUT_MS);
 
 // Read from env
 const ORS_API_KEY = process.env.ORS_API_KEY;
@@ -169,6 +178,7 @@ async function geocodeWithNominatim(address) {
     encodeURIComponent(address);
 
   const res = await fetch(url, {
+    signal: outboundSignal(),
     headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
   });
 
@@ -200,6 +210,7 @@ async function geocodeWithPhoton(address) {
   url.searchParams.set("lang", "de");
 
   const res = await fetch(url.toString(), {
+    signal: outboundSignal(),
     headers: { Accept: "application/json" },
   });
 
@@ -250,6 +261,7 @@ async function geocodeWithORS(address) {
   url.searchParams.set("size", "1");
 
   const res = await fetch(url.toString(), {
+    signal: outboundSignal(),
     headers: { Accept: "application/json" },
   });
 
@@ -392,6 +404,7 @@ async function osrmDistanceAndDuration(a, b) {
   const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`;
 
   const res = await fetch(url, {
+    signal: outboundSignal(),
     headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
   });
 
@@ -432,6 +445,7 @@ async function orsDistanceAndDuration(a, b) {
 
   const res = await fetch(url, {
     method: "POST",
+    signal: outboundSignal(),
     headers: {
       "Content-Type": "application/json",
       Authorization: ORS_API_KEY,
@@ -498,6 +512,7 @@ async function getRoadDistanceAndDuration(a, b) {
  * POST /api/routing/suggest-distance
  */
 router.post("/suggest-distance", async (req, res) => {
+  const deadline = AbortSignal.timeout(SUGGEST_TIMEOUT_MS);
   try {
     const k = req.body?.Kundendaten || req.body?.bereich || req.body || {};
 
@@ -528,20 +543,35 @@ router.post("/suggest-distance", async (req, res) => {
       return res.status(500).json({ error: "COMPANY_ADDRESS missing on server." });
     }
 
-    // 1) Get coordinates for company
-    const start = await getCompanyCoords();
+    const lookup = outboundDeadline.run(
+      deadline,
+      async () => {
+        // 1) Get coordinates for company
+        const start = await getCompanyCoords();
 
-    // 2) Geocode customer with variant fallbacks
-    const dest = await geocodeWithVariants({
-      street,
-      postalCode,
-      city,
-      state,
-      country,
+        // 2) Geocode customer with variant fallbacks
+        const dest = await geocodeWithVariants({
+          street,
+          postalCode,
+          city,
+          state,
+          country,
+        });
+
+        // 3) Get road-based distance
+        const { km, seconds, provider: routeProvider } = await getRoadDistanceAndDuration(start, dest);
+        return { start, dest, km, seconds, routeProvider };
+      },
+    );
+    // The fallback chains (variants, 1.1 s Nominatim pauses) keep going after
+    // the deadline; answer at the deadline and let them unwind on their own.
+    lookup.catch(() => {});
+    const timedOut = new Promise((_resolve, reject) => {
+      if (deadline.aborted) reject(deadline.reason);
+      deadline.addEventListener("abort", () => reject(deadline.reason), { once: true });
     });
-
-    // 3) Get road-based distance
-    const { km, seconds, provider: routeProvider } = await getRoadDistanceAndDuration(start, dest);
+    timedOut.catch(() => {});
+    const { start, dest, km, seconds, routeProvider } = await Promise.race([lookup, timedOut]);
 
     // Round sensibly
     const oneWayKm = Math.round(km * 2) / 2;
@@ -572,6 +602,14 @@ router.post("/suggest-distance", async (req, res) => {
       routeProvider,
     });
   } catch (err) {
+    if (deadline.aborted) {
+      console.warn(`[routing] suggest-distance timed out after ${SUGGEST_TIMEOUT_MS} ms`);
+      return res.status(504).json({
+        ok: false,
+        timeout: true,
+        error: "Routenvorschlag gerade nicht verfügbar (Zeitüberschreitung). Bitte tragen Sie die Strecke von Hand ein.",
+      });
+    }
     console.error("[routing] suggest-distance failed:", err);
     return res.status(500).json({
       error: err.message || "Routing lookup failed",

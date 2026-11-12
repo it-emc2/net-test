@@ -12,8 +12,10 @@ const SECTIONS = [
   { id: 'ah',       label: 'AH – Alltagshilfe',    icon: 'fa-hands-helping' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
+  { id: 'pdfstats', label: 'PDF-Engine',          icon: 'fa-file-pdf', view: 'pdfstats' },
   { id: 'bitrixlogs', label: 'Bitrix-Fehler',      icon: 'fa-triangle-exclamation', view: 'bitrixlogs' },
   { id: 'userlogs', label: 'Aktivitäts-Log',       icon: 'fa-list-check', view: 'userlogs' },
+  { id: 'sessions', label: 'Sitzungen (Aufzeichnung)', icon: 'fa-video', view: 'sessions' },
   { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
 ];
 
@@ -105,8 +107,10 @@ function switchSection(id) {
   if (view) hide($('change-count'));
   if (view === 'signing') renderSigning();
   else if (view === 'bitrixlogs') renderBitrixLogs();
+  else if (view === 'pdfstats') renderPdfStats();
   else if (view === 'userlogs') renderUserLogs();
   else if (view === 'users') renderUsers();
+  else if (view === 'sessions') renderSessions();
   else renderSection();
 }
 
@@ -454,6 +458,79 @@ async function loadBitrixLogs() {
   }
 }
 
+// ── PDF engine stats (Gotenberg vs. local soffice/Puppeteer) ─────────────
+const PDF_KIND = { docx: 'DOCX\u00a0→\u00a0PDF', html: 'HTML\u00a0→\u00a0PDF' };
+const PDF_ENGINE = {
+  gotenberg: ['Gotenberg', 'b-completed'],
+  fallback: ['Fallback (lokal nach Gotenberg-Fehler)', 'b-failed'],
+  local: ['Lokal (ohne Gotenberg)', 'b-neutral'],
+};
+let pdfDays = 30;
+const fmtMs = (ms) => (ms == null ? '–' : ms >= 1000 ? (ms / 1000).toFixed(1) + ' s' : ms + ' ms');
+const fmtDur = (ms) => { if (ms < 60000) return Math.round(ms / 1000) + ' s'; const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+
+function renderPdfStats() {
+  $('config-grid').innerHTML = `<div class="signing-view">
+    <div class="toolbar">
+      <select id="pdf-days">${[1, 7, 30, 90, 180].map(d => `<option value="${d}"${d === pdfDays ? ' selected' : ''}>Letzte ${d} Tage</option>`).join('')}</select>
+      <button class="btn-ghost" id="pdf-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="pdf-err" class="sign-err hidden"></div>
+    <div class="counts" id="pdf-counts"></div>
+    <div class="table-wrap"><table class="sign-table">
+      <thead><tr><th>Art</th><th>Engine</th><th>Anzahl</th><th>Fehler</th><th>Ø Dauer</th><th>Max</th><th>Zuletzt</th></tr></thead>
+      <tbody id="pdf-rows"></tbody></table></div>
+    <h3 style="margin:18px 0 8px">Fehler &amp; Fallbacks</h3>
+    <div class="table-wrap"><table class="sign-table">
+      <thead><tr><th>Zeit</th><th>Art</th><th>Engine</th><th>Dauer</th><th>Fehler</th></tr></thead>
+      <tbody id="pdf-fails"></tbody></table></div>
+  </div>`;
+  $('pdf-days').addEventListener('change', e => { pdfDays = Number(e.target.value); loadPdfStats(); });
+  $('pdf-refresh').addEventListener('click', loadPdfStats);
+  loadPdfStats();
+}
+
+async function loadPdfStats() {
+  const err = $('pdf-err');
+  if (err) hide(err);
+  try {
+    const d = await api('GET', '/admin/api/pdf-stats?days=' + pdfDays);
+    const okOf = (f) => d.rows.filter(f).reduce((n, r) => n + r.ok, 0);
+    const total = okOf(() => true); // delivered PDFs (a fallback = 1 failed Gotenberg try + 1 local PDF)
+    const got = okOf(r => r.engine === 'gotenberg');
+    const fallbacks = d.rows.filter(r => r.engine === 'fallback').reduce((n, r) => n + r.total, 0);
+    const failed = d.rows.filter(r => r.engine !== 'gotenberg').reduce((n, r) => n + r.failed, 0);
+    const savedMs = d.saved.docx.ms + d.saved.html.ms;
+    const base = (k) => `${PDF_KIND[k]} vorher Ø ${fmtMs(d.saved[k].baselineMs)} (${d.saved[k].measured ? 'gemessen' : 'Benchmark'})`;
+    $('pdf-counts').innerHTML = [
+      [total, 'PDFs erzeugt'],
+      [total ? Math.round(got / total * 100) + ' %' : '–', 'über Gotenberg'],
+      [fallbacks, 'Fallbacks'],
+      [failed, 'Endgültig fehlgeschlagen'],
+      [fmtDur(savedMs), 'Zeit gespart (geschätzt)'],
+    ].map(([n, l]) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('')
+      + `<div class="stat" style="flex-basis:100%"><div class="l">${base('docx')} · ${base('html')}</div></div>`;
+
+    const order = ['gotenberg', 'fallback', 'local'];
+    const rows = [...d.rows].sort((a, b) => a.kind.localeCompare(b.kind) || order.indexOf(a.engine) - order.indexOf(b.engine));
+    $('pdf-rows').innerHTML = rows.length ? rows.map(r => `<tr>
+      <td>${PDF_KIND[r.kind]}</td>
+      <td><span class="badge ${PDF_ENGINE[r.engine][1]}">${PDF_ENGINE[r.engine][0]}</span></td>
+      <td>${r.total}</td>
+      <td>${r.failed ? `<span class="badge b-failed">${r.failed}</span>` : 0}</td>
+      <td>${fmtMs(r.avgMs)}</td><td>${fmtMs(r.maxMs)}</td><td>${fmtTs(r.last)}</td>
+    </tr>`).join('') : '<tr><td colspan="7"><div class="empty-state">Noch keine PDFs im Zeitraum.</div></td></tr>';
+
+    $('pdf-fails').innerHTML = d.failures.length ? d.failures.map(f => `<tr>
+      <td>${fmtTs(f.createdAt)}</td><td>${PDF_KIND[f.kind]}</td>
+      <td><span class="badge ${f.engine === 'gotenberg' ? 'b-sent' : 'b-failed'}">${f.engine === 'gotenberg' ? 'Gotenberg → Fallback' : 'Lokal fehlgeschlagen'}</span></td>
+      <td>${fmtMs(f.ms)}</td><td>${esc(f.error)}</td>
+    </tr>`).join('') : '<tr><td colspan="5"><div class="empty-state">Keine Fehler im Zeitraum.</div></td></tr>';
+  } catch (e) {
+    if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
+  }
+}
+
 const USERLOG_EVENT_BADGE = {
   offer_sent: 'b-sent',
   move_dialog_shown: 'b-neutral',
@@ -762,3 +839,165 @@ document.addEventListener('DOMContentLoaded', () => {
 
   init();
 });
+
+
+// ── Session recordings (rrweb) ────────────────────────────────────────────
+let recDays = 7;
+let recPlayer = null;
+const fmtBytes = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
+const fmtClock = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const fmtTime = (d) => new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+function loadRrweb() {
+  if (window.rrweb) return Promise.resolve();
+  return new Promise((ok, no) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = '/vendor/rrweb/style.min.css';
+    document.head.appendChild(css);
+    const s = document.createElement('script');
+    s.src = '/vendor/rrweb/rrweb.umd.min.cjs'; s.onload = ok; s.onerror = () => no(new Error('rrweb konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+}
+
+function renderSessions() {
+  recPlayer?.destroy?.(); recPlayer = null;
+  $('config-grid').innerHTML = `<div class="signing-view">
+    <div class="toolbar">
+      <select id="rec-days">${[1, 7, 14, 31].map(d => `<option value="${d}"${d === recDays ? ' selected' : ''}>Letzte ${d} Tage</option>`).join('')}</select>
+      <button class="btn-ghost" id="rec-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="rec-err" class="sign-err hidden"></div>
+    <div class="table-wrap"><table class="sign-table">
+      <thead><tr><th>Tag</th><th>Start</th><th>Ende</th><th>Benutzer</th><th>Gerät</th><th>Teile</th><th>Größe</th><th>Fehler</th><th></th></tr></thead>
+      <tbody id="rec-rows"><tr><td colspan="9"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+    </table></div>
+  </div>`;
+  $('rec-days').addEventListener('change', e => { recDays = Number(e.target.value); loadSessions(); });
+  $('rec-refresh').addEventListener('click', loadSessions);
+  loadSessions();
+}
+
+async function loadSessions() {
+  const err = $('rec-err'); hide(err);
+  try {
+    const { items } = await api('GET', '/admin/api/recordings?days=' + recDays);
+    $('rec-rows').innerHTML = items.length ? items.map(s => `<tr>
+      <td>${esc(s.day)}</td><td>${fmtTime(s.startedAt)}</td><td>${fmtTime(s.lastAt)}</td>
+      <td>${esc(s.email)}</td><td>${esc(s.viewport)}</td>
+      <td>${s.chunkCount}</td><td>${fmtBytes(s.bytes)}</td>
+      <td>${s.errorCount ? `<span class="badge b-failed">${s.errorCount}</span>` : 0}</td>
+      <td><button class="btn-ghost" data-sid="${esc(s.sid)}"><i class="fas fa-play"></i> Abspielen</button></td>
+    </tr>`).join('') : '<tr><td colspan="9"><div class="empty-state">Keine Aufzeichnungen im Zeitraum.</div></td></tr>';
+    $('rec-rows').querySelectorAll('button[data-sid]').forEach(b => b.addEventListener('click', () => openSession(b.dataset.sid)));
+  } catch (e) {
+    err.textContent = e.message; show(err);
+  }
+}
+
+async function openSession(sid) {
+  const grid = $('config-grid');
+  grid.innerHTML = `<div class="signing-view rec-view">
+    <div class="toolbar">
+      <button class="btn-ghost" id="rec-back"><i class="fas fa-arrow-left"></i> Zurück</button>
+      <button class="btn-ghost" id="rec-play" disabled><i class="fas fa-play"></i></button>
+      <select id="rec-speed">${[1, 2, 4, 8].map(x => `<option value="${x}">${x}×</option>`).join('')}</select>
+      <label class="rec-skip"><input type="checkbox" id="rec-skipidle" checked> Pausen überspringen</label>
+      <input type="range" id="rec-seek" min="0" max="0" value="0" step="100" disabled>
+      <span id="rec-clock" class="cust-mail">0:00 / 0:00</span>
+    </div>
+    <div id="rec-err" class="sign-err hidden"></div>
+    <div class="rec-body">
+      <div class="rec-stage" id="rec-stage"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade Aufzeichnung…</div></div>
+      <div class="rec-side">
+        <label class="rec-skip"><input type="checkbox" id="rec-onlyerr"> Nur Fehler</label>
+        <ol id="rec-events" class="rec-events"></ol>
+      </div>
+    </div>
+  </div>`;
+  $('rec-back').addEventListener('click', renderSessions);
+  const err = $('rec-err');
+  try {
+    const [{ session, requests }] = await Promise.all([api('GET', '/admin/api/recordings/' + encodeURIComponent(sid)), loadRrweb()]);
+    const token = getToken();
+    let events = [];
+    for (const c of session.chunks) {
+      const r = await fetch(`/admin/api/recordings/${encodeURIComponent(sid)}/chunk/${c.seq}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`Teil ${c.seq}: HTTP ${r.status}`);
+      const text = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text();
+      events = events.concat(JSON.parse(text));
+    }
+    events.sort((a, b) => a.timestamp - b.timestamp);
+    if (events.length < 2) throw new Error('Aufzeichnung zu kurz.');
+    const t0 = events[0].timestamp;
+
+    // Timeline: client marks (errors, requests, online/offline, console) + server requests.
+    const rows = [];
+    for (const e of events) {
+      if (e.type === 5) {
+        const d = e.data.payload || {};
+        const tag = e.data.tag;
+        const bad = tag.endsWith('error') || (tag === 'message' && d.kind === 'error') || (tag === 'fetch' && ((d.status === 0 && !d.aborted) || d.status >= 400));
+        const txt = tag === 'fetch' ? `${d.method} ${d.url} → ${d.status || (d.aborted ? 'abgebrochen' : 'Netzfehler')} (${d.ms} ms)`
+          : tag === 'device' ? `${d.device || ''} ${d.vp} · ${d.online ? 'online' : 'offline'}`
+          : tag === 'page' ? `→ ${d.hash || '(Start)'}`
+          : tag === 'message' ? `[${d.kind}] ${d.text}`
+          : tag === 'dialog' ? `${d.type}: ${d.text}${d.answer === undefined ? '' : ` → ${d.answer ? 'Ja/OK' : 'Nein/Abbrechen'}`}`
+          : (d.msg || '');
+        if (tag !== 'fetch' || bad) rows.push({ t: e.timestamp - t0, kind: tag, bad, txt });
+      } else if (e.type === 6 && e.data.plugin === 'rrweb/console@1') {
+        const p = e.data.payload;
+        rows.push({ t: e.timestamp - t0, kind: 'console.' + p.level, bad: p.level === 'error', txt: (p.payload || []).join(' ').slice(0, 300) });
+      }
+    }
+    for (const q of requests) {
+      const t = new Date(q.at) - t0;
+      if (t >= 0 && t <= events[events.length - 1].timestamp - t0 + 60e3) {
+        rows.push({ t, kind: 'server', bad: q.status >= 400, txt: `${q.method} ${q.path} → ${q.status} (${q.ms} ms)` });
+      }
+    }
+    rows.sort((a, b) => a.t - b.t);
+
+    const stage = $('rec-stage'); stage.innerHTML = '';
+    recPlayer = new rrweb.Replayer(events, { root: stage, skipInactive: true, showWarning: false, mouseTail: false, useVirtualDom: false });
+    const fit = () => {
+      const w = recPlayer.wrapper, ifr = w.querySelector('iframe');
+      if (!ifr) return;
+      const scale = Math.min(1, stage.clientWidth / ifr.offsetWidth);
+      w.style.transform = `scale(${scale})`; w.style.transformOrigin = '0 0';
+      stage.style.height = Math.ceil(ifr.offsetHeight * scale) + 'px';
+    };
+    recPlayer.on('resize', fit); addEventListener('resize', fit); setTimeout(fit, 0);
+
+    const total = recPlayer.getMetaData().totalTime;
+    const seek = $('rec-seek'), clock = $('rec-clock'), play = $('rec-play');
+    seek.max = total; seek.disabled = false; play.disabled = false;
+    let playing = false, timer = null;
+    const tick = () => { const t = recPlayer.getCurrentTime(); seek.value = t; clock.textContent = `${fmtClock(t)} / ${fmtClock(total)}`; };
+    const setPlaying = (on) => {
+      playing = on; play.innerHTML = `<i class="fas fa-${on ? 'pause' : 'play'}"></i>`;
+      clearInterval(timer); if (on) timer = setInterval(tick, 250);
+    };
+    const jump = (t) => { if (playing) recPlayer.play(t); else recPlayer.pause(t); tick(); };
+    play.addEventListener('click', () => { if (playing) { recPlayer.pause(); setPlaying(false); } else { recPlayer.play(recPlayer.getCurrentTime()); setPlaying(true); } });
+    recPlayer.on('finish', () => { setPlaying(false); tick(); });
+    seek.addEventListener('input', () => jump(Number(seek.value)));
+    $('rec-speed').addEventListener('change', e => recPlayer.setConfig({ speed: Number(e.target.value) }));
+    $('rec-skipidle').addEventListener('change', e => recPlayer.setConfig({ skipInactive: e.target.checked }));
+    recPlayer.pause(0); tick();
+
+    const list = $('rec-events');
+    const draw = () => {
+      const only = $('rec-onlyerr').checked;
+      const shown = rows.filter(r => !only || r.bad);
+      list.innerHTML = shown.length ? shown.map((r, i) => `<li data-i="${rows.indexOf(r)}" class="${r.bad ? 'bad' : r.kind === 'page' ? 'page' : ''}">
+        <span class="t">${fmtClock(r.t)}</span><span class="k">${esc(r.kind)}</span><span class="x">${esc(r.txt)}</span></li>`).join('')
+        : '<li class="none">Keine Einträge.</li>';
+      list.querySelectorAll('li[data-i]').forEach(li => li.addEventListener('click', () => jump(Math.max(0, rows[li.dataset.i].t - 1500))));
+    };
+    $('rec-onlyerr').addEventListener('change', draw);
+    draw();
+  } catch (e) {
+    err.textContent = e.message || String(e); show(err);
+  }
+}

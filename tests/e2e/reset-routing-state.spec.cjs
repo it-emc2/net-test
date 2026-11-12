@@ -88,9 +88,12 @@ test("a fresh offer starts without the previous customer's routing data", async 
   expect(await page.evaluate(() => window.reise_hours_numeric)).toBeGreaterThan(0);
 
   // Back to the Hauptmenü, then start a new offer without a Deal-ID.
+  // With an offer in progress the hash route asks first (same dialog as the
+  // sidebar "Hauptmenü" link) instead of resetting silently.
   await page.evaluate(() => {
     location.hash = "home";
   });
+  await page.click("#homeConfirmGo");
   await expect(page.locator(BU_TILE)).toBeVisible();
   await page.click(BU_TILE);
 
@@ -116,4 +119,32 @@ test("a fresh offer starts without the previous customer's routing data", async 
     ahZone: undefined,
     pressedZones: 0,
   });
+});
+
+test("going home through the URL hash asks first and cancelling keeps the input", async ({ page }) => {
+  await page.route("**/api/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, user: { name: "Test" }, items: [], result: [] }),
+    })
+  );
+  await page.goto(`${baseURL}/#home`, { waitUntil: "domcontentloaded" });
+  await page.click(BU_TILE);
+  await page.evaluate(() => {
+    const el = document.getElementById("distanceKm");
+    el.value = "42";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const stepBefore = await page.evaluate(() => location.hash);
+
+  await page.evaluate(() => {
+    location.hash = "home";
+  });
+  await expect(page.locator("#homeConfirmOverlay")).toHaveClass(/visible/);
+  await page.click("#homeConfirmCancel");
+
+  expect(await page.evaluate(() => document.getElementById("distanceKm").value)).toBe("42");
+  expect(await page.evaluate(() => location.hash)).toBe(stepBefore);
+  await expect(page.locator(BU_TILE)).toBeHidden();
 });

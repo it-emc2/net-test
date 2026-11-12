@@ -47,18 +47,54 @@ export function initDrawingPadManager(options = {}) {
     redraw();
   }
 
-  function waitForCanvasReady() {
-    return new Promise((resolve) => {
-      const check = () => {
-        resizeCanvas();
-        const rect = canvas.getBoundingClientRect();
-        if (rect.width > 50 && rect.height > 50) {
-          resolve(rect);
-        } else {
-          requestAnimationFrame(check);
-        }
-      };
-      check();
+  // A pad on a page that is not shown has no layout size. Restoring into it
+  // used to poll requestAnimationFrame forever (one loop per restore, never
+  // cancelled). Now the saved sketch is kept as-is ("deferred") and drawn as
+  // soon as the canvas gets a size: ResizeObserver where available, otherwise
+  // one bounded rAF wait that is resumed on the next page change.
+  let deferred = false;
+  let deferredDataUrl = "";
+  let waitRaf = 0;
+  const WAIT_MAX_MS = 3000;
+
+  function isCanvasReady() {
+    const rect = canvas.getBoundingClientRect();
+    return rect.width > 50 && rect.height > 50;
+  }
+
+  function renderDeferredIfReady() {
+    if (!deferred) return true;
+    resizeCanvas();
+    if (!isCanvasReady()) return false;
+    redraw();
+    return true;
+  }
+
+  function stopWait() {
+    if (waitRaf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(waitRaf);
+    waitRaf = 0;
+  }
+
+  function startBoundedWait() {
+    stopWait();
+    if (typeof requestAnimationFrame !== "function") return;
+    const started = Date.now();
+    const tick = () => {
+      waitRaf = 0;
+      if (renderDeferredIfReady()) return;
+      if (Date.now() - started > WAIT_MAX_MS) return; // give up; resumed on hashchange
+      waitRaf = requestAnimationFrame(tick);
+    };
+    waitRaf = requestAnimationFrame(tick);
+  }
+
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      if (deferred) renderDeferredIfReady();
+    }).observe(canvas);
+  } else {
+    window.addEventListener("hashchange", () => {
+      if (deferred) startBoundedWait();
     });
   }
 
@@ -109,6 +145,21 @@ export function initDrawingPadManager(options = {}) {
     ctx.restore();
   }
 
+  // Draw only the newest segment of the stroke in progress (no full replay).
+  function drawStrokeSegment(op, from, to) {
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = op.tool === "eraser" ? "#ffffff" : (op.color || "#111827");
+    ctx.lineWidth = op.size || 4;
+    ctx.globalCompositeOperation = op.tool === "eraser" ? "destination-out" : "source-over";
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawLine(op) {
     if (!op?.from || !op?.to) return;
     ctx.save();
@@ -146,7 +197,9 @@ export function initDrawingPadManager(options = {}) {
     if (op.type === "ruler") return drawRuler(op);
   }
 
-  function redraw() {
+  // sync=false: repaint only (live preview while drawing a line/ruler); the
+  // PNG export in syncHidden() runs at stroke end, undo, clear and restore.
+  function redraw(sync = true) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const imageOps = ops.filter((op) => op?.type === "image");
@@ -161,7 +214,7 @@ export function initDrawingPadManager(options = {}) {
           drawOp(preview);
           ctx.restore();
         }
-        syncHidden();
+        if (sync) syncHidden();
       });
       return;
     }
@@ -173,12 +226,25 @@ export function initDrawingPadManager(options = {}) {
       drawOp(preview);
       ctx.restore();
     }
-    syncHidden();
+    if (sync) syncHidden();
   }
 
   function syncHidden() {
     if (hiddenJson) hiddenJson.value = JSON.stringify({ version: 1, ops });
-    if (hiddenDataUrl) hiddenDataUrl.value = ops.length ? canvas.toDataURL("image/png") : "";
+    if (!hiddenDataUrl) return;
+    if (!ops.length) {
+      hiddenDataUrl.value = "";
+      return;
+    }
+    // Not drawn yet: keep the saved PNG instead of exporting an empty canvas.
+    if (deferred && !isCanvasReady()) {
+      hiddenDataUrl.value = deferredDataUrl;
+      return;
+    }
+    deferred = false;
+    deferredDataUrl = "";
+    stopWait();
+    hiddenDataUrl.value = canvas.toDataURL("image/png");
   }
 
   function setTool(next) {
@@ -237,15 +303,16 @@ export function initDrawingPadManager(options = {}) {
     if (tool === "line" || tool === "ruler") {
       if (currentOp?.from) {
         preview = { ...currentOp, to: p };
-        redraw();
+        redraw(false);
       }
       return;
     }
 
     if (!pointerDown || !currentOp) return;
+    const last = currentOp.points[currentOp.points.length - 1];
     currentOp.points.push(p);
     preview = currentOp;
-    redraw();
+    drawStrokeSegment(currentOp, last, p);
   }
 
   function pointerEnd() {
@@ -275,35 +342,38 @@ export function initDrawingPadManager(options = {}) {
     const json = saved?.json || "";
     const dataUrl = saved?.dataUrl || "";
 
-    await waitForCanvasReady();
-
+    let nextOps = null;
     if (json) {
       try {
         const parsed = JSON.parse(json);
         const parsedOps = Array.isArray(parsed?.ops) ? parsed.ops : [];
-        if (parsedOps.length) {
-          ops = parsedOps;
-          preview = null;
-          currentOp = null;
-          pointerDown = false;
-          redraw();
-          return;
-        }
+        if (parsedOps.length) nextOps = parsedOps;
       } catch (e) {
         console.warn("[DrawingPadManager] invalid sketch json, falling back to image:", e);
       }
     }
+    if (!nextOps && dataUrl) nextOps = [{ type: "image", dataUrl }];
 
-    if (!dataUrl) {
+    if (!nextOps) {
+      deferred = false;
+      deferredDataUrl = "";
+      stopWait();
       clear();
       return;
     }
 
-    ops = [{ type: "image", dataUrl }];
+    ops = nextOps;
     preview = null;
     currentOp = null;
     pointerDown = false;
-    redraw();
+    deferred = true;
+    deferredDataUrl = dataUrl;
+
+    if (renderDeferredIfReady()) return;
+    // Page not shown: keep the saved values in the hidden fields (so a save
+    // before the page is opened keeps the sketch) and draw once it is shown.
+    syncHidden();
+    if (typeof ResizeObserver !== "function") startBoundedWait();
   }
 
   toolButtons.forEach((btn) => btn.addEventListener("click", () => setTool(btn.dataset.tool || "pen")));

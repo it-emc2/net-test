@@ -332,6 +332,11 @@ export function initRestoreManager({
       restoreOne("hl", payload?.hl || {});
       // Wandverkleidung sketch was only restored by the retired legacy path.
       restoreOne("wv", payload?.wandverkleidung || {});
+      // Badelift, Hausmeisterservice and Winterdienst sketches are saved by
+      // buildPayload() too and were only restored by the retired legacy path.
+      restoreOne("bl", payload?.bl || {});
+      restoreOne("hms", payload?.hms || {});
+      restoreOne("wd", payload?.wd || {});
 
       setTimeout(() => {
         console.log("[SKETCH][late-retry]");
@@ -339,6 +344,9 @@ export function initRestoreManager({
         restoreOne("bwt", payload?.bwt || {});
         restoreOne("hl", payload?.hl || {});
         restoreOne("wv", payload?.wandverkleidung || {});
+        restoreOne("bl", payload?.bl || {});
+        restoreOne("hms", payload?.hms || {});
+        restoreOne("wd", payload?.wd || {});
       }, 350);
     } catch (e) {
       console.warn("[SKETCH][restore-call-site] failed:", e);

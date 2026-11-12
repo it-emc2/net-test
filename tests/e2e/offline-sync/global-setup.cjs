@@ -144,6 +144,9 @@ module.exports = async () => {
       MONGODB_URI: uri,
       MONGODB_DB: dbName,
       PORT: String(PORT),
+      // Tests must never reach the real Bitrix: without this the app falls back
+      // to the webhook URL in the code and really calls it (seen 11.11.2026).
+      BITRIX_WEBHOOK_BASE: "http://127.0.0.1:9/blocked-in-tests",
       ...v2Env,
     },
     stdio: ["ignore", "pipe", "pipe"],
