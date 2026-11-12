@@ -247,3 +247,17 @@ New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `G
 
 Tests: `tests/e2e/parity/v2-local-first.spec.cjs` (5), `tests/e2e/offline-sync/v2-local-first.spec.cjs` (real offline, page discarded twice).
 
+
+## 026 — Every screen is rebuilt as a React module; backend grouped by topic (ACCEPTED by owner, 2026-11-12)
+**Context.** Measured on `rewrite/v2@ac0ee22c` (Chromium, 834×1194, CPU throttled 6×, local preview): the UI that v2 serves blocks the main thread 5.4–6.8 s per tap (configurator tile, back to Hauptmenü, customer from the planning) and sends 30–33 `/api/price` requests each time. Causes: the offer lives in the form fields and is read back from 19 forms on every change; reset is `form.reset()` plus synthetic `change` events; 12 document-level `change` listeners plus the v2 add-ons (`quickwins.js` alone 2–3.8 s per tap); all 27 steps stay in the page. The React app (`v2/apps/web`) was a shell without screens. These causes cannot be removed with add-ons.
+
+**Decision.** This replaces the rule of ADR 021 that screens move "only for real gains":
+- Every screen is rebuilt as a React module, one at a time, behind a switch per screen; the old UI stays the default for a screen until the owner signs it off (ADR 004 still holds: same functions, same stored payload, same price).
+- Order of offer types: BU, BWT, AH first (most used), then HL, BL.
+- Rules for every React module: the offer is one typed object in one store; new offer / back to Hauptmenü is one assignment (`emptyOffer(type)`); derived values come from selectors; the price is computed locally with `@oc/pricing` and confirmed by at most one debounced, abortable server call; every configurator is a lazy route; only the active step is mounted; no `document`/`window` listeners in features.
+- Pass mark per screen: under 200 ms blocked main thread per tap at 6× CPU throttle and at most one price call per change (`tests/e2e/perf`).
+- Libraries added to `apps/web`: Zustand (offer store) and TanStack Query (server data).
+- The backend is regrouped without behaviour change into `platform/` (config, db, auth gate, errors) and `modules/<topic>/` (`routes`, `service`, `repo`, `model`, `schema`, `index`); modules import each other only through `index.ts`. Guard: `v2/apps/server/test/module-boundaries.test.ts`.
+- Plan and phases: `docs/rewrite/MODULARIZATION-PLAN.md`.
+
+**Not part of this decision.** Session recording (main PR #325) stays unported until a later phase (owner, 2026-11-12).

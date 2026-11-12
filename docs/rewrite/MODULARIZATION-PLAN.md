@@ -107,6 +107,19 @@ Every phase is one or more PRs into `rewrite/v2`. Nothing merges into `main` wit
 
 BL comes first among the offer types because it has the fewest steps; BU comes last because it has the most (15) and the largest catalogs.
 
+### Phase 0 status (2026-11-12)
+
+- Done: `main@1a35c453` synced (PR #335, merged); ADR 026; module-boundary guard (`v2/scripts/module-boundaries.mjs`, `apps/server/test/module-boundaries.test.ts`); tap measurement `npm run test:perf` (report-only step in the CI job "UI parity against v2").
+- Baseline of the old UI as v2 serves it, 6× CPU throttle, 834×1194:
+
+| Tap | Before the sync (`ac0ee22c`) | After the sync (with main's iPad fix) |
+|---|---|---|
+| BU tile | 6.2 s blocked, 33 price calls | 2.0 s blocked, 8 price calls |
+| Back to Hauptmenü | 5.4 s, 30 | 1.7 s, 7 |
+| Customer from the planning | 6.8 s, 32 | 1.7 s, 7 |
+
+The two columns come from different harnesses (local preview vs. the Playwright test stack), so they show the order of magnitude, not an exact comparison. The pass mark for React screens stays 200 ms and one price call.
+
 ## 4. Risks
 
 | Risk | Mitigation |

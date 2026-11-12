@@ -135,6 +135,11 @@ jobs:
         run: npm run test:e2e:offline
         env:
           PARITY_TARGET: v2
+      - name: Tap measurement against v2 (ADR 026 — report only until React screens exist)
+        run: npm run test:perf
+        continue-on-error: true
+        env:
+          PARITY_TARGET: v2
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

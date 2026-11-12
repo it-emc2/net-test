@@ -26,6 +26,7 @@
     "test:ci": "npm run test:golden && npm run test:unit && npm run test:integration && npm run test:node",
     "test:e2e:offline": "playwright test -c playwright.offline.config.cjs",
     "test:parity": "playwright test -c playwright.parity.config.cjs",
+    "test:perf": "playwright test -c playwright.perf.config.cjs",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{js,mjs,json}\"",
