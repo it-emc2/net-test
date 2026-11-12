@@ -2,7 +2,7 @@
 // Same upstream paths, same response shapes; errors carry the same message and `detail`
 // (upstream response body, else the error text).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { MagicApi } from "../integrations/magic.js";
+import type { MagicApi } from "../../integrations/magic.js";
 
 export const KIND_TO_PATH: Record<string, string> = {
   corner: "/api/eckeinstieg-best-all/search",

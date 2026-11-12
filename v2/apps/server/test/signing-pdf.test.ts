@@ -6,7 +6,7 @@ import { describe, expect, it, beforeAll } from "vitest";
 import { EJSON } from "bson";
 import { configureDocuments } from "../src/documents/context.js";
 import { Gotenberg } from "../src/integrations/gotenberg.js";
-import { extractPrefill } from "../src/signing/fields.js";
+import { extractPrefill } from "../src/modules/signing/fields.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const GOT = process.env.OC_TEST_GOTENBERG_URL;

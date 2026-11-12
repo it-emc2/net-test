@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { EJSON } from "bson";
-import * as v2 from "../src/signing/fields.js";
+import * as v2 from "../src/modules/signing/fields.js";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 const legacy = await import(ROOT + "src/templates/signing-docs.js");

@@ -6,9 +6,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { configureDocuments, type DocumentsContext } from "../documents/context.js";
 import { runLegacy } from "../documents/express-adapter.js";
-import type { OfferDocuments } from "../email/ports.js";
+import type { OfferDocuments } from "../modules/email/index.js";
 import type { CapturingRouter } from "../documents/shims/express.js";
-import type { SigningRenderer } from "../signing/documents.js";
+import type { SigningRenderer } from "../modules/signing/index.js";
 import { productImages } from "../documents/product-images.js";
 import { externalKeyGuard } from "./misc.js";
 

@@ -62,7 +62,7 @@ const KALK_V2_TEMPLATE_TRANSFORMS = [
 const MATERIAL_TRANSFORMS = [
   ...ROUTE_BASE,
   ['from "../logic/badolux-cart.js"', 'from "./badolux-cart.js"'],
-  ['from "../lib/wanneSets.js"', 'from "../../catalog/ported/wanne-sets.js"'],
+  ['from "../lib/wanneSets.js"', 'from "../../modules/catalog/ported/wanne-sets.js"'],
   // module-relative data file → legacy data folder under DOCUMENTS_ROOT
   ['new URL("../logic/cleverbad-catalog.json", import.meta.url)', 'path.join(docsRoot(), "src", "logic", "cleverbad-catalog.json")'],
 ];
@@ -72,8 +72,8 @@ const HL_TRANSFORMS = [
 ];
 
 export const PORTS = [
-  { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/catalog/ported/wanne-sets.ts" },
-  { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/catalog/ported/wanne-describe.ts" },
+  { from: "src/lib/wanneSets.js", to: "v2/apps/server/src/modules/catalog/ported/wanne-sets.ts" },
+  { from: "src/lib/wanneDescribe.js", to: "v2/apps/server/src/modules/catalog/ported/wanne-describe.ts" },
   { from: "src/lib/docxTextReplace.js", to: "v2/apps/server/src/documents/ported/docx-text-replace.ts" },
   { from: "src/routes/docx-template.js", to: "v2/apps/server/src/documents/ported/docx-template.ts", transforms: DOCS_TRANSFORMS },
   { from: "src/routes/kalkulation.js", to: "v2/apps/server/src/documents/ported/kalkulation.ts", transforms: KALK_TRANSFORMS },

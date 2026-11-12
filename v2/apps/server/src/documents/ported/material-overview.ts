@@ -14,7 +14,7 @@ import Docxtemplater from "docxtemplater";
 import ProductModel from "../shims/product-model.js";
 import { buildBadoluxCart, cartCsv } from "./badolux-cart.js";
 import pricingFactory from "../shims/pricing.js";
-import { WANNE_SET_ORDER } from "../../catalog/ported/wanne-sets.js";
+import { WANNE_SET_ORDER } from "../../modules/catalog/ported/wanne-sets.js";
 import {
   aggregateMaterialsForOverview,
   formatQtyForOverview,

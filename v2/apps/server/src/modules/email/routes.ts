@@ -11,24 +11,24 @@ import dns from "node:dns";
 import net from "node:net";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
-import type { BusinessConfig } from "../platform/business-config.js";
-import { buildInternalNoteComment, type DealWrites } from "../integrations/bitrix-deal.js";
-import type { Mailer } from "../integrations/mail.js";
-import { EmailLog, EmailSend, UserActionLog } from "../platform/models.js";
-import { resolveAnsprechpartner } from "./offers-write.js";
-import { buildEmailHtml } from "../email/template.js";
+import type { BusinessConfig } from "../../platform/business-config.js";
+import { buildInternalNoteComment, type DealWrites } from "../../integrations/bitrix-deal.js";
+import type { Mailer } from "../../integrations/mail.js";
+import { EmailLog, EmailSend, UserActionLog } from "../../platform/models.js";
+import { resolveAnsprechpartner } from "../offers/index.js";
+import { buildEmailHtml } from "./template.js";
 import {
   DEFAULT_CONTACT_NAME, buildBitrixEmailComment, buildEmailTextBody, describeOfferChanges, getBitrixTargetFromPayload,
   getPresetAttachments, safeOfferFilename, sha256,
-} from "../email/builders.js";
-import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "../email/send-lock.js";
-import type { OfferDocuments, SigningPort } from "../email/ports.js";
-import type { EnsureSentOffer } from "../modules/sends/index.js";
+} from "./builders.js";
+import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "./send-lock.js";
+import type { OfferDocuments, SigningPort } from "./ports.js";
+import type { EnsureSentOffer } from "../sends/index.js";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, offerChangedBody, patchSend, recordStep, storeSendFile,
   type SendFile, type StepName, type StepStatus,
-} from "../modules/sends/index.js";
-import { offerIdentity } from "../modules/sends/index.js";
+} from "../sends/index.js";
+import { offerIdentity } from "../sends/index.js";
 
 export interface EmailDeps {
   mailer: Mailer; deals: DealWrites; documents: OfferDocuments; signing: SigningPort; businessConfig: BusinessConfig;

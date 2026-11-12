@@ -2,9 +2,9 @@
 // src/routes/routing.js and src/routes/planning.js. Contract test: same responses, same
 // outgoing requests (geocoders/routers/planning service replaced by a recording stub).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { buildCustomerAddress } from "../routing/address.js";
-import type { RoutingService } from "../routing/providers.js";
-import type { PlanningClient } from "../integrations/planning.js";
+import { buildCustomerAddress } from "./address.js";
+import type { RoutingService } from "./providers.js";
+import type { PlanningClient } from "../../integrations/planning.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });
@@ -106,7 +106,7 @@ export async function registerRouting(app: FastifyInstance, d: { routing: Routin
 }
 
 // ---- today's customers (legacy src/routes/todayscustomers.js, mounted under /api) ----
-import type { todaysCustomers } from "../integrations/todays-customers.js";
+import type { todaysCustomers } from "../../integrations/todays-customers.js";
 export async function registerTodaysCustomers(app: FastifyInstance, tc: ReturnType<typeof todaysCustomers>) {
   app.get("/api/bitrix/kundendaten", async (req, reply) => {
     try {

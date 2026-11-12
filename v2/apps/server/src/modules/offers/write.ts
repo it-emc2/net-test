@@ -5,10 +5,10 @@
 // saving an offer always sets locked:true; `status` is not in the schema and is dropped.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
-import { Draft, Offer, User } from "../platform/models.js";
-import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../modules/sends/index.js";
-import { wasSentBeforeRecords } from "../modules/sends/index.js";
-import { offerIdentity } from "../modules/sends/index.js";
+import { Draft, Offer, User } from "../../platform/models.js";
+import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../sends/index.js";
+import { wasSentBeforeRecords } from "../sends/index.js";
+import { offerIdentity } from "../sends/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });

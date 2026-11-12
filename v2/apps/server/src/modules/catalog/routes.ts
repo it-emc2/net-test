@@ -6,11 +6,11 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildTrayDimFilter, scoreAndRank } from "@oc/pricing";
-import { Product } from "../platform/models.js";
-import { fetchVigourStock, getVigorDb, pickFreshestNetPrices } from "../integrations/vigor.js";
-import { parseWanneDoc, productLink } from "../catalog/bathtubs.js";
-import { WANNE_SETS } from "../catalog/ported/wanne-sets.js";
-import { describeWanne } from "../catalog/ported/wanne-describe.js";
+import { Product } from "../../platform/models.js";
+import { fetchVigourStock, getVigorDb, pickFreshestNetPrices } from "../../integrations/vigor.js";
+import { parseWanneDoc, productLink } from "./bathtubs.js";
+import { WANNE_SETS } from "./ported/wanne-sets.js";
+import { describeWanne } from "./ported/wanne-describe.js";
 
 export interface CatalogDeps {
   vigorUri: string;
