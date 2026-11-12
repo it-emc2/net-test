@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -65,6 +65,15 @@ describe("winwallOrderLines / winwallSealingSets", () => {
   test("pairs become sets, the 150 has no set", () => {
     expect(winwallOrderLines("203", { 15: 3, 16: 2, 17: 1 }).map((l) => [l.productId, l.qty]))
       .toEqual([["WS20325", 1], ["WS20315", 1], ["WS20326", 1], ["WS20317", 1]]);
+  });
+  test("sealing area: wall plan + extra panels; typed Wandfläche wins; no walls → panel cover", () => {
+    // ANG2026-1112-100246: U 70/161/70 × 55 cm → plan 2 panels; a 3rd (WC box) adds 2,05 m²
+    const wv = { wvKSituation: "u", wvKLinks: "70", wvKBack: "161", wvKRechts: "70", wvKHoehe: "55" };
+    expect(winwallSealingArea(wv, { 13: 2 })).toBeCloseTo(1.6555, 3);
+    expect(winwallSealingArea(wv, { 13: 3 })).toBeCloseTo(3.7055, 3);
+    expect(winwallSealingSets(winwallSealingArea(wv, { 13: 3 }))).toEqual([{ productId: "WS80301", qty: 1 }]);
+    expect(winwallSealingArea({ ...wv, wvArea: "4,5" }, { 13: 3 })).toBe(4.5);
+    expect(winwallSealingArea({}, { 13: 3 })).toBeCloseTo(6.15, 3);
   });
   test("sealing: 6,25 m² only for 5–6,25 m², otherwise 5 m² sets", () => {
     expect(winwallSealingSets(5)).toEqual([{ productId: "WS80301", qty: 1 }]);
