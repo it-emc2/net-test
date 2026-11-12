@@ -1,86 +1,83 @@
-/* Base styles for users who are older and not technical:
-   large readable type (≥18px), high contrast, touch targets ≥48px, visible focus. */
-:root {
-  --bg: #f6f7f5;
-  --surface: #ffffff;
-  --text: #1b1f1d;
-  --muted: #4a524e;
-  --accent: #2f6f4f;
-  --accent-text: #ffffff;
-  --border: #c9d1cc;
-  --focus: #1a56db;
-  --radius: 12px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--text);
-  background: var(--bg);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121514;
-    --surface: #1c201e;
-    --text: #eef2ef;
-    --muted: #b7c0bb;
-    --accent: #5fb38a;
-    --accent-text: #0d1310;
-    --border: #39413d;
-    --focus: #8ab4ff;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); }
-.page { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
-h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
-.lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 24px; }
-.card {
-  display: grid; gap: 12px; padding: 20px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-}
-label { font-weight: 600; }
-input, button, .button-secondary { font: inherit; min-height: 48px; border-radius: 10px; }
-input { padding: 0 14px; border: 2px solid var(--border); background: var(--surface); color: var(--text); }
-button {
-  padding: 0 20px; border: 0; cursor: pointer;
-  background: var(--accent); color: var(--accent-text); font-weight: 700;
-}
-.button-secondary {
-  display: inline-flex; align-items: center; padding: 0 20px;
-  border: 2px solid var(--accent); color: var(--accent); text-decoration: none; font-weight: 600;
-}
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Theme of the new app (ADR 026): today's colours, per-offer accents and dark mode, as CSS
+   variables that the shadcn/ui components read. Sizes for users who are older and not
+   technical: 18 px text, 48 px touch targets, visible focus. */
+@import "tailwindcss";
 
-/* ---- UI kit and offer frame (ADR 026) ---- */
-h2 { font-size: 1.4rem; margin: 28px 0 12px; }
-.field { display: grid; gap: 6px; }
-.hint { color: var(--muted); font-size: 0.95rem; margin: 4px 0 0; }
-button.button-secondary { background: transparent; }
-button:disabled { opacity: 0.6; cursor: default; }
-.notice { padding: 12px 16px; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); margin: 12px 0; }
-.notice-error { border-color: #b3261e; }
-.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.tile {
-  display: grid; gap: 4px; align-content: center; min-height: 96px; padding: 16px 20px; text-decoration: none;
-  background: var(--surface); color: var(--text); border: 2px solid var(--border); border-radius: var(--radius);
+/* dark mode follows the same switch as today's UI: <html data-mode="dark"> */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+:root {
+  /* neutrals (today's --base-*) */
+  --background: #f6f7fb;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --muted: #eef0f5;
+  --muted-foreground: #5b6472; /* a little darker than today's #6b7280 → 4.5:1 on the page background */
+  --border: #e5e7eb;
+  --input: #d1d5db;
+  --destructive: #dc2626;
+  --success: #16a34a;
+  /* accent (today's default: purple) */
+  --accent: #7c3aed;         /* marks, borders */
+  --accent-weak: #ede9fe;    /* active / hover background */
+  --primary: #7c3aed;        /* filled buttons: the "strong" accent, readable with white text */
+  --primary-foreground: #ffffff;
+  --ring: #7c3aed;
+  --step-done: #a78bfa;
+  --step-active: #7c3aed;
+  --step-idle: #cbd5e1;
+  --radius: 0.75rem;
 }
-.tile:hover { border-color: var(--accent); }
-.tile-title { font-size: 1.2rem; font-weight: 700; }
-.tile-text { color: var(--muted); }
-.offer { display: grid; grid-template-columns: minmax(220px, 280px) 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
-@media (max-width: 720px) { .offer { grid-template-columns: 1fr; } }
-.offer-title { font-weight: 700; margin: 0 0 8px; }
-.offer-steps ol { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 4px; }
-.offer-steps a { display: flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 10px; color: var(--text); text-decoration: none; }
-.offer-steps a.active { background: var(--accent); color: var(--accent-text); font-weight: 700; }
-.total { font-size: 1.15rem; margin: 0 0 16px; }
-.total-pending { color: var(--muted); font-size: 0.95rem; }
-.save-state { color: var(--muted); font-size: 0.95rem; min-height: 1.5em; margin: 0 0 12px; }
-fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
-legend { font-weight: 600; padding: 0; margin-bottom: 6px; }
-.choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; font-weight: 400; }
-.choice input { min-height: 0; width: 20px; height: 20px; accent-color: var(--accent); }
-.choice:has(input:checked) { border-color: var(--accent); font-weight: 700; }
-.grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.card + .card { margin-top: 16px; }
-.card h2 { margin-top: 0; }
+/* per-offer accents, same names and values as today's UI (ThemeManager offerDefaults) */
+:root[data-theme="wohnen"]     { --accent: #75c19f; --accent-weak: #e6f5ee; --primary: #2f7a59; --ring: #3b8a68; --step-done: #75c19f; --step-active: #3b8a68; }
+:root[data-theme="pflege"]     { --accent: #ac84bc; --accent-weak: #f6edf9; --primary: #7b5590; --ring: #7b5590; --step-done: #c9a6d7; --step-active: #7b5590; }
+:root[data-theme="gesundheit"] { --accent: #00c6f6; --accent-weak: #e4f9ff; --primary: #007a9d; --ring: #008ab1; --step-done: #7ae5ff; --step-active: #008ab1; }
+:root[data-theme="kfz"]        { --accent: #dfa029; --accent-weak: #fff6e5; --primary: #8f600c; --ring: #a26e10; --step-done: #f2c56e; --step-active: #a26e10; }
+
+:root[data-mode="dark"] {
+  --background: #0b1220;
+  --foreground: #e5e7eb;
+  --card: #0f172a;
+  --card-foreground: #e5e7eb;
+  --muted: #131f30;
+  --muted-foreground: #9ca3af;
+  --border: #1e2d3d;
+  --input: #334155;
+  --destructive: #f87171;
+  --success: #22c55e;
+  --accent-weak: color-mix(in srgb, var(--accent) 18%, transparent);
+  --step-idle: #334155;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-accent: var(--accent);
+  --color-accent-weak: var(--accent-weak);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-step-done: var(--step-done);
+  --color-step-active: var(--step-active);
+  --color-step-idle: var(--step-idle);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+}
+
+@layer base {
+  html { font-size: 18px; }
+  body { @apply bg-background text-foreground font-sans antialiased; margin: 0; line-height: 1.5; }
+  h1 { @apply text-3xl font-bold leading-tight; }
+  h2 { @apply text-xl font-semibold; }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+}

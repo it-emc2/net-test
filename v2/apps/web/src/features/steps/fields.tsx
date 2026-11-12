@@ -2,7 +2,7 @@
 // typing in one field re-renders that field and nothing else (ADR 026).
 import type { InputHTMLAttributes } from "react";
 import { useOfferField, useOfferStore } from "../offer/index.js";
-import { Field } from "../../shared/ui/index.js";
+import { Choices, Field } from "../../shared/ui/index.js";
 
 type Section = Parameters<ReturnType<typeof useOfferStore.getState>["patch"]>[0];
 const patch = (section: string, fields: Record<string, unknown>) => useOfferStore.getState().patch(section as Section, fields as never);
@@ -13,7 +13,7 @@ export function OfferText({ section, name, label, ...rest }: { section: string; 
 }
 
 type Option = string | { value: string; label: string };
-const val = (o: Option) => (typeof o === "string" ? o : o.value);
+const opt = (o: Option) => (typeof o === "string" ? { value: o, label: o } : o);
 
 export function OfferChoice({ section, name, label, options, required, onChoose }: {
   section: string; name: string; label: string; options: readonly Option[]; required?: boolean;
@@ -22,19 +22,9 @@ export function OfferChoice({ section, name, label, options, required, onChoose 
 }) {
   const value = useOfferField<string>(section, name);
   return (
-    <fieldset>
-      <legend>{label}</legend>
-      <div className="choices">
-        {options.map((o) => (
-          <label className="choice" key={val(o)}>
-            <input
-              type="radio" name={`${section}-${name}`} value={val(o)} checked={value === val(o)} required={required}
-              onChange={() => (onChoose ? onChoose(val(o)) : patch(section, { [name]: val(o) }))}
-            />
-            {typeof o === "string" ? o : o.label}
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <Choices
+      legend={label} name={`${section}-${name}`} options={options.map(opt)} value={value} required={required}
+      onChange={(v) => (onChoose ? onChoose(v) : patch(section, { [name]: v }))}
+    />
   );
 }

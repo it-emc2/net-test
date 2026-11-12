@@ -28,3 +28,21 @@ export const BUILT_STEPS: ReadonlyMap<string, "complete" | "partly"> = new Map([
 
 export const isStepOf = (type: NewOfferType, step: string | undefined): step is string => !!step && STEPS[type].includes(step);
 export const firstStep = (type: NewOfferType): string => STEPS[type][0]!;
+
+/** Numbered groups of the step list (as in today's sidebar; other offer types have a flat list). */
+export interface StepGroup { title: string; num?: string; steps: readonly string[] }
+export const STEP_GROUPS: Partial<Record<NewOfferType, readonly StepGroup[]>> = {
+  bu: [
+    { title: "Auszuführende Arbeiten", num: "I", steps: ["Arbeitszeit", "Arbeiten"] },
+    { title: "Material für Badumbau", num: "II", steps: ["Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang"] },
+    { title: "Zusammenfassung", steps: ["Angebotscheck", "Zusammenfassung", "Checkliste"] },
+  ],
+  bwt: [{ title: "Auszuführende Arbeiten", num: "I", steps: ["Arbeitszeit", "bwtArbeiten"] }],
+  hl: [
+    { title: "Auszuführende Arbeiten", num: "I", steps: ["Arbeitszeit", "hlArbeiten"] },
+    { title: "Material für Handläufe", num: "II", steps: ["hlk"] },
+  ],
+};
+/** the group that starts with this step, if any */
+export const groupStartingAt = (type: NewOfferType, step: string): StepGroup | undefined =>
+  STEP_GROUPS[type]?.find((g) => g.steps[0] === step);
