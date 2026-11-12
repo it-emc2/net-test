@@ -120,6 +120,23 @@ BL comes first among the offer types because it has the fewest steps; BU comes l
 
 The two columns come from different harnesses (local preview vs. the Playwright test stack), so they show the order of magnitude, not an exact comparison. The pass mark for React screens stays 200 ms and one price call.
 
+### Phase 1 status (2026-11-12)
+
+Done, without behaviour change (files moved, imports and paths adjusted; all v2 tests and the build green):
+
+- `apps/server/src` now holds only `app.ts`, `server.ts`, `compose.ts` (composition root, no routes), `cli/`, `migrations/`, `platform/`, `integrations/` and `modules/`. The old `routes/` folder is gone.
+- `platform/`: `auth`, `auth-gate`, `db`, `business-config`, `models`.
+- `modules/`: `admin`, `auth`, `bitrix`, `catalog`, `deal-drafts`, `documents`, `email`, `misc`, `offers`, `planning`, `post`, `pricing`, `sends`, `signing`, `web`. Each has an `index.ts`; cross-module imports go through it (guard green).
+- Tool for further moves: `v2/scripts/move-files.mjs`.
+
+Still open in phase 1:
+
+- `platform/models.ts` is one file — split so each module owns its models (`model.ts`).
+- `modules/misc` (health, Vigour prices, bulk import, submissions, external lookup) — split into `catalog` and `offers`; `modules/admin` still mixes customers, users and admin settings.
+- The module indexes re-export everything (`export *`) — narrow them to what other modules really use.
+- Inside the modules, routes, rules and database access are still in the same files (`routes` / `service` / `repo` split).
+- `modules/documents/ported/docx-template.ts` (generated copy, 2,700 lines) stays as it is until main stops changing the original.
+
 ## 4. Risks
 
 | Risk | Mitigation |
