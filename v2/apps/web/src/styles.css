@@ -74,3 +74,13 @@ button:disabled { opacity: 0.6; cursor: default; }
 .offer-steps a.active { background: var(--accent); color: var(--accent-text); font-weight: 700; }
 .total { font-size: 1.15rem; margin: 0 0 16px; }
 .total-pending { color: var(--muted); font-size: 0.95rem; }
+.save-state { color: var(--muted); font-size: 0.95rem; min-height: 1.5em; margin: 0 0 12px; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; min-width: 0; }
+legend { font-weight: 600; padding: 0; margin-bottom: 6px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 2px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; font-weight: 400; }
+.choice input { min-height: 0; width: 20px; height: 20px; accent-color: var(--accent); }
+.choice:has(input:checked) { border-color: var(--accent); font-weight: 700; }
+.grid-2 { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card + .card { margin-top: 16px; }
+.card h2 { margin-top: 0; }

@@ -22,8 +22,9 @@ export const OFFER_TITLES: Record<NewOfferType, string> = {
   bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Badelift", ah: "Alltagshilfe",
 };
 
-/** Steps that exist as React screens (phase 4 adds to this list, one screen at a time). */
-export const BUILT_STEPS: ReadonlySet<string> = new Set<string>();
+/** Steps that exist as React screens (phase 4 adds to this list, one screen at a time; each also
+ *  needs its route in app/router.tsx). "partly": some sections of the step are still in today's UI. */
+export const BUILT_STEPS: ReadonlyMap<string, "complete" | "partly"> = new Map([["Kundendaten", "partly"]]);
 
 export const isStepOf = (type: NewOfferType, step: string | undefined): step is string => !!step && STEPS[type].includes(step);
 export const firstStep = (type: NewOfferType): string => STEPS[type][0]!;

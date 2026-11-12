@@ -173,6 +173,21 @@ Still open in phase 3:
 - **Switch per screen**: there is no switch yet because no screen is rebuilt; the first rebuilt step (phase 4) adds it to `BUILT_STEPS` and the link from today's UI.
 - The Hauptmenü chunk also loads the offer chunk (it needs the store and the titles) — 5.6 kB gzip, acceptable; split if it grows.
 
+### Phase 4 status (2026-11-12) — first screen: Kundendaten, part 1
+
+Today's Kundendaten page has about 130 inputs in 11 sections, so it is rebuilt in slices. Each slice is proven against what today's UI stores for the same inputs.
+
+Done:
+
+- **Shared draft between both UIs** (`features/offer/model/draft.ts`): opening an offer loads its deal draft (`/api/deals/:id/draft`), every change is saved 2.5 s after the last one, a draft changed elsewhere is never overwritten (409 → the user is told to reload). An offer without a deal number gets a temporary key `t-…` in the address, exactly like today's UI. This is the switch between the UIs: both read and write the same draft.
+- **Handover to today's UI**: the link saves first, tells today's UI which offer type and step are open (session storage `konfigurator_state_v1`, the key today's UI itself uses) and opens `/?deal=…#step` or `/?entwurf=…#step`. Checked in a real browser in both directions; today's UI fills in the values the new app leaves blank (mail text, price settings, contact person).
+- **Kundendaten, slice 1** (`features/steps/kundendaten`): contact, address, customer type, contact person. Reference: `apps/web/test/fixtures/kundendaten-contact.json`, recorded from today's UI by `v2/scripts/capture-kundendaten.cjs` (three scenarios); `test/kundendaten.test.tsx` types the same inputs into the React screen and compares the stored `Kundendaten`. Reproduced on purpose: switching "Ansprechpartner vorhanden" back to "Nein" empties only the name.
+- Measured (preview, 834×1194, CPU 6×): typing 15 characters blocks 0 ms and causes 1 price request.
+
+Still open for Kundendaten (in today's UI until rebuilt): payer and insurance details, care level and budget, markup incl. target-price calculator, partner (two persons), Wohnumfeld, property details and uploads, AH details, notes and internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter".
+
+Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
+
 ## 4. Risks
 
 | Risk | Mitigation |

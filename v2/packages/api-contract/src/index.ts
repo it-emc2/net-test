@@ -65,6 +65,14 @@ export const SaveDealDraftRequestSchema = z.object({
   baseRevision: z.number().int().min(0),
 });
 export type SaveDealDraftRequest = z.infer<typeof SaveDealDraftRequestSchema>;
+/** `changed: false` — the payload equals the stored one, no new revision was written. */
+export const SaveDealDraftResponseSchema = z.object({ dealId: z.string(), revision: z.number().int(), changed: z.boolean() });
+export type SaveDealDraftResponse = z.infer<typeof SaveDealDraftResponseSchema>;
+
+/** A deal number, or the temporary key of an offer started without one ("t-" + 24 hex). */
+export const DEAL_NUMBER_RE = /^\d{1,12}$/;
+export const TEMP_DRAFT_KEY_RE = /^t-[0-9a-f]{24}$/;
+export const isDraftKey = (v: unknown): v is string => typeof v === "string" && (DEAL_NUMBER_RE.test(v) || TEMP_DRAFT_KEY_RE.test(v));
 
 // ---------- the endpoints: method, path and shapes in one place ----------
 export const endpoints = {
@@ -75,7 +83,7 @@ export const endpoints = {
   price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
   priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
-  saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema },
+  saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 
