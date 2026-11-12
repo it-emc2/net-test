@@ -30,5 +30,5 @@ export function usePrice() {
     staleTime: Infinity,
     retry: false,
   });
-  return { total: query.data?.total ?? null, selfPay: query.data?.selfPayAmount ?? null, pending: query.isFetching || version !== settled, error: query.error };
+  return { data: query.data ?? null, total: query.data?.total ?? null, selfPay: query.data?.selfPayAmount ?? null, pending: query.isFetching || version !== settled, error: query.error };
 }

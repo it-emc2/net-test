@@ -8,6 +8,8 @@ import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../of
 import { Card, CardTitle, Check, Field, SelectField, TextAreaField } from "../../../shared/ui/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
 import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
+import { Markup } from "../markup/Markup.js";
+import { markupChanges, markupTextSection } from "../markup/rules.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 
@@ -109,7 +111,17 @@ function Payer() {
     const st = useOfferStore.getState();
     if (!st.offer) return;
     const r = choosePayer(st.offer, v as "Selbstzahler" | "Kassenkunde", (st.scratch.payerParked as Parked | undefined) ?? null);
-    st.patchAll(r.changes);
+    // the markup depends on the payer: another minimum (the reason is stored only under it), and
+    // an empty markup becomes 50 % once the payer is chosen (as today)
+    const o = st.offer as Record<string, any>;
+    const section = markupTextSection(o.activeOffer);
+    const m: Record<string, Record<string, unknown>> = section
+      ? markupChanges(o.activeOffer, String(o[section]?.sonderaufschlagValue ?? "").trim() ? String(o[section].sonderaufschlagValue) : "50", v, st.scratch.markupReason ?? o.Kundendaten?.aufschlagBegruendung)
+      : {};
+    if (o.Kundendaten?.aufschlagBegruendung && st.scratch.markupReason === undefined) st.remember("markupReason", o.Kundendaten.aufschlagBegruendung);
+    const merged: Record<string, Record<string, unknown>> = { ...r.changes };
+    for (const [sec, fields] of Object.entries(m)) merged[sec] = { ...(merged[sec] ?? {}), ...fields };
+    st.patchAll(merged);
     st.remember("payerParked", r.parked);
   };
   const pickCopy = (v: string) => {
@@ -270,6 +282,7 @@ function useTwoPersonsTexts() {
 
 export function Kundendaten() {
   useTwoPersonsTexts();
+  const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
   const { dealId = "" } = useParams();
   return (
     <>
@@ -277,12 +290,13 @@ export function Kundendaten() {
       <Address />
       <ContactPerson />
       <Payer />
+      {type === "bl" ? <Markup /> : null}
       <CareLevel />
       <SecondPerson />
       <Property />
       <Card aria-labelledby="kd-more">
         <CardTitle id="kd-more">Weitere Angaben</CardTitle>
-        <p className="m-0">Aufschlag, Wohnumfeld, hochgeladene Bestätigungen (Kasse, Vermieter) und interne Aufgaben werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0">Wohnumfeld, hochgeladene Bestätigungen (Kasse, Vermieter) und interne Aufgaben werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
       </Card>
     </>
