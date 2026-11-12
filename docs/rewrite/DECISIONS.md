@@ -228,3 +228,22 @@ New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `G
 | Audit | mail/Bitrix change note names each changed position, price, old price and reason. |
 | Limits | description only for material lines printed once in the document; same product listed twice → first line carries the change; a sent offer is frozen (new version first). |
 
+## ADR 025 — Local-first saving: the device is written first (2026-11-12)
+
+**Why:** 10 Nov 2026, rep in a cellar without signal: iOS discarded the page, hours of work were gone. v2 autosave so far needed the server; offline the work lived only in the open page.
+
+**Decision (owner: "start with local-first saving"):** every change goes to the device (IndexedDB `oc-local`) within 0.3 s, the server copy follows. No server or database change.
+
+| Topic | How |
+|---|---|
+| Device copy | `local-store.js`: store `drafts` (one record per deal number / temporary key) and `history` (last 8 states per draft). Written on every change, on step change, and at once when the page is hidden or left. Also with autosave switched off. |
+| Sync | `deal-draft.js`: server save as before (versioned, `baseRevision`). No connection or server error → stays `dirty` on the device, retried on `online`, on return to the app and every 20 s. Drafts that are not open are transferred in the background. |
+| Reload / discarded page | The form is refilled by itself: device state if it is not on the server yet or the server cannot be reached, else the server state. Nothing is written to the device before that is decided (an empty form can never replace a saved state). |
+| Start page | "Auf diesem Gerät gespeichert": drafts waiting for transfer plus the last 3 transferred ones; open (works offline) or delete from the device. |
+| Changed elsewhere | Known base version → server answers 409 as before. Unknown base (draft started offline) and a draft exists on the server → conflict, unless that draft is the device's own save whose answer was lost (fingerprint `sentMark`). The user decides under "Versionen": load the newest state, or save the device state as a new version. Never a silent overwrite. |
+| Versions offline | "Versionen" also lists the states kept on the device and works without a connection. |
+| Clean-up | Transferred drafts untouched for 14 days are removed from the device; waiting ones never. |
+| Limits | Storage is per browser/device. Safari may clear site data of a web page not used for 7 days unless the app is on the home screen (`navigator.storage.persist()` is requested). Sent-offer saving (`/api/offers`) and sending still need a connection. Today's "Sitzung wiederherstellen" banner stays as a second net. |
+
+Tests: `tests/e2e/parity/v2-local-first.spec.cjs` (5), `tests/e2e/offline-sync/v2-local-first.spec.cjs` (real offline, page discarded twice).
+

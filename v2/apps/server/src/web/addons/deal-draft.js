@@ -9,6 +9,10 @@
  *  - Reload: the form comes back from the deal draft (today a reload empties it).
  *  - "Versionen": list of saved versions (when, who, what changed) with "Wiederherstellen".
  *  - Deal dialog ("Bitrix Deal laden"): offers "Automatisch gespeicherten Stand öffnen".
+ *  - Local-first (ADR 025): every change is written to THIS DEVICE first (local-store.js), the
+ *    server copy follows. Without a connection the work stays safe on the device, survives a
+ *    reload or a closed app, and is transferred on its own when the connection is back — also
+ *    for drafts that are no longer open. The start page lists the drafts kept on this device.
  * Plain German, large touch targets (≥ 44 px), no browser pop-ups. */
 (function () {
   "use strict";
@@ -21,7 +25,11 @@
     duschabtrennung: "Duschabtrennung", optional: "Optionales", rabatt: "Rabatt", bwt: "Badewannentür", hl: "Handlauf",
     bl: "Badelift", ah: "Alltagshilfe", Zusammenfassung: "Zusammenfassung", Arbeiten: "Arbeiten",
   };
-  var st = { dealId: null, revision: null, lastJson: null, timer: null, saving: false, again: false, conflict: false, offline: false };
+  var st = { dealId: null, revision: null, lastJson: null, timer: null, saving: false, again: false, conflict: false, offline: false,
+    // device copy: which draft/state was written last, and whether the form is still being filled from a saved state
+    localKey: null, localJson: null, ltimer: null, lastSnapAt: 0, hydrating: false, unknownBase: false, localFailed: false, sweeping: false, toldOffline: false };
+  var L = window.__ocLocal || null;
+  var LOCAL_MS = 300, RETRY_MS = 20000, SERVER_WAIT_MS = 6000;
 
   // ---------- small UI ----------
   function h(tag, props, kids) {
@@ -136,8 +144,66 @@
     refreshManual();
   }
 
+  // ---------- device copy (written first, always — also with autosave switched off) ----------
+  function customer(p) { var k = (p && p.Kundendaten) || {}; return [k.firstName, k.lastName].filter(Boolean).join(" ").trim(); }
+  function writeLocal(snapshot) {
+    if (!L || st.hydrating || !active()) return Promise.resolve();
+    if (!dealNumber() && !tempKey()) setTempKey(newTempKey());
+    var payload; try { payload = window.buildPayload(); } catch (e) { return Promise.resolve(); }
+    var json = JSON.stringify(payload), id = dealId(), temp = tempKey(), prev = st.localKey, now = Date.now();
+    if (prev === id && json === st.localJson) return Promise.resolve();
+    var snap = !!snapshot || prev !== id || now - st.lastSnapAt > 60000;
+    var known = st.dealId === id;
+    var rec = {
+      key: id, offerType: offerType(), payload: payload, localAt: now,
+      dirty: !(known && json === st.lastJson), baseRevision: known ? st.revision : null,
+      adoptFrom: dealNumber() && temp ? temp : "", conflict: st.conflict, title: customer(payload),
+      step: (location.hash || "").replace("#", ""),
+    };
+    st.localKey = id; st.localJson = json; if (snap) st.lastSnapAt = now;
+    return L.get(id).then(function (old) {
+      if (old && !known) { rec.baseRevision = old.baseRevision; rec.conflict = !!old.conflict; } // keep what is known about the server copy
+      rec.syncedRevision = old ? old.syncedRevision : null; rec.syncedAt = old ? old.syncedAt : null;
+      if (old && old.sentMark) rec.sentMark = old.sentMark;
+      // this form was not filled from the state already kept for this key (a new offer under an
+      // existing number): keep that state in the device history before it is replaced
+      if (old && prev !== id && st.loadedKey !== id) return L.put(old, true).then(function () { return L.put(rec, true); });
+      return L.put(rec, snap);
+    }).then(function () {
+      // the form moved to another key (deal number entered or corrected): a state that never
+      // reached the server under the old key must not stay behind as a second draft
+      if (!prev || prev === id) return;
+      var joined = TEMP_RE.test(prev) && DEAL_RE.test(id); // the temporary draft became this deal's draft
+      return L.get(prev).then(function (o) { if (o && (joined || o.syncedRevision == null)) return L.remove(prev); });
+    }).then(function () { st.localFailed = false; }, function () { st.localFailed = true; });
+  }
+  function onDevice() { return !!L && !st.localFailed; }
+  // Fingerprint of a state sent to the server. If the answer to a save is lost (connection drops
+  // at that moment), the draft found on the server later is recognised as our own.
+  function mark(json) { var x = 5381; for (var i = 0; i < json.length; i++) x = ((x << 5) + x + json.charCodeAt(i)) | 0; return json.length + ":" + x; }
+  function isOurs(serverDraft, rec) {
+    try { return !!(serverDraft && rec && rec.sentMark && mark(JSON.stringify(serverDraft.payload)) === rec.sentMark); } catch (e) { return false; }
+  }
+  function put(id, type, payload, json, base) {
+    var noted = L ? L.patch(id, { sentMark: mark(json) }).catch(function () {}) : Promise.resolve();
+    return noted.then(function () { return api("PUT", draftUrl(id), { offerType: type, payload: payload, baseRevision: base }); });
+  }
+  function showOnDevice() {
+    show("Auf diesem Gerät gespeichert. Wird übertragen, sobald das Internet wieder da ist.", false, "✓ Auf Gerät gespeichert");
+    if (!st.toldOffline && window.ocNotify) window.ocNotify("Keine Verbindung: Ihre Eingaben sind auf diesem Gerät gespeichert und werden übertragen, sobald das Internet wieder da ist.");
+    st.toldOffline = true;
+  }
+  function markSynced(id, json, revision) {
+    if (!L) return;
+    var fields = { baseRevision: revision, syncedRevision: revision, syncedAt: Date.now(), conflict: false, adoptFrom: "" };
+    if (st.localKey === id && st.localJson === json) fields.dirty = false; // nothing was typed since
+    L.patch(id, fields).catch(function () {});
+  }
+
   // ---------- autosave ----------
   function schedule() {
+    clearTimeout(st.ltimer);
+    st.ltimer = setTimeout(writeLocal, LOCAL_MS);
     clearTimeout(st.timer);
     st.timer = autoOn() ? setTimeout(save, DEBOUNCE_MS) : setTimeout(checkDirty, 600);
   }
@@ -150,6 +216,7 @@
         setTempKey("");
         st.dealId = deal; st.revision = r.status === 200 ? r.body.revision : null; st.lastJson = null;
         if (r.status === 200) show("Entwurf mit Deal " + deal + " verbunden");
+        if (L) L.patch(deal, { adoptFrom: "" }).catch(function () {});
       } else if (r.status === 409) {
         st.conflict = true;
         show("Der Entwurf konnte nicht mit Deal " + deal + " verbunden werden. Bitte unter „Versionen“ prüfen.", true);
@@ -164,20 +231,39 @@
     try { payload = window.buildPayload(); } catch (e) { return Promise.resolve(); }
     var json = JSON.stringify(payload);
     st.saving = true;
-    return adoptIfNeeded().then(function () {
+    function conflicted() {
+      st.conflict = true; st.revision = null;
+      if (L) L.patch(id, { conflict: true }).catch(function () {});
+      show("Dieser Auftrag wurde inzwischen an anderer Stelle geändert. Ihr Stand ist auf diesem Gerät gespeichert – bitte unter „Versionen“ entscheiden.", true);
+    }
+    return writeLocal().then(adoptIfNeeded).then(function () {
       id = dealId();
       if (st.conflict || (st.dealId === id && json === st.lastJson)) return;
       show("Speichert …");
       return loadRevision(id)
-      .then(function () { return api("PUT", draftUrl(id), { offerType: type, payload: payload, baseRevision: st.revision }); })
+      .then(function () {
+        // a state restored from this device whose server version is unknown must not silently
+        // replace a draft that exists on the server
+        if (st.unknownBase && st.revision > 0) {
+          return Promise.all([api("GET", draftUrl(id)), L ? L.get(id) : null]).then(function (x) {
+            if (x[0].status !== 200 || !isOurs(x[0].body, x[1])) return { status: 409, body: {} };
+            st.revision = x[0].body.revision; // our own earlier save whose answer never arrived
+            return put(id, type, payload, json, st.revision);
+          });
+        }
+        return put(id, type, payload, json, st.revision);
+      })
       .then(function (r) {
-        st.offline = false;
+        st.offline = false; st.toldOffline = false;
         if (r.status === 200) {
-          st.revision = r.body.revision; st.lastJson = json; st.dirty = false;
+          st.revision = r.body.revision; st.lastJson = json; st.dirty = false; st.unknownBase = false;
+          markSynced(id, json, r.body.revision);
           show((TEMP_RE.test(id) ? "Vorläufig gespeichert (noch ohne Deal-Nummer) · " : "Automatisch gespeichert · ") + hhmm(Date.now()));
         } else if (r.status === 409) {
-          st.conflict = true; st.revision = null;
-          show("Dieser Auftrag wurde inzwischen an anderer Stelle geändert. Bitte unter „Versionen“ den neuesten Stand laden.", true);
+          conflicted();
+        } else if (onDevice()) {
+          st.offline = true; // the server is there but cannot save right now: same promise as offline
+          showOnDevice();
         } else {
           show("Speichern hat nicht geklappt – es wird gleich noch einmal versucht.", true);
           schedule();
@@ -186,7 +272,8 @@
     })
       .catch(function () {
         st.offline = true;
-        show("Keine Verbindung – wird gespeichert, sobald das Internet wieder da ist.", true);
+        if (onDevice()) showOnDevice();
+        else show("Keine Verbindung – wird gespeichert, sobald das Internet wieder da ist.", true);
       })
       .then(function () {
         st.saving = false;
@@ -198,10 +285,133 @@
   function restoreInto(d) {
     if (typeof window.restoreConfiguratorFromOffer !== "function") return Promise.resolve();
     return Promise.resolve(window.restoreConfiguratorFromOffer({ offerType: d.offerType, payload: d.payload })).then(function () {
-      st.dealId = d.dealId; st.revision = d.revision; st.conflict = false;
+      st.dealId = d.dealId; st.revision = d.revision; st.conflict = false; st.unknownBase = false;
       try { st.lastJson = JSON.stringify(window.buildPayload()); } catch (e) { st.lastJson = null; }
+      st.localKey = d.dealId; st.localJson = st.lastJson; st.loadedKey = d.dealId;
+      if (L) L.patch(d.dealId, { dirty: false, conflict: false, baseRevision: d.revision, syncedRevision: d.revision }).catch(function () {});
       show("Stand vom " + when(d.updatedAt || Date.now()) + " geladen");
     });
+  }
+  // the state kept on this device (newer than the server, or the server cannot be reached)
+  function restoreLocal(rec) {
+    if (typeof window.restoreConfiguratorFromOffer !== "function") return Promise.resolve();
+    return Promise.resolve(window.restoreConfiguratorFromOffer({ offerType: rec.offerType, payload: rec.payload })).then(function () {
+      if (TEMP_RE.test(rec.key) && tempKey() !== rec.key) setTempKey(rec.key);
+      var now; try { now = JSON.stringify(window.buildPayload()); } catch (e) { now = null; }
+      st.localKey = rec.key; st.localJson = now; st.conflict = !!rec.conflict; st.loadedKey = rec.key;
+      if (rec.dirty) {
+        st.lastJson = null;
+        if (rec.baseRevision == null) { st.dealId = null; st.revision = null; st.unknownBase = true; }
+        else { st.dealId = rec.key; st.revision = rec.baseRevision; st.unknownBase = false; }
+      } else { st.dealId = rec.key; st.revision = rec.baseRevision; st.lastJson = now; st.unknownBase = false; }
+      show("Stand von diesem Gerät geladen (" + when(rec.localAt) + ")" + (rec.dirty ? " – wird noch übertragen" : ""), false, "✓ Vom Gerät geladen");
+    });
+  }
+  function serverDraft(id) {
+    var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(null); }, SERVER_WAIT_MS); });
+    return Promise.race([api("GET", draftUrl(id)).catch(function () { return null; }), timeout]);
+  }
+  // fill the form for this draft: the device state wins while it is not on the server yet
+  function hydrate(id) {
+    st.hydrating = true;
+    return Promise.all([L ? L.get(id).catch(function () { return null; }) : null, serverDraft(id)]).then(function (r) {
+      var loc = r[0], srv = r[1] && r[1].status === 200 ? r[1].body : null;
+      if (loc && (loc.dirty || !srv)) return restoreLocal(loc).then(function () { return loc.dirty; });
+      if (srv) return restoreInto(srv).then(function () { return false; });
+      return false;
+    }).then(function (pending) {
+      st.hydrating = false;
+      if (pending && autoOn() && !st.conflict) save();
+      setTimeout(function () { if (active()) schedule(); }, 1200); // anything typed while the form was being filled
+    }, function () { st.hydrating = false; });
+  }
+
+  // ---------- drafts that are not open: transfer what is still only on this device ----------
+  function pushOne(rec) {
+    var chain = Promise.resolve(rec.baseRevision);
+    if (rec.adoptFrom && DEAL_RE.test(rec.key)) {
+      chain = api("POST", draftUrl(rec.key, "/adopt"), { from: rec.adoptFrom }).then(function (a) {
+        if (a.status === 200) return a.body.revision;
+        if (a.status === 409) return "conflict";
+        if (a.status === 404) return rec.baseRevision;
+        throw new Error("adopt " + a.status);
+      });
+    }
+    return chain.then(function (base) {
+      if (base === "conflict" || base != null) return base;
+      return api("GET", draftUrl(rec.key)).then(function (g) { // server version unknown
+        if (g.status === 404) return 0;
+        if (g.status === 200) return isOurs(g.body, rec) ? g.body.revision : "conflict";
+        throw new Error("get " + g.status);
+      });
+    }).then(function (base) {
+      if (base === "conflict") return L.patch(rec.key, { conflict: true });
+      return put(rec.key, rec.offerType, rec.payload, JSON.stringify(rec.payload), base).then(function (r) {
+        if (r.status === 409) return L.patch(rec.key, { conflict: true });
+        if (r.status !== 200) throw new Error("put " + r.status);
+        return L.get(rec.key).then(function (now) {
+          var fields = { baseRevision: r.body.revision, syncedRevision: r.body.revision, syncedAt: Date.now(), adoptFrom: "" };
+          if (now && now.localAt === rec.localAt) fields.dirty = false; // unchanged meanwhile
+          return L.patch(rec.key, fields);
+        });
+      });
+    });
+  }
+  function syncPending() {
+    if (!L || st.sweeping) return Promise.resolve();
+    st.sweeping = true;
+    return L.all().then(function (list) {
+      // the draft in the open form is saved by save() — never by both at once
+      var open = atHome() ? "" : dealId();
+      return list.filter(function (r) { return r.dirty && !r.conflict && r.key !== open && r.key !== st.localKey; })
+        .reduce(function (p, r) { return p.then(function () { return pushOne(r); }); }, Promise.resolve());
+    }).catch(function () { /* no connection or not signed in: next round */ })
+      .then(function () { st.sweeping = false; renderDeviceList(); });
+  }
+
+  // ---------- start page: drafts kept on this device ----------
+  var TYPE_DE = { bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Badelift", ah: "Alltagshilfe" };
+  function openDeviceDraft(rec) {
+    if (TEMP_RE.test(rec.key)) setTempKey(rec.key);
+    hydrate(rec.key);
+  }
+  function removeDeviceDraft(rec) {
+    var go = function (yes) { if (yes) L.remove(rec.key).then(renderDeviceList, renderDeviceList); };
+    if (!rec.dirty) return go(true);
+    var q = { title: "Entwurf vom Gerät löschen?", message: "Dieser Entwurf wurde noch nicht übertragen. Wenn Sie ihn löschen, ist er endgültig weg.", confirmLabel: "Löschen" };
+    if (typeof window.appConfirm === "function") window.appConfirm(q).then(go); else go(window.confirm(q.title + "\n\n" + q.message));
+  }
+  function renderDeviceList() {
+    var home = document.getElementById("page-home");
+    if (!L || !home) return;
+    L.all().then(function (list) {
+      var box = document.getElementById("ocDeviceDrafts");
+      var pending = list.filter(function (r) { return r.dirty || r.conflict; });
+      var shown = pending.concat(list.filter(function (r) { return !r.dirty && !r.conflict; }).slice(0, 3)).slice(0, 8);
+      if (!shown.length) { if (box) box.remove(); return; }
+      if (!box) {
+        box = h("section", { id: "ocDeviceDrafts", "aria-label": "Auf diesem Gerät gespeichert",
+          style: "margin:14px 0;padding:12px 14px;border:1px solid var(--border,#ddd);border-radius:12px;font-size:16px" });
+        var anchor = home.querySelector(".home-load-panel");
+        if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(box, anchor.nextSibling); else home.appendChild(box);
+      }
+      box.textContent = "";
+      box.appendChild(h("h3", { style: "margin:0 0 4px;font-size:17px", text: "Auf diesem Gerät gespeichert" }));
+      box.appendChild(h("p", { style: "margin:0 0 10px;font-size:14px;color:var(--muted,#64748b)",
+        text: pending.length ? pending.length + (pending.length === 1 ? " Entwurf wartet" : " Entwürfe warten") + " noch auf die Übertragung. Das geschieht von selbst, sobald das Internet da ist."
+          : "Zuletzt bearbeitet. Lässt sich auch ohne Internet öffnen." }));
+      shown.forEach(function (r) {
+        var state = r.conflict ? "⚠ an anderer Stelle geändert" : r.dirty ? "● wartet auf Internet" : "✓ übertragen";
+        var label = (TYPE_DE[r.offerType] || r.offerType) + " · " + (r.title || "ohne Namen") + " · " +
+          (TEMP_RE.test(r.key) ? "ohne Deal-Nummer" : "Deal " + r.key) + " · " + when(r.localAt);
+        box.appendChild(h("div", { "data-oc-device": r.key, style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border,#eee)" }, [
+          h("span", { style: "flex:1 1 240px", text: label }),
+          h("span", { style: "font-size:14px;font-weight:600;color:" + (r.conflict ? "#a5261c" : r.dirty ? "#7a5200" : "#1e8449"), text: state }),
+          h("button", { type: "button", style: BTN, text: "Öffnen", onclick: function () { openDeviceDraft(r); } }),
+          h("button", { type: "button", class: "secondary", style: BTN, title: "Vom Gerät löschen", "aria-label": "Vom Gerät löschen: " + label, text: "✕", onclick: function () { removeDeviceDraft(r); } }),
+        ]));
+      });
+    }).catch(function () {});
   }
 
   // ---------- versions ----------
@@ -225,16 +435,47 @@
     overlay.addEventListener("click", function (e) { if (e.target === overlay) closeVersions(); });
     document.body.appendChild(overlay);
 
-    Promise.all([api("GET", draftUrl(id, "/revisions")), api("GET", draftUrl(id))]).then(function (rs) {
-      var revs = (rs[0].body && rs[0].body.revisions) || [];
-      var current = rs[1].status === 200 ? rs[1].body : null;
+    var none = function () { return null; };
+    Promise.all([api("GET", draftUrl(id, "/revisions")).catch(none), api("GET", draftUrl(id)).catch(none), L ? L.history(id).catch(function () { return []; }) : []]).then(function (rs) {
+      var reachable = !!rs[0];
+      var revs = (rs[0] && rs[0].body && rs[0].body.revisions) || [];
+      var current = rs[1] && rs[1].status === 200 ? rs[1].body : null;
+      var device = rs[2] || [];
       list.textContent = "";
+      if (st.conflict) {
+        list.appendChild(h("button", { type: "button", "data-oc-keep-mine": "", style: BTN + "background:#fef3c7;border:1px solid #d97706;text-align:left",
+          text: "Meinen Stand von diesem Gerät als neue Version speichern",
+          onclick: function () {
+            closeVersions();
+            st.conflict = false; st.unknownBase = false; st.dealId = null; st.revision = null; st.lastJson = null;
+            if (L) L.patch(id, { conflict: false }).catch(function () {});
+            save();
+          } }));
+      }
+      var deviceRows = function () {
+        if (!device.length) return;
+        list.appendChild(h("div", { style: "margin-top:8px;font-weight:600", text: "Auf diesem Gerät (letzte Stände)" }));
+        device.forEach(function (d) {
+          list.appendChild(h("div", { "data-oc-device-version": "", style: "display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 10px" }, [
+            h("span", { text: when(d.at) + (d.step ? " · Schritt " + d.step : "") }),
+            h("button", { type: "button", style: BTN, text: "Wiederherstellen", onclick: function () {
+              closeVersions();
+              Promise.resolve(window.restoreConfiguratorFromOffer({ offerType: d.offerType, payload: d.payload })).then(function () { st.localJson = null; schedule(); });
+            } }),
+          ]));
+        });
+      };
+      if (!reachable) {
+        list.appendChild(h("div", { text: "Keine Verbindung – die Versionen auf dem Server sind gerade nicht erreichbar." }));
+        deviceRows();
+        return;
+      }
       if (st.conflict && current) {
         list.appendChild(h("button", { type: "button", style: BTN + "background:#fef3c7;border:1px solid #d97706;text-align:left",
           text: "Neuesten Stand laden (Version " + current.revision + ", " + when(current.updatedAt) + ")",
           onclick: function () { closeVersions(); restoreInto(current); } }));
       }
-      if (!revs.length) { list.appendChild(h("div", { text: "Noch keine gespeicherte Version." })); return; }
+      if (!revs.length) { list.appendChild(h("div", { text: "Noch keine gespeicherte Version." })); deviceRows(); return; }
       revs.forEach(function (r) {
         var changed = (r.sections || []).map(function (s) { return SECTION_DE[s] || s; }).join(", ");
         var label = "Version " + r.revision + " · " + when(r.at) + " · " + initials(r.by) + (r.note ? " · " + r.note : changed ? " · Geändert: " + changed : "");
@@ -244,6 +485,7 @@
         ]);
         list.appendChild(row);
       });
+      deviceRows();
     });
   }
   function restoreVersion(id, revision) {
@@ -288,11 +530,21 @@
     ["input", "change"].forEach(function (t) { document.addEventListener(t, function () { if (active()) schedule(); }, true); });
     document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest("button, [role=button], input[type=checkbox], input[type=radio]") && active()) schedule(); }, true);
     window.addEventListener("hashchange", function () {
-      if (atHome()) { hideBadge(); closeVersions(); if (tempKey()) setTempKey(""); st.dealId = null; st.revision = null; st.lastJson = null; st.conflict = false; }
-      else if (autoOn() && active() && (dealNumber() || tempKey())) save(); // step change saves; opening a tile alone creates nothing
+      if (atHome()) {
+        hideBadge(); closeVersions(); if (tempKey()) setTempKey("");
+        st.dealId = null; st.revision = null; st.lastJson = null; st.conflict = false; st.localKey = null; st.localJson = null; st.loadedKey = null; st.unknownBase = false; st.offline = false;
+        clearTimeout(st.ltimer); clearTimeout(st.timer);
+        syncPending(); // what was left only on this device goes to the server in the background
+      }
+      else if (active() && (dealNumber() || tempKey())) { writeLocal(true); if (autoOn()) save(); } // step change saves; opening a tile alone creates nothing
       refreshManual();
     });
-    window.addEventListener("online", function () { if (st.offline && autoOn()) save(); });
+    function retry() { if (st.offline && autoOn() && active()) save(); syncPending(); }
+    window.addEventListener("online", retry);
+    setInterval(function () { if (navigator.onLine !== false) retry(); }, RETRY_MS);
+    // leaving the page or sending the app to the background: the device copy is written at once
+    window.addEventListener("pagehide", function () { writeLocal(true); });
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") writeLocal(true); else retry(); });
     // manual mode: „Speichern“ where „Schnellspeichern“ used to be
     var actions = document.querySelector("#summaryWidget .sw-actions");
     if (actions && !document.getElementById("ocManualSave")) {
@@ -310,13 +562,17 @@
     if (modal) new MutationObserver(enhanceDealDialog).observe(modal, { attributes: true, attributeFilter: ["hidden"] });
 
     // reload mid-wizard: today the form comes back empty → fill it from the deal draft
+    // Until that is decided nothing is written to the device: an empty form must never replace
+    // a saved state.
+    st.hydrating = !atHome() && !!(dealNumber() || tempKey());
     setTimeout(function () {
       var q = dealNumber() || tempKey();
-      var field = document.getElementById("auftragId");
-      if (atHome() || !q || (field && String(field.value || "").trim())) return;
-      api("GET", draftUrl(q)).then(function (r) { if (r.status === 200) restoreInto(r.body); });
+      var after = function () { if (L) L.purge().catch(function () {}); syncPending(); };
+      // (the Auftrag-ID field may already be filled again from the address — that is not a filled form)
+      if (atHome() || !q) { st.hydrating = false; after(); return; }
+      hydrate(q).then(after, after);
     }, 400);
   });
 
-  window.__ocDealDraft = { save: save, state: st, openVersions: openVersions, setAutosave: setAutosave, isAutosave: autoOn }; // header menu / tests
+  window.__ocDealDraft = { save: save, state: st, openVersions: openVersions, setAutosave: setAutosave, isAutosave: autoOn, writeLocal: writeLocal, syncPending: syncPending }; // header menu / tests
 })();
