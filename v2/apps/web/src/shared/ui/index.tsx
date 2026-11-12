@@ -71,3 +71,14 @@ export function Choices({ legend, name, options, value, onChange, required }: {
     </fieldset>
   );
 }
+
+/** An on/off switch (a native checkbox, so it works with keyboard and screen readers as it is). */
+export function Switch({ id, checked, onChange, label }: { id: string; checked: boolean; onChange: (on: boolean) => void; label: string }) {
+  return (
+    <span className="relative inline-block h-7 w-12 shrink-0">
+      <input id={id} type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0" />
+      <span aria-hidden className="absolute inset-0 rounded-full bg-input transition-colors peer-checked:bg-primary peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring" />
+      <span aria-hidden className="absolute left-0.5 top-0.5 size-6 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+    </span>
+  );
+}

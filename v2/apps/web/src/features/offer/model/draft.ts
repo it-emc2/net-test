@@ -8,6 +8,7 @@ import { isNewOfferType, type NewOfferType, type Offer } from "@oc/domain";
 import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { todayIso } from "../../../shared/lib/format.js";
+import { usePrefs } from "../../../shared/lib/prefs.js";
 import { useOfferStore } from "./store.js";
 
 export const AUTOSAVE_MS = 2500;
@@ -51,8 +52,16 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
 export type SaveStatus = { state: "idle" } | { state: "saving" } | { state: "saved"; at: Date } | { state: "conflict" } | { state: "failed"; message: string };
 
 let inFlight: Promise<SaveStatus> | null = null;
+let last: SaveStatus = { state: "idle" };
 const listeners = new Set<(s: SaveStatus) => void>();
-const tell = (s: SaveStatus) => { listeners.forEach((l) => l(s)); return s; };
+const tell = (s: SaveStatus) => { last = s; listeners.forEach((l) => l(s)); return s; };
+
+/** How saving stands — for any place that only shows it (header, sidebar). */
+export function useSaveStatus(): SaveStatus {
+  const [status, setStatus] = useState<SaveStatus>(last);
+  useEffect(() => { setStatus(last); listeners.add(setStatus); return () => { listeners.delete(setStatus); }; }, []);
+  return status;
+}
 
 /** Saves the open offer now if it has unsaved changes. One save at a time; resolves with the outcome. */
 export function flushDraft(): Promise<SaveStatus> {
@@ -72,18 +81,19 @@ export function flushDraft(): Promise<SaveStatus> {
   return inFlight;
 }
 
-/** Saves the open offer by itself after each change and reports how saving stands. */
-export function useAutosave(): SaveStatus {
+/** Saves the open offer by itself after each change — unless the user switched that off
+ *  ("Automatisch speichern" in the user menu; then they save with the "Speichern" button). */
+export function useAutosave(): void {
   const version = useOfferStore((s) => s.version);
   const dirty = useOfferStore((s) => s.version !== s.savedVersion);
-  const [status, setStatus] = useState<SaveStatus>({ state: "idle" });
-  useEffect(() => { listeners.add(setStatus); return () => { listeners.delete(setStatus); }; }, []);
+  const dealId = useOfferStore((s) => s.dealId);
+  const auto = usePrefs((p) => p.autosave);
+  useEffect(() => { tell({ state: "idle" }); }, [dealId]); // another offer: its own saving state
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || !auto) return;
     const t = setTimeout(() => { void flushDraft(); }, AUTOSAVE_MS);
     return () => clearTimeout(t);
-  }, [version, dirty]);
-  return status;
+  }, [version, dirty, auto]);
 }
 
 /** A new temporary key for an offer started without a deal number ("t-" + 24 hex, unguessable). */

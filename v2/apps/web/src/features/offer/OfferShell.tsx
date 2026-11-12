@@ -4,12 +4,12 @@ import { isDraftKey } from "@oc/api-contract";
 import { isNewOfferType, type NewOfferType } from "@oc/domain";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { euro } from "../../shared/lib/format.js";
-import { Check } from "lucide-react";
-import { useEffect } from "react";
-import { applyOfferTheme } from "../../shared/lib/theme.js";
+import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { usePrefs } from "../../shared/lib/prefs.js";
 import { Alert, Button, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
-import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, type SaveStatus } from "./model/draft.js";
+import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, useSaveStatus } from "./model/draft.js";
 import { useOfferStore } from "./model/store.js";
 import { usePrice } from "./model/usePrice.js";
 import { OFFER_TITLES, STEPS, firstStep, groupStartingAt, isStepOf, stepLabel } from "./steps.js";
@@ -23,21 +23,6 @@ function Total() {
       {pending ? <span className="text-[0.95rem] text-muted-foreground"> wird berechnet …</span> : null}
     </p>
   );
-}
-
-const hhmm = (d: Date) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
-function SaveState({ status }: { status: SaveStatus }) {
-  const dirty = useOfferStore((s) => s.version !== s.savedVersion);
-  // a failed save is also shown as a toast — it must not be overlooked while typing further down
-  useEffect(() => {
-    if (status.state === "conflict") toast.error("Dieses Angebot wurde an anderer Stelle geändert. Bitte laden Sie die Seite neu.", { duration: Infinity, id: "save" });
-    else if (status.state === "failed") toast.error(`Nicht gespeichert: ${status.message}`, { duration: Infinity, id: "save" });
-    else if (status.state === "saved") toast.dismiss("save");
-  }, [status]);
-  if (status.state === "conflict") return <Alert kind="error">Dieses Angebot wurde an anderer Stelle geändert. Bitte laden Sie die Seite neu, bevor Sie weiterarbeiten.</Alert>;
-  if (status.state === "failed") return <Alert kind="error">Nicht gespeichert: {status.message}</Alert>;
-  const text = status.state === "saving" ? "Speichert …" : dirty ? "Änderungen werden gleich gespeichert" : status.state === "saved" ? `Automatisch gespeichert · ${hhmm(status.at)}` : "";
-  return <p className="m-0 min-h-6 text-[0.95rem] text-muted-foreground" role="status">{text}</p>;
 }
 
 /** The step list with today's progress marks: steps before the open one are done. */
@@ -115,10 +100,20 @@ export function OfferShell() {
 
 function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const navigate = useNavigate();
-  const open = useOpenOffer(dealId, type);
-  useEffect(() => { applyOfferTheme(type); return () => applyOfferTheme(null); }, [type]); // the offer's accent colour, as today
-  const save = useAutosave();
   const step = useLocation().pathname.split("/")[4]; // /deal/<id>/<type>/<step>
+  const open = useOpenOffer(dealId, type);
+  const setOfferType = usePrefs((p) => p.setOfferType);
+  useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
+  useAutosave();
+  // a failed save is also a toast — it must not be overlooked while typing further down
+  const saving = useSaveStatus();
+  useEffect(() => {
+    if (saving.state === "conflict") toast.error("Dieses Angebot wurde an anderer Stelle geändert. Bitte laden Sie die Seite neu.", { duration: Infinity, id: "save" });
+    else if (saving.state === "failed") toast.error(`Nicht gespeichert: ${saving.message}`, { duration: Infinity, id: "save" });
+    else if (saving.state === "saved") toast.dismiss("save");
+  }, [saving]);
+  const [stepsOpen, setStepsOpen] = useState(false);
+  useEffect(() => { setStepsOpen(false); }, [step]); // a step was chosen → fold the list away again (narrow screens)
   const base = `/deal/${dealId}/${type}`;
 
   if (open.status === "loading") return <Page title="Einen Moment …" lead="Das Angebot wird geöffnet." />;
@@ -129,11 +124,19 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const temp = dealId.startsWith("t-");
   return (
     <div className="mx-auto grid max-w-6xl gap-6 px-4 pb-16 pt-6 md:grid-cols-[minmax(240px,300px)_1fr]">
-      <nav className="grid content-start gap-4" aria-label="Schritte">
+      {/* sidebar: stays in view on a wide screen; on a narrow one the step list folds away */}
+      <nav className="grid content-start gap-4 md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:pr-1" aria-label="Schritte">
         <p className="m-0 font-bold">{OFFER_TITLES[type]}{temp ? " · noch ohne Auftragsnummer" : ` · Auftrag ${dealId}`}</p>
-        <StepList type={type} base={base} current={step} />
+        {/* narrow screens: the list folds away behind this button; wide screens always show it */}
+        <button
+          type="button" aria-expanded={stepsOpen} aria-controls="offer-steps" onClick={() => setStepsOpen((o) => !o)}
+          className="flex min-h-12 cursor-pointer items-center justify-between rounded-lg border-2 border-input bg-card px-4 font-semibold text-foreground md:hidden"
+        >
+          <span>Schritt: {stepLabel(step)}</span>
+          <ChevronDown aria-hidden className={cn("size-5 transition-transform", stepsOpen && "rotate-180")} />
+        </button>
+        <div id="offer-steps" className={cn(stepsOpen ? "block" : "hidden", "md:block")}><StepList type={type} base={base} current={step} /></div>
         <Total />
-        <SaveState status={save} />
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
         <Button variant="secondary" onClick={() => { void flushDraft().then(() => navigate("/")); }}>Zum Hauptmenü</Button>
       </nav>
