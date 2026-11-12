@@ -15,6 +15,9 @@ const FIXTURES = path.join(__dirname, "..", "apps", "web", "test", "fixtures");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
 const NOT_AH = ["bu", "bwt", "hl", "bl"];
+const DONE = [["radio", "salutation", "Frau"], ["text", "firstName", "Test"], ["text", "lastName", "Kunde"], ["radio", "vermieterGenehmigungErforderlich", "Nein"]];
+const WE = (row, field) => `#wohnumfeldEntriesList .pgb-entry-row:nth-child(${row}) .wohnumfeld-entry-${field}`;
+const TODO = (row) => `#internalTodosList .itodo-item:nth-child(${row}) input`;
 // steps: ["text", name, value] | ["radio", name, value]   — invented test data only
 const FILES = {
   "kundendaten-contact.json": {
@@ -131,6 +134,39 @@ const FILES = {
     "not a number": { only: NOT_AH, steps: [["id", "sonderaufschlagValue", "abc"]] },
     "120 % typed with a dot": { only: NOT_AH, steps: [["id", "sonderaufschlagValue", "120.25"]] },
   },
+  // Wohnumfeld (amounts already used) and the internal list. ["css", selector, text] types into
+  // the element the selector finds (rows have no names).
+  "kundendaten-extras.json": {
+    "measures done before: one amount": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["css", WE(1, "fuerWas"), "Treppenlift 2023"]] },
+    "measures done before: two amounts": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["css", WE(1, "fuerWas"), "Treppenlift"], ["click", "#wohnumfeldAddEntryBtn"], ["css", WE(2, "amount"), "800,50"], ["css", WE(2, "fuerWas"), "Haltegriffe"]] },
+    "two amounts, the first removed": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["css", WE(1, "fuerWas"), "Treppenlift"], ["click", "#wohnumfeldAddEntryBtn"], ["css", WE(2, "amount"), "800"], ["css", WE(2, "fuerWas"), "Haltegriffe"], ["click", "#wohnumfeldEntriesList .pgb-entry-row:nth-child(1) .pgb-iconbtn"]] },
+    "the only amount cannot be removed": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "500"], ["click", "#wohnumfeldEntriesList .pgb-entry-row:nth-child(1) .pgb-iconbtn"]] },
+    "an amount entered, then not done before": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["css", WE(1, "fuerWas"), "Treppenlift"], ["radio", "wohnumfeldDone", "Nein"]] },
+    "an amount entered, Nein, then Ja again": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["css", WE(1, "fuerWas"), "Treppenlift"], ["radio", "wohnumfeldDone", "Nein"], ["radio", "wohnumfeldDone", "Ja"]] },
+    "not known whether done before": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Unbekannt"]] },
+    "an amount entered, then Selbstzahler": { only: NOT_AH, steps: [["radio", "wohnumfeldDone", "Ja"], ["css", WE(1, "amount"), "1200"], ["radio", "payer", "Selbstzahler"]] },
+    "internal list: two entries": [["click", "#internalTodosAddBtn"], ["css", TODO(1), "Schlüssel beim Nachbarn"], ["click", "#internalTodosAddBtn"], ["css", TODO(2), "Rückruf am Montag"]],
+    "internal list: two entries, the first removed": [["click", "#internalTodosAddBtn"], ["css", TODO(1), "Schlüssel beim Nachbarn"], ["click", "#internalTodosAddBtn"], ["css", TODO(2), "Rückruf am Montag"], ["click", "#internalTodosList .itodo-item:nth-child(1) .itodo-remove"]],
+    "internal list: an entry added and left empty": [["click", "#internalTodosAddBtn"]],
+  },
+  // "Weiter" on Kundendaten: what today's UI asks for before it goes on (recorded: the message
+  // and the step the user is on afterwards)
+  "kundendaten-next.json": {
+    "nothing entered": [],
+    "only the salutation": [["radio", "salutation", "Frau"]],
+    "salutation and names": [...DONE.slice(0, 3)],
+    "everything asked for": DONE,
+    "the date emptied": [...DONE, ["text", "date", ""]],
+    "no answer about a contact person possible: Ja without a name": [...DONE, ["radio", "hasContactPerson", "Ja"]],
+    "an e-mail address that is none": [...DONE, ["text", "email", "keine-adresse"]],
+    "care level Ja, no level chosen": [...DONE, ["radio", "hasPflegegrad", "Ja"]],
+    "care level Ja with a level": [...DONE, ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"]],
+    "Selbstzahler": [...DONE, ["radio", "payer", "Selbstzahler"]],
+    "markup emptied": { only: NOT_AH, steps: [...DONE, ["id", "sonderaufschlagValue", ""]] },
+    "markup under the minimum, no reason": { only: NOT_AH, steps: [...DONE, ["id", "sonderaufschlagValue", "20"]] },
+    "markup under the minimum with a reason": { only: NOT_AH, steps: [...DONE, ["id", "sonderaufschlagValue", "20"], ["id", "aufschlagBegruendung", "Stammkunde"]] },
+    "markup that is no number": { only: NOT_AH, steps: [...DONE, ["id", "sonderaufschlagValue", "abc"]] },
+  },
 };
 // which of these questions are on the page at the end (by field name)
 const QUESTIONS = ["pflegekasseAntrag", "pflegekasseGenehmigung", "pflegekasseEmc2Antrag", "wohnsituation", "vermieterGenehmigungErforderlich", "vermieterGenehmigung",
@@ -193,6 +229,13 @@ function changesOutside(base, now) {
           const made = await page.evaluate(([k, f, v]) => {
             // choosing / typing like a user: set the control, then tell the page
             if (k === "click") { document.querySelector(f).click(); return true; }
+          if (k === "css") {
+            const t = document.querySelector(f);
+            t.value = v;
+            t.dispatchEvent(new Event("input", { bubbles: true }));
+            t.dispatchEvent(new Event("change", { bubbles: true }));
+            return true;
+          }
             if (k === "id" || k === "slider") {
               const t = document.getElementById(f);
               t.value = v;
@@ -236,7 +279,27 @@ function changesOutside(base, now) {
             return [n, !!el && !el.disabled && (el.closest("label") || el).getClientRects().length > 0];
           })), QUESTIONS);
         }
-        if (file === "kundendaten-markup.json") entry.markup = await page.evaluate(() => {
+        if (file === "kundendaten-next.json") {
+          entry.skipped = skipped;
+          entry.next = await page.evaluate(async () => {
+            const said = [];
+            const t = window.toast;
+            if (t) { const was = t.error; t.error = (title, msg) => { said.push([String(title), String(msg)]); return was?.call(t, title, msg); }; }
+            document.querySelector('#page-Kundendaten [data-nav="next"]').click();
+            await new Promise((r) => setTimeout(r, 500));
+            return { step: location.hash.slice(1), said, date: !!document.getElementById("date").value };
+          });
+        }
+      if (file === "kundendaten-extras.json") entry.extras = await page.evaluate(() => {
+        const vis = (id) => { const el = document.getElementById(id); return !!el && !el.hidden && el.getClientRects().length > 0; };
+        const txt = (id) => (document.getElementById(id)?.textContent || "").replace(/\s+/g, " ").trim();
+        return {
+          wohnumfeldQuestion: vis("wohnumfeldDoneGroup"), amountsShown: vis("wohnumfeldEntriesContainer"),
+          amountRows: document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row").length, usedText: txt("pgbWeSum"),
+          todoRows: document.querySelectorAll("#internalTodosList .itodo-item").length, todoCount: document.getElementById("internalTodosCount")?.hidden ? "" : txt("internalTodosCount"),
+        };
+      });
+      if (file === "kundendaten-markup.json") entry.markup = await page.evaluate(() => {
           const vis = (id) => { const el = document.getElementById(id); return !!el && !el.hidden && el.getClientRects().length > 0; };
           const txt = (id) => (document.getElementById(id)?.innerText || "").replace(/\s+/g, " ").trim();
           return {

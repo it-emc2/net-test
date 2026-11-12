@@ -35,7 +35,8 @@ export function Markup() {
     st.remember("markupReason", text);
     st.patchAll(markupChanges(type, raw, payer, text));
   };
-  const view = markupView(raw, payer, reason);
+  const reported = !!useOfferStore((st) => st.scratch.markupReported); // "Weiter" was pressed with the markup missing
+  const view = markupView(raw, payer, reason, reported);
   const has = Number.isFinite(view.pct);
 
   const fromTarget = async (value: string) => {

@@ -197,6 +197,9 @@ Findings about today's UI (not changed here):
 
 - **Kundendaten, slices 4 and 5**: the second person (`kundendaten-partner.json`, 16 recordings) and funding, property and notes (`kundendaten-object.json`, 50 recordings). "Miete" sets "Genehmigung des Vermieters erforderlich" to Ja by itself, "Eigentum" to Nein; "liegt vor" is asked and stored only for a rented home. Unticking "2 Personen" removes the second person's entries (the Anrede stays); ticking it again brings them back.
 
+- **Kundendaten, slices 6 and 7**: Wohnumfeld (amounts of the subsidy already used) and the internal list (`kundendaten-extras.json`, 47 recordings; `extras.ts`), and what "Weiter" asks for (`kundendaten-next.json`, 66 recordings; `required.ts`). The amounts are stored only while the answer is "Ja"; the rows stay as entered. "Weiter" checks the markup first (Badumbau, Badewannentür, Handlauf: the user is taken to Aufschlag / Rabatt, as today), fills an empty date with today's, then names the missing fields in a message and puts the focus on the first. Steps register their check with `setStepCheck` (`features/offer/steps.ts`); the frame around the steps does not know the screens.
+- Findings about today's UI (not changed there): with a contact person, their name **and address** are required; today's message names the care level "1" and the e-mail field "Email" — the React message uses the labels on the page; an amount typed with a comma into the amount field counts as 0.
+
 Still open for Kundendaten: see the BU build order below.
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
@@ -220,7 +223,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 
 | # | Step | Today | State |
 |---|---|---|---|
-| 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes, markup (Badelift only — see step 10). **Open:** Wohnumfeld entries, uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
+| 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes, markup (Badelift only — see step 10). **Built too:** Wohnumfeld, internal list, the check on "Weiter". **Open:** uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
 | 2 | Arbeitszeit | 243 lines, 9 inputs | open — work-time suggestion, travel, distance lookup |
 | 3 | Arbeiten | 384 lines, 37 inputs | open |
 | 4 | Duschwanne | 173 lines, 23 inputs | open — tray search, bathtub wizard |
