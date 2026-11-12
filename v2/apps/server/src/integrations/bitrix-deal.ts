@@ -268,6 +268,8 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     }
   }
 
-  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, setDealOfferLink };
+  /** a Bitrix task (main PR #321: "Neuen Link anfordern" on an expired signing link) */
+  const addTask = (fields: Record<string, unknown>) => bx.post("tasks.task.add", { fields });
+  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, setDealOfferLink, addTask };
 }
 export type DealWrites = ReturnType<typeof dealWrites>;

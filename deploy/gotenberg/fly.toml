@@ -1,0 +1,27 @@
+# Gotenberg PDF engine, basic auth (see Dockerfile).
+#   prod (private network): GOTENBERG_URL=http://USER:PASS@emc2-gotenberg.internal:3000
+#   local dev (public):     GOTENBERG_URL=https://USER:PASS@emc2-gotenberg.fly.dev
+# Deploy: cd deploy/gotenberg && fly deploy --ha=false
+app = 'emc2-gotenberg'
+primary_region = 'fra'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'off'
+  min_machines_running = 1
+
+[checks.health]
+  type = 'http'
+  port = 3000
+  path = '/health'
+  interval = '30s'
+  timeout = '5s'
+  grace_period = '20s'
+
+[[vm]]
+  size = 'shared-cpu-2x'
+  memory = '1gb'

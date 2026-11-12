@@ -31,6 +31,11 @@ export class Gotenberg implements PdfEngine {
   docxToPdf(docx: Buffer) {
     const form = new FormData();
     form.append("files", new Blob([new Uint8Array(docx)]), "document.docx");
+    // same export settings as main (PR #320): without them the 2560 px header image stays
+    // lossless and the offer PDF grows from 181 KB to 667 KB
+    form.append("reduceImageResolution", "true");
+    form.append("maxImageResolution", "300");
+    form.append("quality", "90");
     return this.post("/forms/libreoffice/convert", form);
   }
 
@@ -46,4 +51,17 @@ export class Gotenberg implements PdfEngine {
     form.append("printBackground", "true");
     return this.post("/forms/chromium/convert/html", form);
   }
+}
+
+/** Records every conversion (kind, duration, outcome) — recording never blocks or fails a conversion. */
+export function withPdfLog(engine: PdfEngine, record: (row: { kind: "docx" | "html"; ms: number; ok: boolean; error?: string }) => void): PdfEngine {
+  const timed = async (kind: "docx" | "html", run: () => Promise<Buffer>) => {
+    const t0 = Date.now();
+    try { const b = await run(); record({ kind, ms: Date.now() - t0, ok: true }); return b; }
+    catch (e) { record({ kind, ms: Date.now() - t0, ok: false, error: String((e as Error)?.message || e).slice(0, 500) }); throw e; }
+  };
+  return {
+    docxToPdf: (docx) => timed("docx", () => engine.docxToPdf(docx)),
+    htmlToPdf: (html, opts) => timed("html", () => engine.htmlToPdf(html, opts)),
+  };
 }

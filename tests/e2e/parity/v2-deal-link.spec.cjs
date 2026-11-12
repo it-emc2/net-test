@@ -48,8 +48,10 @@ test("while working, the address follows the current Auftrag-ID; reload keeps st
   expect(new URL(page.url()).hash).toBe(hashBefore);
   expect(new URL(page.url()).searchParams.get("deal")).toBe("4711");
   expect(calls).toEqual([]); // reload mid-wizard never re-opens the deal dialog
-  // back to the Hauptmenü → link removed
+  // back to the Hauptmenü → link removed. Since main PR #332 (F03) the app asks before it
+  // throws the offer away, also when the address changes to #home.
   await page.evaluate(() => { location.hash = "home"; });
+  await page.locator("#homeConfirmGo").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("deal")).toBe(null);
   expect(errors).toEqual([]);
 });

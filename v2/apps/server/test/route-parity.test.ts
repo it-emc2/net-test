@@ -5,7 +5,16 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error plain .mjs script
 import { missingInV2 } from "../../../scripts/route-parity.mjs";
 
-const ASSIGNED: Record<string, string> = {};
+// Session recording (main PR #325, rrweb → Backblaze B2): owner decision 2026-11-12 — not part of
+// the main sync, ported in a later phase.
+const RECORDING = "later phase: session recording (owner 2026-11-12)";
+const ASSIGNED: Record<string, string> = {
+  "GET /admin/api/recordings": RECORDING,
+  "GET /admin/api/recordings/:sid": RECORDING,
+  "GET /admin/api/recordings/:sid/chunk/:seq": RECORDING,
+  "GET /api/recording/config": RECORDING,
+  "POST /api/recording/chunk": RECORDING,
+};
 
 describe("route parity with legacy", () => {
   it("every legacy route is ported or assigned to a phase", () => {

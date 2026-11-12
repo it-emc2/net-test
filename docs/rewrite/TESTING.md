@@ -111,3 +111,12 @@ Legacy (spawned) and v2 send to a local SMTP sink (`test/helpers/smtp-sink.ts`, 
 - Web layer contract (`contract.test.ts` "web layer"): headers/CSP/CORS/files/redirects vs legacy; index differs only by the injected add-on script tags.
 - 2026-11-06: v2 serves every page with `web/addons/error-compat.js` first in `<head>`: v2 error objects `{error:{code,message,requestId}}` become the plain `error` text today's screens display (found in the preview: the login page showed "[object Object]"). Contract tests expect exactly that one line extra.
 - Local preview: `v2/scripts/preview.sh` (localhost:3001, DB `oc_preview`, integrations blocked) prefers Node 24/22 over the faulty local Node 25.9.
+
+## Main sync 2026-11-12 (main@1a35c453: 61 commits — signing audit fixes, Gotenberg, PDF stats, iPad navigation fix)
+- Merge conflict only in `tests/e2e/offline-sync/global-setup.cjs` (both sides kept: Bitrix blocked for legacy, `v2Env` on top).
+- Pricing re-ported (`port-pricing-core.mjs 1a35c453`); the script got one more pre-pass anchor (`const out` of the line-edit code, ADR 024) that had been typed by hand before.
+- Verbatim ports: `docx-template.js` now imports main's optional Gotenberg helper → the import is dropped by a new rule (v2 always converts through its PDF engine); new verbatim port `src/lib/signatureImage.js` → `documents/ported/signature-image.ts`.
+- Ported by hand: `SigningRequest` fields `completionClaimedAt` / `completionResult` / `newLinkRequestedAt` (v2 keeps its own completion claim, ADR 023, and mirrors the facts on the request in main's shape); expired link answers `expired` + `newLinkRequested` with `Cache-Control: no-store`; `POST /api/signing/:token/request-new-link`; `GET /admin/api/pdf-stats` + `PdfLog` (v2 logs engine `gotenberg`); main's LibreOffice image export settings; Bitrix timeout 15 s / 60 s; 5 s deadline with 504 for `/api/routing/suggest-distance`.
+- Already covered in v2 before the sync: strict PNG signature check, atomic signing, EmailLog failure after a sent mail, upload field size (25 MB ≥ main's 20 MB), graceful shutdown.
+- Not ported (owner decision 2026-11-12): session recording (PR #325, 5 routes) — listed in `route-parity.test.ts` for a later phase.
+- Contract scenario "reuse rules" extended by the new-link steps (legacy ≡ v2 incl. the Bitrix task).

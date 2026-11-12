@@ -13,6 +13,8 @@ Kosten: visible=[page-Kosten] modal=[] hash=#Kosten
 Angebotscheck: visible=[page-Angebotscheck] modal=[] hash=#Angebotscheck
 Zusammenfassung: visible=[page-Zusammenfassung] modal=[] hash=#Zusammenfassung
 Checkliste: visible=[page-Checkliste] modal=[] hash=#Checkliste
+referenzVorher: visible=[page-referenzVorher] modal=[] hash=#referenzVorher
+referenzNachher: visible=[page-referenzNachher] modal=[] hash=#referenzNachher
 admin: visible=[page-admin] modal=[] hash=#admin
 services: visible=[page-services] modal=[] hash=#services
 crm-emc2: visible=[page-crm-emc2] modal=[] hash=#crm-emc2

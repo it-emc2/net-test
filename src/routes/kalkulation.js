@@ -448,6 +448,7 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
     OnSiteCostLabel: fmtCurrency(e.onSiteCost),
     TravelCostLabel: fmtCurrency(e.travelCost),
     TotalCostLabel: fmtCurrency(e.totalCost),
+    TravelCost: Number(e.travelCost) || 0,
   }));
   const gesamtkostenAusZeiten = round2(
     (timeBreakdown.employees || []).reduce((a, e) => a + (Number(e.totalCost) || 0), 0),
@@ -1085,21 +1086,48 @@ router.post("/pdf-v2", async (req, res) => {
     data.Pos002_UnitPrice = fmtCurrency(pos002Sum);
     data.Pos002_LineTotal = fmtCurrency(pos002Sum);
 
-    // Pos. 2 as EK / Aufschlag / VK. The Aufschlag is the offer's real
-    // global amount (markupBase = EK net of Pos. 2 here), not a recomputation.
-    const matVk = round2(pos002Sum + aufschlag);
+    // Pos. II is shown incl. Aufschlag everywhere (overview + section), with the
+    // EK rows and the Aufschlag calculation in the section. The Aufschlag is the
+    // offer's real global amount, not a recomputation.
+    const matVk = round2(posII + aufschlag);
+    const noMarkup = round2(pos002Sum - markupBase);
+
+    // Selbstzahler: Arbeitskostenanteil = the "Lohn" rows of Pos. I. Everything
+    // else in Pos. I (Fahrzeug, Maschinen, Beräumung, Kilometer) is a
+    // Nebenleistung — whether it counts as Arbeitskosten is a BuHa decision.
+    const isSZ = (body?.Kundendaten?.payer || "") === "Selbstzahler";
+    const pos001Rows = data.Pos001_CostLines || [];
+    const sumKind = (re) =>
+      round2(pos001Rows.filter((l) => re.test(String(l.Kostenart || ""))).reduce((a, l) => a + (Number(l._totalNum) || 0), 0));
+    const szLohn = sumKind(/^Lohn$/i);
+    const szLohnAnfahrt = round2(
+      (data.Employees || []).reduce((a, e) => a + (Number(e.TravelCost) || 0), 0),
+    );
+    const szPos001 = round2(pos001Rows.reduce((a, l) => a + (Number(l._totalNum) || 0), 0));
+    const taxRate = Number(computed?.taxRate ?? 0.19);
 
     Object.assign(data, {
-      MatAufschlagPctLabel: `(${fmtPercentDE(markupPct * 100, 1)})`,
-      MatAufschlagLabel: aufschlag > 0 ? fmtCurrency(aufschlag) : "",
+      MatPctLabel: `${fmtPercentDE(markupPct * 100, 1)}`,
+      MatBaseLabel: fmtCurrency(markupBase),
+      MatAufschlagLabel: fmtCurrency(aufschlag),
+      MatNoMarkupLabel: noMarkup > 0.004 ? fmtCurrency(noMarkup) : "",
       MatVkLabel: fmtCurrency(matVk),
+      ZeroLabel: fmtCurrency(0),
+      IsSZ: isSZ,
+      SzLohnLabel: fmtCurrency(szLohn),
+      SzLohnVorOrtLabel: fmtCurrency(round2(szLohn - szLohnAnfahrt)),
+      SzLohnAnfahrtLabel: fmtCurrency(szLohnAnfahrt),
+      SzNebenLabel: fmtCurrency(round2(szPos001 - szLohn)),
+      SzLohnBruttoLabel: fmtCurrency(round2(szLohn * (1 + taxRate))),
+      SzTaxLabel: `${fmtPercentDE(taxRate * 100, 0)}`,
       OfferBadge: isBwt ? "BWT" : "BU",
       DealId: body?.dealId || body?.Kundendaten?.dealId || "",
       PosI_Label: fmtCurrency(posI),
-      PosII_Label: fmtCurrency(posII),
+      PosII_Label: fmtCurrency(matVk),
       PosIII_Label: fmtCurrency(posIII),
       AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 1)} auf ${fmtCurrency(markupBase)})`,
       AufschlagValueLabel: fmtCurrency(aufschlag),
+      AufschlagBegruendung: String(body?.Kundendaten?.aufschlagBegruendung || "").trim(),
       RabattValueLabel: rabattAmount > 0 ? `-${fmtCurrency(rabattAmount)}` : "",
       ZwischensummeLabel: fmtCurrency(zwischensumme),
       BonusGesamtLabel: bonusGross > 0 ? `-${fmtCurrency(bonusGross)}` : fmtCurrency(0),

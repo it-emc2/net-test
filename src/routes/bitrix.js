@@ -171,6 +171,10 @@ function logBitrixFailure(method, paramsObj, err, httpMethod) {
   }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
 }
 
+const BX_TIMEOUT_MS = 15_000;
+const BX_UPLOAD_TIMEOUT_MS = 60_000;
+const BX_LARGE_BODY_BYTES = 256 * 1024;
+
 async function bxFetch(method, paramsObj, httpMethod) {
   const qs = buildQS(paramsObj);
   const url =
@@ -178,14 +182,31 @@ async function bxFetch(method, paramsObj, httpMethod) {
       ? `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`
       : `${BITRIX_WEBHOOK_BASE}/${method}.json`;
 
-  const res = await fetch(url, {
-    method: httpMethod,
-    ...(httpMethod === "POST" && {
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: qs,
-    }),
-  });
-  const data = await res.json().catch(() => null);
+  // A hung Bitrix socket used to hold the request (and the shared call queue)
+  // open forever. Large POSTs (timeline comments with PDFs) get more time.
+  const timeoutMs =
+    httpMethod === "POST" && qs.length > BX_LARGE_BODY_BYTES ? BX_UPLOAD_TIMEOUT_MS : BX_TIMEOUT_MS;
+  let res;
+  let data;
+  try {
+    res = await fetch(url, {
+      method: httpMethod,
+      ...(httpMethod === "POST" && {
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: qs,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    data = await res.json().catch((e) => {
+      if (e?.name === "TimeoutError" || e?.name === "AbortError") throw e;
+      return null;
+    });
+  } catch (err) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      throw new Error(`Bitrix antwortet nicht (Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)} s)`);
+    }
+    throw err;
+  }
 
   if (!data) throw new Error("Invalid JSON response from Bitrix");
   if (data.error) throw new Error(data.error_description || data.error);
@@ -1195,7 +1216,10 @@ async function setDealOfferLink(dealId, offerNumber) {
   }
 }
 
+const addTask = (fields) => bxPost("tasks.task.add", { fields });
+
 export {
+  addTask,
   ensurePartnerContact,
   getDealContactId,
   setDealOfferLink,

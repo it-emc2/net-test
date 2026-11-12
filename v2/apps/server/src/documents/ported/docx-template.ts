@@ -1,5 +1,5 @@
 // @ts-nocheck
-// GENERATED copy of src/routes/docx-template.js with 11 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// GENERATED copy of src/routes/docx-template.js with 12 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
 // Drift guard: apps/server/test/verbatim-ports.test.ts
 /* eslint-disable no-control-regex */
 /* eslint-disable no-undef */

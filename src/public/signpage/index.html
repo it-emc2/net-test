@@ -27,6 +27,10 @@
     .feedback { padding: 12px 14px; font-size: 15px; border: 1px solid transparent; }
     .feedback.is-success { background: #e6f6e6; border-color: #2e7d32; color: #1b5e20; }
     .feedback.is-error { background: #fdecea; border-color: #b71c1c; color: #7f1d1d; white-space: pre-line; }
+    #expired h2 { font-size: 20px; margin: 18px 0 10px; }
+    .btn-primary { font-size: 16px; padding: 12px 20px; border: 0; background: #1b5e20; color: #fff; cursor: pointer; }
+    .btn-primary:disabled { opacity: .6; cursor: wait; }
+    #expired .contact { margin-top: 24px; font-size: 14px; color: #333; line-height: 1.6; }
     #backToOc { display: block; margin: 0 0 14px; font-size: 13px; color: #333; text-decoration: none; }
     #backToOc:hover { text-decoration: underline; }
     @media (max-width: 640px) {
@@ -38,6 +42,20 @@
 <body data-internal-user="false">
   <div id="loading" class="sheet"><p>Dokument wird geladen …</p></div>
   <div id="fatal" class="sheet feedback is-error hidden"></div>
+
+  <div id="expired" class="sheet hidden">
+    <h2>Dieser Link ist abgelaufen</h2>
+    <p>Kein Problem – fordern Sie mit einem Klick einen neuen Link an. Wir senden ihn Ihnen per E-Mail zu.</p>
+    <p><button type="button" id="requestNewLink" class="btn-primary">Neuen Link anfordern</button></p>
+    <p id="requestNewLinkMsg" class="hidden" role="status"></p>
+    <p class="contact">
+      Fragen? Wir helfen gern:<br />
+      <strong>EmC2 Attila Landgrafe</strong><br />
+      Waldstr. 5, 95032 Hof<br />
+      Tel.: <a href="tel:+4992815915900">+49 9281 5915900</a><br />
+      E-Mail: <a href="mailto:service@e-m-c-2.de">service@e-m-c-2.de</a>
+    </p>
+  </div>
 
   <div id="app" class="hidden">
     <main class="sheet">

@@ -4,3 +4,5 @@ Arbeitszeit: visible=[page-Arbeitszeit] modal=[] hash=#Arbeitszeit
 hms: visible=[page-hms] modal=[] hash=#hms
 Kosten: visible=[page-Kosten] modal=[] hash=#Kosten
 Zusammenfassung: visible=[page-Zusammenfassung] modal=[] hash=#Zusammenfassung
+referenzVorher: visible=[page-referenzVorher] modal=[] hash=#referenzVorher
+referenzNachher: visible=[page-referenzNachher] modal=[] hash=#referenzNachher

@@ -16,6 +16,8 @@ const DOCS_TRANSFORMS = [
   ['from "../logic/pricing.js"', 'from "../shims/pricing.js"'],
   ['from "../services/configService.js"', 'from "../shims/config.js"'],
   ['from "../lib/docxTextReplace.js"', 'from "./docx-text-replace.js"'],
+  // main's optional Gotenberg helper (PR #320) is not needed: v2 always converts through its PDF engine
+  ['import { withGotenberg, gotenbergDocxToPdf } from "../utils/gotenberg.js";\n', ""],
   [/process\.cwd\(\)/g, "docsRoot()"],
   [/\bconsole\./g, "docsLog."],
   // PDF via Gotenberg (ADR 008): no LibreOffice warm-up at import, conversion through the engine
@@ -24,6 +26,7 @@ const DOCS_TRANSFORMS = [
 ];
 
 const SIGNING_TRANSFORMS = [
+  ['from "../lib/signatureImage.js"', 'from "./signature-image.js"'],
   ['import { replaceTextInHtml } from "../lib/docxTextReplace.js";', 'import { replaceTextInHtml } from "./docx-text-replace.js";\nimport { docsRoot } from "../shims/runtime.js";'],
   ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
 ];
@@ -86,6 +89,7 @@ export const PORTS = [
   { from: "src/app.js", to: "v2/apps/server/src/web/ported/helmet-options.ts", extract: { start: "  helmet({", object: true, prefix: "export default ", suffix: ";\n" } },
   { from: "src/app.js", to: "v2/apps/server/src/web/ported/cors-origins.ts", extract: { start: "const allowedExact = new Set([", end: "app.use(\n  cors(", suffix: "export { isAllowedOrigin };\n" } },
   { from: "src/middleware/authGate.js", to: "v2/apps/server/src/web/ported/public-paths.ts", extract: { start: "const ASSET_RE =", end: "function isExternalApi(p)", suffix: "export { isPublicAsset, isPublicSigning, isAlwaysPublic };\n" } },
+  { from: "src/lib/signatureImage.js", to: "v2/apps/server/src/documents/ported/signature-image.ts" },
   { from: "src/templates/signing-docs.js", to: "v2/apps/server/src/documents/ported/signing-docs.ts", transforms: SIGNING_TRANSFORMS },
 ];
 export const header = (from, rules = 0) =>

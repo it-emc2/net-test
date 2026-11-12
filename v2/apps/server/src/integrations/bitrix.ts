@@ -6,6 +6,10 @@
 // `fetch`/`sleep`/`now` are injectable so tests never reach Bitrix.
 
 export type HttpMethod = "GET" | "POST";
+export const BX_TIMEOUT_MS = 15_000;
+export const BX_UPLOAD_TIMEOUT_MS = 60_000;
+const BX_LARGE_BODY_BYTES = 256 * 1024;
+
 export interface BitrixFailureLog { method: string; message: string; params: unknown; httpMethod: HttpMethod }
 
 export interface BitrixClientOptions {
@@ -67,11 +71,22 @@ export class BitrixClient {
     const qs = buildQS(params);
     const base = this.opts.baseUrl!.replace(/\/+$/, "");
     const url = http === "GET" ? `${base}/${method}.json${qs ? `?${qs}` : ""}` : `${base}/${method}.json`;
-    const res = await this.fetchImpl(url, {
-      method: http,
-      ...(http === "POST" && { headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" }, body: qs }),
-    });
-    const data: any = await res.json().catch(() => null);
+    // A hung Bitrix socket must not hold the request (and the shared call queue) open forever
+    // (main PR #332, audit S13). Large POSTs — timeline comments with PDFs — get more time.
+    const timeoutMs = http === "POST" && qs.length > BX_LARGE_BODY_BYTES ? BX_UPLOAD_TIMEOUT_MS : BX_TIMEOUT_MS;
+    const isTimeout = (e: unknown) => ["TimeoutError", "AbortError"].includes((e as Error)?.name);
+    let data: any;
+    try {
+      const res = await this.fetchImpl(url, {
+        method: http,
+        ...(http === "POST" && { headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" }, body: qs }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      data = await res.json().catch((e) => { if (isTimeout(e)) throw e; return null; });
+    } catch (err) {
+      if (isTimeout(err)) throw new Error(`Bitrix antwortet nicht (Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)} s)`);
+      throw err;
+    }
     if (!data) throw new Error("Invalid JSON response from Bitrix");
     if (data.error) throw new Error(data.error_description || data.error);
     return data;

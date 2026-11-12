@@ -26,6 +26,16 @@ describe("buildQS (legacy wire format)", () => {
 });
 
 describe("BitrixClient", () => {
+  it("a hanging Bitrix ends with a clear timeout message instead of holding the call open (main PR #332)", async () => {
+    const timeout = Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+    let signal: AbortSignal | undefined;
+    const c = client([], { minGapMs: 0, fetchImpl: (async (_u: string, init: RequestInit) => { signal = init.signal as AbortSignal; throw timeout; }) as any });
+    await expect(c.bx.get("crm.deal.get", { id: 1 })).rejects.toThrow("Bitrix antwortet nicht (Zeitüberschreitung nach 15 s)");
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(c.logs).toHaveLength(1);
+    await expect(c.bx.post("crm.timeline.comment.add", { fields: { FILES: "x".repeat(300 * 1024) } })).rejects.toThrow("nach 60 s");
+  });
+
   it("GET puts params in the query; POST sends form body; trailing slash in base tolerated", async () => {
     const c = client([{ result: 1 }, { result: 2 }], { minGapMs: 0 });
     await c.bx.get("crm.deal.get", { id: 5 });

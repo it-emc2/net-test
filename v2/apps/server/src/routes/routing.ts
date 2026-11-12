@@ -9,6 +9,8 @@ import type { PlanningClient } from "../integrations/planning.js";
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });
 
+export const SUGGEST_TIMEOUT_MS = 5000;
+
 export async function registerRouting(app: FastifyInstance, d: { routing: RoutingService; planning: PlanningClient }) {
   const { routing, planning } = d;
 
@@ -22,9 +24,27 @@ export async function registerRouting(app: FastifyInstance, d: { routing: Routin
       const customerAddress = buildCustomerAddress({ street, postalCode, city, state, country });
       if (!customerAddress.trim()) return fail(req, reply, 400, "BAD_REQUEST", "Customer address could not be built.");
       if (!routing.c.companyAddress) return fail(req, reply, 500, "CONFIG", "COMPANY_ADDRESS missing on server.");
-      const start = await routing.companyCoords();
-      const dest = await routing.geocodeWithVariants({ street, postalCode, city, state, country });
-      const { km, seconds, provider: routeProvider } = await routing.roadDistance(start, dest);
+      // One deadline for the whole lookup (main PR #332, audit S-07): a slow or hanging provider
+      // ends the request with a clear 504 after ~5 s instead of holding it open. The fallback
+      // chains keep going after the deadline and unwind on their own.
+      const lookup = (async () => {
+        const start = await routing.companyCoords();
+        const dest = await routing.geocodeWithVariants({ street, postalCode, city, state, country });
+        const { km, seconds, provider } = await routing.roadDistance(start, dest);
+        return { start, dest, km, seconds, routeProvider: provider };
+      })();
+      lookup.catch(() => {});
+      let timer: NodeJS.Timeout | undefined;
+      const timedOut = new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), SUGGEST_TIMEOUT_MS); });
+      const won = await Promise.race([lookup, timedOut]).finally(() => clearTimeout(timer));
+      if (won === "timeout") {
+        req.log.warn({ ms: SUGGEST_TIMEOUT_MS }, "suggest-distance timed out");
+        return reply.status(504).send({
+          ok: false, timeout: true,
+          error: { code: "ROUTING_TIMEOUT", message: "Routenvorschlag gerade nicht verfügbar (Zeitüberschreitung). Bitte tragen Sie die Strecke von Hand ein.", requestId: req.id },
+        });
+      }
+      const { start, dest, km, seconds, routeProvider } = won;
       const oneWayKm = Math.round(km * 2) / 2;
       const roundTripKm = Math.round(oneWayKm * 2 * 10) / 10;
       const oneWaySeconds = Math.round(seconds);
