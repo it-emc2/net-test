@@ -1,9 +1,9 @@
 // The markup part: value (field, quick buttons, slider), the minimum for the payer with the
 // reason under it, and the calculation from a target price. Used in Kundendaten for Badelift
 // and on the Aufschlag / Rabatt step for Badumbau, Badewannentür and Handlauf — as today.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
-import { Button, Card, CardTitle, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Check, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { useOfferField, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { CHIPS, markupChanges, markupTextSection, markupView, parsePercent, percentText } from "./rules.js";
@@ -100,7 +100,23 @@ export function Markup() {
           </div>
         ) : null}
       </div>
+      <OldRule />
     </Card>
+  );
+}
+
+/** Offers stored under the old rule keep small material out of the markup. Only such an offer
+ *  shows this switch — and keeps showing it once it is ticked, so the change can be taken back. */
+function OldRule() {
+  const inMarkup = useOfferStore((s) => (s.offer as Record<string, any> | null)?.pricingRules?.kleinInAufschlag) as boolean | undefined;
+  const hasOffer = useOfferStore((s) => s.offer !== null);
+  const old = useOfferStore((s) => s.scratch.kleinOldRule) === true;
+  useEffect(() => { if (hasOffer && inMarkup !== true && !old) useOfferStore.getState().remember("kleinOldRule", true); }, [hasOffer, inMarkup, old]);
+  if (!old) return null;
+  return (
+    <Check id="markup-klein" checked={inMarkup === true} onChange={(v) => useOfferStore.getState().patch("pricingRules" as never, { kleinInAufschlag: v } as never)}>
+      Kleinmaterial im Aufschlag berücksichtigen (neue Regel). Dieses Angebot wurde noch nach der alten Regel gespeichert – Kleinmaterial ist derzeit vom Aufschlag ausgenommen.
+    </Check>
   );
 }
 export { parsePercent };
