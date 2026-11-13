@@ -83,6 +83,15 @@ export const SuggestDistanceResponseSchema = z.looseObject({
 });
 export type SuggestDistanceResponse = z.infer<typeof SuggestDistanceResponseSchema>;
 
+// ---------- shower trays that fit a size ----------
+export const TraySchema = z.looseObject({
+  productId: z.string(), name: z.string().nullish(), price: z.number().nullish(),
+  widthCm: z.number().nullish(), lengthCm: z.number().nullish(), heightCm: z.number().nullish(),
+  articleNumber: z.string().nullish(), stockQuantity: z.number().nullish(), stockSymbol: z.number().nullish(), stockText: z.string().nullish(),
+});
+export type Tray = z.infer<typeof TraySchema>;
+export const TraySuggestResponseSchema = z.looseObject({ results: z.array(TraySchema) });
+
 // ---------- the endpoints: method, path and shapes in one place ----------
 export const endpoints = {
   login: { method: "POST", path: "/api/auth/login", request: LoginRequestSchema, response: LoginResponseSchema },
@@ -94,6 +103,8 @@ export const endpoints = {
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
   /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
+  /** query: w, l (cm) and either series=SLA (Premium) or source=badolux (Standard) */
+  traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
 } as const;

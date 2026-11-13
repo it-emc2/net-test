@@ -31,6 +31,7 @@ const stepInLegacy = () => import("../features/offer/index.js").then((m) => ({ C
 const kundendaten = () => import("../features/steps/index.js").then((m) => ({ Component: m.Kundendaten }));
 const arbeitszeit = () => import("../features/steps/index.js").then((m) => ({ Component: m.Arbeitszeit }));
 const arbeiten = () => import("../features/steps/index.js").then((m) => ({ Component: m.Arbeiten }));
+const duschwanne = () => import("../features/steps/index.js").then((m) => ({ Component: m.Duschwanne }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
@@ -49,6 +50,7 @@ export const routes: RouteObject[] = [
           { path: "Kundendaten", lazy: kundendaten },
           { path: "Arbeitszeit", lazy: arbeitszeit },
           { path: "Arbeiten", lazy: arbeiten },
+          { path: "Duschwanne", lazy: duschwanne },
           { path: "Rabatt", lazy: rabatt },
           { path: ":step", lazy: stepInLegacy },
         ],
