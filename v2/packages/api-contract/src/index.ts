@@ -92,6 +92,8 @@ export const endpoints = {
   price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
   priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
+  /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
+  publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
 } as const;

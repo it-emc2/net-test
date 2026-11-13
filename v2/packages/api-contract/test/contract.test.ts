@@ -38,6 +38,7 @@ describe("api contract", () => {
     expect(pathOf("dealDraft", { dealId: 4711 })).toBe("/api/deals/4711/draft");
     expect(pathOf("saveDealDraft", { dealId: "t-ab/cd" })).toBe("/api/deals/t-ab%2Fcd/draft");
     expect(() => pathOf("dealDraft")).toThrow(/missing parameter "dealId"/);
-    expect(Object.values(endpoints).every((e) => e.path.startsWith("/api/"))).toBe(true);
+    // today's routes: /api/…, and the public business settings under /admin/api/…
+    expect(Object.values(endpoints).every((e) => /^\/(admin\/)?api\//.test(e.path))).toBe(true);
   });
 });
