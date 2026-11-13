@@ -99,11 +99,17 @@ const TIMED: Record<string, { label: string; minutes: number }> = {
 const hhmm = (minutes: number) => { const s = Math.round(Math.max(0, minutes)); return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
 interface Row { key: string; label: string; minutes: number; qty: number }
 
-/** The suggestion fields of `Arbeitszeit` for these ticked tasks. Rows that do not come from a
- *  task (wall cladding, flooring, grab bars — from their own steps) are kept as stored. */
-export function suggestion(workTasks: unknown, azMinutes: unknown, storedRows: unknown): Fields {
+const positive = (v: unknown): number => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : 0; };
+/** rows that come from other steps than Arbeiten, in today's order; the ones a React step owns are computed, the others kept as stored */
+const BEFORE_FLOOR = ["wv997", "wv1497", "wvKeramico", "Silikon"];
+
+/** The suggestion fields of `Arbeitszeit`: one row per ticked task with a time, then the rows of
+ *  the materials (wall cladding, flooring, grab bars). Rows of steps that are not rebuilt yet
+ *  are kept as stored. */
+export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown): Fields {
   const live = (azMinutes && typeof azMinutes === "object" ? azMinutes : {}) as Record<string, unknown>;
-  const ticked = new Set(list(workTasks));
+  const min = (key: string, fallback: number) => (typeof live[key] === "number" ? (live[key] as number) : fallback);
+  const ticked = new Set(list(dw.workTasks));
   const rows: Row[] = [];
   for (const task of TASKS) {
     if (!ticked.has(task.value)) continue;
@@ -113,7 +119,14 @@ export function suggestion(workTasks: unknown, azMinutes: unknown, storedRows: u
     rows.push({ key: task.value, label: rule?.label || task.title, minutes: minutes > 0 ? minutes : 0, qty: 1 });
   }
   const isTask = (key: unknown) => TASKS.some((t) => t.value === key);
-  for (const r of Array.isArray(storedRows) ? (storedRows as Row[]) : []) if (r && !isTask(r.key)) rows.push(r);
+  const others = (Array.isArray(storedRows) ? (storedRows as Row[]) : []).filter((r) => r && !isTask(r.key) && r.key !== "flooring");
+  rows.push(...others.filter((r) => BEFORE_FLOOR.includes(r.key)));
+  if (dw.addFlooring === true) { // Fußboden: per m², or a flat time while no area is entered
+    const area = positive(dw.floorArea);
+    const row = area > 0 ? { minutes: min("flooring_m2", 8), qty: Math.round(area * 10) / 10 } : { minutes: min("flooring_flat", 25), qty: 1 };
+    if (row.minutes && row.qty > 0) rows.push({ key: "flooring", label: "Fußboden individuell", ...row });
+  }
+  rows.push(...others.filter((r) => !BEFORE_FLOOR.includes(r.key)));
   const total = rows.reduce((sum, r) => sum + r.minutes * r.qty, 0);
   return { autoSuggestedTasks: rows, autoSuggestedHoursHHMM: hhmm(total), autoSuggestedHoursNumeric: Math.round((total / 60) * 100) / 100 };
 }
@@ -123,7 +136,7 @@ export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, la
   // as today: after every change the automatic ticking looks at the tasks again
   dwFields = { ...dwFields, ...syncTasks({ ...(offer.duschwanne ?? {}), ...dwFields }) };
   const dw = { ...(offer.duschwanne ?? {}), ...dwFields };
-  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw.workTasks, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks) };
+  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks) };
   if (laborDelta) { az.laborHoursHHMM = addMinutes(az.laborHoursHHMM, laborDelta); az.laborHoursSource = "manual"; }
   return { duschwanne: dwFields, Arbeitszeit: laborDelta ? derived(az, { type: offer.activeOffer, payer: offer.Kundendaten?.payer, postalCode: offer.Kundendaten?.postalCode }) : az };
 }
