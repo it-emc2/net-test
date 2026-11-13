@@ -30,6 +30,20 @@ const productWants = (task: string, dw: Fields): boolean =>
   (task === "install_bathtub" && !!String(dw.chosenBathtubProductId ?? "").trim()) ||
   (task === "install_tray" && dw.trayEnabled === true && (!!String(dw.chosenTrayProductId ?? "").trim() || (Array.isArray(dw.quickAdd) && dw.quickAdd.length > 0)));
 
+/** Optionale Produkte: a ticked product of these groups wants its task (today's WORK_RULES). The
+ *  shower system is one group for two tasks — where the tap sits says which one; a sibling the
+ *  user ticked by hand covers the product. */
+const picked = (opt: Fields, group: string): boolean => Array.isArray(opt[group]) && (opt[group] as unknown[]).length > 0;
+const OPTIONAL_WANTS: readonly { task: string; has: (opt: Fields) => boolean; sibling?: string }[] = [
+  { task: "replace_thermostat", has: (o) => picked(o, "optThermo[]") },
+  { task: "replace_shower_no_thermo", has: (o) => picked(o, "optShower[]") && o.showerMount === "versetzt", sibling: "replace_shower_with_thermo" },
+  { task: "replace_shower_with_thermo", has: (o) => picked(o, "optShower[]") && o.showerMount === "direkt", sibling: "replace_shower_no_thermo" },
+  { task: "replace_sink_faucet", has: (o) => picked(o, "optBasinTap[]") },
+  { task: "install_sink", has: (o) => picked(o, "optBasin[]") },
+  { task: "install_shower_basket", has: (o) => picked(o, "optDuschzub[]") },
+  { task: "install_lifting_unit", has: (o) => picked(o, "optHebe[]") },
+];
+
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? v.split(",").filter(Boolean) : []);
 /** ticked tasks in page order; values the page does not know (older offers) stay at the end */
 const inPageOrder = (ticked: Set<string>): string[] => [...TASKS.map((t) => t.value).filter((v) => ticked.has(v)), ...[...ticked].filter((v) => !TASKS.some((t) => t.value === v))];
@@ -37,7 +51,7 @@ const stored = (ticked: Set<string>): Fields => ({ workTasks: ticked.size ? inPa
 
 /** The tasks the Umbauart and the chosen products decide, brought up to date. Nothing happens
  *  without an Umbauart (older offers); a task changed by hand is left alone. */
-export function syncTasks(dw: Fields): Fields {
+export function syncTasks(dw: Fields, opt?: Fields): Fields {
   const kind = String(dw.umbauart ?? "");
   if (!kind) return {};
   const ticked = new Set(list(dw.workTasks));
@@ -46,6 +60,11 @@ export function syncTasks(dw: Fields): Fields {
   for (const task of BY_KIND_TASKS) {
     if (manual.has(task)) continue;
     if (want.has(task) || productWants(task, dw)) ticked.add(task); else ticked.delete(task);
+  }
+  if (opt) for (const rule of OPTIONAL_WANTS) { // the tasks of the optional products (only where the offer has that section)
+    if (manual.has(rule.task)) continue;
+    const covered = !!rule.sibling && manual.has(rule.sibling) && ticked.has(rule.sibling);
+    if (!covered && rule.has(opt)) ticked.add(rule.task); else ticked.delete(rule.task);
   }
   return stored(ticked);
 }
@@ -103,11 +122,12 @@ const positive = (v: unknown): number => { const n = Number(String(v ?? "").trim
 /** rows that come from other steps than Arbeiten, in today's order; the ones a React step owns are computed, the others kept as stored */
 const OWNED = ["wv997", "wv1497", "wvKeramico", "Silikon", "flooring"]; // computed here
 const BEFORE_FLOOR = ["wv997", "wv1497", "wvKeramico", "Silikon"];
+const GRAB_BARS = ["CLPESG30", "CLPESG40", "CLPESG60", "CLPESG80"]; // computed once the offer's optional products are known
 
 /** The suggestion fields of `Arbeitszeit`: one row per ticked task with a time, then the rows of
  *  the materials (wall cladding, flooring, grab bars). Rows of steps that are not rebuilt yet
  *  are kept as stored. */
-export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, wv: Fields = {}): Fields {
+export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, wv: Fields = {}, opt?: Fields): Fields {
   const live = (azMinutes && typeof azMinutes === "object" ? azMinutes : {}) as Record<string, unknown>;
   const min = (key: string, fallback: number) => (typeof live[key] === "number" ? (live[key] as number) : fallback);
   const ticked = new Set(list(dw.workTasks));
@@ -120,7 +140,7 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, 
     rows.push({ key: task.value, label: rule?.label || task.title, minutes: minutes > 0 ? minutes : 0, qty: 1 });
   }
   const isTask = (key: unknown) => TASKS.some((t) => t.value === key);
-  const others = (Array.isArray(storedRows) ? (storedRows as Row[]) : []).filter((r) => r && !isTask(r.key) && !OWNED.includes(r.key));
+  const others = (Array.isArray(storedRows) ? (storedRows as Row[]) : []).filter((r) => r && !isTask(r.key) && !OWNED.includes(r.key) && !(opt && GRAB_BARS.some((g) => r.key === `opt_${g}`)));
   // Wandverkleidung (VIGOUR panels, per panel) and its silicone — from the stored panel table
   // and switch, whatever line is chosen at the moment (as today)
   if (wv.wvEnabled === true) {
@@ -146,6 +166,11 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, 
     if (row.minutes && row.qty > 0) rows.push({ key: "flooring", label: "Fußboden individuell", ...row });
   }
   rows.push(...others.filter((r) => !BEFORE_FLOOR.includes(r.key)));
+  if (opt) for (const g of GRAB_BARS) { // Optionale Produkte: every grab bar takes its time
+    if (!(Array.isArray(opt["optGrab[]"]) && (opt["optGrab[]"] as unknown[]).some((v) => String(v).endsWith(g)))) continue;
+    const n = Number(opt[`qty_${g}`] || 0);
+    if (min("grab", 30)) rows.push({ key: `opt_${g}`, label: `Haltegriff ${g}`, minutes: min("grab", 30), qty: Math.max(1, Number.isFinite(n) && n > 0 ? n : 1) });
+  }
   const total = rows.reduce((sum, r) => sum + r.minutes * r.qty, 0);
   return { autoSuggestedTasks: rows, autoSuggestedHoursHHMM: hhmm(total), autoSuggestedHoursNumeric: Math.round((total / 60) * 100) / 100 };
 }
@@ -153,9 +178,9 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, 
 /** One change of the offer for a change on this step: the tasks, and what follows in Arbeitszeit. */
 export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, laborDelta = 0): Record<string, Fields> {
   // as today: after every change the automatic ticking looks at the tasks again
-  dwFields = { ...dwFields, ...syncTasks({ ...(offer.duschwanne ?? {}), ...dwFields }) };
+  dwFields = { ...dwFields, ...syncTasks({ ...(offer.duschwanne ?? {}), ...dwFields }, offer.optional) };
   const dw = { ...(offer.duschwanne ?? {}), ...dwFields };
-  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}) };
+  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}, offer.optional) };
   if (laborDelta) { az.laborHoursHHMM = addMinutes(az.laborHoursHHMM, laborDelta); az.laborHoursSource = "manual"; }
   return { duschwanne: dwFields, Arbeitszeit: laborDelta ? derived(az, { type: offer.activeOffer, payer: offer.Kundendaten?.payer, postalCode: offer.Kundendaten?.postalCode }) : az };
 }
@@ -164,5 +189,17 @@ export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, la
  *  work-time suggestion that follow from it. */
 export function wvChanges(offer: Record<string, any>, wvFields: Fields): Record<string, Fields> {
   const wv = { ...(offer.wandverkleidung ?? {}), ...wvFields };
-  return { wandverkleidung: wvFields, Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(offer.duschwanne ?? {}, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, wv) } };
+  return { wandverkleidung: wvFields, Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(offer.duschwanne ?? {}, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, wv, offer.optional) } };
+}
+
+/** One change of the offer for a change of the optional products: their fields (`undefined`
+ *  removes one), the tasks their products want, and the rows of the work-time suggestion. */
+export function optChanges(offer: Record<string, any>, optFields: Fields): Record<string, Fields> {
+  const opt: Fields = { ...(offer.optional ?? {}), ...optFields };
+  for (const k of Object.keys(optFields)) if (optFields[k] === undefined) delete opt[k];
+  const before = offer.duschwanne ?? {};
+  const tasks = syncTasks(before, opt);
+  const same = !("workTasks" in tasks) || JSON.stringify(tasks.workTasks ?? null) === JSON.stringify((before as Fields).workTasks ?? null);
+  const dw = { ...before, ...tasks };
+  return { optional: optFields, ...(same ? {} : { duschwanne: tasks }), Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}, opt) } };
 }

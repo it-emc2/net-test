@@ -6,6 +6,7 @@ export { Duschvorhang } from "./duschvorhang/Duschvorhang.js";
 export { Duschwanne } from "./duschwanne/Duschwanne.js";
 export { Fussboden } from "./fussboden/Fussboden.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
+export { Optional } from "./optional/Optional.js";
 export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
 
@@ -20,3 +21,6 @@ setStepCheck("Kundendaten", checkKundendaten);
 setStepCheck("Rabatt", markupProblem);
 setStepCheck("Arbeitszeit", () => { const o = useOfferStore.getState().offer as Record<string, any> | null; return o ? arbeitszeitProblem(o.activeOffer, o.Arbeitszeit ?? {}) : null; });
 setStepCheck("Fussboden", () => { const o = useOfferStore.getState().offer as Record<string, any> | null; return o ? fussbodenProblem(o.duschwanne ?? {}) : null; });
+// "Optional" has no check, as today: the question of the shower system is asked for on "Weiter"
+// in today's code, but that check is wired to a step name that does not exist (optional/rules.ts
+// keeps the rule as `optionalProblem`, ready to be registered here).
