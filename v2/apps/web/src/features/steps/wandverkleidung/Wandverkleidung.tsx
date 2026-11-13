@@ -3,11 +3,16 @@
 // exactly today's (test/wandverkleidung.test.tsx compares with what today's UI stores and shows
 // for the same inputs). Also the wall calculator of the line winwall (calc.ts, Drawing.tsx).
 // The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
-// Still edited in today's UI: sketch and note.
+// Sketch and note use the shared sketch pad (shared/ui/sketch-pad.tsx).
 import { Minus, Plus, X } from "lucide-react";
-import { useParams } from "react-router";
-import { Button, Card, CardTitle, Choices, Input, Switch, cn } from "../../../shared/ui/index.js";
-import { LegacyLink, useOfferStore } from "../../offer/index.js";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
+import { useWallSettings } from "../fussboden/settings.js";
+import { restOf, restText, settled, takeRest } from "../fussboden/wand.js";
+import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { useOfferStore } from "../../offer/index.js";
+import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { useQuery } from "@tanstack/react-query";
 import { call } from "../../../shared/api/index.js";
 import { arbeitenChanges, toggleTask, wvChanges } from "../arbeiten/rules.js";
@@ -446,11 +451,66 @@ function Badolux() {
   return <><Calculator kit={BX_KIT} /><KeramicoRows /><Accessories label="Zubehör" area={bx.areaOf(bx.rowsOf(wv))} cut={false} /><BadoluxAccessories /></>;
 }
 
+/** "Skizze und Notiz": folded unless the offer has a sketch or a note. The pad hands back the
+ *  drawing as operations and as a picture; both are stored twice, as today (`sketch`, `wvSketch…`). */
+function SketchAndNote() {
+  const wv = useWv();
+  const stored = (wv.sketch && typeof wv.sketch === "object" ? wv.sketch : { json: typeof wv.sketch === "string" ? wv.sketch : String(wv.wvSketchJson ?? "") }) as Partial<Sketch>;
+  const remembered = useOfferStore((s) => s.scratch.wvSketchOpen) as boolean | undefined;
+  const open = remembered ?? (hasSketch(stored) || String(wv.wvNote ?? "").trim() !== "");
+  const store = (next: Sketch) => write({ sketch: { json: next.json, dataUrl: next.dataUrl }, wvSketchJson: next.json, wvSketchDataUrl: next.dataUrl });
+  return (
+    <details className="rounded-lg border-2 border-border p-3" data-testid="wv-sketch" open={open}
+      onToggle={(e) => { const to = e.currentTarget.open; if (to !== open) remember("wvSketchOpen", to); if (to && !String(wvNow().wvSketchJson ?? "")) store({ json: JSON.stringify({ version: 1, ops: [] }), dataUrl: "" }); /* as today: an opened pad stores its empty drawing */ }}>
+      <summary className="min-h-8 cursor-pointer font-semibold">Skizze und Notiz</summary>
+      {open ? (
+        <div className="grid gap-4 pt-3">
+          <SketchPad value={stored} onChange={store} />
+          <TextAreaField id="wv-note" label="Notizen / Beschreibung zur Wandverkleidung" placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …" value={String(wv.wvNote ?? "")} onChange={(v) => write({ wvNote: v })} />
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
+/** "Reste verwenden": the wall's plates deliver more than the wall needs — the rest can cover the
+ *  floor (Fußboden, mode "Wandverkleidung als Fußboden"). Shown only while there is a rest. */
+function RestForFloor() {
+  const wv = useWv();
+  const navigate = useNavigate();
+  const settings = useWallSettings();
+  const [ask, setAsk] = useState(false); // the floor is a floor covering at the moment: changing it needs a yes
+  const rest = restOf(wv, settings.rest);
+  if (!rest) return null;
+  const take = (sure: boolean) => {
+    const o = offerNow(), dw = (o.duschwanne ?? {}) as Fields;
+    if (dw.addFlooring === true && !sure) { setAsk(true); return; }
+    const mode = setMode(dw, true, "wall"), next = { ...dw, ...mode };
+    useOfferStore.getState().patchAll(arbeitenChanges(o, { ...mode, computed: computedFor(next, unitsOf(dw)), ...settled(next, takeRest(next, rest), rest) }));
+    void navigate("../Fussboden", { relative: "path" });
+  };
+  return (
+    <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="wv-rest">
+      <strong>Reste verwenden</strong>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="grid min-w-0 flex-1"><span>Aus dieser Wand bleibt Material übrig</span><small data-part="text" className="text-muted-foreground">{restText(rest)}</small></span>
+        <Button variant="outline" onClick={() => take(false)}>Als Fußboden verwenden</Button>
+      </div>
+      {ask ? (
+        <div className="grid gap-2 rounded-lg border-2 border-primary p-3" role="alertdialog" aria-label="Fußboden umstellen?">
+          <strong>Fußboden umstellen?</strong>
+          <p className="m-0">Der Fußboden ist als Bodenbelag gewählt. Auf Wandverkleidung mit Resten umstellen?</p>
+          <div className="flex flex-wrap gap-2"><Button onClick={() => take(true)}>Umstellen</Button><Button variant="outline" onClick={() => setAsk(false)}>Abbrechen</Button></div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Wandverkleidung() {
   const wv = useWv();
   const tasks = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne?.workTasks as string[] | undefined);
   const height = useOfferStore((s) => String((s.offer as Record<string, any> | null)?.duschwanne?.wandverkleidungHoehe ?? ""));
-  const { dealId = "" } = useParams();
   const on = wv.wvEnabled === true;
   const line = lineOf(wv);
   const shower = Array.isArray(tasks) && tasks.includes(SHOWER_TASK);
@@ -489,10 +549,8 @@ export function Wandverkleidung() {
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
           {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={areaOf(rowsOf(wv))} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
-          <div className="grid gap-2 rounded-lg border-2 border-border p-3">
-            <strong>Skizze und Notiz</strong>
-            <LegacyLink dealId={dealId} step="Wandverkleidung">Skizze und Notiz in der bisherigen Ansicht</LegacyLink>
-          </div>
+          <SketchAndNote />
+          <RestForFloor />
         </>
       ) : null}
     </Card>

@@ -250,10 +250,10 @@ describe("Optionale Produkte — rules", () => {
 
   it("the work time: a row per grab bar, after the rows of the other materials", () => {
     const opt = { "optGrab[]": [productOf("CLPESG30")!.value, productOf("CLPESG80")!.value], qty_CLPESG30: "", qty_CLPESG80: "3" };
-    const stored = [{ key: "opt_CLPESG60", label: "old", minutes: 30, qty: 9 }, { key: "wallCladdingFloor", label: "Fußboden (Wandverkleidung)", minutes: 8, qty: 2 }];
+    const stored = [{ key: "opt_CLPESG60", label: "old", minutes: 30, qty: 9 }, { key: "anderes", label: "Zeile eines noch nicht gebauten Schritts", minutes: 8, qty: 2 }];
     const rows = (s: Record<string, unknown>) => (s.autoSuggestedTasks as { key: string; minutes: number; qty: number }[]).map((r) => [r.key, r.minutes, r.qty]);
-    expect(rows(suggestion({}, { grab: 20 }, stored, {}, opt))).toEqual([["wallCladdingFloor", 8, 2], ["opt_CLPESG30", 20, 1], ["opt_CLPESG80", 20, 3]]);
-    expect(rows(suggestion({}, {}, stored, {}))).toEqual([["opt_CLPESG60", 30, 9], ["wallCladdingFloor", 8, 2]]); // without the optional section the stored rows stay
+    expect(rows(suggestion({}, { grab: 20 }, stored, {}, opt))).toEqual([["anderes", 8, 2], ["opt_CLPESG30", 20, 1], ["opt_CLPESG80", 20, 3]]);
+    expect(rows(suggestion({}, {}, stored, {}))).toEqual([["opt_CLPESG60", 30, 9], ["anderes", 8, 2]]); // without the optional section the stored rows stay
     expect(suggestion({}, {}, [], {}, opt).autoSuggestedHoursHHMM).toBe("02:00");
   });
 });
