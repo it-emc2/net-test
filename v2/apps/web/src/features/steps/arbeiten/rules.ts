@@ -101,12 +101,13 @@ interface Row { key: string; label: string; minutes: number; qty: number }
 
 const positive = (v: unknown): number => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : 0; };
 /** rows that come from other steps than Arbeiten, in today's order; the ones a React step owns are computed, the others kept as stored */
+const OWNED = ["wv997", "wv1497", "Silikon", "flooring"]; // computed here; "wvKeramico" is still kept as stored
 const BEFORE_FLOOR = ["wv997", "wv1497", "wvKeramico", "Silikon"];
 
 /** The suggestion fields of `Arbeitszeit`: one row per ticked task with a time, then the rows of
  *  the materials (wall cladding, flooring, grab bars). Rows of steps that are not rebuilt yet
  *  are kept as stored. */
-export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown): Fields {
+export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, wv: Fields = {}): Fields {
   const live = (azMinutes && typeof azMinutes === "object" ? azMinutes : {}) as Record<string, unknown>;
   const min = (key: string, fallback: number) => (typeof live[key] === "number" ? (live[key] as number) : fallback);
   const ticked = new Set(list(dw.workTasks));
@@ -119,8 +120,22 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown):
     rows.push({ key: task.value, label: rule?.label || task.title, minutes: minutes > 0 ? minutes : 0, qty: 1 });
   }
   const isTask = (key: unknown) => TASKS.some((t) => t.value === key);
-  const others = (Array.isArray(storedRows) ? (storedRows as Row[]) : []).filter((r) => r && !isTask(r.key) && r.key !== "flooring");
-  rows.push(...others.filter((r) => BEFORE_FLOOR.includes(r.key)));
+  const others = (Array.isArray(storedRows) ? (storedRows as Row[]) : []).filter((r) => r && !isTask(r.key) && !OWNED.includes(r.key));
+  // Wandverkleidung (VIGOUR panels, per panel) and its silicone — from the stored panel table
+  // and switch, whatever line is chosen at the moment (as today)
+  if (wv.wvEnabled === true) {
+    const table = (wv.panelConfigs ?? {}) as Record<string, { enabled?: boolean; qty?: unknown; extras?: { qty?: unknown }[] }>;
+    const extraColors = (wv.extraColors ?? {}) as Record<string, { qty?: unknown }[]>;
+    for (const [size, fallback] of [[997, 30], [1497, 40]] as const) {
+      const cfg = table[`${size}x2550`];
+      if (!cfg?.enabled) continue;
+      const extra = (extraColors[`${size}x2550`] ?? cfg.extras ?? []).reduce((a, e) => a + (Math.round(Number(e.qty)) || 0), 0);
+      const minutes = min(`wv${size}`, fallback);
+      if (minutes) rows.push({ key: `wv${size}`, label: `Wandverkleidung ${size}×2550`, minutes, qty: Math.max(1, Math.round(positive(cfg.qty) + extra)) });
+    }
+  }
+  rows.push(...others.filter((r) => r.key === "wvKeramico"));
+  if (wv.wvEnabled === true && wv.wvSilikonSelected === true && min("silikon", 10)) rows.push({ key: "Silikon", label: "Silikon", minutes: min("silikon", 10), qty: 1 });
   if (dw.addFlooring === true) { // Fußboden: per m², or a flat time while no area is entered
     const area = positive(dw.floorArea);
     const row = area > 0 ? { minutes: min("flooring_m2", 8), qty: Math.round(area * 10) / 10 } : { minutes: min("flooring_flat", 25), qty: 1 };
@@ -136,7 +151,14 @@ export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, la
   // as today: after every change the automatic ticking looks at the tasks again
   dwFields = { ...dwFields, ...syncTasks({ ...(offer.duschwanne ?? {}), ...dwFields }) };
   const dw = { ...(offer.duschwanne ?? {}), ...dwFields };
-  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks) };
+  const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}) };
   if (laborDelta) { az.laborHoursHHMM = addMinutes(az.laborHoursHHMM, laborDelta); az.laborHoursSource = "manual"; }
   return { duschwanne: dwFields, Arbeitszeit: laborDelta ? derived(az, { type: offer.activeOffer, payer: offer.Kundendaten?.payer, postalCode: offer.Kundendaten?.postalCode }) : az };
+}
+
+/** One change of the offer for a change of the Wandverkleidung: its fields, and the rows of the
+ *  work-time suggestion that follow from it. */
+export function wvChanges(offer: Record<string, any>, wvFields: Fields): Record<string, Fields> {
+  const wv = { ...(offer.wandverkleidung ?? {}), ...wvFields };
+  return { wandverkleidung: wvFields, Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(offer.duschwanne ?? {}, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, wv) } };
 }

@@ -43,10 +43,10 @@ export function Drawing({ situation, widths, plan, room, texture, onWall }: {
   for (const key of order) for (const pc of plan.pieces.filter((p) => p.key === key)) labels[key === "back" ? "inline" : key === "links" ? "left" : "right"].push({ c: P(key, pc.start + pc.breite / 2, PH * 0.52), pc, i: walls.indexOf(key) });
   const pill = (x: number, y: number, pc: Piece, i: number, k: string) => (
     <g key={k} data-testid="kc-mark">
-      <rect x={x - 22} y={y - 9} width={44} height={18} rx={9} fill="var(--card)" stroke={TONES[i]!.solid} />
-      <circle cx={x - 12} cy={y} r={6} fill={TONES[i]!.solid} />
-      <text x={x - 12} y={y + 3} textAnchor="middle" fontSize={8} fontWeight={700} fill="#fff">{pc.platte}</text>
-      <text x={x + 7} y={y + 3.5} textAnchor="middle" fontSize={9} fill="var(--foreground)">{fmtCm(pc.breite)}</text>
+      <rect x={x - 26} y={y - 9} width={52} height={18} rx={9} fill="var(--card)" stroke={TONES[i]!.solid} />
+      <circle cx={x - 16} cy={y} r={6} fill={TONES[i]!.solid} />
+      <text x={x - 16} y={y + 3} textAnchor="middle" fontSize={8} fontWeight={700} fill="#fff">{pc.platte}</text>
+      <text x={x + 6} y={y + 3.5} textAnchor="middle" fontSize={9} fill="var(--foreground)">{fmtCm(pc.breite)}</text>
     </g>
   );
   const hk: WallKey = walls.includes("back") ? "back" : walls[0]!;
@@ -94,10 +94,10 @@ export function Drawing({ situation, widths, plan, room, texture, onWall }: {
       })() : null}
       {labels.inline.map((l, n) => pill(l.c[0], l.c[1], l.pc, l.i, `i${n}`))}
       {(["left", "right"] as const).flatMap((bucket) => {
-        const x = bucket === "left" ? 26 : VIEW.w - 26;
+        const x = bucket === "left" ? 30 : VIEW.w - 30;
         const list = [...labels[bucket]].sort((a, b) => a.c[1] - b.c[1]);
         const y0 = VIEW.h / 2 - ((list.length - 1) * 22) / 2;
-        return list.map((l, n) => { const y = y0 + n * 22; return <g key={`${bucket}${n}`}><line x1={bucket === "left" ? x + 22 : x - 22} y1={y} x2={l.c[0]} y2={l.c[1]} stroke={TONES[l.i]!.solid} strokeWidth={0.8} />{pill(x, y, l.pc, l.i, "p")}</g>; });
+        return list.map((l, n) => { const y = y0 + n * 22; return <g key={`${bucket}${n}`}><line x1={bucket === "left" ? x + 26 : x - 26} y1={y} x2={l.c[0]} y2={l.c[1]} stroke={TONES[l.i]!.solid} strokeWidth={0.8} />{pill(x, y, l.pc, l.i, "p")}</g>; });
       })}
     </svg>
   );
