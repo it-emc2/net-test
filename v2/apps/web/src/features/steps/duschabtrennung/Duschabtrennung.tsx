@@ -5,14 +5,15 @@
 // same inputs). The rules are engine.ts (the wizard), wizard.ts (one card) and rules.ts (the offer).
 import { useQueries } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card as Panel, CardTitle, Input, Switch, cn } from "../../../shared/ui/index.js";
-import { useOfferStore } from "../../offer/index.js";
+import { useParams } from "react-router";
+import { LegacyLink, useOfferStore } from "../../offer/index.js";
 import * as w from "./engine.js";
 import type { Model, State } from "./engine.js";
-import { SUPPLIERS, addCard, cardsOf, fieldsOf, isOn, modelKey, removeCard, switched, type Card, type Supplier } from "./rules.js";
-import { sketchSVG, specFor } from "./sketch.js";
+import { SUPPLIERS, addCard, cardsOf, fieldsOf, hassmannPicks, isOn, modelKey, removeCard, switched, type Card, type Supplier } from "./rules.js";
+import { sketchSVG, specFor, type Spec } from "./sketch.js";
 import * as z from "./wizard.js";
 
 type Fields = Record<string, unknown>;
@@ -25,36 +26,110 @@ const TILE = "grid cursor-pointer content-start justify-items-center gap-1.5 rou
 const loadModel = (key: string, signal: AbortSignal): Promise<Model> =>
   (key === "badolux-v1" ? fetch("/configurator/badolux-model-v1.json", { signal, credentials: "include" }).then((r) => r.json()) : call("daModel", { params: { supplier: key }, signal })) as Promise<Model>;
 
+/** Audit trail, as today: which answer was picked, so support can follow a session afterwards. Never in the user's way. */
+function logAnswer(paramId: string, val: { value: string; label: string }) {
+  const dealId = String((useOfferStore.getState().offer as Record<string, unknown> | null)?.auftragId ?? "");
+  void call("logAction", { body: { event: "duschabtrennung_leaf_selected", dealId, offerType: "BU", message: `${paramId}=${val.value} (${val.label})` } }).catch(() => undefined);
+}
+
 function Stock({ article }: { article: Parameters<typeof z.stockOf>[0] }) {
   const s = z.stockOf(article);
   if (!s) return null;
   return <span data-part="stock" title={article.stockText ?? undefined} className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.85rem] font-semibold", s.inStock ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}><span>{s.qty}</span>{s.text}</span>;
 }
 
-/** The pictures of the configuration so far: one large, the others to tap. */
+/** All pictures large, one at a time: arrows, keys (← → Esc) and swiping change the picture. */
+function Lightbox({ images, start, onClose }: { images: { src: string; label: string }[]; start: number; onClose: () => void }) {
+  const [at, setAt] = useState(start);
+  const touch = useRef<number | null>(null);
+  const many = images.length > 1;
+  const show = (i: number) => setAt((i + images.length) % images.length);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); else if (e.key === "ArrowLeft") setAt((i) => (i - 1 + images.length) % images.length); else if (e.key === "ArrowRight") setAt((i) => (i + 1) % images.length); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [images.length, onClose]);
+  const im = images[at]!;
+  const nav = "absolute top-1/2 grid size-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/90 text-2xl text-black";
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Bilder" data-testid="da-lightbox" className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onTouchStart={(e) => { touch.current = e.touches[0]!.clientX; }}
+      onTouchEnd={(e) => { if (touch.current == null || !many) return; const dx = e.changedTouches[0]!.clientX - touch.current; touch.current = null; if (Math.abs(dx) > 40) show(at + (dx < 0 ? 1 : -1)); }}>
+      <img src={im.src} alt={im.label} className="max-h-[80vh] max-w-full rounded-lg object-contain" />
+      <p data-part="caption" className="absolute inset-x-0 bottom-4 m-0 px-4 text-center text-white">{`${many ? `${at + 1} / ${images.length} · ` : ""}${im.label}`}</p>
+      <button type="button" aria-label="Schließen" onClick={onClose} className="absolute right-4 top-4 grid size-12 cursor-pointer place-items-center rounded-full border-0 bg-white/90 text-2xl text-black">×</button>
+      {many ? <><button type="button" aria-label="Vorheriges Bild" onClick={() => show(at - 1)} className={cn(nav, "left-3")}>‹</button><button type="button" aria-label="Nächstes Bild" onClick={() => show(at + 1)} className={cn(nav, "right-3")}>›</button></> : null}
+    </div>
+  );
+}
+
+/** The pictures of the configuration so far: one large and up to five small; a tap shows them large. */
 function Pictures({ images, label }: { images: { src: string; label: string }[]; label: string }) {
-  const [at, setAt] = useState(0);
-  const main = images[Math.min(at, images.length - 1)]!;
+  const [shown, setShown] = useState<number | null>(null);
+  const main = images[0]!;
   return (
     <figure className="m-0 grid justify-items-center gap-2" data-testid="da-preview">
-      <img src={main.src} alt={main.label} loading="lazy" className="max-h-64 max-w-full rounded-lg object-contain" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+      <button type="button" aria-label={`Bild vergrößern: ${main.label}`} onClick={() => setShown(0)} className="cursor-zoom-in border-0 bg-transparent p-0">
+        <img src={main.src} alt={main.label} loading="lazy" className="max-h-64 max-w-full rounded-lg object-contain" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+      </button>
       {images.length > 1 ? (
         <div className="flex flex-wrap justify-center gap-2">
-          {images.slice(0, 6).map((im, i) => (
-            <button key={im.src} type="button" aria-label={`Bild ${i + 1}: ${im.label}`} aria-pressed={i === at} onClick={() => setAt(i)} className={cn("size-12 cursor-pointer overflow-hidden rounded border-2 bg-card p-0", i === at ? "border-primary" : "border-input")}>
+          {images.slice(1, 6).map((im, i) => (
+            <button key={im.src} type="button" aria-label={`Bild ${i + 2} vergrößern: ${im.label}`} onClick={() => setShown(i + 1)} className="size-12 cursor-zoom-in overflow-hidden rounded border-2 border-input bg-card p-0">
               <img src={im.src} alt="" loading="lazy" className="size-full object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
             </button>
           ))}
+          {images.length > 6 ? <button type="button" aria-label={`${images.length - 6} weitere Bilder`} onClick={() => setShown(6)} className="size-12 cursor-pointer rounded border-2 border-input bg-card p-0 font-semibold text-foreground">+{images.length - 6}</button> : null}
         </div>
       ) : null}
       <figcaption data-part="preview-label" className="text-[0.9rem] text-muted-foreground">{label}</figcaption>
+      {shown != null ? <Lightbox images={images} start={shown} onClose={() => setShown(null)} /> : null}
     </figure>
+  );
+}
+
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+/** The drawing of the cabin so far. The door moves on a tap (and with the mouse over it), and
+ *  once by itself right after the door or its side was picked. Reduced motion: no movement, the end state. */
+function Sketch({ spec, play }: { spec: Spec; play: boolean }) {
+  const [open, setOpen] = useState(0); // 0 closed … 1 open
+  const anim = useRef({ cur: 0, target: 0, raf: 0, last: 0 });
+  const go = (to: number) => {
+    const a = anim.current;
+    a.target = to;
+    if (typeof requestAnimationFrame !== "function" || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) { a.cur = to; setOpen(to); return; }
+    const step = (t: number) => {
+      const dt = a.last ? Math.min(64, t - a.last) : 16;
+      a.last = t;
+      const d = a.target - a.cur;
+      a.cur += Math.sign(d) * Math.min(Math.abs(d), dt / 700);
+      setOpen(a.cur);
+      if (a.cur !== a.target) a.raf = requestAnimationFrame(step); else { a.raf = 0; a.last = 0; }
+    };
+    if (!a.raf) a.raf = requestAnimationFrame(step);
+  };
+  useEffect(() => {
+    if (!play || !spec.tuer) return;
+    go(1);
+    const back = setTimeout(() => go(0), 1600);
+    return () => clearTimeout(back);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [play]);
+  useEffect(() => () => cancelAnimationFrame(anim.current.raf), []);
+  return (
+    <div className="grid gap-1" data-testid="da-sketch">
+      {/* our own SVG markup (sketch.ts) */}
+      <button type="button" aria-label="Zeichnung: Tür öffnen oder schließen" aria-pressed={anim.current.target === 1} disabled={!spec.tuer} onClick={() => go(anim.current.target ? 0 : 1)}
+        onPointerEnter={(e) => { if (e.pointerType === "mouse" && spec.tuer) go(1); }} onPointerLeave={(e) => { if (e.pointerType === "mouse" && spec.tuer) go(0); }}
+        className="mx-auto w-full max-w-lg cursor-pointer rounded-lg border-0 bg-[#f7f6f4] p-2 disabled:cursor-default" dangerouslySetInnerHTML={{ __html: sketchSVG(spec, { open: easeInOut(open) }) }} />
+      {spec.tuer ? <p className="m-0 text-center text-[0.9rem] text-muted-foreground">Antippen zeigt, wie die Tür öffnet</p> : null}
+    </div>
   );
 }
 
 /** One enclosure: the answered questions, the open step, the sizes, the extras and "Ihre Auswahl". */
 function Wizard({ model, state, onChange }: { model: Model; state: State; onChange: (next: State) => void }) {
-  const [open, setOpen] = useState(false); // the drawing's door
+  const [last, setLast] = useState<{ id: string; n: number }>({ id: "", n: 0 }); // the last answer — the drawing plays the door once
   const set = (next: State) => onChange(z.autoSize(model, next));
   const step = w.currentStep(model, state);
   const leaf = w.resolvedLeaf(model, state);
@@ -80,13 +155,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
           ))}
         </div>
       ) : null}
-      {spec ? (
-        <div className="grid gap-1" data-testid="da-sketch">
-          {/* our own SVG markup (sketch.ts) */}
-          <button type="button" aria-label="Zeichnung: Tür öffnen oder schließen" aria-pressed={open} disabled={!spec.tuer} onClick={() => setOpen(!open)} className="mx-auto w-full max-w-lg cursor-pointer rounded-lg border-0 bg-[#f7f6f4] p-2 disabled:cursor-default" dangerouslySetInnerHTML={{ __html: sketchSVG(spec, { open: open ? 1 : 0 }) }} />
-          {spec.tuer ? <p className="m-0 text-center text-[0.9rem] text-muted-foreground">Antippen zeigt, wie die Tür öffnet</p> : null}
-        </div>
-      ) : null}
+      {spec ? <Sketch key={last.n} spec={spec} play={last.id === "Tuer" || last.id === "Anschlag"} /> : null}
       {images.length ? <Pictures images={images} label={z.leafPreview(model, state)?.label ?? images[0]!.label} /> : null}
       {info.length ? (
         <details className="rounded-lg border-2 border-border p-3" data-testid="da-info">
@@ -111,7 +180,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
             const [name, sub] = drawings ? String(val.label).split(" — ") : [val.label];
             const src = !drawings && z.imageUrl(model, val.imageId);
             return (
-              <button key={val.value} type="button" data-value={val.value} onClick={() => { setOpen(false); set(z.answer(model, state, step.paramId!, val.value)); }} className={TILE}>
+              <button key={val.value} type="button" data-value={val.value} onClick={() => { logAnswer(step.paramId!, val); setLast({ id: step.paramId!, n: last.n + 1 }); set(z.answer(model, state, step.paramId!, val.value)); }} className={TILE}>
                 {drawings ? <span aria-hidden className="w-full max-w-40" dangerouslySetInnerHTML={{ __html: sketchSVG(specFor({ ...state.selections, [step.paramId!]: val.value }, state.sizes), { small: true, open: step.paramId === "Einbausituation" ? 0 : 0.45 }) }} />
                   : src ? <img src={src} alt="" loading="lazy" className="h-24 max-w-full rounded object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
                 <span data-part="title" className="font-semibold">{name}</span>
@@ -213,7 +282,9 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
 
 export function Duschabtrennung() {
   const da = useDa();
+  const { dealId = "" } = useParams();
   const on = isOn(da);
+  const older = hassmannPicks(da);
   const remembered = useOfferStore((s) => s.scratch.daCards) as Card[] | undefined;
   const cards = remembered ?? cardsOf(da);
   const keys = [...new Set(cards.map(modelKey))];
@@ -263,6 +334,13 @@ export function Duschabtrennung() {
           })}
           <div><Button variant="outline" onClick={() => write(addCard(cards))}><Plus aria-hidden />Weitere Duschabtrennung hinzufügen</Button></div>
         </>
+      ) : null}
+      {older ? (
+        <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="da-hassmann">
+          <strong>{older === 1 ? "1 Position" : `${older} Positionen`} aus „Hassmann Duschsysteme“</strong>
+          <p className="m-0">Dieses Angebot enthält Positionen der früheren Seite. Sie bleiben im Angebot und werden berechnet; ändern lassen sie sich in der bisherigen Ansicht.</p>
+          <LegacyLink dealId={dealId} step="Duschabtrennung">Hassmann Duschsysteme in der bisherigen Ansicht</LegacyLink>
+        </div>
       ) : null}
     </Panel>
   );

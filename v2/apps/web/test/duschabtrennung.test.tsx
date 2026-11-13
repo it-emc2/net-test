@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import * as w from "../src/features/steps/duschabtrennung/engine.js";
 import type { Model } from "../src/features/steps/duschabtrennung/engine.js";
-import { addCard, cardsOf, fieldsOf, isOn, modelKey, removeCard, switched } from "../src/features/steps/duschabtrennung/rules.js";
+import { addCard, cardsOf, fieldsOf, hassmannPicks, isOn, modelKey, removeCard, switched } from "../src/features/steps/duschabtrennung/rules.js";
 import { sketchSVG, specFor } from "../src/features/steps/duschabtrennung/sketch.js";
 import * as z from "../src/features/steps/duschabtrennung/wizard.js";
 import reference from "./fixtures/duschabtrennung.json" with { type: "json" };
@@ -29,10 +29,10 @@ const card = (n: number | string) => cards()[Number(n) - 1]!;
 const exact = (t: unknown) => new RegExp(`^\\s*${String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`);
 
 async function open() {
-  fakeServer({ ...BASE, "GET /api/da-config/model/vigour": { body: vigour }, "GET /api/da-config/model/badolux": { body: badolux } });
+  const server = fakeServer({ ...BASE, "GET /api/da-config/model/vigour": { body: vigour }, "GET /api/da-config/model/badolux": { body: badolux }, "POST /api/bitrix/log-action": { body: { ok: true } } });
   const router = renderApp(`/deal/${KEY}/bu/DuschabtrennungNeu`);
   await screen.findByRole("heading", { name: "Duschabtrennung" });
-  return { base: structuredClone(offer()), router };
+  return { base: structuredClone(offer()), router, server };
 }
 const ready = (n: number | string) => waitFor(() => expect(within(card(n)).getByTestId("da-step")).toBeTruthy());
 async function play(steps: (string | number)[][]) {
@@ -107,6 +107,75 @@ describe("Duschabtrennung stores and shows what today's UI does", () => {
         .toEqual(c.summary.lines.map((l) => ({ title: squeeze(l.title), sub: l.sub, stock: squeeze(l.stock), price: squeeze(l.price), link: l.link })));
       expect(squeeze(part(summary, "total"))).toBe(squeeze(c.summary.total));
     });
+  });
+});
+
+describe("Duschabtrennung — pictures, drawing, audit trail, older picks", () => {
+  const BXN = [["on"], ["supplier", 1, "badolux"], ["pick", 1, "Nische"], ["pick", 1, "Falttür"], ["pick", 1, "Anschlag links"]];
+
+  it("a tap on a picture shows all pictures large; arrows and keys change the picture, Esc closes", async () => {
+    await open();
+    await play(BXN);
+    const user = userEvent.setup(), preview = within(card(1)).getByTestId("da-preview");
+    const count = z.previewImages(BADOLUX, { selections: { Einbausituation: "nische", Tuer: "falt", Anschlag: "falt_links", Duschabtrennung: "nische_falt_links" }, sizes: {} }).length;
+    expect(count).toBeGreaterThan(6);
+    expect(within(preview).getByRole("button", { name: `${count - 6} weitere Bilder` })).toBeTruthy();
+    await user.click(within(preview).getByRole("button", { name: /^Bild 2 vergrößern/ }));
+    const box = screen.getByRole("dialog", { name: "Bilder" });
+    expect(part(box, "caption")).toMatch(new RegExp(`^2 / ${count} · `));
+    await user.click(within(box).getByRole("button", { name: "Nächstes Bild" }));
+    await user.keyboard("{ArrowRight}");
+    expect(part(box, "caption")).toMatch(new RegExp(`^4 / ${count} · `));
+    await user.click(within(box).getByRole("button", { name: "Vorheriges Bild" }));
+    await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
+    expect(part(box, "caption")).toMatch(new RegExp(`^${count} / ${count} · `)); // round again from the first
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Bilder" })).toBeNull();
+    await user.click(within(preview).getByRole("button", { name: /^Bild vergrößern/ }));
+    await user.click(within(screen.getByRole("dialog", { name: "Bilder" })).getByRole("button", { name: "Schließen" }));
+    expect(screen.queryByRole("dialog", { name: "Bilder" })).toBeNull();
+  });
+
+  it("the drawing: the door opens and closes on a tap; a walk-in has nothing to move", async () => {
+    await open();
+    await play(BXN);
+    const user = userEvent.setup();
+    const door = () => within(card(1)).getByRole("button", { name: "Zeichnung: Tür öffnen oder schließen" });
+    const closed = door().innerHTML;
+    await user.click(door());
+    await waitFor(() => expect(door().getAttribute("aria-pressed")).toBe("true"));
+    await waitFor(() => expect(door().innerHTML).not.toBe(closed));
+    await user.click(door());
+    await waitFor(() => expect(door().innerHTML).toBe(closed));
+    await play([["answered", 1, 1], ["pick", 1, "Walk-In"]]);
+    expect((door() as HTMLButtonElement).disabled).toBe(true);
+    expect(within(card(1)).queryByText("Antippen zeigt, wie die Tür öffnet")).toBeNull();
+  });
+
+  it("every answer is written to the audit trail, as today; a failing log never stops the wizard", async () => {
+    const { server } = await open();
+    await play([["on"], ["pick", 1, "Nischenlösung"], ["pick", 1, "Pendeltür 1-teilig"]]);
+    const logs = server.calls.filter((c) => c.key === "POST /api/bitrix/log-action").map((c) => c.body);
+    expect(logs).toEqual([
+      { event: "duschabtrennung_leaf_selected", dealId: "", offerType: "BU", message: "1_EBS_Einbausituationen=010_Nischenloesung (Nischenlösung)" },
+      { event: "duschabtrennung_leaf_selected", dealId: "", offerType: "BU", message: "4_AufbauDuschabtrennung=053_Pendeltuere_1tlg._Nische (Pendeltür 1-teilig)" },
+    ]);
+    fakeServer({ ...BASE, "POST /api/bitrix/log-action": { status: 500, body: { error: "x" } } });
+    await play([["pick", 1, "Serie 1.0 VIGOUR"]]);
+    expect(within(card(1)).getByTestId("da-step").textContent).toBe("Ausführung der Duschabtrennung");
+  });
+
+  it("picks of the older page Hassmann Duschsysteme are named, stay in the offer and lead to the old view", async () => {
+    await open();
+    expect(screen.queryByTestId("da-hassmann")).toBeNull();
+    const pick = { kind: "door", label: "Pendeltür alt", qty: 1, price: "799,00", productId: "HASS-1" };
+    useOfferStore.getState().patch("duschabtrennung" as never, { quickAdd: [pick] } as never);
+    const note = await screen.findByTestId("da-hassmann");
+    expect(note.textContent).toMatch(/^1 Position aus „Hassmann Duschsysteme“/);
+    expect(within(note).getByRole("link", { name: "Hassmann Duschsysteme in der bisherigen Ansicht" })).toBeTruthy();
+    await play([["on"], ["pick", 1, "Nischenlösung"], ["pick", 1, "Pendeltür 1-teilig"], ["pick", 1, "Serie 1.0 VIGOUR"], ["pick", 1, "Linke Ausführung"], ["size", 1, 1, 1, "800"]]);
+    await waitFor(() => expect(offer().duschabtrennung.quickAdd.map((q: { productId: string }) => q.productId)).toEqual(["HASS-1", "V1P180E"]));
+    expect(hassmannPicks(offer().duschabtrennung)).toBe(1);
   });
 });
 

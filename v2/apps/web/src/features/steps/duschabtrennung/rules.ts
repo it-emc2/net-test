@@ -45,6 +45,8 @@ export function quickAddOf(da: Fields, lines: readonly StoredLine[], on: boolean
     .map((l) => ({ kind: "config", label: l.label || "Duschabtrennung (Konfigurator)", qty: Math.max(1, Number(l.qty) || 1), price: Number(l.net), productId: l.articleNumber || "", finish: l.finish || null }));
   return [...stored.filter((q) => !isConfig(q)), ...priced, ...stored.filter((q) => isConfig(q) && q.group === "Duschvorhang")];
 }
+/** picks of the older page "Hassmann Duschsysteme" (hidden today unless an offer has some): they stay in the offer */
+export const hassmannPicks = (da: Fields): number => (Array.isArray(da.quickAdd) ? (da.quickAdd as QuickAdd[]).filter((q) => q && !isConfig(q)).length : 0);
 /** the switch: off keeps the configuration and takes its lines out of `quickAdd` */
 export const switched = (da: Fields, on: boolean): Fields => ({ configEnabled: on, quickAdd: quickAddOf(da, ((da.configurator as { lines?: StoredLine[] } | undefined)?.lines ?? []), on) });
 /** Cards → the fields of the offer's section. Every card comes with its model. */
