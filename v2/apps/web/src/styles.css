@@ -100,3 +100,21 @@
 .bs .bs-dim { fill: #3f3f3b; font-size: 13px; font-weight: 600; text-anchor: middle; }
 .bs-small .bs-g { stroke-width: 1; }
 .bs-small .bs-w { stroke-width: 0.7; }
+
+/* Shower-curtain drawing (features/steps/duschvorhang/drawing.ts). Light drawing on any theme. */
+.vhc-svg { display: block; width: 100%; max-width: 520px; max-height: 300px; height: auto; margin: 0 auto; }
+.vhc-svg * { transition: opacity 0.2s ease; }
+.vhc-floor { fill: rgba(10, 10, 10, 0.07); stroke: rgba(10, 10, 10, 0.18); stroke-width: 1; }
+.vhc-wallp { fill: rgba(255, 255, 255, 0.75); stroke: rgba(10, 10, 10, 0.28); stroke-width: 1.2; }
+.vhc-curtain { fill: var(--tone); fill-opacity: 0.16; stroke: var(--tone); stroke-opacity: 0.55; stroke-width: 1; }
+.vhc-fold { stroke: var(--tone); stroke-opacity: 0.28; stroke-width: 1; }
+.vhc-rod { stroke: #3f3a36; stroke-width: 4; stroke-linecap: round; }
+.vhc-joint { fill: #fff; stroke: #3f3a36; stroke-width: 2.5; }
+.vhc-corner { fill: #3f3a36; stroke: #fff; stroke-width: 2; }
+.vhc-support { stroke: #3f3a36; stroke-width: 2; stroke-dasharray: 4 3; }
+.vhc-rosette { fill: #fff; stroke: #3f3a36; stroke-width: 2; }
+.vhc-badge rect { fill: #fff; stroke: rgba(10, 10, 10, 0.18); }
+.vhc-badge-n { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
+.vhc-badge-t { fill: #1c1917; font-size: 13px; font-weight: 600; text-anchor: middle; }
+.vhc-svg--empty .vhc-badge-t { fill: #9ca3af; }
+.vhc-has-focus [data-leg]:not(.vhc-on) { opacity: 0.28; }
