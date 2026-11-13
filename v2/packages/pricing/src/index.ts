@@ -13,6 +13,8 @@ import createPricingCore, {
 export type { PricingDeps, PricingProductModel, PricingSnapshotModel };
 export { computeFingerprint, lineEditDeltas, NO_MARKUP_IDS, sumPriceAdjustments };
 export { SUPPLIER_QUALITY, supplierCodes } from "./core.js";
+// winwall: the catalogue names of the decors and the sealing sets an area needs (also used by the UI)
+export { WINWALL_CATALOG, winwallSealingSets } from "./core.js";
 export * from "./tray-search.js";
 
 /** One priced line (materials or services). Extra legacy fields are kept as-is. */
