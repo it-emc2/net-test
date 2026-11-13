@@ -80,6 +80,20 @@ describe("Rabatt stores and shows what today's UI does", () => {
   });
 });
 
+describe("Aufschlag — the switch for offers stored under the old rule", () => {
+  it("only an offer that keeps small material out of the markup shows it; ticking changes the rule and the switch stays", async () => {
+    await open();
+    expect(screen.queryByRole("checkbox", { name: /^Kleinmaterial im Aufschlag berücksichtigen/ })).toBeNull(); // a new offer uses the new rule
+    useOfferStore.getState().patch("pricingRules" as never, { kleinInAufschlag: false } as never);
+    const box = (await screen.findByRole("checkbox", { name: /^Kleinmaterial im Aufschlag berücksichtigen/ })) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    await userEvent.setup().click(box);
+    await waitFor(() => expect(offer().pricingRules.kleinInAufschlag).toBe(true));
+    expect((screen.getByRole("checkbox", { name: /^Kleinmaterial im Aufschlag berücksichtigen/ }) as HTMLInputElement).checked).toBe(true); // still there: the change can be taken back
+    expect(within(screen.getByTestId("rb-sums")).queryByText(/ohne Kleinmaterial/)).toBeNull();
+  });
+});
+
 describe("Rabatt — rules", () => {
   it("the discount on materials is only for Kassenkunde with a markup of at least 50 %", () => {
     expect([r.mayDiscountMaterials("Kassenkunde", "50%"), r.mayDiscountMaterials("Kassenkunde", "49,9%"), r.mayDiscountMaterials("Selbstzahler", "60%"), r.mayDiscountMaterials("Kassenkunde", "")]).toEqual([true, false, false, false]);
