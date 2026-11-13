@@ -5,7 +5,7 @@
 // same inputs). The rules are engine.ts (the wizard), wizard.ts (one card) and rules.ts (the offer).
 import { useQueries } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card as Panel, CardTitle, Input, Switch, cn } from "../../../shared/ui/index.js";
 import { useParams } from "react-router";
@@ -44,15 +44,13 @@ function Lightbox({ images, start, onClose }: { images: { src: string; label: st
   const touch = useRef<number | null>(null);
   const many = images.length > 1;
   const show = (i: number) => setAt((i + images.length) % images.length);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); else if (e.key === "ArrowLeft") setAt((i) => (i - 1 + images.length) % images.length); else if (e.key === "ArrowRight") setAt((i) => (i + 1) % images.length); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [images.length, onClose]);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => { box.current?.focus(); }, []); // the keys go to the dialog while it is open
+  const onKey = (e: ReactKeyboardEvent) => { if (e.key === "Escape") onClose(); else if (e.key === "ArrowLeft") show(at - 1); else if (e.key === "ArrowRight") show(at + 1); };
   const im = images[at]!;
   const nav = "absolute top-1/2 grid size-12 -translate-y-1/2 cursor-pointer place-items-center rounded-full border-0 bg-white/90 text-2xl text-black";
   return (
-    <div role="dialog" aria-modal="true" aria-label="Bilder" data-testid="da-lightbox" className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    <div ref={box} tabIndex={-1} onKeyDown={onKey} role="dialog" aria-modal="true" aria-label="Bilder" data-testid="da-lightbox" className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 outline-none" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onTouchStart={(e) => { touch.current = e.touches[0]!.clientX; }}
       onTouchEnd={(e) => { if (touch.current == null || !many) return; const dx = e.changedTouches[0]!.clientX - touch.current; touch.current = null; if (Math.abs(dx) > 40) show(at + (dx < 0 ? 1 : -1)); }}>
       <img src={im.src} alt={im.label} className="max-h-[80vh] max-w-full rounded-lg object-contain" />

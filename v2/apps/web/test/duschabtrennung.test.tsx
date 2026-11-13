@@ -4,9 +4,9 @@
 // (the real one, with the articles only of the enclosures the recordings reach); the Badolux
 // catalogue is the file today's UI serves.
 import { readFileSync } from "node:fs";
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import * as w from "../src/features/steps/duschabtrennung/engine.js";
 import type { Model } from "../src/features/steps/duschabtrennung/engine.js";
@@ -136,17 +136,26 @@ describe("Duschabtrennung — pictures, drawing, audit trail, older picks", () =
     expect(screen.queryByRole("dialog", { name: "Bilder" })).toBeNull();
   });
 
-  it("the drawing: the door opens and closes on a tap; a walk-in has nothing to move", async () => {
+  it("the drawing: the door plays once, opens and closes on a tap and with the mouse over it; a walk-in has nothing to move", { timeout: 20000 }, async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true })); // reduced motion: the door jumps to its end state, so the test does not depend on frame timing
     await open();
     await play(BXN);
     const user = userEvent.setup();
     const door = () => within(card(1)).getByRole("button", { name: "Zeichnung: Tür öffnen oder schließen" });
-    const closed = door().innerHTML;
-    await user.click(door());
+    // right after the side was picked the door plays once by itself: open, then closed again
     await waitFor(() => expect(door().getAttribute("aria-pressed")).toBe("true"));
-    await waitFor(() => expect(door().innerHTML).not.toBe(closed));
-    await user.click(door());
-    await waitFor(() => expect(door().innerHTML).toBe(closed));
+    await waitFor(() => expect(door().getAttribute("aria-pressed")).toBe("false"), { timeout: 4000 });
+    const drawn = (open: number) => { const d = document.createElement("div"); d.innerHTML = sketchSVG(specFor({ Einbausituation: "nische", Tuer: "falt", Anschlag: "falt_links" }, {}), { open }); return d.innerHTML; };
+    const closed = drawn(0);
+    await waitFor(() => expect(door().innerHTML).toBe(closed), { timeout: 4000 });
+    fireEvent.click(door()); // a tap (iPad): open …
+    await waitFor(() => expect([door().getAttribute("aria-pressed"), door().innerHTML]).toEqual(["true", drawn(1)]), { timeout: 4000 });
+    fireEvent.click(door()); // … and closed again
+    await waitFor(() => expect([door().getAttribute("aria-pressed"), door().innerHTML]).toEqual(["false", closed]), { timeout: 4000 });
+    await user.hover(door()); // the mouse over it opens the door, leaving closes it
+    await waitFor(() => expect(door().innerHTML).toBe(drawn(1)), { timeout: 4000 });
+    await user.unhover(door());
+    await waitFor(() => expect(door().innerHTML).toBe(closed), { timeout: 4000 });
     await play([["answered", 1, 1], ["pick", 1, "Walk-In"]]);
     expect((door() as HTMLButtonElement).disabled).toBe(true);
     expect(within(card(1)).queryByText("Antippen zeigt, wie die Tür öffnet")).toBeNull();
