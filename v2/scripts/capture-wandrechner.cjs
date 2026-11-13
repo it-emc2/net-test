@@ -1,0 +1,138 @@
+// Records what today's wall calculator ("Wände und Dekor — Bedarf berechnen") on the Wandverkleidung
+// step stores and shows for given inputs, on the line winwall (ADR 026, phase 4): the reference
+// for apps/web/test/wandrechner.test.tsx. Inputs are real clicks and key presses. The v2 add-ons
+// are blocked.
+//
+//   bash v2/scripts/preview.sh &
+//   node v2/scripts/capture-wandrechner.cjs   → v2/apps/web/test/fixtures/wandrechner.json
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const { chromium } = require("../../node_modules/playwright");
+
+const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
+const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "wandrechner.json");
+const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
+
+const ON = ["on"];
+const BACK = [ON, ["width", "back", "180"]];
+// steps: ["on"] · ["sit", "wand"|"ecke"|"u"] · ["view", "room"|"panels"] · ["width", wall, cm] · ["height", cm] ·
+//        ["wall", key] taps a wall in the list · ["decor", wall, value] a decor tile under that wall ·
+//        ["same"] "Alle Wände gleiches Dekor" · ["row+"] · ["qty", n, "+"|"-"] · ["rowdecor", value]
+const SCENARIOS = {
+  "switched on": [ON],
+  "one wall, 180 cm, no decor": [...BACK],
+  "one wall tapped": [...BACK, ["wall", "back"]],
+  "one wall with a decor": [...BACK, ["wall", "back"], ["decor", "back", "WS229"]],
+  "decor first, then the width": [ON, ["wall", "back"], ["decor", "back", "WS229"], ["width", "back", "180"]],
+  "one wall, 100 cm": [ON, ["width", "back", "100"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "one wall, 260 cm": [ON, ["width", "back", "260"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "one wall, 95 cm (a cut)": [ON, ["width", "back", "95"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "width changed after the decor": [...BACK, ["wall", "back"], ["decor", "back", "WS229"], ["width", "back", "320"]],
+  "width emptied after the decor": [...BACK, ["wall", "back"], ["decor", "back", "WS229"], ["width", "back", ""]],
+  "decor changed": [...BACK, ["wall", "back"], ["decor", "back", "WS229"], ["wall", "back"], ["decor", "back", "NW220"]],
+  "corner, two walls, one decor each": [ON, ["sit", "ecke"], ["width", "links", "120"], ["width", "back", "180"], ["wall", "links"], ["decor", "links", "WS229"], ["decor", "back", "WS203"]],
+  "corner, the same decor on both walls": [ON, ["sit", "ecke"], ["width", "links", "120"], ["width", "back", "180"], ["wall", "links"], ["decor", "links", "WS229"], ["decor", "back", "WS229"]],
+  "corner, all walls the same decor by button": [ON, ["sit", "ecke"], ["width", "links", "120"], ["width", "back", "180"], ["wall", "back"], ["decor", "back", "WS210"], ["wall", "back"], ["same"]],
+  "U-shape, three walls": [ON, ["sit", "u"], ["width", "links", "90"], ["width", "back", "170"], ["width", "rechts", "90"], ["wall", "links"], ["decor", "links", "WS203"], ["decor", "back", "WS203"], ["decor", "rechts", "WS203"]],
+  "U-shape, then one wall again": [ON, ["sit", "u"], ["width", "links", "90"], ["width", "back", "170"], ["width", "rechts", "90"], ["wall", "links"], ["decor", "links", "WS203"], ["decor", "back", "WS203"], ["decor", "rechts", "WS203"], ["sit", "wand"]],
+  "height 200 cm": [...BACK, ["height", "200"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "height 120 cm (two pieces from a plate)": [...BACK, ["height", "120"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "height 260 cm (above the plate)": [...BACK, ["height", "260"], ["wall", "back"], ["decor", "back", "WS203"]],
+  "height entered after the decor": [...BACK, ["wall", "back"], ["decor", "back", "WS203"], ["height", "200"]],
+  "a row by hand stays after the wall rows": [ON, ["row+"], ["width", "back", "180"], ["wall", "back"], ["decor", "back", "WS229"], ["width", "back", "280"]],
+  "wall rows, then a plate more by hand, then the width again": [...BACK, ["wall", "back"], ["decor", "back", "WS229"], ["qty", 1, "+"], ["width", "back", "190"]],
+  "only the panels view": [...BACK, ["view", "panels"]],
+};
+
+const token = (() => {
+  const payload = `${Date.now() + 3600e3}:capture@local.test`;
+  return Buffer.from(payload).toString("base64url") + "." + crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+})();
+const sortKeys = (v) => Array.isArray(v) ? v.map(sortKeys)
+  : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v;
+const same = (a, b) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
+const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(base || {}), ...Object.keys(now || {})])]
+  .filter((k) => !same((base || {})[k], (now || {})[k])).map((k) => [k, k in (now || {}) ? now[k] : "<removed>"]));
+
+(async () => {
+  let browser = await chromium.launch({ headless: true });
+  const out = { note: "generated by v2/scripts/capture-wandrechner.cjs — do not edit", scenarios: [] };
+  for (const [name, steps] of Object.entries(SCENARIOS)) {
+    const record = async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
+      await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
+      const page = await ctx.newPage();
+      const json = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      await page.route("**/api/auth/me", (r) => r.fulfill(json({ user: { email: "capture@local.test", name: "Capture", role: "user" } })));
+      await page.route("**/api/planning/**", (r) => r.abort());
+      await page.route("**/v2/addons/**", (r) => (r.request().url().endsWith("/error-compat.js") ? r.continue() : r.abort()));
+      const alerts = [];
+      page.on("dialog", (d) => { alerts.push(d.message()); d.accept().catch(() => {}); });
+      await page.goto(BASE + "/", { waitUntil: "load" });
+      await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
+      await page.waitForFunction(() => location.hash === "#Kundendaten");
+      await page.waitForTimeout(1200);
+      await page.evaluate(() => window.setStep("Wandverkleidung"));
+      await page.waitForTimeout(500);
+      const base = await page.evaluate(() => window.buildPayload());
+      const P = "#page-Wandverkleidung";
+      const row = (n) => `#wvWwRows .wv-row:nth-child(${n})`;
+      let next = null;
+      for (const [kind, a, b] of steps) {
+        if (kind === "on") await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+        else if (kind === "sit") await page.locator(`#wvKeramicoCalc .kc-chip[data-sit="${a}"]`).click();
+        else if (kind === "view") await page.locator(`#wvKeramicoCalc .kc-view-chip[data-view="${a}"]`).click();
+        else if (kind === "width") { const id = { links: "wvKLinks", back: "wvKBack", rechts: "wvKRechts" }[a]; await page.locator(`#${id}`).fill(b); await page.locator(`#${id}`).blur(); }
+        else if (kind === "height") { await page.locator("#wvKHoehe").fill(a); await page.locator("#wvKHoehe").blur(); }
+        else if (kind === "wall") await page.locator(`#wvKeramicoCalc .kc-row[data-wall="${a}"] .kc-decor`).click();
+        else if (kind === "decor") await page.locator(`#wvKeramicoCalc .kc-wall-body[data-body="${a}"] label.image-check:has(input[value="${b}"])`).click();
+        else if (kind === "same") await page.locator("#wvKeramicoCalc .kc-wall-body:not([hidden]) .kc-all-same").click();
+        else if (kind === "row+") await page.locator("#wvWwRowAdd").click();
+        else if (kind === "qty") await page.locator(`${row(a)} > .wv-row__step [data-d="${b === "+" ? 1 : -1}"]`).click();
+        else throw new Error(`step not handled: ${kind}`);
+        await page.waitForTimeout(700);
+      }
+      await page.waitForTimeout(900);
+      if (next) await page.evaluate(() => window.setStep("Wandverkleidung"));
+      const now = await page.evaluate(() => window.buildPayload());
+      const view = await page.evaluate(() => {
+        const el = (id) => document.getElementById(id);
+        const vis = (n) => !!n && n.getClientRects().length > 0;
+        const txt = (n) => (n?.innerText || "").replace(/\s+/g, " ").trim();
+        const root = el("wvKeramicoCalc"), svg = el("kcSvg");
+        return {
+          note: txt([...root.querySelectorAll(".kc-head .kc-note")].find(vis)),
+          sit: root.querySelector('.kc-chip[aria-pressed="true"]')?.dataset.sit || "", view: root.querySelector('.kc-view-chip[aria-pressed="true"]')?.dataset.view || "",
+          walls: [...root.querySelectorAll(".kc-row[data-wall]")].filter(vis).map((r) => ({ key: r.dataset.wall, letter: txt(r.querySelector(".kc-dot")), name: r.querySelector(".kc-name").firstChild.textContent.trim(), sub: txt(r.querySelector(".kc-wall-sub")), decor: txt(r.querySelector(".kc-decor")), width: r.querySelector("input").value, open: r.classList.contains("is-open") })),
+          tilesUnder: [...root.querySelectorAll(".kc-wall-body")].filter(vis).map((b) => b.dataset.body), sameButton: vis(root.querySelector(".kc-all-same")),
+          tileActive: [...root.querySelectorAll(".kc-wall-body label.wv-active input")].map((i) => i.value),
+          height: el("wvKHoehe").value, warn: vis(el("kcHeightWarn")) ? txt(el("kcHeightWarn")) : "", cutList: vis(el("kcCutList")) ? txt(el("kcCutList")) : "",
+          drawing: {
+            pieces: [...svg.querySelectorAll(".kc-piece")].map((p) => ({ plate: p.dataset.platte, cut: p.classList.contains("kc-piece--cut"), textured: /url\(/.test(p.getAttribute("style") || "") })),
+            marks: [...svg.querySelectorAll(".kc-mark")].map((m) => txt(m) || m.textContent.replace(/\s+/g, " ").trim()), badges: [...svg.querySelectorAll(".kc-badge text")].map((t) => t.textContent),
+            heightLabel: svg.querySelector(".kc-hlabel")?.textContent || "", room: !!svg.querySelector(".kc-floor--room"), empty: svg.classList.contains("kc-svg--empty"),
+          },
+          rows: [...document.querySelectorAll("#wvWwRows .wv-row")].map((r) => ({ title: txt(r.querySelector(".wv-row__name b")), fmt: r.querySelector("select").value, qty: txt(r.querySelector("output")), open: !!r.querySelector(".wv-row__body") })),
+        };
+      });
+      await ctx.close();
+      console.log(name);
+      return { name, steps, wandverkleidung: sortKeys(changed(base.wandverkleidung, now.wandverkleidung)), duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), view, ...(next ? { next } : {}) };
+    };
+    let entry;
+    for (let attempt = 1; !entry; attempt++) {
+      try { entry = await record(); }
+      catch (err) {
+        if (attempt >= 6) throw err;
+        console.log(`  retry ${attempt} (${String(err.message || err).split("\n")[0]})`);
+        await browser.close().catch(() => {});
+        browser = await chromium.launch({ headless: true });
+      }
+    }
+    out.scenarios.push(entry);
+  }
+  await browser.close();
+  fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + "\n");
+  console.log(`${out.scenarios.length} recordings → ${path.relative(process.cwd(), OUT)}`);
+})().catch((e) => { console.error(e); process.exit(1); });
