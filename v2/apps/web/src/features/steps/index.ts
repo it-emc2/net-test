@@ -2,6 +2,7 @@
 export { Arbeiten } from "./arbeiten/Arbeiten.js";
 export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
 export { Duschabtrennung } from "./duschabtrennung/Duschabtrennung.js";
+export { Duschvorhang } from "./duschvorhang/Duschvorhang.js";
 export { Duschwanne } from "./duschwanne/Duschwanne.js";
 export { Fussboden } from "./fussboden/Fussboden.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
