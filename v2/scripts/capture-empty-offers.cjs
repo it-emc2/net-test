@@ -48,8 +48,8 @@ const sortKeys = (v) => Array.isArray(v) ? v.map(sortKeys)
     for (const k of ["offerNumber", "auftragId", "ourSignatureUser"]) if (k in payload) payload[k] = "";
     if (payload.mail) for (const k of ["body", "subject"]) if (k in payload.mail) payload.mail[k] = ""; // text with the offer number and the contact
     if ("pricingRules" in payload) payload.pricingRules = {};
-    // derived from the settings' hourly rates — recomputed, never a default
-    if (payload.Arbeitszeit) { delete payload.Arbeitszeit.travelCostDebug; delete payload.Arbeitszeit.travelSecondWorkerRate; }
+    // Arbeitszeit.travelSecondWorkerRate (35 €/h for new offers) and travelCostDebug stay: the
+    // price reads the rate, and an offer without it is priced like an old one (25 €/h).
     fs.writeFileSync(path.join(OUT, `${type}.json`), JSON.stringify(sortKeys(payload), null, 2) + "\n");
     console.log(`${type}: ${Object.keys(payload).length} top-level keys, ${JSON.stringify(payload).length} bytes`);
     await ctx.close();

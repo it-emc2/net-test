@@ -200,6 +200,10 @@ Findings about today's UI (not changed here):
 - **Kundendaten, slices 6 and 7**: Wohnumfeld (amounts of the subsidy already used) and the internal list (`kundendaten-extras.json`, 47 recordings; `extras.ts`), and what "Weiter" asks for (`kundendaten-next.json`, 66 recordings; `required.ts`). The amounts are stored only while the answer is "Ja"; the rows stay as entered. "Weiter" checks the markup first (Badumbau, Badewannentür, Handlauf: the user is taken to Aufschlag / Rabatt, as today), fills an empty date with today's, then names the missing fields in a message and puts the focus on the first. Steps register their check with `setStepCheck` (`features/offer/steps.ts`); the frame around the steps does not know the screens.
 - Findings about today's UI (not changed there): with a contact person, their name **and address** are required; today's message names the care level "1" and the e-mail field "Email" — the React message uses the labels on the page; an amount typed with a comma into the amount field counts as 0.
 
+- **Arbeitszeit** (`features/steps/arbeitszeit`): recorded for all five offer types (`arbeitszeit.json`, 103 recordings, `v2/scripts/capture-arbeitszeit.cjs`; the route service is answered by a fixed reply). Entered are distance, nights, time on site, travel time and the second worker's rate; work days, totals, travel days, the Alltagshilfe zone and `travelCostDebug` follow from them in the same change (`rules.ts`, `derived`). Measured at 834 × 1194 with 6x CPU throttle: 0 ms blocked, one price call per change.
+- **Fixed on the way:** `emptyOffer` had no `Arbeitszeit.travelSecondWorkerRate`, so an offer started in the React app was priced with 25 €/h for the second worker's travel time instead of today's 35 €/h. The empty offers now carry the rate and `travelCostDebug`, as today's UI stores them.
+- Deliberate differences on Arbeitszeit: "Weiter" names the missing fields in a message (today the browser marks one field); a duration can be deleted character by character (today the colon comes back); the preview lines write "Rückfahrt ×" instead of "Rueckfahrt x".
+
 Still open for Kundendaten: see the BU build order below.
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
@@ -224,7 +228,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 | # | Step | Today | State |
 |---|---|---|---|
 | 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes, markup (Badelift only — see step 10). **Built too:** Wohnumfeld, internal list, the check on "Weiter". **Open:** uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
-| 2 | Arbeitszeit | 243 lines, 9 inputs | open — work-time suggestion, travel, distance lookup |
+| 2 | Arbeitszeit | 243 lines, 9 inputs | **Built:** way to the customer (distance, route suggestion, nights away; Alltagshilfe: travel zone), time on site, travel time with the second worker's rate, extra work (Badewannentür), check on "Weiter". **Open:** cost overview of the times, automatic suggestion (needs the steps that follow), route suggestion by itself when the address changes. |
 | 3 | Arbeiten | 384 lines, 37 inputs | open |
 | 4 | Duschwanne | 173 lines, 23 inputs | open — tray search, bathtub wizard |
 | 5 | Fußboden | 363 lines, 53 inputs | open |
