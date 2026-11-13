@@ -16,6 +16,8 @@ export class ApiFailure extends Error {
 
 export interface CallOptions {
   params?: Record<string, string | number>;
+  /** the query string, without the "?" (e.g. "w=90&l=120") */
+  query?: string;
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -24,7 +26,7 @@ export async function call<N extends EndpointName>(name: N, opts: CallOptions = 
   const ep = endpoints[name];
   let res: Response;
   try {
-    res = await fetch(pathOf(name, opts.params), {
+    res = await fetch(pathOf(name, opts.params) + (opts.query ? `?${opts.query}` : ""), {
       method: ep.method,
       credentials: "include",
       headers: opts.body === undefined ? { Accept: "application/json" } : { Accept: "application/json", "Content-Type": "application/json" },

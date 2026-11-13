@@ -24,17 +24,22 @@ const BY_KIND: Record<string, readonly string[]> = {
 /** the tasks the Umbauart decides */
 const BY_KIND_TASKS = new Set(Object.values(BY_KIND).flat());
 /** A chosen product also wants its installation. Today's UI knows this for every product; here
- *  it is known for the two installations the Umbauart shares with a product (the other
- *  product rules follow with the steps the products are chosen on). */
+ *  it is known for the products of the steps built so far: the bathtub and the shower tray
+ *  (a picked tray or a free item, while the tray is switched on). */
 const productWants = (task: string, dw: Fields): boolean =>
-  (task === "install_bathtub" && !!String(dw.chosenBathtubProductId ?? "").trim()) || (task === "install_tray" && dw.trayEnabled === true);
+  (task === "install_bathtub" && !!String(dw.chosenBathtubProductId ?? "").trim()) ||
+  (task === "install_tray" && dw.trayEnabled === true && (!!String(dw.chosenTrayProductId ?? "").trim() || (Array.isArray(dw.quickAdd) && dw.quickAdd.length > 0)));
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? v.split(",").filter(Boolean) : []);
 /** ticked tasks in page order; values the page does not know (older offers) stay at the end */
 const inPageOrder = (ticked: Set<string>): string[] => [...TASKS.map((t) => t.value).filter((v) => ticked.has(v)), ...[...ticked].filter((v) => !TASKS.some((t) => t.value === v))];
 const stored = (ticked: Set<string>): Fields => ({ workTasks: ticked.size ? inPageOrder(ticked) : undefined });
 
-export function chooseKind(dw: Fields, kind: string): Fields {
+/** The tasks the Umbauart and the chosen products decide, brought up to date. Nothing happens
+ *  without an Umbauart (older offers); a task changed by hand is left alone. */
+export function syncTasks(dw: Fields): Fields {
+  const kind = String(dw.umbauart ?? "");
+  if (!kind) return {};
   const ticked = new Set(list(dw.workTasks));
   const manual = new Set(list(dw.manualTasks));
   const want = new Set(BY_KIND[kind] ?? []);
@@ -42,8 +47,9 @@ export function chooseKind(dw: Fields, kind: string): Fields {
     if (manual.has(task)) continue;
     if (want.has(task) || productWants(task, dw)) ticked.add(task); else ticked.delete(task);
   }
-  return { umbauart: kind, ...stored(ticked) };
+  return stored(ticked);
 }
+export const chooseKind = (dw: Fields, kind: string): Fields => ({ umbauart: kind, ...syncTasks({ ...dw, umbauart: kind }) });
 export function toggleTask(dw: Fields, task: string, on: boolean): Fields {
   const ticked = new Set(list(dw.workTasks));
   if (on) ticked.add(task); else ticked.delete(task);
@@ -114,6 +120,8 @@ export function suggestion(workTasks: unknown, azMinutes: unknown, storedRows: u
 
 /** One change of the offer for a change on this step: the tasks, and what follows in Arbeitszeit. */
 export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, laborDelta = 0): Record<string, Fields> {
+  // as today: after every change the automatic ticking looks at the tasks again
+  dwFields = { ...dwFields, ...syncTasks({ ...(offer.duschwanne ?? {}), ...dwFields }) };
   const dw = { ...(offer.duschwanne ?? {}), ...dwFields };
   const az: Fields = { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw.workTasks, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks) };
   if (laborDelta) { az.laborHoursHHMM = addMinutes(az.laborHoursHHMM, laborDelta); az.laborHoursSource = "manual"; }
