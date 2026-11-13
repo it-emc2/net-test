@@ -32,36 +32,42 @@ export const lineOf = (wv: Fields): Line => (wv.wvBudgetMode ? "standard" : wv.w
 const WW_PLATES = ["wvWwDecor", "wvWwDecorCustom", "wvWwQty_13", "wvWwQty_15", "wvWwQty_16", "wvWwQty_17", "wvWwRows"];
 const WW_ACCESSORIES = ["wvWwQty_R_4260602", "wvWwQty_WS80110", "wvWwQty_WS80111", "wvWwQty_WS80112", "wvWwQty_WS80113", "wvWwSealing", "wvWwSealingQty",
   "wvWw_R_4260602", "wvWw_WS80110", "wvWw_WS80111", "wvWw_WS80112", "wvWw_WS80113", "wvWwCut"];
-/** per line: the fields only that line stores, and what they are when the line is chosen first */
-const LINE_FIELDS: Record<Line, { keys: string[]; first: Fields }> = {
-  ww: {
-    keys: [...WW_PLATES, ...WW_ACCESSORIES],
-    first: { wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" },
-  },
-  premium: {
-    keys: ["wvCorners", "wvCornersCount", "wvEndProfileQty", "wvFlachenQty", "wvQty1497", "wvQty997", "wvSilikonQty", "wvV3VQty"],
-    first: { wvCorners: "0", wvCornersCount: "0", wvEndProfileQty: "0", wvFlachenQty: "0", wvQty1497: "", wvQty997: "", wvSilikonQty: "0", wvV3VQty: "0" },
-  },
-  // Badolux (Keramico) uses winwall's accessories, so those stay
-  standard: {
-    keys: ["wvBxQty_PR101VBM3", "wvBxQty_PR47VBM02", "wvBxQty_PR59VBM03", "wvBxQty_PR59VBM05", "wvBxQty_PR59VBM07", "wvBxQty_PRI130VBM01", "wvBxQty_PRI130VBM02", "wvKRows", "wvMotif"],
-    first: { wvBxQty_PR101VBM3: "0", wvBxQty_PR47VBM02: "0", wvBxQty_PR59VBM03: "0", wvBxQty_PR59VBM05: "0", wvBxQty_PR59VBM07: "0", wvBxQty_PRI130VBM01: "0", wvBxQty_PRI130VBM02: "0", wvKRows: "", wvMotif: "" },
-  },
-};
-const storedOf = (line: Line): string[] => (line === "standard" ? [...LINE_FIELDS.standard.keys, ...WW_ACCESSORIES] : LINE_FIELDS[line].keys);
-/** Changing the line: the fields of the line that is left are remembered (`parked`), the fields
- *  of the new line come back — or start as on a new offer. */
+const WW_FIRST: Fields = { wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" };
+/** VIGOUR: stored only while the line is chosen */
+const HM_ONLY = ["wvCorners", "wvCornersCount", "wvEndProfileQty", "wvFlachenQty", "wvQty1497", "wvQty997", "wvSilikonQty", "wvV3VQty", "flechenkleber", "wvSealing", "wvSilikon", "wvEndProfile", "wvPanels[]"];
+const HM_FIRST: Fields = { wvCorners: "0", wvCornersCount: "0", wvEndProfileQty: "0", wvFlachenQty: "0", wvQty1497: "", wvQty997: "", wvSilikonQty: "0", wvV3VQty: "0" };
+const BX_ONLY = ["wvBxQty_PR101VBM3", "wvBxQty_PR47VBM02", "wvBxQty_PR59VBM03", "wvBxQty_PR59VBM05", "wvBxQty_PR59VBM07", "wvBxQty_PRI130VBM01", "wvBxQty_PRI130VBM02", "wvKRows", "wvMotif"];
+const BX_FIRST: Fields = { wvBxQty_PR101VBM3: "0", wvBxQty_PR47VBM02: "0", wvBxQty_PR59VBM03: "0", wvBxQty_PR59VBM05: "0", wvBxQty_PR59VBM07: "0", wvBxQty_PRI130VBM01: "0", wvBxQty_PRI130VBM02: "0", wvKRows: "", wvMotif: "" };
+const NO_PANELS = { "1497x2550": { color: "", enabled: false, overrideColor: "", qty: 0 }, "997x2550": { color: "", enabled: false, overrideColor: "", qty: 0 } };
+const gone = (keys: readonly string[]): Fields => Object.fromEntries(keys.map((k) => [k, undefined]));
+
+/** What leaving a line does to its fields (recorded for every pair of lines):
+ *  - winwall: its plates go; its accessories stay for Badolux (Keramico uses them), not for VIGOUR
+ *  - VIGOUR: quantities, colours and the accessory entries go. Towards winwall the panel table
+ *    keeps its panels (without colours) and the accessory switches stay — as today; towards
+ *    Badolux the panel table is emptied
+ *  - Badolux: its rows, motif and accessories go; winwall's accessories go with it towards VIGOUR */
+function leaving(wv: Fields, from: Line, to: Line): Fields {
+  if (from === "ww") return gone(to === "premium" ? [...WW_PLATES, ...WW_ACCESSORIES] : WW_PLATES);
+  if (from === "standard") return gone(to === "premium" ? [...BX_ONLY, ...WW_ACCESSORIES] : BX_ONLY);
+  const table = (wv.panelConfigs ?? NO_PANELS) as Record<string, Fields>;
+  const blank = Object.fromEntries(Object.entries(table).map(([k, c]) => [k, { ...c, color: "", overrideColor: "" }]));
+  return { ...gone(HM_ONLY), wvColor: "", wvColor_997: "", wvColor_1497: "", ...(to === "ww" ? { panelConfigs: blank } : { panelConfigs: NO_PANELS, extraColors: undefined }) };
+}
+/** Changing the line: what the line that is left loses is remembered (`parked`) and is back
+ *  when it is chosen again; a line chosen for the first time starts as on a new offer. */
 export function chooseLine(wv: Fields, to: Line, parked: Partial<Record<Line, Fields>>): { changes: Fields; parked: Partial<Record<Line, Fields>> } {
   const from = lineOf(wv);
   if (from === to) return { changes: {}, parked };
-  const keep = new Set(storedOf(to));
-  const leaving = storedOf(from).filter((k) => !keep.has(k));
-  const entering = storedOf(to).filter((k) => !storedOf(from).includes(k));
-  const back: Fields = { ...Object.fromEntries(entering.filter((k) => k in LINE_FIELDS[to].first || k in LINE_FIELDS.ww.first).map((k) => [k, LINE_FIELDS[to].first[k] ?? LINE_FIELDS.ww.first[k]])), ...(parked[to] ?? {}) };
+  const lost = leaving(wv, from, to);
+  // Badolux (Keramico) also stores winwall's accessories
+  const mine = to === "ww" ? [...WW_PLATES, ...WW_ACCESSORIES] : to === "premium" ? Object.keys(HM_FIRST) : [...BX_ONLY, ...WW_ACCESSORIES];
+  const first = to === "ww" ? WW_FIRST : to === "premium" ? HM_FIRST : { ...WW_FIRST, ...BX_FIRST };
+  // first time: the line's own fields that are not stored at the moment (Badolux → winwall: the accessories are)
+  const fresh = Object.fromEntries(mine.filter((k) => !(k in wv) || k in lost).filter((k) => k in first && !(to === "standard" && WW_PLATES.includes(k))).map((k) => [k, first[k]]));
   return {
-    changes: { ...Object.fromEntries(leaving.map((k) => [k, undefined])), ...Object.fromEntries(entering.map((k) => [k, back[k]])), wvBudgetMode: to === "standard" ? "1" : undefined, wvSupplier: to === "premium" ? "hm" : "ww",
-      ...(to === "standard" ? { wvWwCut: undefined } : {}) }, // winwall's cutting service is not for Keramico
-    parked: { ...parked, [from]: Object.fromEntries(leaving.filter((k) => k in wv).map((k) => [k, wv[k]])) },
+    changes: { ...lost, ...fresh, ...(parked[to] ?? {}), wvBudgetMode: to === "standard" ? "1" : undefined, ...(to === "standard" ? { wvWwCut: undefined } : { wvSupplier: to === "premium" ? "hm" : "ww" }) }, // winwall's cutting service is not for Keramico
+    parked: { ...parked, [from]: Object.fromEntries(Object.keys(lost).map((k) => [k, wv[k]])) },
   };
 }
 

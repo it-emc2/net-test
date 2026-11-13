@@ -107,6 +107,8 @@ export const endpoints = {
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
   /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
+  /** query: ids=<article>,<article> → net purchase price per article */
+  vigorPrices: { method: "GET", path: "/api/vigor-prices", response: z.record(z.string(), z.unknown()) },
   product: { method: "GET", path: "/api/products/:productId", response: ProductSchema },
   /** query: e.g. prefix=BP&source=badolux&limit=200 */
   products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
