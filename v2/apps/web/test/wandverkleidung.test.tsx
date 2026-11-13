@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { WW_DECORS } from "../src/features/steps/wandverkleidung/decors.js";
-import { ACCESSORIES, chooseLine, decorCode, fromRows, rowsOf, sealing } from "../src/features/steps/wandverkleidung/rules.js";
+import { ACCESSORIES, areaOf, chooseLine, decorCode, fromRows, rowsOf, sealing } from "../src/features/steps/wandverkleidung/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wandverkleidung.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
@@ -110,7 +110,7 @@ describe("Wandverkleidung — rules", () => {
   });
 
   it("sealing: one 6,25 m² set between 5 and 6,25 m², otherwise 5 m² sets", () => {
-    expect([sealing({}, [{ code: "WS203", fmt: "15", qty: 1 }]).auto, sealing({}, [{ code: "WS203", fmt: "17", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 }]).hint, sealing({}, []).auto]).toEqual([1, "nach Plattenfläche 6,25 m² → 1 × 6,25 m² · automatisch", 0]);
+    expect([sealing({}, areaOf([{ code: "WS203", fmt: "15", qty: 1 }])).auto, sealing({}, areaOf([{ code: "WS203", fmt: "17", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 }])).hint, sealing({}, 0).auto]).toEqual([1, "nach Plattenfläche 6,25 m² → 1 × 6,25 m² · automatisch", 0]);
   });
 
   it("a line that is left keeps its entries for the way back", () => {

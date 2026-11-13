@@ -2,7 +2,8 @@
 // and the line winwall (rows of decor, format and number; accessories). The stored fields are
 // exactly today's (test/wandverkleidung.test.tsx compares with what today's UI stores and shows
 // for the same inputs). Also the wall calculator of the line winwall (calc.ts, Drawing.tsx).
-// Still edited in today's UI: the lines VIGOUR and Badolux, sketch and note.
+// The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
+// Still edited in today's UI: sketch and note.
 import { Minus, Plus, X } from "lucide-react";
 import { useParams } from "react-router";
 import { Button, Card, CardTitle, Choices, Input, Switch, cn } from "../../../shared/ui/index.js";
@@ -12,11 +13,12 @@ import { call } from "../../../shared/api/index.js";
 import { arbeitenChanges, toggleTask, wvChanges } from "../arbeiten/rules.js";
 import { LEGEND, NOTE, SITUATIONS, WALLS, cutList, heightWarning, planOf, sameDecorEverywhere, setWallDecor, situationOf, wallDecorOf, wallGroups, wallsOf, widthsIn, type Plan, type WallKey } from "./calc.js";
 import { VG_COLORS } from "./colors.js";
+import * as bx from "./keramico.js";
 import * as vg from "./vigour.js";
 import { WW_DECORS } from "./decors.js";
 import { Drawing, TONES } from "./Drawing.js";
 import {
-  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, lineOf, rowNote, rowTitle, rowsOf,
+  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, areaOf, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, lineOf, rowNote, rowTitle, rowsOf,
   sealing, setAccessoryQty, toggleAccessory, withDecor, type Line, type Row,
 } from "./rules.js";
 
@@ -71,7 +73,7 @@ function Decors({ onPick }: { onPick: (value: string, text?: string) => void }) 
 
 /** What the wall calculator needs to know about a product line. */
 interface CalcKit {
-  line: "ww" | "hm"; note: string; maxHeight: number;
+  line: "ww" | "hm" | "bx"; note: string; maxHeight: number; heightNote?: (wv: Fields) => string;
   tiles: readonly { value: string; caption: string; img: string }[];
   plan: (wv: Fields) => Plan; mix: (plan: Plan) => string;
   /** the picture on a wall: its own decor, else the line's */
@@ -101,6 +103,15 @@ const vigourKit = (prices: vg.Prices): CalcKit => ({
   },
 });
 
+const BX_KIT: CalcKit = {
+  line: "bx", note: bx.NOTE, maxHeight: bx.MAX_HEIGHT, tiles: bx.DECORS, plan: bx.planOf, mix: () => bx.MIX, heightNote: bx.motifCutNote,
+  texture: (wv, own) => { const pid = String(own || wv.wvColor || "").split("|", 1)[0]!; return /^WP/i.test(pid) ? bx.image(pid) : ""; },
+  rows: (_before, next, decor) => {
+    const r = wallGroups(next, decor, { isTile: (v) => bx.DECORS.some((d) => d.value === v), key: (x: bx.KRow) => x.pid, current: bx.rowsOf(next), rowsFor: (v, widths) => bx.rowsForPlan(next, situationOf(next), widths, v) });
+    return r && { wallDecor: r.wallDecor, fields: bx.fromRows(next, r.rows), count: r.rows.length };
+  },
+};
+
 /** The wall calculator: situation, a decor and a width per wall, the height — and the drawing.
  *  Walls with a decor and a width write the rows of the line below. */
 function Calculator({ kit }: { kit: CalcKit }) {
@@ -115,7 +126,7 @@ function Calculator({ kit }: { kit: CalcKit }) {
     const next = { ...before, ...fields };
     const r = kit.rows(before, next, decor ?? wallDecorOf(next, kit.line));
     if (!r) return write(decor ? { ...fields, wvWallDecor: JSON.stringify(decor) } : fields);
-    remember("wvRowOpen", { idx: kit.line === "ww" ? (r.count ? 0 : -1) : r.count - 1, folded: true });
+    remember("wvRowOpen", { idx: kit.line === "hm" ? r.count - 1 : r.count ? 0 : -1, folded: true });
     write({ ...fields, wvWallDecor: JSON.stringify(r.wallDecor), ...r.fields });
   };
   const toggle = (key: WallKey) => remember("wvWallOpen", open === key ? null : key);
@@ -123,7 +134,7 @@ function Calculator({ kit }: { kit: CalcKit }) {
   const same = () => { const all = sameDecorEverywhere(wvNow(), open, kit.line); if (!all) return; remember("wvWallOpen", null); apply({}, all); };
   const texture = (key: WallKey) => kit.texture(wv, wd[key]);
   const decorCaption = (v: unknown) => kit.tiles.find((t) => t.value === v)?.caption ?? "";
-  const cuts = cutList(plan, kit.line === "ww" ? undefined : kit.mix(plan)), warn = heightWarning(wv, kit.maxHeight);
+  const cuts = cutList(plan, kit.line === "ww" ? undefined : kit.mix(plan), kit.heightNote?.(wv)), warn = heightWarning(wv, kit.maxHeight);
   const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-4 font-semibold";
   return (
     <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
@@ -317,13 +328,14 @@ function Vigour() {
   return <><Calculator kit={vigourKit(prices.data)} /><VigourRows /><VigourAccessories /></>;
 }
 
-function Accessories() {
+/** winwall's accessories — also used for Keramico (there without the cutting service). */
+function Accessories({ label, area, cut }: { label: string; area: number; cut: boolean }) {
   const wv = useWv();
-  const seal = sealing(wv, rowsOf(wv));
+  const seal = sealing(wv, area);
   const manual = Math.round(Number(wv.wvWwSealingQty) || 0) > 0;
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
-      <legend className="mb-1.5 p-0 font-semibold" data-testid="wv-acc-label">Zubehör winwall</legend>
+      <legend className="mb-1.5 p-0 font-semibold" data-testid="wv-acc-label">{label}</legend>
       {ACCESSORIES.map((a) => (
         <div key={a.id} data-testid={`wv-acc-${a.id}`} className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
           <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
@@ -341,14 +353,97 @@ function Accessories() {
         </label>
         <Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => write({ wvWwSealingQty: t })} />
       </div>
-      <div data-testid="wv-acc-cut" className={cn(ROW, "has-[:checked]:border-primary")}>
+      {cut ? <div data-testid="wv-acc-cut" className={cn(ROW, "has-[:checked]:border-primary")}>
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
           <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv.wvWwCut} onChange={(e) => write({ wvWwCut: e.target.checked ? "on" : undefined })} />
           <span className="grid"><span data-part="caption">Zuschnitt durch winwall</span><small data-part="small" className="text-muted-foreground">10 € je Platte, gerade Schnitte · aus: wir schneiden selbst</small></span>
         </label>
-      </div>
+      </div> : null}
     </fieldset>
   );
+}
+
+/** Badolux: rows of decor (or Sonder-Dekor with its motif name) and number of Keramico panels. */
+function KeramicoRows() {
+  const wv = useWv();
+  const rows = bx.rowsOf(wv);
+  // which row is open: kept while the offer is open; an opened offer starts with all rows folded
+  const ui = (useOfferStore((s) => s.scratch.wvRowOpen) as { idx: number; folded: boolean } | undefined) ?? { idx: rows.length ? 0 : -1, folded: true };
+  const openIdx = ui.folded ? -1 : ui.idx;
+  const set = (next: bx.KRow[], idx: number, folded: boolean) => { remember("wvRowOpen", { idx, folded }); write(bx.fromRows(wvNow(), next)); };
+  const change = (i: number, c: Partial<bx.KRow>) => set(rows.map((r, j) => (j === i ? { ...r, ...c } : r)), ui.idx, ui.folded);
+  return (
+    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
+      <legend className="mb-1.5 p-0 font-semibold">Paneele — Standard (Keramico)</legend>
+      {rows.length ? rows.map((r, i) => {
+        const open = i === openIdx;
+        return (
+          <div key={i} data-testid="bx-row" data-open={open} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => remember("wvRowOpen", { idx: i, folded: i === ui.idx ? !ui.folded : false })} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
+                <img src={bx.image(r.pid)} alt="" className="size-10 shrink-0 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                <span className="grid min-w-0"><b data-part="title">{bx.rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
+              </button>
+              <span className="flex items-center gap-1">
+                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: weniger`} onClick={() => change(i, { qty: Math.max(1, r.qty - 1) })}><Minus aria-hidden /></Button>
+                <output data-part="qty" className="w-8 text-center font-semibold">{r.qty}</output>
+                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: mehr`} onClick={() => change(i, { qty: r.qty + 1 })}><Plus aria-hidden /></Button>
+              </span>
+              <Button variant="ghost" size="icon" aria-label={`Zeile ${i + 1} entfernen`} onClick={() => { const next = rows.filter((_, j) => j !== i); set(next, Math.min(ui.idx, next.length - 1), ui.folded); }}><X aria-hidden /></Button>
+            </div>
+            {open && r.pid === bx.SONDER ? (
+              <div className="grid gap-1.5 rounded-lg border-2 border-border p-3" data-testid="bx-sonder">
+                <b>Sonder-Dekor bei CleverBad aussuchen</b>
+                <p className="m-0 text-[0.95rem] text-muted-foreground">Motiv im Shop ansehen und den Namen hier eintragen. Preis je Paneel: <b>{bx.SONDER_PRICE.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €</b> (fest, ohne Rabatt).</p>
+                <a href={bx.SHOP_URL} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center">Wandpaneele bei CleverBad öffnen ↗</a>
+                <label htmlFor="bx-motif" className="font-semibold">Motiv / Name</label>
+                <div className="max-w-xs"><Input id="bx-motif" placeholder="z. B. Octopus Flow" autoComplete="off" value={r.name === bx.SONDER_NAME ? "" : r.name} onChange={(e) => change(i, { name: e.target.value })} /></div>
+              </div>
+            ) : null}
+            {open ? (
+              <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="bx-tiles">
+                <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
+                <div className="flex flex-wrap gap-2">
+                  {bx.DECORS.map((d) => (
+                    <button key={d.value} type="button" data-value={d.value} aria-pressed={r.pid === d.pid} onClick={() => set(rows.map((x, j) => (j === i ? bx.withDecor(x, d.value) : x)), ui.idx, ui.folded)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", r.pid === d.pid ? "border-primary bg-accent-weak font-bold" : "border-input")}>
+                      <img src={d.img} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
+          </div>
+        );
+      }) : <p className="m-0 text-muted-foreground">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</p>}
+      <div><Button variant="outline" onClick={() => { const next = bx.addRow(rows); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonder-Dekor)</Button></div>
+    </fieldset>
+  );
+}
+
+/** Badolux: its own accessories, folded until one is used or the heading is tapped. */
+function BadoluxAccessories() {
+  const wv = useWv();
+  const tapped = useOfferStore((s) => s.scratch.wvBxOpen) as boolean | undefined;
+  const open = tapped ?? bx.anyBx(wv);
+  return (
+    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
+      <legend className="mb-1.5 p-0"><button type="button" aria-expanded={open} onClick={() => remember("wvBxOpen", !open)} className="min-h-12 cursor-pointer border-0 bg-transparent p-0 font-semibold text-foreground">Badolux-Zubehör (Keramico) {open ? "▾" : "▸"}</button></legend>
+      {open ? bx.BX_ACCESSORIES.map((a) => (
+        <div key={a.id} data-testid={`bx-acc-${a.id}`} className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
+          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+            <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv[`wvBx_${a.id}`]} onChange={(e) => write(bx.toggleBx(wvNow(), a.id, e.target.checked))} />
+            <span className="grid"><span data-part="caption">{a.caption}</span><small data-part="small" className="text-muted-foreground">{a.small}</small></span>
+          </label>
+          <Stepper label={`Menge ${a.caption}`} value={String(bx.bxQty(wv, a.id))} placeholder="0" onChange={(t) => write(bx.setBxQty(a.id, Number(t)))} />
+        </div>
+      )) : null}
+    </fieldset>
+  );
+}
+
+function Badolux() {
+  const wv = useWv();
+  return <><Calculator kit={BX_KIT} /><KeramicoRows /><Accessories label="Zubehör" area={bx.areaOf(bx.rowsOf(wv))} cut={false} /><BadoluxAccessories /></>;
 }
 
 export function Wandverkleidung() {
@@ -393,13 +488,7 @@ export function Wandverkleidung() {
             </label>
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
-          {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories /></> : line === "premium" ? <Vigour /> : (
-            <div className="grid gap-2 rounded-lg border-2 border-border p-3">
-              <strong>Bedarfsrechner, Paneele und Zubehör — {LINES[line].name}</strong>
-              <p className="m-0">Die Linie {LINES[line].name} wird noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
-              <LegacyLink dealId={dealId} step="Wandverkleidung">Wandverkleidung in der bisherigen Ansicht</LegacyLink>
-            </div>
-          )}
+          {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={areaOf(rowsOf(wv))} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
           <div className="grid gap-2 rounded-lg border-2 border-border p-3">
             <strong>Skizze und Notiz</strong>
             <LegacyLink dealId={dealId} step="Wandverkleidung">Skizze und Notiz in der bisherigen Ansicht</LegacyLink>

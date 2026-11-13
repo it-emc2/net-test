@@ -101,7 +101,7 @@ interface Row { key: string; label: string; minutes: number; qty: number }
 
 const positive = (v: unknown): number => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : 0; };
 /** rows that come from other steps than Arbeiten, in today's order; the ones a React step owns are computed, the others kept as stored */
-const OWNED = ["wv997", "wv1497", "Silikon", "flooring"]; // computed here; "wvKeramico" is still kept as stored
+const OWNED = ["wv997", "wv1497", "wvKeramico", "Silikon", "flooring"]; // computed here
 const BEFORE_FLOOR = ["wv997", "wv1497", "wvKeramico", "Silikon"];
 
 /** The suggestion fields of `Arbeitszeit`: one row per ticked task with a time, then the rows of
@@ -134,7 +134,11 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, 
       if (minutes) rows.push({ key: `wv${size}`, label: `Wandverkleidung ${size}×2550`, minutes, qty: Math.max(1, Math.round(positive(cfg.qty) + extra)) });
     }
   }
-  rows.push(...others.filter((r) => r.key === "wvKeramico"));
+  if (wv.wvEnabled === true && wv.wvBudgetMode) { // Badolux: Keramico panels take the time of a 997 panel (fixed)
+    let panels = 0;
+    try { const arr: unknown = JSON.parse(String(wv.wvKRows || "null")); if (Array.isArray(arr)) panels = arr.filter((r) => /^WP/i.test(String(r?.pid))).reduce((a, r) => a + Math.max(1, Math.round(Number(r.qty) || 1)), 0); } catch { /* no rows */ }
+    if (panels > 0) rows.push({ key: "wvKeramico", label: "Wandpaneel Keramico 950×2550", minutes: 30, qty: panels });
+  }
   if (wv.wvEnabled === true && wv.wvSilikonSelected === true && min("silikon", 10)) rows.push({ key: "Silikon", label: "Silikon", minutes: min("silikon", 10), qty: 1 });
   if (dw.addFlooring === true) { // Fußboden: per m², or a flat time while no area is entered
     const area = positive(dw.floorArea);
