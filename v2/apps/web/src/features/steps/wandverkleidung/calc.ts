@@ -105,11 +105,11 @@ export function sameDecorEverywhere(wv: Fields, open: WallKey | null, line = "ww
 // ---- what the page says ----
 const format = (code: string) => WINWALL_FORMATS.find((f) => f.code === code)!;
 const mixText = (plan: Plan) => Object.entries(plan.qty).filter(([, n]) => n > 0).map(([c, n]) => `${n} × ${format(c).widthCm}×${format(c).heightCm}`).join(" + ");
-export function cutList(plan: Plan, mix: string = `${mixText(plan)} cm`): { title: string; text: string } | null {
+export function cutList(plan: Plan, mix: string = `${mixText(plan)} cm`, heightNote = ""): { title: string; text: string } | null {
   if (!plan.schnitte) return null;
   const parts: string[] = [];
   if (plan.perPanel > 1) parts.push(`Höhe: aus jedem Paneel ${plan.perPanel} Stücke à ${fmtCm(plan.heightCm ?? 0)} cm schneiden — ${plan.pieces.length} Felder brauchen ${plan.gesamt} ${plan.gesamt === 1 ? "Paneel" : "Paneele"}.`);
-  else if (plan.heightCm) parts.push(`Höhe: jedes Paneel auf ${fmtCm(plan.heightCm)} cm kürzen.`);
+  else if (plan.heightCm) parts.push(`Höhe: jedes Paneel auf ${fmtCm(plan.heightCm)} cm kürzen${heightNote}.`);
   const cuts = plan.pieces.filter((p) => p.zuschnitt);
   if (cuts.length) parts.push(`Breite: ${cuts.map((p) => `${plan.perPanel > 1 ? `Feld ${p.feld}` : `Platte ${p.platte}`} auf ${fmtCm(p.breite)} cm`).join(", ")} (Verschnitt ${fmtCm(plan.verschnitt)} cm Breite).`);
   return { title: `${plan.schnitte === 1 ? "1 Schnitt" : `${plan.schnitte} Schnitte`} vor Ort`, text: `Geliefert werden ${plan.gesamt} Paneele ungeschnitten (${mix}). ${parts.join(" ")}` };

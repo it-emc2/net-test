@@ -1,7 +1,7 @@
 // Wandverkleidung (Badumbau) — the rules of today's UI (test/fixtures/wandverkleidung.json,
 // v2/scripts/capture-wandverkleidung.cjs). This file covers the frame (switch, product line,
-// Ausführung) and the line winwall; the wall calculator, the lines VIGOUR and Badolux, and
-// sketch and note are still edited in today's UI.
+// Ausführung) and the line winwall; the wall calculator is calc.ts, the lines VIGOUR and Badolux
+// are vigour.ts and keramico.ts; sketch and note are still edited in today's UI.
 //  - off keeps everything that was entered (only `wvEnabled` is false)
 //  - each product line stores its own fields; the fields of the other lines are not stored
 //    while a line is not chosen, and are back when it is chosen again
@@ -39,6 +39,8 @@ const HM_FIRST: Fields = { wvCorners: "0", wvCornersCount: "0", wvEndProfileQty:
 const BX_ONLY = ["wvBxQty_PR101VBM3", "wvBxQty_PR47VBM02", "wvBxQty_PR59VBM03", "wvBxQty_PR59VBM05", "wvBxQty_PR59VBM07", "wvBxQty_PRI130VBM01", "wvBxQty_PRI130VBM02", "wvKRows", "wvMotif"];
 const BX_FIRST: Fields = { wvBxQty_PR101VBM3: "0", wvBxQty_PR47VBM02: "0", wvBxQty_PR59VBM03: "0", wvBxQty_PR59VBM05: "0", wvBxQty_PR59VBM07: "0", wvBxQty_PRI130VBM01: "0", wvBxQty_PRI130VBM02: "0", wvKRows: "", wvMotif: "" };
 const NO_PANELS = { "1497x2550": { color: "", enabled: false, overrideColor: "", qty: 0 }, "997x2550": { color: "", enabled: false, overrideColor: "", qty: 0 } };
+/** Keramico rows switch the offer's consumables on and name its colour; neither stays with another line */
+const BX_CONSUMABLES: Fields = { wvSealingSelected: false, wvFlachenSelected: false, wvSilikonSelected: false, wvEndProfileSelected: false };
 const gone = (keys: readonly string[]): Fields => Object.fromEntries(keys.map((k) => [k, undefined]));
 
 /** What leaving a line does to its fields (recorded for every pair of lines):
@@ -46,10 +48,11 @@ const gone = (keys: readonly string[]): Fields => Object.fromEntries(keys.map((k
  *  - VIGOUR: quantities, colours and the accessory entries go. Towards winwall the panel table
  *    keeps its panels (without colours) and the accessory switches stay — as today; towards
  *    Badolux the panel table is emptied
- *  - Badolux: its rows, motif and accessories go; winwall's accessories go with it towards VIGOUR */
+ *  - Badolux: its rows, motif and accessories go; winwall's accessories go with it towards VIGOUR.
+ *    With rows, the colour, the panel table's colour and the consumables go as well */
 function leaving(wv: Fields, from: Line, to: Line): Fields {
   if (from === "ww") return gone(to === "premium" ? [...WW_PLATES, ...WW_ACCESSORIES] : WW_PLATES);
-  if (from === "standard") return gone(to === "premium" ? [...BX_ONLY, ...WW_ACCESSORIES] : BX_ONLY);
+  if (from === "standard") return { ...gone(to === "premium" ? [...BX_ONLY, ...WW_ACCESSORIES] : BX_ONLY), ...(wv.wvKRows ? { wvColor: "", panelConfigs: NO_PANELS, ...BX_CONSUMABLES } : {}) };
   const table = (wv.panelConfigs ?? NO_PANELS) as Record<string, Fields>;
   const blank = Object.fromEntries(Object.entries(table).map(([k, c]) => [k, { ...c, color: "", overrideColor: "" }]));
   return { ...gone(HM_ONLY), wvColor: "", wvColor_997: "", wvColor_1497: "", ...(to === "ww" ? { panelConfigs: blank } : { panelConfigs: NO_PANELS, extraColors: undefined }) };
@@ -66,8 +69,10 @@ export function chooseLine(wv: Fields, to: Line, parked: Partial<Record<Line, Fi
   // first time: the line's own fields that are not stored at the moment (Badolux → winwall: the accessories are)
   const fresh = Object.fromEntries(mine.filter((k) => !(k in wv) || k in lost).filter((k) => k in first && !(to === "standard" && WW_PLATES.includes(k))).map((k) => [k, first[k]]));
   return {
-    changes: { ...lost, ...fresh, ...(parked[to] ?? {}), wvBudgetMode: to === "standard" ? "1" : undefined, ...(to === "standard" ? { wvWwCut: undefined } : { wvSupplier: to === "premium" ? "hm" : "ww" }) }, // winwall's cutting service is not for Keramico
-    parked: { ...parked, [from]: Object.fromEntries(Object.keys(lost).map((k) => [k, wv[k]])) },
+    // after Keramico rows the panel quantities of VIGOUR start as "0", not empty (as today)
+    changes: { ...lost, ...fresh, ...(from === "standard" && to === "premium" && wv.wvKRows && "wvQty997" in fresh ? { wvQty997: "0", wvQty1497: "0" } : {}), ...(parked[to] ?? {}), wvBudgetMode: to === "standard" ? "1" : undefined, ...(to === "standard" ? { wvWwCut: undefined } : { wvSupplier: to === "premium" ? "hm" : "ww" }) }, // winwall's cutting service is not for Keramico
+    // the colour and the panel table are not brought back with Badolux (as today); its rows name them again with the next change
+    parked: { ...parked, [from]: Object.fromEntries(Object.keys(lost).filter((k) => !(from === "standard" && (k === "wvColor" || k === "panelConfigs"))).map((k) => [k, wv[k]])) },
   };
 }
 
@@ -147,9 +152,11 @@ export const accessoryQty = (wv: Fields, id: string): number => Math.max(0, Math
 export const toggleAccessory = (wv: Fields, id: string, on: boolean): Fields => accessory(id, on ? accessoryQty(wv, id) || 1 : 0);
 export const setAccessoryQty = (id: string, qty: number): Fields => accessory(id, Math.max(0, Math.round(qty) || 0));
 
-/** the sealing sets: by the area of the plates, or the typed number of 5 m² sets */
-export function sealing(wv: Fields, rows: readonly Row[]): { auto: number; hint: string } {
-  const area = Number(String(wv.wvArea ?? "").replace(",", ".")) || rows.filter((r) => r.code).reduce((a, r) => a + r.qty * (FORMAT_M2[r.fmt] ?? 0), 0);
+/** m² of the winwall plates */
+export const areaOf = (rows: readonly Row[]): number => rows.filter((r) => r.code).reduce((a, r) => a + r.qty * (FORMAT_M2[r.fmt] ?? 0), 0);
+/** the sealing sets: by the area of the plates (`plates` m²), or the typed number of 5 m² sets */
+export function sealing(wv: Fields, plates: number): { auto: number; hint: string } {
+  const area = Number(String(wv.wvArea ?? "").replace(",", ".")) || plates;
   const sets = winwallSealingSets(area) as { productId: string; qty: number }[];
   const txt = sets.map((l) => `${l.qty} × ${l.productId === "WS80302" ? "6,25" : "5"} m²`).join(" + ");
   const manual = Math.round(Number(wv.wvWwSealingQty) || 0);
