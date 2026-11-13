@@ -1,7 +1,7 @@
 // Kundendaten must store exactly what today's UI stores for the same inputs. The references
 // (fixtures/kundendaten-*.json) are recorded from today's UI by
 // v2/scripts/capture-kundendaten.cjs; here the same inputs are made in the React screen.
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emptyOffer, type NewOfferType } from "@oc/domain";
 import { describe, expect, it } from "vitest";
@@ -307,6 +307,20 @@ describe("„Weiter“ on Kundendaten asks for what today's UI asks for, every o
     const [lead, fields] = said[1]!.split(": ");
     const message = fields ? `${lead}: ${fields.split(", ").map((f) => TODAY_TO_PAGE[f] ?? f).join(", ")}` : said[1]!;
     expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("a focus that is still pending does not land in the next offer that is opened", async () => {
+    // markup missing on Badumbau: the user is taken to Aufschlag / Rabatt, the focus follows a moment later
+    const first = await open("bu");
+    useOfferStore.getState().patchAll(markupChanges("bu", "", offer().Kundendaten.payer, ""));
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await waitFor(() => expect(first.state.location.pathname.split("/")[4]).toBe("Rabatt"));
+    cleanup(); // the offer is left before the focus was set
+    await open("bl"); // Badelift has the markup field on Kundendaten
+    const name = screen.getByLabelText("Nachname");
+    name.focus();
+    await new Promise((r) => setTimeout(r, 450));
+    expect(name).toHaveFocus();
   });
 
   it("the first missing field gets the focus", async () => {

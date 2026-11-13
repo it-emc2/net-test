@@ -92,19 +92,27 @@ export function NewOffer() {
   return isNewOfferType(type) ? <Navigate to={`/deal/${newTempKey()}/${type}`} replace /> : <Navigate to="/" replace />;
 }
 
+/** the pending "put the focus on the missing entry" — one at a time, and none once the offer is left */
+let focusTimer: ReturnType<typeof setTimeout> | undefined;
+const cancelFocus = () => { clearTimeout(focusTimer); focusTimer = undefined; };
+
 /** "Weiter": may the user go on? If the step still needs something, say what, show where (on
  *  the step it is on) and stay. */
 function goOn(step: string, open: (step: string) => void): boolean {
+  cancelFocus();
   const problem = checkStep(step);
   if (!problem) { toast.dismiss("step-check"); return true; }
   toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" });
-  if (problem.goTo && problem.goTo !== step) open(problem.goTo);
+  const elsewhere = !!problem.goTo && problem.goTo !== step;
+  if (elsewhere) open(problem.goTo!);
   const { focus } = problem;
-  if (focus) setTimeout(() => {
+  // on another step the control exists only once that step is on the page
+  if (focus) focusTimer = setTimeout(() => {
+    focusTimer = undefined;
     const el = document.querySelector<HTMLElement>(focus);
     el?.scrollIntoView?.({ block: "center" });
     el?.focus({ preventScroll: true });
-  }, problem.goTo && problem.goTo !== step ? 300 : 0);
+  }, elsewhere ? 300 : 0);
   return false;
 }
 
@@ -121,6 +129,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const setOfferType = usePrefs((p) => p.setOfferType);
   useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
   useAutosave();
+  useEffect(() => cancelFocus, []); // leaving the offer: nothing is focused afterwards
   // a failed save is also a toast — it must not be overlooked while typing further down
   const saving = useSaveStatus();
   useEffect(() => {
