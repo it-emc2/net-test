@@ -4,6 +4,7 @@ export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
 export { Duschwanne } from "./duschwanne/Duschwanne.js";
 export { Fussboden } from "./fussboden/Fussboden.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
+export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
 
 // what "Weiter" asks for on these steps before it goes on
