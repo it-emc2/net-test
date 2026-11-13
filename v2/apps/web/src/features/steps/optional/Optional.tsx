@@ -177,13 +177,13 @@ function Dialog({ cat, s, dealId, onClose }: { cat: Category; s: State; dealId: 
   useEffect(() => { box.current?.focus(); }, []); // the keys go to the dialog while it is open
   const onKey = (e: ReactKeyboardEvent) => { if (e.key === "Escape") onClose(); };
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3" data-testid="opt-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="opt-dialog-title" onKeyDown={onKey} className="grid max-h-[92dvh] w-full max-w-3xl grid-rows-[auto_1fr_auto] rounded-lg bg-card text-card-foreground shadow-xl outline-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3" data-testid="opt-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="opt-dialog-title" onKeyDown={onKey} className="grid max-h-[92dvh] w-full min-w-0 max-w-3xl grid-cols-1 grid-rows-[auto_minmax(0,1fr)_auto] rounded-lg bg-card text-card-foreground shadow-xl outline-none">
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
           <strong id="opt-dialog-title" className="text-lg">{cat.name}</strong>
           <Button variant="ghost" size="icon" aria-label="Schließen" onClick={onClose}><X aria-hidden /></Button>
         </div>
-        <div className="grid content-start gap-4 overflow-y-auto overscroll-contain p-4" data-testid="opt-panel" data-cat={cat.id}><Panel cat={cat} s={s} dealId={dealId} /></div>
+        <div className="grid min-w-0 grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain p-4" data-testid="opt-panel" data-cat={cat.id}><Panel cat={cat} s={s} dealId={dealId} /></div>
         <div className="flex justify-end border-t border-border px-4 py-2"><Button onClick={onClose}>Fertig</Button></div>
       </div>
     </div>
@@ -207,15 +207,15 @@ export function Optional() {
   };
   const shown = CATEGORIES.find((c) => c.id === open);
   return (
-    <Card aria-labelledby="opt-title">
+    <Card aria-labelledby="opt-title" className="grid-cols-1">
       <CardTitle id="opt-title">Optionale Produkte</CardTitle>
       {picks.length ? (
-        <section className="sticky top-0 z-10 grid gap-2 rounded-lg border-2 border-border bg-card p-3" data-testid="opt-bar" aria-label="Ausgewählte Optionen">
+        <section className="grid min-w-0 grid-cols-1 gap-2 rounded-lg border-2 border-border bg-card p-3" data-testid="opt-bar" aria-label="Ausgewählte Optionen">
           <strong data-part="head">{`Ausgewählte Optionen (${picks.length})`}</strong>
           <div className="flex flex-wrap gap-2">
             {picks.map((c, i) => (
-              <span key={`${c.cat}-${c.product ?? c.row ?? c.text}-${i}`} data-testid="opt-chip" title={c.title} className="inline-flex min-h-12 max-w-full items-center gap-1 rounded-full border-2 border-input bg-card pl-4 pr-1">
-                <span data-part="text" className="min-w-0 truncate">{c.text}</span>
+              <span key={`${c.cat}-${c.product ?? c.row ?? c.text}-${i}`} data-testid="opt-chip" title={c.title} className="inline-flex min-h-12 max-w-full items-center gap-1 rounded-3xl border-2 border-input bg-card pl-4 pr-1">
+                <span data-part="text" className="min-w-0 break-words py-1">{c.text}</span>
                 {c.fixed ? <span className="w-3" /> : <button type="button" aria-label={`${c.text} entfernen`} onClick={() => act((x) => removeChip(x, c))} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-xl text-foreground">×</button>}
               </span>
             ))}
