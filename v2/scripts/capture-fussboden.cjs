@@ -1,0 +1,173 @@
+// Records what today's UI stores and shows on the Fußboden step of a Badumbau for given inputs
+// (ADR 026, phase 4): the reference for apps/web/test/fussboden.test.tsx. Inputs are real clicks
+// and key presses. The product answers the page needs are recorded too (`products`, and the
+// panel lines of the price per scenario), so the test replays them. The v2 add-ons are blocked.
+// This file covers the switch and the mode "Fußboden"; "Wandverkleidung als Fußboden" follows.
+//
+//   bash v2/scripts/preview.sh &
+//   node v2/scripts/capture-fussboden.cjs   → v2/apps/web/test/fixtures/fussboden.json
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const { chromium } = require("../../node_modules/playwright");
+
+const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
+const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "fussboden.json");
+const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
+
+const ON = ["on"];
+// steps: ["on"] / ["off"] the switch · ["tab", "floor"|"wall"] · ["tier", "standard"|"premium"] ·
+//        ["confirm", "yes"|"no"] · ["kind", value] · ["area", text] · ["color", name] a Premium colour ·
+//        ["budget", n] the n-th Standard covering · ["acc", "adhesive"|"sealing"] ·
+//        ["calc"] opens/closes the calculator · ["row", n, length, width] · ["row+"] · ["sign", n] ·
+//        ["row-", n] · ["apply"] · ["next"] presses Weiter
+const SCENARIOS = {
+  "nothing chosen": [],
+  "switched on": [ON],
+  "area 4,5": [ON, ["area", "4,5"]],
+  "whole floor, 12,5 m², Loft-Grau": [ON, ["kind", "Gesamtes-Bad"], ["area", "12,5"], ["color", "Loft-Grau"]],
+  "only gaps, Alu-Platte weiß": [ON, ["kind", "Fehlstellen"], ["area", "2"], ["color", "Weiß"]],
+  "area entered and emptied again": [ON, ["area", "4,5"], ["area", ""]],
+  "the picked colour clicked again": [ON, ["area", "4,5"], ["color", "Loft-Grau"], ["color", "Loft-Grau"]],
+  "sealing for 4 m²": [ON, ["area", "4"], ["acc", "sealing"]],
+  "sealing for 12 m²": [ON, ["area", "12"], ["acc", "sealing"]],
+  "sealing ticked before the area": [ON, ["acc", "sealing"], ["area", "9,3"]],
+  "no adhesive": [ON, ["area", "4"], ["acc", "adhesive"]],
+  "calculator: one room": [ON, ["calc"], ["row", 1, "3.2", "1.8"], ["apply"]],
+  "calculator: room minus a recess": [ON, ["calc"], ["row", 1, "3.2", "1.8"], ["row+"], ["row", 2, "1", "0.5"], ["sign", 2], ["apply"]],
+  "calculator: rows removed": [ON, ["calc"], ["row", 1, "3.2", "1.8"], ["row+"], ["row", 2, "2", "2"], ["row-", 1], ["row-", 1]],
+  "calculator opened and closed": [ON, ["calc"], ["calc"]],
+  "Standard line": [ON, ["tier", "standard"]],
+  "Standard line, area 5": [ON, ["tier", "standard"], ["area", "5"]],
+  "Standard line, second covering": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2]],
+  "Premium colour picked, then Standard confirmed": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "yes"]],
+  "Premium colour picked, then Standard declined": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "no"]],
+  "default colour only, then Standard": [ON, ["area", "5"], ["tier", "standard"]],
+  "Standard covering picked, then Premium confirmed": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2], ["tier", "premium"], ["confirm", "yes"]],
+  "filled in, then switched off": [ON, ["kind", "Gesamtes-Bad"], ["area", "12,5"], ["color", "Loft-Grau"], ["acc", "sealing"], ["off"]],
+  "filled in, switched off and on again": [ON, ["kind", "Gesamtes-Bad"], ["area", "12,5"], ["color", "Loft-Grau"], ["off"], ON],
+  "the other mode chosen": [ON, ["tab", "wall"]],
+  "the other mode and back": [ON, ["area", "4,5"], ["tab", "wall"], ["tab", "floor"]],
+  "Weiter: switched off": [["next"]],
+  "Weiter: on, nothing entered": [ON, ["next"]],
+  "Weiter: area without the scope": [ON, ["area", "4,5"], ["next"]],
+  "Weiter: scope without the area": [ON, ["kind", "Fehlstellen"], ["next"]],
+  "Weiter: area and scope": [ON, ["kind", "Fehlstellen"], ["area", "4,5"], ["next"]],
+  "Weiter: no adhesive": [ON, ["kind", "Fehlstellen"], ["area", "4,5"], ["acc", "adhesive"], ["next"]],
+};
+
+const token = (() => {
+  const payload = `${Date.now() + 3600e3}:capture@local.test`;
+  return Buffer.from(payload).toString("base64url") + "." + crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
+})();
+const sortKeys = (v) => Array.isArray(v) ? v.map(sortKeys)
+  : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v;
+const same = (a, b) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
+const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])]
+  .filter((k) => !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
+
+(async () => {
+  let browser = await chromium.launch({ headless: true });
+  const out = { note: "generated by v2/scripts/capture-fussboden.cjs — do not edit", products: {}, standardFloors: null, scenarios: [] };
+  for (const [name, steps] of Object.entries(SCENARIOS)) {
+    const record = async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
+      await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
+      const page = await ctx.newPage();
+      const json = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      await page.route("**/api/auth/me", (r) => r.fulfill(json({ user: { email: "capture@local.test", name: "Capture", role: "user" } })));
+      await page.route("**/api/planning/**", (r) => r.abort());
+      await page.route("**/v2/addons/**", (r) => (r.request().url().endsWith("/error-compat.js") ? r.continue() : r.abort()));
+      let lastPrice = null;
+      const alerts = [];
+      page.on("dialog", (d) => { alerts.push(d.message()); d.accept().catch(() => {}); });
+      page.on("response", async (res) => {
+        const u = new URL(res.url());
+        if (!res.ok()) return;
+        try {
+          const one = /^\/api\/products\/([^/]+)$/.exec(u.pathname);
+          if (one) { const p = await res.json(); out.products[decodeURIComponent(one[1])] = { productId: p.productId, name: p.name, price: p.price }; }
+          else if (u.pathname === "/api/products" && u.searchParams.get("prefix") === "BP") out.standardFloors = (await res.json()).map((p) => ({ productId: p.productId, name: p.name, price: p.price, source: p.source }));
+          else if (u.pathname === "/api/price" && res.request().method() === "POST") lastPrice = await res.json();
+        } catch {}
+      });
+      await page.goto(BASE + "/", { waitUntil: "load" });
+      await page.locator('.tile-btn[data-step="BU-Badumbau"]').click();
+      await page.waitForFunction(() => location.hash === "#Kundendaten");
+      await page.waitForTimeout(1200);
+      await page.evaluate(() => window.setStep("Fussboden"));
+      await page.waitForTimeout(400);
+      const base = await page.evaluate(() => window.buildPayload());
+      const P = "#page-Fussboden";
+      const row = (n) => `#floorCalcRows .floor-calc-row:nth-child(${n})`;
+      let next = null;
+      for (const [kind, a, b, c] of steps) {
+        if (kind === "on" || kind === "off") await page.locator(`${P} label.sec-switch:has(#fbMaster)`).click();
+        else if (kind === "tab") await page.locator(a === "wall" ? "#fbTabBtnWall" : "#fbTabBtnFloor").click();
+        else if (kind === "tier") await page.locator(`#flooringPanel .tier-seg__btn[data-tier="${a}"]`).click();
+        else if (kind === "confirm") await page.locator(a === "yes" ? "#appConfirmOk" : "#appConfirmCancel").click();
+        else if (kind === "kind") await page.locator(`#flooringPanel label:has(input[name="floorKind"][value="${a}"])`).click();
+        else if (kind === "area") { await page.locator("#floorArea").fill(a); await page.locator("#floorArea").blur(); }
+        else if (kind === "color") await page.locator(`#flooringColors label.image-check:has(input[data-color="${a}"])`).click();
+        else if (kind === "budget") await page.locator(`#flooringBudgetOptions label.image-check:nth-child(${a})`).click();
+        else if (kind === "acc") await page.locator(a === "adhesive" ? "#tile_R_4260602" : "#tile_TRBDSET7").click();
+        else if (kind === "calc") await page.locator("#floorCalcToggle").click();
+        else if (kind === "row") { await page.locator(`${row(a)} .floor-calc-length`).fill(b); await page.locator(`${row(a)} .floor-calc-width`).fill(c); }
+        else if (kind === "row+") await page.locator("#floorCalcAddRow").click();
+        else if (kind === "sign") await page.locator(`${row(a)} .floor-calc-sign`).click();
+        else if (kind === "row-") await page.locator(`${row(a)} .floor-calc-remove-row`).click();
+        else if (kind === "apply") await page.locator("#floorCalcApply").click();
+        else if (kind === "next") { await page.locator(`${P} [data-nav="next"]`).click(); await page.waitForTimeout(400); next = { step: await page.evaluate(() => location.hash.slice(1)), alerts: [...alerts] }; }
+        else throw new Error(`step not handled: ${kind}`);
+        await page.waitForTimeout(900);
+      }
+      await page.waitForTimeout(900);
+      if (next) await page.evaluate(() => window.setStep("Fussboden"));
+      const now = await page.evaluate(() => window.buildPayload());
+      const view = await page.evaluate(() => {
+        const el = (id) => document.getElementById(id);
+        const vis = (n) => !!n && n.getClientRects().length > 0;
+        const txt = (n) => (n?.innerText || "").replace(/\s+/g, " ").trim();
+        const panel = el("flooringPanel");
+        const tiles = (root) => [...root.querySelectorAll("label.image-check")].map((l) => ({ value: l.querySelector("input").value, caption: txt(l.querySelector(".caption")), checked: l.querySelector("input").checked }));
+        return {
+          on: el("fbMaster").checked, tabs: vis(el("fbModeWrap")),
+          tab: el("fbTabBtnWall").getAttribute("aria-selected") === "true" ? "wall" : "floor",
+          floorShown: vis(panel),
+          tier: panel.querySelector('.tier-seg__btn[aria-pressed="true"]')?.dataset.tier || "", tierLine: txt(panel.querySelector("[data-tier-line]")),
+          kind: document.querySelector('input[name="floorKind"]:checked')?.value || "",
+          area: el("floorArea").value,
+          calcOpen: vis(el("floorCalcPanel")), calcToggle: txt(el("floorCalcToggle")), calcTotal: txt(el("floorCalcResult")),
+          calcRows: [...document.querySelectorAll("#floorCalcRows .floor-calc-row")].map((r) => ({ sign: txt(r.querySelector(".floor-calc-sign")), length: r.querySelector(".floor-calc-length").value, width: r.querySelector(".floor-calc-width").value, area: txt(r.querySelector(".floor-calc-row-result")) })),
+          premiumShown: vis(el("flooringPremiumGroup")), premium: tiles(el("flooringColors")),
+          standardShown: vis(el("flooringBudgetGroup")), standard: tiles(el("flooringBudgetOptions")),
+          panels: txt(el("floorPanelsQty")),
+          adhesive: { checked: el("tile_R_4260602").querySelector("input").checked, hint: txt(el("floorAdhesiveHint")) },
+          sealing: { checked: el("tile_TRBDSET7").querySelector("input").checked, hint: txt(el("floorSealingHint")) },
+          summary: vis(el("floorSummary")) ? txt(el("floorSummaryBody")) : "",
+          confirmOpen: el("appConfirmOverlay")?.classList.contains("visible") || false,
+          confirmText: el("appConfirmOverlay")?.classList.contains("visible") ? [txt(el("appConfirmTitle")), txt(el("appConfirmMessage")), txt(el("appConfirmOk"))] : null,
+        };
+      });
+      const lines = (lastPrice?.materials?.lines || []).filter((l) => /Fußboden|Hydroträger|Alu/i.test(String(l.label || ""))).map((l) => ({ productId: l.productId || l.id, label: l.label, qty: l.qty, unitPrice: l.unitPrice, lineTotal: l.lineTotal }));
+      await ctx.close();
+      console.log(name);
+      return { name, steps, duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), priceLines: lines, view, ...(next ? { next } : {}) };
+    };
+    let entry;
+    for (let attempt = 1; !entry; attempt++) {
+      try { entry = await record(); }
+      catch (err) {
+        if (attempt >= 4) throw err;
+        console.log(`  retry ${attempt} (${String(err.message || err).split("\n")[0]})`);
+        await browser.close().catch(() => {});
+        browser = await chromium.launch({ headless: true });
+      }
+    }
+    out.scenarios.push(entry);
+  }
+  await browser.close();
+  out.products = sortKeys(out.products);
+  fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + "\n");
+  console.log(`${out.scenarios.length} recordings → ${path.relative(process.cwd(), OUT)}`);
+})().catch((e) => { console.error(e); process.exit(1); });

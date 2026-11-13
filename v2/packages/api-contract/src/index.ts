@@ -74,6 +74,28 @@ export const DEAL_NUMBER_RE = /^\d{1,12}$/;
 export const TEMP_DRAFT_KEY_RE = /^t-[0-9a-f]{24}$/;
 export const isDraftKey = (v: unknown): v is string => typeof v === "string" && (DEAL_NUMBER_RE.test(v) || TEMP_DRAFT_KEY_RE.test(v));
 
+// ---------- route suggestion (distance and travel time to the customer's address) ----------
+export const SuggestDistanceResponseSchema = z.looseObject({
+  ok: z.boolean(),
+  oneWayKm: z.number().nullish(), roundTripKm: z.number().nullish(), oneWaySeconds: z.number().nullish(),
+  from: z.looseObject({ address: z.string().nullish() }).nullish(),
+  to: z.looseObject({ address: z.string().nullish() }).nullish(),
+});
+export type SuggestDistanceResponse = z.infer<typeof SuggestDistanceResponseSchema>;
+
+// ---------- shower trays that fit a size ----------
+export const TraySchema = z.looseObject({
+  productId: z.string(), name: z.string().nullish(), price: z.number().nullish(),
+  widthCm: z.number().nullish(), lengthCm: z.number().nullish(), heightCm: z.number().nullish(),
+  articleNumber: z.string().nullish(), stockQuantity: z.number().nullish(), stockSymbol: z.number().nullish(), stockText: z.string().nullish(),
+});
+export type Tray = z.infer<typeof TraySchema>;
+export const TraySuggestResponseSchema = z.looseObject({ results: z.array(TraySchema) });
+
+// ---------- price list ----------
+export const ProductSchema = z.looseObject({ productId: z.string(), name: z.string().nullish(), price: z.number().nullish(), source: z.string().nullish() });
+export type Product = z.infer<typeof ProductSchema>;
+
 // ---------- the endpoints: method, path and shapes in one place ----------
 export const endpoints = {
   login: { method: "POST", path: "/api/auth/login", request: LoginRequestSchema, response: LoginResponseSchema },
@@ -83,6 +105,20 @@ export const endpoints = {
   price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
   priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
+  /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
+  publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
+  /** query: ids=<article>,<article> → net purchase price per article */
+  vigorPrices: { method: "GET", path: "/api/vigor-prices", response: z.record(z.string(), z.unknown()) },
+  /** audit trail of milestones on the page; the answer is always { ok: true } */
+  logAction: { method: "POST", path: "/api/bitrix/log-action", response: z.looseObject({ ok: z.boolean().nullish() }) },
+  /** the shower-enclosure model of a supplier (vigour: from the catalogue database, about 10 MB; badolux: a fixed list) */
+  daModel: { method: "GET", path: "/api/da-config/model/:supplier", response: z.looseObject({ params: z.array(z.unknown()), leaves: z.array(z.unknown()) }) },
+  product: { method: "GET", path: "/api/products/:productId", response: ProductSchema },
+  /** query: e.g. prefix=BP&source=badolux&limit=200 */
+  products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
+  /** query: w, l (cm) and either series=SLA (Premium) or source=badolux (Standard) */
+  traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
+  suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
 } as const;
 export type EndpointName = keyof typeof endpoints;

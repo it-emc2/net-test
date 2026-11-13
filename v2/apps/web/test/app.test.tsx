@@ -198,6 +198,10 @@ describe("header and sidebar", () => {
     const router = renderApp(`/deal/${TEMP}/bl/Kundendaten`);
     await screen.findByLabelText("Vorname");
     expect(screen.queryByRole("link", { name: /^Zurück zu/ })).toBeNull();
+    // what Kundendaten asks for before it goes on (test/kundendaten.test.tsx has the cases)
+    await userEvent.click(within(screen.getByRole("group", { name: "Anrede" })).getByLabelText("Frau"));
+    await userEvent.type(screen.getByLabelText("Vorname"), "Test");
+    await userEvent.type(screen.getByLabelText("Nachname"), "Kunde");
     await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${TEMP}/bl/Arbeitszeit`));
     await userEvent.click(await screen.findByRole("link", { name: "Zurück zu Kundendaten" }));

@@ -4,7 +4,7 @@
 //  - opening an offer loads its draft; none yet → a new, empty offer
 //  - every change is saved AUTOSAVE_MS after the last one; `flushDraft()` saves at once
 //  - a draft changed elsewhere in the meantime is never overwritten (server answers 409)
-import { isNewOfferType, type NewOfferType, type Offer } from "@oc/domain";
+import { isNewOfferType, pricingRulesOf, type NewOfferType, type Offer } from "@oc/domain";
 import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { todayIso } from "../../../shared/lib/format.js";
@@ -38,8 +38,14 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
       (err: unknown) => {
         if ((err as Error)?.name === "AbortError") return;
         if (err instanceof ApiFailure && err.status === 404) { // no draft yet
-          useOfferStore.getState().start(type, { date: todayIso() }, dealId);
-          return setState({ status: "ready" });
+          // a new offer carries a snapshot of the business settings, as today; without the
+          // settings (offline) it starts without one and is priced with the defaults
+          call("publicConfig", { signal: ctl.signal }).then(pricingRulesOf, () => undefined).then((pricingRules) => {
+            if (ctl.signal.aborted) return;
+            useOfferStore.getState().start(type, { date: todayIso(), ...(pricingRules ? { pricingRules } : {}) }, dealId);
+            setState({ status: "ready" });
+          });
+          return;
         }
         setState({ status: "error", message: err instanceof ApiFailure ? err.message : "Der Entwurf konnte nicht geladen werden." });
       },

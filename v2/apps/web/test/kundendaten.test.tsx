@@ -1,11 +1,14 @@
 // Kundendaten must store exactly what today's UI stores for the same inputs. The references
 // (fixtures/kundendaten-*.json) are recorded from today's UI by
 // v2/scripts/capture-kundendaten.cjs; here the same inputs are made in the React screen.
-import { fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emptyOffer, type NewOfferType } from "@oc/domain";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
+import next from "./fixtures/kundendaten-next.json" with { type: "json" };
+import { markupChanges } from "../src/features/steps/markup/rules.js";
+import extras from "./fixtures/kundendaten-extras.json" with { type: "json" };
 import contact from "./fixtures/kundendaten-contact.json" with { type: "json" };
 import care from "./fixtures/kundendaten-care.json" with { type: "json" };
 import object from "./fixtures/kundendaten-object.json" with { type: "json" };
@@ -15,7 +18,7 @@ import { BASE, fakeServer, renderApp } from "./helpers.js";
 
 // field name → the label a user sees in the React screen
 const LABEL: Record<string, string> = {
-  firstName: "Vorname", lastName: "Nachname", phone: "Telefonnummer", email: "E-Mail", emailCc: "E-Mail (CC)", street: "Adresse",
+  date: "Datum", firstName: "Vorname", lastName: "Nachname", phone: "Telefonnummer", email: "E-Mail", emailCc: "E-Mail (CC)", street: "Adresse",
   city: "Stadt", state: "Bundesland / Provinz", postalCode: "PLZ / Postleitzahl", deployment: "Abweichender Einsatzort",
   cp_name: "Abweichender Ansprechpartner", cp_phone: "Telefonnummer des Ansprechpartners", cp_email: "E-Mail des Ansprechpartners (CC)",
   cp_street: "Adresse des Ansprechpartners", cp_city: "Stadt des Ansprechpartners", cp_state: "Bundesland des Ansprechpartners",
@@ -37,6 +40,7 @@ const GROUP: Record<string, string> = {
   pflegekasseAntrag: "Antrag auf Zuschuss bei Pflegekasse gestellt?", pflegekasseGenehmigung: "Genehmigung von Pflegekasse ist vorhanden?",
   pflegekasseEmc2Antrag: "Darf EmC2 für Sie diesen Antrag stellen?", wohnsituation: "Angabe zur Wohnsituation",
   vermieterGenehmigungErforderlich: "Genehmigung des Vermieters erforderlich?", vermieterGenehmigung: "Genehmigung des Vermieters liegt vor?",
+  wohnumfeldDone: "Wurden Wohnumfeldverbessernde Maßnahmen schon mal durchgeführt?",
   parkenMoeglich: "Parken vor dem Objekt möglich?", zugangWohnung: "Zugang zur Wohnung", badStockwerk: "In welchem Stockwerk befindet sich das Bad?",
 };
 /** is the question of this field on the React page? */
@@ -47,8 +51,9 @@ const offer = () => useOfferStore.getState().offer as Record<string, any>;
 
 async function open(type: string) {
   fakeServer(BASE);
-  renderApp(`/deal/${KEY}/${type}/Kundendaten`);
+  const router = renderApp(`/deal/${KEY}/${type}/Kundendaten`);
   await screen.findByRole("heading", { name: "Kontaktdaten des Kunden" });
+  return router;
 }
 /** `skipped`: fields whose control today's UI does not show for this offer type — the step is
  *  not made, and the React page must not offer that control either. */
@@ -58,6 +63,21 @@ async function play(steps: [string, string, string][], skipped: string[] = []) {
     if (skipped.includes(field)) {
       const option = kind === "radio" && GROUP[field] ? screen.queryByRole("group", { name: GROUP[field] })?.querySelector(`input[value="${value}"]`) : null;
       expect(kind === "radio" ? option ?? null : onPage(field) ? "on page" : null, `${field} must not be offered`).toBeNull();
+      continue;
+    }
+    if (kind === "css" || kind === "click") {
+      // rows without names: today's selector → the control of the same row in the React screen
+      const row = /nth-child\((\d+)\)/.exec(field)?.[1];
+      const name = field.includes("entry-amount") ? `Betrag ${row}` : field.includes("entry-fuerWas") ? `Wofür ${row}` : field.includes("itodo-item") && kind === "css" ? `Interner Eintrag ${row}` : null;
+      if (kind === "css") {
+        const input = screen.getByLabelText(name!, { exact: true }) as HTMLInputElement;
+        if (input.type === "number") fireEvent.change(input, { target: { value } });
+        else { await user.clear(input); await user.type(input, value); }
+      } else {
+        const button = field === "#wohnumfeldAddEntryBtn" ? "Weiterer Eintrag" : field === "#internalTodosAddBtn" ? "Eintrag hinzufügen" : field.includes("itodo-remove") ? `Internen Eintrag ${row} entfernen` : `Betrag ${row} entfernen`;
+        const b = screen.getByRole("button", { name: button }) as HTMLButtonElement;
+        if (!b.disabled) await user.click(b);
+      }
       continue;
     }
     if (kind === "select") {
@@ -227,5 +247,86 @@ describe.each([
       if (scenario.name.includes("back to Kassenkunde") && field === "pflegekasseGenehmigung") continue;
       expect([field, onPage(field)]).toEqual([field, shown]);
     }
+  });
+});
+
+describe("Kundendaten stores what today's UI stores — Wohnumfeld and the internal list, every offer type", () => {
+  it.each(extras.scenarios.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, scenario) => {
+    await open(scenario.type);
+    await play(scenario.steps as [string, string, string][]);
+    expect(stored()).toEqual(scenario.kundendaten);
+    expect(outsideChanges(scenario.type)).toEqual(scenario.outside);
+
+    // the same parts are on the page, with the same sum and count
+    const x = scenario.extras;
+    expect(onPage("wohnumfeldDone")).toBe(x.wohnumfeldQuestion);
+    expect(!!screen.queryByRole("group", { name: "Bereits verbrauchte Beträge" })).toBe(x.amountsShown);
+    if (x.amountsShown) {
+      expect(screen.getAllByLabelText(/^Betrag \d+$/)).toHaveLength(x.amountRows);
+      expect(screen.getByTestId("we-used").textContent).toBe(`Bereits verbraucht ${x.usedText}`);
+    }
+    expect(screen.queryAllByLabelText(/^Interner Eintrag \d+$/)).toHaveLength(x.todoRows);
+    expect(screen.queryByTestId("todo-count")?.textContent ?? "").toBe(x.todoCount);
+  });
+
+  it("amounts of a stored offer are on the page again", async () => {
+    const o = emptyOffer("bu", { date: "2026-11-12" }) as Record<string, any>;
+    o.Kundendaten.wohnumfeldDone = "Ja";
+    o.Kundendaten.wohnumfeld = { done: true, amount: 1700, entries: [{ amount: 1200, fuerWas: "Treppenlift" }, { amount: 500, fuerWas: "" }] };
+    o.Kundendaten["internalTodos[]"] = ["Rückruf"];
+    fakeServer({ ...BASE, [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: "bu", payload: o, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
+    renderApp(`/deal/${KEY}/bu/Kundendaten`);
+    await screen.findByRole("heading", { name: "Wohnumfeld" });
+    expect((screen.getByLabelText("Betrag 2") as HTMLInputElement).value).toBe("500");
+    expect((screen.getByLabelText("Wofür 1") as HTMLInputElement).value).toBe("Treppenlift");
+    expect(screen.getByTestId("we-used").textContent).toBe("Bereits verbraucht 1.700 €");
+    expect((screen.getByLabelText("Interner Eintrag 1") as HTMLInputElement).value).toBe("Rückruf");
+  });
+});
+
+// today's message names some fields by another label than the React page (and two unclearly)
+const TODAY_TO_PAGE: Record<string, string> = {
+  Email: "E-Mail", "1": "Welchen Pflegegrad?", Adresse: "Adresse des Ansprechpartners", Stadt: "Stadt des Ansprechpartners", "PLZ / Postleitzahl": "PLZ des Ansprechpartners",
+};
+describe("„Weiter“ on Kundendaten asks for what today's UI asks for, every offer type", () => {
+  it.each(next.scenarios.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, scenario) => {
+    const router = await open(scenario.type);
+    // the markup of Badumbau, Badewannentür and Handlauf is entered on its own step
+    const steps = (scenario.steps as [string, string, string][]).filter(([kind]) => kind !== "id");
+    await play(steps, scenario.skipped);
+    const typed = Object.fromEntries((scenario.steps as [string, string, string][]).filter(([kind]) => kind === "id").map(([, id, v]) => [id, v]));
+    if ("sonderaufschlagValue" in typed) useOfferStore.getState().patchAll(markupChanges(scenario.type, typed.sonderaufschlagValue!, offer().Kundendaten.payer, typed.aufschlagBegruendung ?? ""));
+    expect(stored()).toEqual(scenario.kundendaten);
+
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(scenario.next.step));
+    expect(!!offer().Kundendaten.date).toBe(scenario.next.date); // an empty date becomes today's
+    const said = scenario.next.said[0];
+    if (!said) return; // went on (a message of an earlier case may still be fading out)
+    expect(await screen.findByText(said[0]!)).toBeInTheDocument();
+    const [lead, fields] = said[1]!.split(": ");
+    const message = fields ? `${lead}: ${fields.split(", ").map((f) => TODAY_TO_PAGE[f] ?? f).join(", ")}` : said[1]!;
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("a focus that is still pending does not land in the next offer that is opened", async () => {
+    // markup missing on Badumbau: the user is taken to Aufschlag / Rabatt, the focus follows a moment later
+    const first = await open("bu");
+    useOfferStore.getState().patchAll(markupChanges("bu", "", offer().Kundendaten.payer, ""));
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await waitFor(() => expect(first.state.location.pathname.split("/")[4]).toBe("Rabatt"));
+    cleanup(); // the offer is left before the focus was set
+    await open("bl"); // Badelift has the markup field on Kundendaten
+    const name = screen.getByLabelText("Nachname");
+    name.focus();
+    await new Promise((r) => setTimeout(r, 450));
+    expect(name).toHaveFocus();
+  });
+
+  it("the first missing field gets the focus", async () => {
+    await open("bu");
+    await play([["radio", "salutation", "Herr"]]);
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await waitFor(() => expect(screen.getByLabelText("Vorname")).toHaveFocus());
   });
 });

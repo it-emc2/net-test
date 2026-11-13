@@ -8,6 +8,7 @@
 //  - the value the price uses: `Kundendaten.aufschlag` = "37.5%" (missing while the text is no number)
 //  - `Kundendaten.aufschlagBegruendung`: the reason, only while the value is under the minimum
 import { aufschlagMin, isBelowAufschlagMin } from "@oc/pricing";
+import { useOfferStore, type StepProblem } from "../../offer/index.js";
 
 type Fields = Record<string, unknown>;
 export const CHIPS = [35, 40, 45, 50, 60] as const;
@@ -63,4 +64,17 @@ export function markupView(raw: string, payer: unknown, reason: unknown, report 
     reasonLabel: `Begründung für Aufschlag unter ${min} %`,
     reasonMissing: below && !String(reason ?? "").trim(),
   };
+}
+
+/** "Weiter": the markup must be a number, and under the minimum it needs a reason (as today).
+ *  From then on the markup part shows what is missing; the user is taken to the step it is on. */
+export function markupProblem(): StepProblem | null {
+  const st = useOfferStore.getState();
+  const o = st.offer as Record<string, any> | null;
+  const section = markupTextSection(o?.activeOffer ?? null);
+  if (!o || !section) return null;
+  const view = markupView(String(o[section]?.sonderaufschlagValue ?? ""), o.Kundendaten?.payer, o.Kundendaten?.aufschlagBegruendung, true);
+  if (!view.error && !view.reasonMissing) return null;
+  st.remember("markupReported", true);
+  return { message: "Bitte prüfen Sie die rot markierten Pflichtfelder.", goTo: section === "rabatt" ? "Rabatt" : "Kundendaten", focus: view.error ? "#markup-value" : "#markup-reason" };
 }

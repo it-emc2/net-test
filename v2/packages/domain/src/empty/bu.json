@@ -11,7 +11,16 @@
     "laborHoursSource": "manual",
     "totalHoursHHMM": "7:00",
     "totalHoursNumeric": 7,
+    "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "totalCost": 973,
+      "travelDriverCost": 0,
+      "travelSecondWorkerCost": 0,
+      "workCost": 973
+    },
     "travelDays": 1,
+    "travelSecondWorkerRate": 35,
     "travelTimeHHMM": "",
     "uebernachten": 0,
     "workDays": 1
