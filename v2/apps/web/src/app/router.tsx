@@ -29,6 +29,7 @@ const stepInLegacy = () => import("../features/offer/index.js").then((m) => ({ C
 // Steps that exist as React screens — one lazy chunk each. Every other step falls through to
 // ":step" and continues in today's UI.
 const kundendaten = () => import("../features/steps/index.js").then((m) => ({ Component: m.Kundendaten }));
+const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
   {
@@ -44,6 +45,7 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: null }, // the frame sends the address on to the first step
           { path: "Kundendaten", lazy: kundendaten },
+          { path: "Rabatt", lazy: rabatt },
           { path: ":step", lazy: stepInLegacy },
         ],
       },

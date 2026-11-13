@@ -220,7 +220,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 
 | # | Step | Today | State |
 |---|---|---|---|
-| 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes. **Open:** markup incl. target-price calculator, Wohnumfeld entries, uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
+| 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes, markup (Badelift only — see step 10). **Open:** Wohnumfeld entries, uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
 | 2 | Arbeitszeit | 243 lines, 9 inputs | open — work-time suggestion, travel, distance lookup |
 | 3 | Arbeiten | 384 lines, 37 inputs | open |
 | 4 | Duschwanne | 173 lines, 23 inputs | open — tray search, bathtub wizard |
@@ -229,7 +229,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 | 7 | Duschabtrennung | 134 lines + configurator | open |
 | 8 | Duschvorhang | configurator | open |
 | 9 | Optionale Produkte | 1,411 lines, 217 inputs | open — largest catalog |
-| 10 | Aufschlag / Rabatt | 128 lines, 6 inputs | open |
+| 10 | Aufschlag / Rabatt | 128 lines, 6 inputs | **Built:** markup (value, quick buttons, slider, minimum with reason, target-price search). **Open:** discount, Neukundenbonus, Haltegriff bonus, switch for old offers (Kleinmaterial rule) |
 | 11 | Kosten | script-built | open — incl. line edits (ADR 024) |
 | 12 | Angebotscheck | script-built | open |
 | 13 | Angebotsversand | 605 lines, 31 inputs | open — mail, letter, signing, documents |
@@ -237,6 +237,10 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 | 15–16 | Referenzbilder (Vorher / Nachher) | — | open |
 
 Steps 2–16 open in today's UI from the new app (same draft), so the offer can be finished at any time.
+
+### Markup (Aufschlag) — where it lives
+
+Recorded (`kundendaten-markup.json`, 40 recordings): for Badumbau, Badewannentür and Handlauf today's UI shows and stores the markup on the **Aufschlag / Rabatt** step (`rabatt.sonderaufschlagValue`); only Badelift, which has no such step, has it in Kundendaten (`Kundendaten.sonderaufschlagValue`). The value the price uses is `Kundendaten.aufschlag` in both cases. The React component `features/steps/markup` is used in both places. The target-price search is today's algorithm unchanged; on a real offer in the preview it returned the same markup as today's own function (23.4595 %, total one cent under the target).
 
 ### iPad Pro 11" portrait (834 × 1194)
 
