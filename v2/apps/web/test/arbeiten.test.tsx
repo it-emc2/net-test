@@ -92,7 +92,7 @@ describe("Arbeiten — rules", () => {
 
   it("rows of the suggestion that come from other steps are kept; the admin's minutes come first", () => {
     const other = { key: "wv997", label: "Wandverkleidung 997×2550", minutes: 30, qty: 3 };
-    const s = suggestion(["remove_tub"], { remove_tub: 60 }, [{ key: "remove_sink", label: "x", minutes: 30, qty: 1 }, other]);
+    const s = suggestion({ workTasks: ["remove_tub"] }, { remove_tub: 60 }, [{ key: "remove_sink", label: "x", minutes: 30, qty: 1 }, other]);
     expect(s).toEqual({ autoSuggestedTasks: [{ key: "remove_tub", label: "Badewanne entfernen", minutes: 60, qty: 1 }, other], autoSuggestedHoursHHMM: "02:30", autoSuggestedHoursNumeric: 2.5 });
   });
 

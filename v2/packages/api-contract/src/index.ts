@@ -92,6 +92,10 @@ export const TraySchema = z.looseObject({
 export type Tray = z.infer<typeof TraySchema>;
 export const TraySuggestResponseSchema = z.looseObject({ results: z.array(TraySchema) });
 
+// ---------- price list ----------
+export const ProductSchema = z.looseObject({ productId: z.string(), name: z.string().nullish(), price: z.number().nullish(), source: z.string().nullish() });
+export type Product = z.infer<typeof ProductSchema>;
+
 // ---------- the endpoints: method, path and shapes in one place ----------
 export const endpoints = {
   login: { method: "POST", path: "/api/auth/login", request: LoginRequestSchema, response: LoginResponseSchema },
@@ -103,6 +107,9 @@ export const endpoints = {
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
   /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
+  product: { method: "GET", path: "/api/products/:productId", response: ProductSchema },
+  /** query: e.g. prefix=BP&source=badolux&limit=200 */
+  products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
   /** query: w, l (cm) and either series=SLA (Premium) or source=badolux (Standard) */
   traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
