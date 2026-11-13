@@ -10,7 +10,7 @@
 //    suggestions: 2 bags of adhesive per plate, connecting profiles = plates − 1
 //  - an accessory is in the offer while its quantity is above 0 (`wvWw_<id>: "on"`)
 //  - the sealing sets follow the area of the plates unless a number is typed
-import { WINWALL_CATALOG, winwallSealingSets } from "@oc/pricing";
+import { WINWALL_CATALOG, winwallProfileSuggestion, winwallSealingSets } from "@oc/pricing";
 import { WW_DECORS } from "./decors.js";
 
 type Fields = Record<string, unknown>;
@@ -96,14 +96,18 @@ const isTile = (code: string | null) => !!code && WW_DECORS.some((d) => d.value 
 export const decorOf = (r: Row | undefined): Fields => (r ? (!r.custom && isTile(r.code) ? { wvWwDecor: r.code, wvWwDecorCustom: "" } : { wvWwDecor: "custom", wvWwDecorCustom: r.custom ? r.text || "" : "" }) : {});
 const accessory = (id: string, qty: number): Fields => ({ [`wvWwQty_${id}`]: String(qty), [`wvWw_${id}`]: qty > 0 ? "on" : undefined });
 
-/** The fields the rows give: the rows themselves, the plates per format and the suggestions. */
-export function fromRows(rows: readonly Row[]): Fields {
+/** The fields the rows give: the rows themselves, the plates per format and the suggestions.
+ *  `plan`: the wall calculator's plan — while the rows match it, the connecting profiles are its
+ *  joints on straight walls (none at corners); otherwise plates − 1. */
+export function fromRows(rows: readonly Row[], plan?: { qty?: Record<string, number>; pieces?: unknown[] } | null): Fields {
   const perFormat = Object.fromEntries(FORMATS.map(([c]) => [c, rows.filter((r) => r.fmt === c && r.code).reduce((a, r) => a + r.qty, 0)]));
   const plates = Object.values(perFormat).reduce((a, n) => a + n, 0);
+  const fits = !!plan?.qty && FORMATS.every(([c]) => (plan.qty![c] || 0) === perFormat[c]);
+  const profiles = fits ? Number((winwallProfileSuggestion(plan) as { WS80113: number }).WS80113) || 0 : Math.max(0, plates - 1);
   return {
     wvWwRows: JSON.stringify(rows.map((r) => ({ code: r.code, fmt: r.fmt, qty: r.qty, ...(r.custom ? { custom: true, text: r.text || "" } : {}) }))),
     ...Object.fromEntries(FORMATS.map(([c]) => [`wvWwQty_${c}`, String(perFormat[c])])),
-    ...accessory("R_4260602", 2 * plates), ...accessory("WS80113", Math.max(0, plates - 1)),
+    ...accessory("R_4260602", 2 * plates), ...accessory("WS80113", profiles),
   };
 }
 export function addRow(rows: readonly Row[], wv: Fields): Row[] {

@@ -1,16 +1,18 @@
 // Wandverkleidung (Badumbau; ADR 026, phase 4): the switch, the product line, the Ausführung
 // and the line winwall (rows of decor, format and number; accessories). The stored fields are
 // exactly today's (test/wandverkleidung.test.tsx compares with what today's UI stores and shows
-// for the same inputs). Still edited in today's UI: the wall calculator ("Wände und Dekor"),
-// the lines VIGOUR and Badolux, sketch and note.
+// for the same inputs). Also the wall calculator of the line winwall (calc.ts, Drawing.tsx).
+// Still edited in today's UI: the lines VIGOUR and Badolux, sketch and note.
 import { Minus, Plus, X } from "lucide-react";
 import { useParams } from "react-router";
 import { Button, Card, CardTitle, Choices, Input, Switch, cn } from "../../../shared/ui/index.js";
 import { LegacyLink, useOfferStore } from "../../offer/index.js";
 import { arbeitenChanges, toggleTask } from "../arbeiten/rules.js";
+import { LEGEND, NOTE, SITUATIONS, WALLS, cutList, decorCaption, heightWarning, planOf, sameDecorEverywhere, setWallDecor, situationOf, wallDecorOf, wallRows, wallsOf, type WallKey } from "./calc.js";
 import { WW_DECORS } from "./decors.js";
+import { Drawing, TONES } from "./Drawing.js";
 import {
-  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorOf, fromRows, lineOf, rowNote, rowTitle, rowsOf,
+  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, lineOf, rowNote, rowTitle, rowsOf,
   sealing, setAccessoryQty, toggleAccessory, withDecor, type Line, type Row,
 } from "./rules.js";
 
@@ -62,6 +64,83 @@ function Decors({ onPick }: { onPick: (value: string, text?: string) => void }) 
   );
 }
 
+/** The wall calculator: situation, a decor and a width per wall, the height — and the drawing.
+ *  Walls with a decor and a width write the plate rows below. */
+function Calculator() {
+  const wv = useWv();
+  const sit = situationOf(wv), walls = wallsOf(sit), plan = planOf(wv), wd = wallDecorOf(wv);
+  const remembered = useOfferStore((s) => s.scratch.wvWallOpen) as WallKey | null | undefined;
+  const open = remembered && walls.includes(remembered) ? remembered : null;
+  const room = (useOfferStore((s) => s.scratch.wvCalcView) ?? "room") === "room";
+  /** the walls changed: their rows replace the ones they made before; as today, the suggested
+   *  profiles are measured against the plan as it was before this change */
+  const apply = (fields: Fields, decor?: ReturnType<typeof wallDecorOf>) => {
+    const before = wvNow();
+    const next = { ...before, ...fields };
+    const r = wallRows(next, decor ?? wallDecorOf(next));
+    if (!r) return write(decor ? { ...fields, wvWallDecor: JSON.stringify(decor) } : fields);
+    remember("wvRowOpen", { idx: r.rows.length ? 0 : -1, folded: true });
+    write({ ...fields, wvWallDecor: JSON.stringify(r.wallDecor), ...fromRows(r.rows, planOf(before)) });
+  };
+  const toggle = (key: WallKey) => remember("wvWallOpen", open === key ? null : key);
+  const pick = (value: string) => { if (!open) return; const r = setWallDecor(wvNow(), open, value); remember("wvWallOpen", r.next); apply({}, r.wallDecor); };
+  const same = () => { const all = sameDecorEverywhere(wvNow(), open); if (!all) return; remember("wvWallOpen", null); apply({}, all); };
+  const picked = decorCode(wv.wvWwDecor === "custom" ? wv.wvWwDecorCustom : wv.wvWwDecor);
+  const texture = (key: WallKey) => { const code = decorCode(wd[key]) ?? picked; return code ? `/assets/winwall/panel/${code}.jpg` : ""; };
+  const cuts = cutList(plan), warn = heightWarning(wv);
+  const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-4 font-semibold";
+  return (
+    <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
+      <legend className="mb-1.5 p-0 font-semibold">Wände und Dekor — Bedarf berechnen</legend>
+      <p className="m-0 text-[0.95rem] text-muted-foreground" data-testid="kc-note">{NOTE}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Wandsituation">
+          {SITUATIONS.map((x) => <button key={x.value} type="button" aria-pressed={sit === x.value} onClick={() => { if (sit !== x.value) apply({ wvKSituation: x.value }); }} className={cn(chip, sit === x.value ? "border-primary bg-accent-weak" : "border-input bg-card")}>{x.label}</button>)}
+        </div>
+        <div className="flex gap-2" role="group" aria-label="Ansicht">
+          {([["room", "Raumansicht"], ["panels", "Nur Paneele"]] as const).map(([v, label]) => <button key={v} type="button" aria-pressed={room === (v === "room")} onClick={() => remember("wvCalcView", v)} className={cn(chip, "font-normal", room === (v === "room") ? "border-primary bg-accent-weak" : "border-input bg-card")}>{label}</button>)}
+        </div>
+      </div>
+      <Drawing situation={sit} widths={{ links: Number(String(wv.wvKLinks ?? "").replace(",", ".")) || 0, back: Number(String(wv.wvKBack ?? "").replace(",", ".")) || 0, rechts: Number(String(wv.wvKRechts ?? "").replace(",", ".")) || 0 }} plan={plan} room={room} texture={texture} onWall={toggle} />
+      <p className="m-0 text-[0.9rem] text-muted-foreground">{LEGEND}</p>
+      {walls.map((key, i) => {
+        const width = String(wv[WALLS[key].field] ?? "");
+        const caption = decorCaption(wd[key]);
+        return (
+          <div key={key} data-testid="kc-wall" data-wall={key} data-open={open === key} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open === key ? "border-primary" : "border-input")}>
+            <div className="flex flex-wrap items-center gap-3">
+              <span data-part="letter" className="grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: TONES[i]!.solid }}>{TONES[i]!.letter}</span>
+              <span className="grid min-w-0 flex-1"><span data-part="name">{WALLS[key].name}</span><small data-part="sub" className="text-destructive">{Number(width.replace(",", ".")) > 0 ? "" : "Breite fehlt"}</small></span>
+              <Button variant="outline" aria-label={`Dekor für ${WALLS[key].name} wählen`} aria-expanded={open === key} onClick={() => toggle(key)}>
+                {caption ? <img src={`/assets/winwall/${wd[key]}.jpg`} alt="" className="size-7 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}<span data-part="decor">{caption || "Dekor wählen"}</span>
+              </Button>
+              <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} max={2000} step={1} inputMode="decimal" placeholder="Breite" aria-label={`Breite ${WALLS[key].name} in cm`} value={width} onChange={(e) => apply({ [WALLS[key].field]: e.target.value })} /></span>cm</span>
+            </div>
+            {open === key ? (
+              <div className="grid gap-2" data-testid="kc-tiles">
+                <div className="flex flex-wrap gap-2">
+                  {WW_DECORS.map((d) => (
+                    <button key={d.value} type="button" data-value={d.value} aria-pressed={wd[key] === d.value} onClick={() => pick(d.value)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", wd[key] === d.value ? "border-primary bg-accent-weak font-bold" : "border-input")}>
+                      <img src={`/assets/winwall/${d.value}.jpg`} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                    </button>
+                  ))}
+                </div>
+                <div><Button variant="secondary" onClick={same}>Alle Wände gleiches Dekor</Button></div>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-input bg-card p-3">
+        <label htmlFor="kc-height">Höhe der Verkleidung</label>
+        <span className="flex items-center gap-2"><span className="w-24"><Input id="kc-height" type="number" min={0} max={1000} step={1} inputMode="decimal" placeholder="255" value={String(wv.wvKHoehe ?? "")} onChange={(e) => apply({ wvKHoehe: e.target.value })} /></span>cm</span>
+      </div>
+      {warn ? <p className="m-0 rounded-lg border-2 border-destructive p-3" role="status" data-testid="kc-warn">{warn}</p> : null}
+      {cuts ? <p className="m-0 rounded-lg border-2 border-border p-3" data-testid="kc-cuts"><b>{cuts.title}</b> <span>{cuts.text}</span></p> : null}
+    </fieldset>
+  );
+}
+
 /** winwall: rows of decor, format and number of plates. */
 function Rows() {
   const wv = useWv();
@@ -70,7 +149,7 @@ function Rows() {
   const ui = (useOfferStore((s) => s.scratch.wvRowOpen) as { idx: number; folded: boolean } | undefined) ?? { idx: rows.length ? 0 : -1, folded: true };
   const openIdx = ui.folded ? -1 : ui.idx;
   /** the rows changed: plates, suggestions and the decor shown for the open row follow */
-  const set = (next: Row[], idx: number, folded: boolean) => { remember("wvRowOpen", { idx, folded }); write({ ...fromRows(next), ...(folded ? {} : decorOf(next[idx])) }); };
+  const set = (next: Row[], idx: number, folded: boolean) => { remember("wvRowOpen", { idx, folded }); write({ ...fromRows(next, planOf(wvNow())), ...(folded ? {} : decorOf(next[idx])) }); };
   const tap = (i: number) => { const folded = i === ui.idx ? !ui.folded : false; remember("wvRowOpen", { idx: i, folded }); if (!folded) write(decorOf(rows[i])); };
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
@@ -180,14 +259,9 @@ export function Wandverkleidung() {
             </label>
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
-          <div className="grid gap-2 rounded-lg border-2 border-border p-3">
-            <strong>Wände und Dekor — Bedarf berechnen</strong>
-            <p className="m-0">Der Bedarfsrechner (Wandmaße, Dekor je Wand, Zuschnittliste) wird noch in der bisherigen Ansicht bedient. Ihre Eingaben werden mitgenommen.</p>
-            <LegacyLink dealId={dealId} step="Wandverkleidung">Bedarf in der bisherigen Ansicht berechnen</LegacyLink>
-          </div>
-          {line === "ww" ? <><Rows /><Accessories /></> : (
+          {line === "ww" ? <><Calculator /><Rows /><Accessories /></> : (
             <div className="grid gap-2 rounded-lg border-2 border-border p-3">
-              <strong>Paneele und Zubehör — {LINES[line].name}</strong>
+              <strong>Bedarfsrechner, Paneele und Zubehör — {LINES[line].name}</strong>
               <p className="m-0">Die Linie {LINES[line].name} wird noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
               <LegacyLink dealId={dealId} step="Wandverkleidung">Wandverkleidung in der bisherigen Ansicht</LegacyLink>
             </div>
