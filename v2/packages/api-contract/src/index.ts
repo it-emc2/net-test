@@ -74,6 +74,15 @@ export const DEAL_NUMBER_RE = /^\d{1,12}$/;
 export const TEMP_DRAFT_KEY_RE = /^t-[0-9a-f]{24}$/;
 export const isDraftKey = (v: unknown): v is string => typeof v === "string" && (DEAL_NUMBER_RE.test(v) || TEMP_DRAFT_KEY_RE.test(v));
 
+// ---------- route suggestion (distance and travel time to the customer's address) ----------
+export const SuggestDistanceResponseSchema = z.looseObject({
+  ok: z.boolean(),
+  oneWayKm: z.number().nullish(), roundTripKm: z.number().nullish(), oneWaySeconds: z.number().nullish(),
+  from: z.looseObject({ address: z.string().nullish() }).nullish(),
+  to: z.looseObject({ address: z.string().nullish() }).nullish(),
+});
+export type SuggestDistanceResponse = z.infer<typeof SuggestDistanceResponseSchema>;
+
 // ---------- the endpoints: method, path and shapes in one place ----------
 export const endpoints = {
   login: { method: "POST", path: "/api/auth/login", request: LoginRequestSchema, response: LoginResponseSchema },
@@ -83,6 +92,7 @@ export const endpoints = {
   price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
   priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
+  suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
 } as const;
 export type EndpointName = keyof typeof endpoints;
