@@ -1,15 +1,18 @@
-// Kundendaten (ADR 026, phase 4). Rebuilt so far: contact, address, customer type, the contact
-// person, the payer with the insurance details, and care level with the budget options. The stored fields are exactly today's (test/kundendaten.test.tsx compares with
-// what today's UI stores for the same inputs). The other sections of this step — markup, second
-// person, Wohnumfeld, property details, notes — are still edited in today's UI.
+// Kundendaten (ADR 026, phase 4). Rebuilt: contact, address, customer type, contact person,
+// payer with the insurance details, care level and budget, second person, Wohnumfeld, funding
+// and property, notes and the internal list. The stored fields are exactly today's
+// (test/kundendaten.test.tsx compares with what today's UI stores for the same inputs).
+// Still in today's UI: the uploaded confirmations (Kasse, Vermieter).
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router";
 import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
-import { Card, CardTitle, Check, Field, SelectField, TextAreaField } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Check, Field, Input, Label, SelectField, TextAreaField } from "../../../shared/ui/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
 import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
 import { Markup } from "../markup/Markup.js";
 import { markupChanges, markupTextSection } from "../markup/rules.js";
+import { Plus, Trash2, X } from "lucide-react";
+import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 
@@ -267,6 +270,76 @@ function Property() {
   );
 }
 
+/** Wohnumfeld: were measures paid by the Pflegekasse before, and how much of the subsidy is used.
+ *  Asked for a Kassenkunde, not for Alltagshilfe (as today). */
+function Wohnumfeld() {
+  const type = useOfferType();
+  const payer = useOfferField<string>(KD, "payer");
+  const done = useOfferField<string>(KD, "wohnumfeldDone");
+  const stored = useOfferField(KD, "wohnumfeld");
+  const remembered = useOfferStore((s) => s.scratch.wohnumfeldRows);
+  if (payer !== "Kassenkunde" || type === "ah") return null;
+  const rows = amountRows({ wohnumfeld: stored }, remembered);
+  const write = (next: AmountRow[], answer = done) => {
+    const st = useOfferStore.getState();
+    st.remember("wohnumfeldRows", next);
+    st.patch(KD as never, { wohnumfeldDone: answer, wohnumfeld: storedWohnumfeld(answer, next) } as never);
+  };
+  const edit = (i: number, change: Partial<AmountRow>) => write(rows.map((r, j) => (j === i ? { ...r, ...change } : r)));
+  return (
+    <Card aria-labelledby="kd-wohnumfeld">
+      <CardTitle id="kd-wohnumfeld">Wohnumfeld</CardTitle>
+      <OfferChoice section={KD} name="wohnumfeldDone" label="Wurden Wohnumfeldverbessernde Maßnahmen schon mal durchgeführt?" options={["Ja", "Nein", "Unbekannt"]} required onChoose={(v) => write(rows, v)} />
+      {done === "Ja" ? (
+        <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
+          <legend className="mb-1.5 p-0 font-semibold">Bereits verbrauchte Beträge</legend>
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-end gap-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor={`kd-we-amount-${i}`}>Betrag in €</Label>
+                <Input id={`kd-we-amount-${i}`} aria-label={`Betrag ${i + 1}`} type="number" inputMode="decimal" min={0} step={1} placeholder="0" value={r.amount} onChange={(e) => edit(i, { amount: e.target.value })} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`kd-we-text-${i}`}>Wofür</Label>
+                <Input id={`kd-we-text-${i}`} aria-label={`Wofür ${i + 1}`} placeholder="z. B. Treppenlift 2023" autoComplete="off" value={r.fuerWas} onChange={(e) => edit(i, { fuerWas: e.target.value })} />
+              </div>
+              {/* as today: the last row stays */}
+              <Button variant="ghost" size="icon" aria-label={`Betrag ${i + 1} entfernen`} disabled={rows.length < 2} onClick={() => write(rows.filter((_, j) => j !== i))}><X aria-hidden /></Button>
+            </div>
+          ))}
+          <div><Button variant="outline" onClick={() => write([...rows, EMPTY_ROW])}><Plus aria-hidden />Weiterer Eintrag</Button></div>
+          <p className="m-0" aria-live="polite" data-testid="we-used">Bereits verbraucht <strong>{usedText(rows)}</strong></p>
+        </fieldset>
+      ) : null}
+    </Card>
+  );
+}
+
+/** The internal list: notes for the office only — never in the offer, PDF, e-mail or Bitrix. */
+function InternalList() {
+  const stored = useOfferField(KD, TODOS);
+  const older = useOfferField(KD, "internalTodos");
+  const items = todosOf({ [TODOS]: stored, internalTodos: older });
+  const write = (next: string[]) => setKd({ [TODOS]: next.length ? next : undefined, internalTodos: undefined });
+  return (
+    <Card aria-labelledby="kd-todos">
+      <CardTitle id="kd-todos" className="flex flex-wrap items-center gap-2">
+        Interne Liste
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-semibold text-muted-foreground">nur intern</span>
+        {items.length ? <span className="text-base font-normal text-muted-foreground" data-testid="todo-count">{todoCount(items.length)}</span> : null}
+      </CardTitle>
+      <p className="m-0 text-muted-foreground">Nicht sichtbar für den Kunden – erscheint nicht im Angebot, PDF, E-Mail oder Bitrix. Wird mit dem Entwurf und beim Kunden gespeichert.</p>
+      {items.length ? items.map((text, i) => (
+        <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <Input aria-label={`Interner Eintrag ${i + 1}`} placeholder="Interner Eintrag …" autoComplete="off" value={text} onChange={(e) => write(items.map((t, j) => (j === i ? e.target.value : t)))} />
+          <Button variant="ghost" size="icon" aria-label={`Internen Eintrag ${i + 1} entfernen`} onClick={() => write(items.filter((_, j) => j !== i))}><Trash2 aria-hidden /></Button>
+        </div>
+      )) : <p className="m-0">Noch keine Einträge.</p>}
+      <div><Button variant="outline" onClick={() => write([...items, ""])}><Plus aria-hidden />Eintrag hinzufügen</Button></div>
+    </Card>
+  );
+}
+
 /** While two persons are chosen, the name and greeting of both follow the entered names (unless they were changed by hand). */
 function useTwoPersonsTexts() {
   const kd = useOfferStore((s) => (s.offer as Record<string, any> | null)?.Kundendaten as Record<string, unknown> | undefined);
@@ -293,10 +366,12 @@ export function Kundendaten() {
       {type === "bl" ? <Markup /> : null}
       <CareLevel />
       <SecondPerson />
+      <Wohnumfeld />
       <Property />
+      <InternalList />
       <Card aria-labelledby="kd-more">
         <CardTitle id="kd-more">Weitere Angaben</CardTitle>
-        <p className="m-0">Wohnumfeld, hochgeladene Bestätigungen (Kasse, Vermieter) und interne Aufgaben werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0">Hochgeladene Bestätigungen (Kasse, Vermieter) werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
       </Card>
     </>

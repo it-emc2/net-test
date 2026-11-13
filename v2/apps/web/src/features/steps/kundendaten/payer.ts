@@ -38,7 +38,7 @@ export function choosePayer(offer: Record<string, any>, payer: "Selbstzahler" | 
     if (kd.payer === "Selbstzahler") return { changes: { Kundendaten: {}, docSelection: {}, postal: {} }, parked };
     return {
       changes: {
-        Kundendaten: { payer, ...remove(INSURANCE), wohnumfeldDone: undefined, ...BLANK_FOR_SZ, copayAmount: 0, budgetOptionsPanel: "", kundenName: "", greetingLine: "" },
+        Kundendaten: { payer, ...remove(INSURANCE), wohnumfeldDone: undefined, wohnumfeld: { done: false, amount: 0, entries: [] }, ...BLANK_FOR_SZ, copayAmount: 0, budgetOptionsPanel: "", kundenName: "", greetingLine: "" },
         docSelection: { abtretung: false, vollmacht: false },
         postal: { attachments: [] },
       },

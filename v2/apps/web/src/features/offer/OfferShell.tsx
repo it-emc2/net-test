@@ -12,7 +12,7 @@ import { toast } from "../../shared/ui/toaster.js";
 import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, useSaveStatus } from "./model/draft.js";
 import { useOfferStore } from "./model/store.js";
 import { usePrice } from "./model/usePrice.js";
-import { OFFER_TITLES, STEPS, firstStep, groupStartingAt, isStepOf, stepLabel } from "./steps.js";
+import { OFFER_TITLES, STEPS, checkStep, firstStep, groupStartingAt, isStepOf, stepLabel } from "./steps.js";
 
 function Total() {
   const { total, pending, error } = usePrice();
@@ -92,6 +92,22 @@ export function NewOffer() {
   return isNewOfferType(type) ? <Navigate to={`/deal/${newTempKey()}/${type}`} replace /> : <Navigate to="/" replace />;
 }
 
+/** "Weiter": may the user go on? If the step still needs something, say what, show where (on
+ *  the step it is on) and stay. */
+function goOn(step: string, open: (step: string) => void): boolean {
+  const problem = checkStep(step);
+  if (!problem) { toast.dismiss("step-check"); return true; }
+  toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" });
+  if (problem.goTo && problem.goTo !== step) open(problem.goTo);
+  const { focus } = problem;
+  if (focus) setTimeout(() => {
+    const el = document.querySelector<HTMLElement>(focus);
+    el?.scrollIntoView?.({ block: "center" });
+    el?.focus({ preventScroll: true });
+  }, problem.goTo && problem.goTo !== step ? 300 : 0);
+  return false;
+}
+
 export function OfferShell() {
   const { dealId = "", type: typeParam } = useParams();
   if (!isNewOfferType(typeParam) || !isDraftKey(dealId)) return <Navigate to="/" replace />;
@@ -163,7 +179,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         {/* with the sidebar closed these two are the way through the offer */}
         <div className="flex items-center justify-between gap-3 pt-2">
           {prev ? <ButtonLink to={`${base}/${prev}`} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
-          {next ? <Button asChild><Link to={`${base}/${next}`} aria-label={`Weiter zu ${stepLabel(next)}`}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
+          {next ? <Button asChild><Link to={`${base}/${next}`} aria-label={`Weiter zu ${stepLabel(next)}`} onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
         </div>
       </main>
     </div>

@@ -46,3 +46,16 @@ export const STEP_GROUPS: Partial<Record<NewOfferType, readonly StepGroup[]>> = 
 /** the group that starts with this step, if any */
 export const groupStartingAt = (type: NewOfferType, step: string): StepGroup | undefined =>
   STEP_GROUPS[type]?.find((g) => g.steps[0] === step);
+
+/** What a step still needs before "Weiter" goes on. */
+export interface StepProblem {
+  message: string;
+  /** the step the missing entry is on, when it is not this one */
+  goTo?: string;
+  /** selector of the first control to fill in */
+  focus?: string;
+}
+const CHECKS = new Map<string, () => StepProblem | null>();
+/** A screen says what its step needs (the frame around the steps does not know the screens). */
+export const setStepCheck = (step: string, check: () => StepProblem | null): void => { CHECKS.set(step, check); };
+export const checkStep = (step: string): StepProblem | null => CHECKS.get(step)?.() ?? null;
