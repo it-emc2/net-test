@@ -5,7 +5,11 @@
 // The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
 // Sketch and note use the shared sketch pad (shared/ui/sketch-pad.tsx).
 import { Minus, Plus, X } from "lucide-react";
-import { useParams } from "react-router";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
+import { useWallSettings } from "../fussboden/settings.js";
+import { restOf, restText, settled, takeRest } from "../fussboden/wand.js";
 import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
@@ -469,11 +473,44 @@ function SketchAndNote() {
   );
 }
 
+/** "Reste verwenden": the wall's plates deliver more than the wall needs — the rest can cover the
+ *  floor (Fußboden, mode "Wandverkleidung als Fußboden"). Shown only while there is a rest. */
+function RestForFloor() {
+  const wv = useWv();
+  const navigate = useNavigate();
+  const settings = useWallSettings();
+  const [ask, setAsk] = useState(false); // the floor is a floor covering at the moment: changing it needs a yes
+  const rest = restOf(wv, settings.rest);
+  if (!rest) return null;
+  const take = (sure: boolean) => {
+    const o = offerNow(), dw = (o.duschwanne ?? {}) as Fields;
+    if (dw.addFlooring === true && !sure) { setAsk(true); return; }
+    const mode = setMode(dw, true, "wall"), next = { ...dw, ...mode };
+    useOfferStore.getState().patchAll(arbeitenChanges(o, { ...mode, computed: computedFor(next, unitsOf(dw)), ...settled(next, takeRest(next, rest), rest) }));
+    void navigate("../Fussboden", { relative: "path" });
+  };
+  return (
+    <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="wv-rest">
+      <strong>Reste verwenden</strong>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="grid min-w-0 flex-1"><span>Aus dieser Wand bleibt Material übrig</span><small data-part="text" className="text-muted-foreground">{restText(rest)}</small></span>
+        <Button variant="outline" onClick={() => take(false)}>Als Fußboden verwenden</Button>
+      </div>
+      {ask ? (
+        <div className="grid gap-2 rounded-lg border-2 border-primary p-3" role="alertdialog" aria-label="Fußboden umstellen?">
+          <strong>Fußboden umstellen?</strong>
+          <p className="m-0">Der Fußboden ist als Bodenbelag gewählt. Auf Wandverkleidung mit Resten umstellen?</p>
+          <div className="flex flex-wrap gap-2"><Button onClick={() => take(true)}>Umstellen</Button><Button variant="outline" onClick={() => setAsk(false)}>Abbrechen</Button></div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Wandverkleidung() {
   const wv = useWv();
   const tasks = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne?.workTasks as string[] | undefined);
   const height = useOfferStore((s) => String((s.offer as Record<string, any> | null)?.duschwanne?.wandverkleidungHoehe ?? ""));
-  const { dealId = "" } = useParams();
   const on = wv.wvEnabled === true;
   const line = lineOf(wv);
   const shower = Array.isArray(tasks) && tasks.includes(SHOWER_TASK);
@@ -513,6 +550,7 @@ export function Wandverkleidung() {
           </div>
           {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={areaOf(rowsOf(wv))} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
           <SketchAndNote />
+          <RestForFloor />
         </>
       ) : null}
     </Card>

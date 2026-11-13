@@ -73,7 +73,7 @@ describe("Fußboden stores and shows what today's UI does", () => {
     expect((screen.getByRole("switch", { name: "Fußboden" }) as HTMLInputElement).checked).toBe(v.on);
     expect(!!screen.queryByRole("tablist")).toBe(v.tabs);
     if (v.tabs) expect(screen.getByRole("tab", { selected: true }).textContent).toBe(v.tab === "wall" ? "Wandverkleidung als Fußboden" : "Fußboden");
-    expect(!!screen.queryByRole("group", { name: "Produktlinie wählen" })).toBe(v.floorShown);
+    expect(!!document.getElementById("fb-area")).toBe(v.floorShown); // the mode Fußboden (the other mode has a product line too)
     if (v.floorShown) {
       expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Standard/ : /^Premium/);
       expect(screen.getByTestId("fb-tier-line").textContent).toBe(v.tierLine);
