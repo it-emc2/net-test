@@ -101,7 +101,7 @@ interface Row { key: string; label: string; minutes: number; qty: number }
 
 const positive = (v: unknown): number => { const n = Number(String(v ?? "").trim().replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : 0; };
 /** rows that come from other steps than Arbeiten, in today's order; the ones a React step owns are computed, the others kept as stored */
-const OWNED = ["wv997", "wv1497", "wvKeramico", "Silikon", "flooring"]; // computed here
+const OWNED = ["wv997", "wv1497", "wvKeramico", "Silikon", "flooring", "wallCladdingFloor"]; // computed here
 const BEFORE_FLOOR = ["wv997", "wv1497", "wvKeramico", "Silikon"];
 
 /** The suggestion fields of `Arbeitszeit`: one row per ticked task with a time, then the rows of
@@ -144,6 +144,10 @@ export function suggestion(dw: Fields, azMinutes: unknown, storedRows: unknown, 
     const area = positive(dw.floorArea);
     const row = area > 0 ? { minutes: min("flooring_m2", 8), qty: Math.round(area * 10) / 10 } : { minutes: min("flooring_flat", 25), qty: 1 };
     if (row.minutes && row.qty > 0) rows.push({ key: "flooring", label: "Fußboden individuell", ...row });
+  }
+  if (dw.addWallCladding) { // wall cladding as flooring (with or without the wall's rest): laid like a floor, per m²
+    const area = positive(dw.wallCladdingArea);
+    if (area > 0 && min("flooring_m2", 8)) rows.push({ key: "wallCladdingFloor", label: "Fußboden (Wandverkleidung)", minutes: min("flooring_m2", 8), qty: Math.round(area * 10) / 10 });
   }
   rows.push(...others.filter((r) => !BEFORE_FLOOR.includes(r.key)));
   const total = rows.reduce((sum, r) => sum + r.minutes * r.qty, 0);

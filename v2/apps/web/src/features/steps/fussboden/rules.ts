@@ -1,6 +1,6 @@
 // Fußboden (Badumbau) — the rules of today's UI (test/fixtures/fussboden.json,
 // v2/scripts/capture-fussboden.cjs). This file covers the switch and the mode "Fußboden";
-// the mode "Wandverkleidung als Fußboden" is still edited in today's UI.
+// the mode "Wandverkleidung als Fußboden" is wand.ts.
 //  - the switch is no field of its own: on means `addFlooring: true` (mode Fußboden) or
 //    `addWallCladding: "on"` (the other mode); off and a change of the mode empty the mode
 //    that is left
