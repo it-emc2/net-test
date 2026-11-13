@@ -109,6 +109,8 @@ export const endpoints = {
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
   /** query: ids=<article>,<article> → net purchase price per article */
   vigorPrices: { method: "GET", path: "/api/vigor-prices", response: z.record(z.string(), z.unknown()) },
+  /** the shower-curtain catalogue: curtains, rods, the mandatory rosettes and the other fittings, with net prices and stock */
+  vorhangProducts: { method: "GET", path: "/api/vorhang/products", response: z.looseObject({ curtains: z.array(z.unknown()), rods: z.array(z.unknown()), mandatory: z.array(z.unknown()), optional: z.array(z.unknown()) }) },
   /** audit trail of milestones on the page; the answer is always { ok: true } */
   logAction: { method: "POST", path: "/api/bitrix/log-action", response: z.looseObject({ ok: z.boolean().nullish() }) },
   /** the shower-enclosure model of a supplier (vigour: from the catalogue database, about 10 MB; badolux: a fixed list) */
