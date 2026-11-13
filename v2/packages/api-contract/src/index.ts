@@ -109,6 +109,8 @@ export const endpoints = {
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
   /** query: ids=<article>,<article> → net purchase price per article */
   vigorPrices: { method: "GET", path: "/api/vigor-prices", response: z.record(z.string(), z.unknown()) },
+  /** the shower-enclosure model of a supplier (vigour: from the catalogue database, about 10 MB; badolux: a fixed list) */
+  daModel: { method: "GET", path: "/api/da-config/model/:supplier", response: z.looseObject({ params: z.array(z.unknown()), leaves: z.array(z.unknown()) }) },
   product: { method: "GET", path: "/api/products/:productId", response: ProductSchema },
   /** query: e.g. prefix=BP&source=badolux&limit=200 */
   products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
