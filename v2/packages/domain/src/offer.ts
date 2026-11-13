@@ -77,3 +77,22 @@ export function emptyOffer<T extends NewOfferType>(type: T, ctx: OfferContext): 
 export function withSection<O extends Offer, K extends SectionKey<O>>(offer: O, section: K, patch: Partial<O[K]>): O {
   return { ...offer, [section]: { ...(offer[section] as object), ...patch } };
 }
+
+/**
+ * The snapshot of the business settings a NEW offer carries (`pricingRules`), taken from the
+ * public settings as today's UI does: later changes in the admin panel must not reprice the
+ * offer. `config`: the answer of GET /admin/api/config/public.
+ */
+export function pricingRulesOf(config: Record<string, unknown>): Record<string, unknown> {
+  const num = (key: string, fallback: number) => Number(typeof config[key] === "number" ? config[key] : fallback);
+  const azMinutes: Record<string, number> = {};
+  for (const [k, v] of Object.entries(config)) if (k.startsWith("AZ_MIN_") && typeof v === "number") azMinutes[k.slice(7)] = v;
+  return {
+    kleinInAufschlag: true,
+    azMinutes,
+    bwtKmFreeThreshold: num("BWT_KM_FREE_THRESHOLD", 200),
+    bwtTravelTimeFreeHours: num("BWT_TRAVEL_TIME_FREE_HOURS", 2),
+    bonusNeuGross: num("NEUKUNDENBONUS_BRUTTO", 250),
+    bonusNeuThreshold: num("NEUKUNDENBONUS_SCHWELLE", 5000),
+  };
+}

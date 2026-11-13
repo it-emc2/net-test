@@ -1,4 +1,5 @@
 // The steps that exist as React screens.
+export { Arbeiten } from "./arbeiten/Arbeiten.js";
 export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
 export { Rabatt } from "./rabatt/Rabatt.js";

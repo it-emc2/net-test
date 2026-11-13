@@ -204,6 +204,9 @@ Findings about today's UI (not changed here):
 - **Fixed on the way:** `emptyOffer` had no `Arbeitszeit.travelSecondWorkerRate`, so an offer started in the React app was priced with 25 €/h for the second worker's travel time instead of today's 35 €/h. The empty offers now carry the rate and `travelCostDebug`, as today's UI stores them.
 - Deliberate differences on Arbeitszeit: "Weiter" names the missing fields in a message (today the browser marks one field); a duration can be deleted character by character (today the colon comes back); the preview lines write "Rückfahrt ×" instead of "Rueckfahrt x".
 
+- **Arbeiten** (`features/steps/arbeiten`, Badumbau): 21 recordings (`arbeiten.json`, `v2/scripts/capture-arbeiten.cjs` — real clicks, because today's automatic ticking ignores scripted events). A change of the tasks writes `duschwanne` and the suggestion fields of `Arbeitszeit` in ONE change. Measured at 834 × 1194 with 6x CPU throttle: 0 ms blocked, one price call per change.
+- **Fixed on the way:** an offer started in the React app stored an empty `pricingRules`. Today's UI stores a snapshot of the business settings with every new offer (task minutes, BWT free limits, Neukundenbonus) so later admin changes do not reprice it. `pricingRulesOf(config)` in `@oc/domain` builds the same snapshot from `GET /admin/api/config/public`; the recording compares it with today's.
+
 Still open for Kundendaten: see the BU build order below.
 
 Not yet: a link from today's UI into the new app (the way back is the address `/app/deal/<id>/<type>/<step>`), local-first saving on the device (ADR 025) in the new app.
@@ -229,7 +232,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 |---|---|---|---|
 | 1 | Kundendaten | 922 lines, 152 inputs | **Built:** contact, address, contact person, payer and insurance, care level and budget, second person, funding/property/notes, markup (Badelift only — see step 10). **Built too:** Wohnumfeld, internal list, the check on "Weiter". **Open:** uploads (Kasse, Vermieter), internal to-dos, preparation checklist, customer/draft search, Bitrix contact load, required-field check on "Weiter" |
 | 2 | Arbeitszeit | 243 lines, 9 inputs | **Built:** way to the customer (distance, route suggestion, nights away; Alltagshilfe: travel zone), time on site, travel time with the second worker's rate, extra work (Badewannentür), check on "Weiter". **Open:** cost overview of the times, automatic suggestion (needs the steps that follow), route suggestion by itself when the address changes. |
-| 3 | Arbeiten | 384 lines, 37 inputs | open |
+| 3 | Arbeiten | 384 lines, 37 inputs | **Built:** Umbauart with automatic ticking, the 28 tasks in 7 groups with counts, dry-wall positions (+2 h each), free tasks, the automatic work-time suggestion from the ticked tasks. **Open:** ticking a task because its product was chosen (follows with the product steps; today's rules: `WORK_RULES` in `angebotscheck.js`), "Vorschlag übernehmen" on Arbeitszeit. |
 | 4 | Duschwanne | 173 lines, 23 inputs | open — tray search, bathtub wizard |
 | 5 | Fußboden | 363 lines, 53 inputs | open |
 | 6 | Wandverkleidung | 787 lines, 104 inputs | open — panels, decor, sketch |
