@@ -648,7 +648,7 @@ export function initEmailManager(options = {}) {
     if (getOfferType() === "ah") return;
     const lines = ($body.value || "").split("\n");
     const at = lines.findIndex((l) => l.trim() === BONUS_LINE);
-    const want = bonusOn("rb-bonus-300");
+    const want = bonusNeuOn();
     if (want === (at !== -1)) return;
     if (!want) lines.splice(at, 1);
     else {
@@ -674,6 +674,8 @@ export function initEmailManager(options = {}) {
     );
   }
   const bonusGrabOn = () => bonusOn("rb-bonus-grab");
+  // Ticked but below the threshold = hidden and not priced → don't advertise it.
+  const bonusNeuOn = () => bonusOn("rb-bonus-300") && window.__pricing?.flags?.bonus_neu !== false;
 
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
@@ -718,7 +720,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 
 ${isSelbstzahler ? "" : "• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n"}• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
-${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}${bonusOn("rb-bonus-300") ? "• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n" : ""}${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
+${isSelbstzahler ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}${bonusNeuOn() ? "• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n" : ""}${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
