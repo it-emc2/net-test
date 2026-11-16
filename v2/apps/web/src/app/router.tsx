@@ -36,6 +36,7 @@ const fussboden = () => import("../features/steps/index.js").then((m) => ({ Comp
 const wandverkleidung = () => import("../features/steps/index.js").then((m) => ({ Component: m.Wandverkleidung }));
 const duschabtrennung = () => import("../features/steps/index.js").then((m) => ({ Component: m.Duschabtrennung }));
 const duschvorhang = () => import("../features/steps/index.js").then((m) => ({ Component: m.Duschvorhang }));
+const angebotscheck = () => import("../features/steps/index.js").then((m) => ({ Component: m.Angebotscheck }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
@@ -60,6 +61,7 @@ export const routes: RouteObject[] = [
           { path: "DuschabtrennungNeu", lazy: duschabtrennung },
           { path: "Duschvorhang", lazy: duschvorhang },
           { path: "Rabatt", lazy: rabatt },
+          { path: "Angebotscheck", lazy: angebotscheck },
           { path: ":step", lazy: stepInLegacy },
         ],
       },
