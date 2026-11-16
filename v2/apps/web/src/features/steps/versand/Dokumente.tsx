@@ -8,19 +8,12 @@ import { handFile } from "../../../shared/lib/hand-file.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
-import { mailChanges, touchedOf, type Touched } from "./mail-rules.js";
+import { giveNumber } from "./number.js";
 import { ACTIONS, PREVIEWS, cardsOf, csvName, newOfferNumber, type ActionId, type Download as DownloadAction, type PreviewDoc, type PreviewKey } from "./documents.js";
 
 type Offer = Record<string, unknown>;
 const offerNow = () => (useOfferStore.getState().offer ?? {}) as Offer;
 const messageOf = (err: unknown, fallback: string) => (err instanceof ApiFailure && err.message ? err.message : fallback);
-
-/** A new offer number — in ONE change with the mail's subject and text, which name it. */
-function stamp() {
-  const st = useOfferStore.getState(), offer: Offer = { ...offerNow(), offerNumber: newOfferNumber() };
-  const mail = mailChanges(offer, (st.scratch.mailTouched as Touched | undefined) ?? touchedOf(offerNow()), st.scratch.mailAntrag === true);
-  st.setTop({ offerNumber: offer.offerNumber, ...(Object.keys(mail).length ? { mail: { ...((offer.mail ?? {}) as Offer), ...mail } } : {}) });
-}
 
 interface Shown { doc: PreviewDoc; status: string; url: string; filename: string; text: string | null; busy: boolean }
 
@@ -86,7 +79,7 @@ export function Dokumente() {
   const preview = usePreview(ready);
 
   const download = async (id: ActionId, a: DownloadAction) => {
-    if (a.stamp) stamp(); // also when the entries turn out incomplete (as today)
+    if (a.stamp) giveNumber(); // also when the entries turn out incomplete (as today)
     if (!ready()) return;
     setBusy(id);
     try {

@@ -290,6 +290,26 @@ describe("sending — rules and what goes beyond the recordings", () => {
     expect(screen.getAllByTestId("zf-main")).toHaveLength(1);
   });
 
+  it("an offer without a number gets one before it goes out: subject, text, PDF and the offer name the same number", async () => {
+    const o = offerOf(filled);
+    o.offerNumber = ""; o.mail = { ...o.mail, subject: "", body: "" }; // as an offer made in React that was never downloaded
+    server(filled, o);
+    renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
+    await screen.findByTestId("zf-send");
+    fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID"), { target: { value: "65418" } });
+    await waitFor(() => expect(String(offer().mail.body)).toContain("1. Ihr Angebot ANG-2025-_____")); // the blank, while there is no number
+    await sendAll(userEvent.setup());
+    await screen.findByTestId("zf-sent");
+    const form = vi.mocked(globalThis.fetch).mock.calls.find((c) => c[0] === "/api/email/send-offer")![1]!.body as FormData;
+    const number = String(form.get("offerNumber"));
+    expect(number).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
+    expect(form.get("subject")).toBe(`emc2 | Ihr Angebot ${number} zum Badumbau`);
+    expect(String(form.get("body"))).toContain(`1. Ihr Angebot ${number}\n`);
+    expect(String(form.get("body"))).not.toContain("ANG-2025-_____");
+    expect(JSON.parse(String(form.get("payload"))).offerNumber).toBe(number);
+    expect(offer().offerNumber).toBe(number); // kept: the next send and every document use this number
+  });
+
   it("main items: a configured enclosure, curtain, tray, floor, panels and optional lines need no confirmation", () => {
     const o = { activeOffer: "bu", duschwanne: { trayEnabled: true, addFlooring: true }, wandverkleidung: { wvEnabled: true },
       duschabtrennung: { configurator: { lines: [{ articleNumber: "DA1" }] }, quickAdd: [{ productId: "DA1" }], curtainEnabled: true }, duschvorhang: { configurator: { lines: [{ articleNumber: "C1" }] } } };

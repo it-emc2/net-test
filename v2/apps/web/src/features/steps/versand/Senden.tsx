@@ -9,7 +9,7 @@ import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
-import { newOfferNumber } from "./documents.js";
+import { giveNumber } from "./number.js";
 import { AddFiles, FileRow } from "./Mail.js";
 import { ccDefault, countText, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
@@ -81,10 +81,12 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       if (!to && !bitrixOnly) { status({ type: "error", text: TEXT.noRecipient }); return; }
       const missing = missingMain(first, price.data as never);
       if (missing.length && !(await askMain(missing))) { status({ type: "info", text: TEXT.cancelled }); return; }
+      // an offer that was never given a number gets it now — subject, text and PDF name the same one
+      if (!String(offerNow().offerNumber || "").trim()) giveNumber();
       await flushDraft().catch(() => undefined);
 
       const offer = offerNow(), scratch = st().scratch, type = String(offer.activeOffer || "bu").toLowerCase();
-      const number = String(offer.offerNumber || "") || newOfferNumber();
+      const number = String(offer.offerNumber || "");
       const payload = { ...offer, activeOffer: type, offerNumber: number };
       status({ log: [] });
       push("info", started(bitrixOnly));
@@ -111,8 +113,9 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       if (bitrixOnly) form.append("bitrixOnly", "1");
       form.append("internalNote", String(scratch.internalNote ?? ""));
       if (cc) form.append("cc", cc);
-      form.append("subject", String(mail.subject || number || "Angebot").trim());
-      form.append("body", String(mail.body ?? ""));
+      const text = (offer.mail ?? {}) as Offer; // read again: a number given just now is in subject and text
+      form.append("subject", String(text.subject || number || "Angebot").trim());
+      form.append("body", String(text.body ?? ""));
       form.append("offerNumber", number);
       form.append("offerType", type);
       form.append("payload", JSON.stringify(payload));
