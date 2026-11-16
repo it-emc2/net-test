@@ -1,6 +1,7 @@
 // Angebotsversand / Zusammenfassung (ADR 026, phase 4) — slice 1, the frame of the page: contact
 // person, name and greeting of a two-person offer, how the offer was sent, enclosed documents.
-// Documents, adjustments, mail, post and signing are still done in today's view (link below).
+// Slice 2: the Dokumentenstudio (Dokumente.tsx). Adjustments, mail, post and signing are still
+// done in today's view (link below).
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -8,6 +9,7 @@ import { useParams } from "react-router";
 import { call } from "../../../shared/api/index.js";
 import { Card, CardTitle, Check, Field, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { LegacyLink, useOfferStore, useOfferType } from "../../offer/index.js";
+import { Dokumente } from "./Dokumente.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
 const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | null)?.Kundendaten ?? {}) as Record<string, unknown>;
@@ -49,6 +51,8 @@ export function Versand() {
           {status.sent ? <CircleCheck aria-hidden className="size-5 shrink-0" /> : null}<span data-part="text">{status.text}</span>
         </p>
 
+      <Dokumente />
+
       {docs ? (
         <section className="grid gap-2" aria-labelledby="zf-docs-title" data-testid="zf-docs">
           <h3 id="zf-docs-title" className="m-0 text-[1.05rem] font-semibold">Mitgesendete Unterlagen</h3>
@@ -58,8 +62,8 @@ export function Versand() {
       ) : null}
 
       <section className="grid gap-2 border-t border-border pt-4">
-        <h3 className="m-0 text-[1.05rem] font-semibold">Dokumente und Versand</h3>
-        <p className="m-0 text-muted-foreground">Dokumentenstudio, Anpassungen am Angebot, Versand per E-Mail oder Post und die Unterschrift vor Ort werden noch in der bisherigen Ansicht erledigt. Ihre Eingaben werden mitgenommen.</p>
+        <h3 className="m-0 text-[1.05rem] font-semibold">Anpassungen und Versand</h3>
+        <p className="m-0 text-muted-foreground">Anpassungen am Angebot, Versand per E-Mail oder Post und die Unterschrift vor Ort werden noch in der bisherigen Ansicht erledigt. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>

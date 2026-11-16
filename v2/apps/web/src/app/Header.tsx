@@ -4,10 +4,11 @@
 // The menu is a native popover: the browser closes it on Escape or a tap outside, without any
 // library in the start script.
 import { ChevronDown, LogOut, PanelsTopLeft, RotateCw } from "lucide-react";
+import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 import { useLogout, useSession } from "../features/auth/index.js";
-// imported directly (not through the feature's index) so the start script gets only this small file
-import { SaveState } from "../features/offer/SaveState.js";
+// its own chunk: the save status needs the offer model, which the first page does not
+const SaveState = lazy(() => import("../features/offer/SaveState.js").then((m) => ({ default: m.SaveState })));
 import { THEMES, usePrefs } from "../shared/lib/prefs.js";
 import { Switch } from "../shared/ui/index.js";
 
@@ -92,7 +93,7 @@ export function Header() {
         <span className="truncate text-lg font-bold">Angebotskonfigurator</span>
       </Link>
       <div className="flex min-w-0 items-center gap-3">
-        <SaveState />
+        <Suspense fallback={null}><SaveState /></Suspense>
         <UserMenu />
       </div>
     </header>

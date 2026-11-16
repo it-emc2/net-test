@@ -25,6 +25,8 @@ export interface OfferState {
   patch<O extends Offer, K extends SectionKey<O>>(section: K, fields: Partial<O[K]>): void;
   /** the same for several sections in ONE change (one render, one save, one price request) */
   patchAll(changes: Record<string, Record<string, unknown>>): void;
+  /** change fields that are not part of a section (the offer number); `undefined` removes one */
+  setTop(fields: Record<string, unknown>): void;
   /** things a screen remembers while the offer is open but that are not part of the offer,
    *  e.g. the insurance details while the payer is "Selbstzahler" */
   scratch: Record<string, unknown>;
@@ -56,6 +58,7 @@ export const useOfferStore = create<OfferState>()((set) => ({
       for (const [section, fields] of Object.entries(changes)) next[section] = merged(next[section] as Record<string, unknown>, fields);
       return { offer: next as Offer, version: s.version + 1 };
     }),
+  setTop: (fields) => set((s) => (s.offer ? { offer: merged(s.offer as Record<string, unknown>, fields) as Offer, version: s.version + 1 } : s)),
   remember: (key, value) => set((s) => ({ scratch: { ...s.scratch, [key]: value } })),
   saved: (version, revision) => set({ savedVersion: version, revision }),
 }));

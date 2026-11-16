@@ -113,6 +113,8 @@ export const endpoints = {
   vorhangProducts: { method: "GET", path: "/api/vorhang/products", response: z.looseObject({ curtains: z.array(z.unknown()), rods: z.array(z.unknown()), mandatory: z.array(z.unknown()), optional: z.array(z.unknown()) }) },
   /** the people who can be the contact person of an offer (active, with a signature), sorted by name */
   users: { method: "GET", path: "/api/users", response: z.array(z.looseObject({ email: z.string(), name: z.string() })) },
+  /** a finished offer is kept under its number (after a PDF was made); body: offerNumber, offerType, payload, pricing, savedAt, clientSaveId */
+  saveOffer: { method: "POST", path: "/api/offers", response: z.looseObject({}) },
   /** audit trail of milestones on the page; the answer is always { ok: true } */
   logAction: { method: "POST", path: "/api/bitrix/log-action", response: z.looseObject({ ok: z.boolean().nullish() }) },
   /** the shower-enclosure model of a supplier (vigour: from the catalogue database, about 10 MB; badolux: a fixed list) */
