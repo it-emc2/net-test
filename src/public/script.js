@@ -21918,11 +21918,9 @@ window.setPricingData = function setPricingData(data) {
         row.setAttribute("aria-hidden", String(!shouldShow));
       }
 
-      // New rule: ineligible → clear silently (pricing already dropped it;
-      // no 'change' dispatch → no race). Legacy offers keep the old behavior.
-      if (!legacy && !shouldShow && cb300 && cb300.checked) {
-        cb300.checked = false;
-      }
+      // Ineligible: pricing already drops the bonus (flags.bonus_neu), so the
+      // checkbox is left alone. Clearing it off one /api/price response lost
+      // the bonus on reopen when a stale response arrived after the restore.
     })();
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
