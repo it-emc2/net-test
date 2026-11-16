@@ -8120,7 +8120,7 @@ function setupWandverkleidungPage() {
       return v || null;
     }
 
-    // winwall: decor photo, panels per format (what will be ordered, sets included).
+    // winwall: decor photo, panels per format (what will be ordered).
     function winwallCardHtml() {
       const { code, name, counts } = wwPrimary();
       const core = window.__pricingCore;
@@ -8130,7 +8130,7 @@ function setupWandverkleidungPage() {
       const eur = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const total = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
       const rows = lines
-        .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
+        .map((l) => `${l.qty} × ${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
         .join(" · ");
       return `<div class="wvc-sel">
         <img class="wvc-sel__img is-panel" src="./assets/winwall/panel/${code}.jpg" alt="" onerror="this.hidden=true" />
@@ -12354,7 +12354,7 @@ if (document.readyState === "loading") {
         </div>
         <div class="wvc-qty">${opt.qty} Platte${opt.qty === 1 ? "" : "n"}</div>
         <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
-        <div class="wvc-price-row"><span class="wvc-price">${eur(cost)}</span><span class="wvc-unit">(Listenpreis${opt.qty > 1 ? ", ab 2 gleichen als Set" : ""})</span></div>
+        <div class="wvc-price-row"><span class="wvc-price">${eur(cost)}</span><span class="wvc-unit">(Listenpreis)</span></div>
         <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
       </button>`;
   }
@@ -12543,13 +12543,12 @@ if (document.readyState === "loading") {
       const f = wwFormat(code);
       if (f && qty > 0) {
         const lines = wwLines(code, qty);
-        const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
         const pic = form.querySelector('input[name="wallCladdingWwDecor"]:checked')?.closest("label")?.querySelector("img")?.getAttribute("src");
         rows.push(`<div class="wvc-sel">
       ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="" />` : ""}
       <div class="wvc-sel__info">
         <strong class="wvc-sel__name">winwall Wandverkleidung ${f.widthCm}×${f.heightCm} cm</strong>
-        <span class="wvc-sel__meta">${dec.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}${sets ? ` · ${sets} × Set` : ""}</span>
+        <span class="wvc-sel__meta">${dec.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}</span>
         <span class="wvc-sel__price">${qty} Platte${qty === 1 ? "" : "n"} <small>= ${euroDe(wwCost(code, qty))} €</small></span>
       </div>
     </div>`);
@@ -12953,10 +12952,7 @@ function updateWwSuggestions({ write = true } = {}) {
   }
   const ph = document.getElementById("wvWwPanelsHint");
   if (ph && !std) {
-    const sets = Math.floor(q[13] / 2) + Math.floor(q[15] / 2) + Math.floor(q[16] / 2);
-    ph.textContent = panels
-      ? `${panels} ${panels === 1 ? "Platte" : "Platten"}${sets ? `, davon ${sets} × als Set (2 gleiche Platten, günstiger)` : ""}.`
-      : "Zwei gleiche Platten werden als Set bestellt (günstiger).";
+    ph.textContent = panels ? `${panels} ${panels === 1 ? "Platte" : "Platten"}.` : "";
   }
 }
 // From the wall-width calculator ("In Plattenwahl übernehmen").
@@ -13511,7 +13507,6 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const decors = document.getElementById("wvWwDecorSection");
   if (!section || !listEl || !addBtn || !dataEl || !decors) return;
   const FMTS = [["13", "100 × 205 cm"], ["15", "100 × 250 cm"], ["16", "125 × 250 cm"], ["17", "150 × 250 cm"]];
-  const SETTABLE = new Set(["13", "15", "16"]);
   const esc = (v) => escapeHtml(String(v ?? ""));
   let rows = []; // { code|null, fmt, qty, custom, text }
   let activeIdx = -1;
@@ -13545,11 +13540,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     listEl.innerHTML = rows.length
       ? rows.map((r, i) => {
           const open = i === activeIdx && !collapsed;
-          const same = rows.filter((x) => x.code && x.code === r.code && x.fmt === r.fmt).reduce((a, x) => a + x.qty, 0);
-          const set = SETTABLE.has(r.fmt) && same >= 2 ? " · Set (2 gleiche Platten, günstiger)" : "";
           return `<div class="wv-row" data-i="${i}">
             ${r.code ? `<img class="wv-row__sw" src="./assets/winwall/${esc(r.code)}.jpg" alt="" onerror="this.style.visibility='hidden'" />` : `<span class="wv-row__sw"></span>`}
-            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}${set}</small></span>
+            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
             <select class="wv-row__size wv-ww-fmtsel" aria-label="Format">${FMTS.map(([c, t]) => `<option value="${c}"${c === r.fmt ? " selected" : ""}>${t}</option>`).join("")}</select>
             <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
             <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
@@ -14079,12 +14072,11 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       mixEl.textContent = "Wandbreiten eintragen";
       return;
     }
-    // Same price as the offer and "Ihre Auswahl": two of a kind are ordered as a set.
+    // Same price as the offer and "Ihre Auswahl" (single prices, no sets).
     const lines = core.winwallOrderLines(wwSelectedDecor().code || "WS203", plan.qty);
     const cost = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
-    const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
     const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Platten Einkauf netto ${eur(cost)}${sets ? ` (inkl. ${sets} × Set)` : ""}`;
+    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Platten Einkauf netto ${eur(cost)}`;
   }
 
   // Articles of the chosen Premium colour (per-size override first); their net

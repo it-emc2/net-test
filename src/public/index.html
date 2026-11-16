@@ -5134,8 +5134,7 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
-            <!-- winwall (wvSupplier = ww): Plattenwahl je Format + Dekor. Zwei gleiche
-                 Platten bestellt pricing-core automatisch als Set (winwallOrderLines). -->
+            <!-- winwall (wvSupplier = ww): Plattenwahl je Format + Dekor, Einzelplatten (keine Sets). -->
             <!-- winwall: Dekor + Format + Menge als Zeilen (initWvWwRows). Die alten Felder (wvWwQty_*, wvWwDecor)
                  bleiben Datenbasis/Anzeige; wvWwRows (JSON) ist die Quelle der Preise. -->
             <div id="wvWwRowsSection" class="sec-settings" hidden aria-hidden="true">
@@ -5143,7 +5142,6 @@ button.dm-btn-danger:focus-visible {
               <div id="wvWwRows" class="sec-settings__group"></div>
               <input type="hidden" id="wvWwRowsData" name="wvWwRows" value="" />
               <button type="button" id="wvWwRowAdd" class="wv-row-add">+ Zeile hinzufügen (Dekor und Format)</button>
-              <p class="wv-ww-hint muted" id="wvWwRowsHint" style="margin:8px 16px 0">Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).</p>
             </div>
 
             <div id="wvWwPanelsSection" class="sec-settings" hidden aria-hidden="true">
@@ -5165,7 +5163,7 @@ button.dm-btn-danger:focus-visible {
                   <div class="sec-settings__text"><strong>150 × 250 cm</strong><small>WS&lt;Dekor&gt;17 · Großplatte</small></div>
                   <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_17" name="wvWwQty_17" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Anzahl 150 × 250 cm" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
                 </div>
-                <div class="sec-settings__row"><small class="wv-ww-hint" id="wvWwPanelsHint">Zwei gleiche Platten werden als Set bestellt (günstiger).</small></div>
+                <div class="sec-settings__row"><small class="wv-ww-hint" id="wvWwPanelsHint"></small></div>
               </div>
             </div>
 
