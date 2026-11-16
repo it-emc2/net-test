@@ -6,6 +6,7 @@ export { Duschabtrennung } from "./duschabtrennung/Duschabtrennung.js";
 export { Duschvorhang } from "./duschvorhang/Duschvorhang.js";
 export { Duschwanne } from "./duschwanne/Duschwanne.js";
 export { Fussboden } from "./fussboden/Fussboden.js";
+export { Kosten } from "./kosten/Kosten.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
 export { Optional } from "./optional/Optional.js";
 export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
