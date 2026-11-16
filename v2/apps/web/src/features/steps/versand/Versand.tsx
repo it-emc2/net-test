@@ -1,7 +1,8 @@
 // Angebotsversand / Zusammenfassung (ADR 026, phase 4) — slice 1, the frame of the page: contact
 // person, name and greeting of a two-person offer, how the offer was sent, enclosed documents.
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
-// internal note (Anpassungen.tsx). Mail, post and signing are still done in today's view.
+// internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Sending — mail,
+// post, signing — is still done in today's view.
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -11,6 +12,7 @@ import { Card, CardTitle, Check, Field, SelectField, TextAreaField, cn } from ".
 import { LegacyLink, useOfferStore, useOfferType } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
+import { Mail } from "./Mail.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
 const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | null)?.Kundendaten ?? {}) as Record<string, unknown>;
@@ -58,15 +60,17 @@ export function Versand() {
         <section className="grid gap-2" aria-labelledby="zf-docs-title" data-testid="zf-docs">
           <h3 id="zf-docs-title" className="m-0 text-[1.05rem] font-semibold">Mitgesendete Unterlagen</h3>
           <p className="m-0 text-muted-foreground">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.</p>
-          {docs.map((d) => <Check key={d.id} id={`zf-doc-${d.id}`} checked={d.checked} onChange={(on) => useOfferStore.getState().patch("docSelection" as never, { [d.id]: on } as never)}>{d.label}</Check>)}
+          {docs.map((d) => <Check key={d.id} id={`zf-doc-${d.id}`} checked={d.checked} onChange={(on) => { const st = useOfferStore.getState(); if (on) st.remember("mailRemoved", ((st.scratch.mailRemoved as string[] | undefined) ?? []).filter((x) => x !== d.id)); st.patch("docSelection" as never, { [d.id]: on } as never); }}>{d.label}</Check>)}
         </section>
       ) : null}
 
       <Anpassungen />
 
+      <Mail />
+
       <section className="grid gap-2 border-t border-border pt-4">
-        <h3 className="m-0 text-[1.05rem] font-semibold">Versand</h3>
-        <p className="m-0 text-muted-foreground">Versand per E-Mail oder Post und die Unterschrift vor Ort werden noch in der bisherigen Ansicht erledigt. Ihre Eingaben werden mitgenommen.</p>
+        <h3 className="m-0 text-[1.05rem] font-semibold">Senden</h3>
+        <p className="m-0 text-muted-foreground">Gesendet wird noch in der bisherigen Ansicht — per E-Mail (auch mit eigenen Dateien, Produktbildern oder einer in Word geänderten Datei), per Post oder mit Unterschrift vor Ort. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>

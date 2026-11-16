@@ -28,7 +28,7 @@ const flat = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").tr
 const sortKeys = (v: unknown): unknown => (Array.isArray(v) ? v.map(sortKeys) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v as Obj).sort().map((k) => [k, sortKeys((v as Obj)[k])])) : v);
 const same = (a: unknown, b: unknown) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
 const changed = (base: Obj, now: Obj) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])].filter((k) => !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
-const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return o; };
+const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return JSON.parse(JSON.stringify(o).replace(/ANG\d{4}-\d{4}-\d{6}/g, "ANG2026-1116-093000")); }; // the recorder read the number at different seconds
 const offer = () => useOfferStore.getState().offer as unknown as Obj;
 const pick = (p: Obj) => ({ Kundendaten: p.Kundendaten, docSelection: p.docSelection, zusammenfassung: p.zusammenfassung });
 

@@ -35,7 +35,7 @@ const sortKeys = (v: unknown): unknown => (Array.isArray(v) ? v.map(sortKeys) : 
 const same = (a: unknown, b: unknown) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
 const changed = (base: Obj, now: Obj) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])].filter((k) => !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
 const masked = (d: Obj) => { const { mail: _mail, ...rest } = d; if (typeof rest.offerNumber === "string") rest.offerNumber = rest.offerNumber.replace(NUM, "<new number>"); return rest; }; // the mail subject follows the number — the mail part is not built yet
-const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return o; };
+const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return JSON.parse(JSON.stringify(o).replace(/ANG\d{4}-\d{4}-\d{6}/g, "ANG2026-1116-093000")); };
 const offer = () => useOfferStore.getState().offer as unknown as Obj;
 
 let seen: Obj[] = [], handed: string[] = [], failing: Record<string, number> = {}, before: Obj = {};

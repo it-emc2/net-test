@@ -19,7 +19,7 @@ const SCENARIOS = reference.scenarios as unknown as Scenario[];
 const BASES = reference.bases as unknown as Record<string, Obj>;
 
 const flat = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
-const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return o; };
+const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.type]!); for (const [k, v] of Object.entries(s.offer)) { if (v === "<removed>") delete o[k]; else o[k] = structuredClone(v); } return JSON.parse(JSON.stringify(o).replace(/ANG\d{4}-\d{4}-\d{6}/g, "ANG2026-1116-093000")); };
 const offer = () => useOfferStore.getState().offer as unknown as Obj;
 const storedNow = (before: Obj) => (JSON.stringify(before.offerOverrides ?? null) === JSON.stringify(offer().offerOverrides ?? null) ? {} : { offerOverrides: offer().offerOverrides ?? "<removed>" });
 
