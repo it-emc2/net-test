@@ -249,6 +249,7 @@ Not yet: a link from today's UI into the new app (the way back is the address `/
 - **Header** (`app/Header.tsx`, as today's since U-008): logo and title; on the right the save state while an offer is open (and the "Speichern" button when automatic saving is off) and one user menu — name and e-mail, Farbthema, Dunkler Modus, Automatisch speichern, Zur bisherigen Ansicht, App neu laden, Abmelden. The menu is a native popover (no library in the start script; needs Safari 17 or newer).
 - **Preferences** (`shared/lib/prefs.ts`): theme, dark mode and automatic saving are stored under today's keys (`emc2.theme`, `emc2.mode`, `oc.autosave`), so a choice made in either UI applies in both. Theme "Je Angebotsart" (nothing stored) follows today's default per offer type.
 - **Sidebar**: stays in view on wide screens; on narrow screens the step list folds behind a button that names the open step.
+- **Angebotscheck** (`features/steps/angebotscheck`): 45 recordings (`angebotscheck.json`, `v2/scripts/capture-angebotscheck.cjs`), each with the offer and the price its rows were drawn from, then the answers given on the page. The rules are today's (`rules.ts`); what today's UI reads from the page is read from the offer itself. Stored: `zusammenfassung.checkAck`; "Ja" on a Rückbau question ticks the removal task as if by hand (`duschwanne.workTasks`, `manualTasks`, and the work-time suggestion in the same change). Measured at 834×1194 with 6x CPU throttle: 9 ms blocked on opening, 0 ms per answer, 1 price call per answer. Seen while recording (today's behaviour, kept): a wall cladding of the line winwall always reads "Keine Platten im Angebot" and "Dekor / Farbe fehlt" — the rule only knows VIGOUR and Badolux panels; VIGOUR panels read "0 Verbindungsprofile im Angebot" until the profile is ticked by hand.
 - Still to match: the "Versionen" button (list and restore of saved versions), icons of the Hauptmenü tiles.
 
 ### BU (Badumbau) build order (owner 2026-11-12: build the whole BU section)
@@ -268,7 +269,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 | 9 | Optionale Produkte | 1,411 lines, 217 inputs | open — largest catalog |
 | 10 | Aufschlag / Rabatt | 128 lines + price-bound script | **Built:** overview of the sums, markup (shared with Kundendaten for Badelift), discount part — opt-in, discount on materials (Kassenkunde with a markup of at least 50 %), Neukundenbonus above the threshold, free grab bar, totals after discount and bonus; the switch for offers stored under the old rule (small material outside the markup). |
 | 11 | Kosten | script-built | open — incl. line edits (ADR 024) |
-| 12 | Angebotscheck | script-built | open |
+| 12 | Angebotscheck | script-built | **Built:** overall status, the three groups with their counts, one row per rule that applies (green rows included), work task ⇄ product both ways, the Rückbau questions (Ja / Nein), "Nicht nötig", every row leads to the step that fixes it. **Open:** the question before sending for main items that are not selected (belongs to Angebotsversand) |
 | 13 | Angebotsversand | 605 lines, 31 inputs | open — mail, letter, signing, documents |
 | 14 | Checkliste | 41 lines, 4 inputs | open |
 | 15–16 | Referenzbilder (Vorher / Nachher) | — | open |
