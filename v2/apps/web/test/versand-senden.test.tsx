@@ -17,6 +17,8 @@ import { toast } from "../src/shared/ui/toaster.js";
 import reference from "./fixtures/versand-senden.json" with { type: "json" };
 import { renderApp } from "./helpers.js";
 
+process.env.TZ = "Europe/Berlin"; // the recordings show times as the office sees them (the "already sent" question names one)
+
 const KEY = "t-0123456789abcdef01234567";
 type Obj = Record<string, any>;
 type Line = [string, string];
