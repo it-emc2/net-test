@@ -1466,6 +1466,14 @@ function hasEligibleGrab(data) {
   );
 }
 
+// Live form check for the same question. A /api/price response can be stale
+// (sent before a reopened offer finished restoring its grab bar); unchecking
+// "Haltegriff gratis" off such a response silently dropped the bonus on reopen.
+function formHasEligibleGrab() {
+  const ids = window.__grabBonusIds || ["CLPESG30"];
+  return ids.some((id) => Number(document.getElementById("qty_" + id)?.value) > 0);
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch("/api/price", {
@@ -17263,7 +17271,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         bonusGrab.disabled = false;
       } else {
         if (row) row.style.display = "none";
-        if (bonusGrab.checked) {
+        if (bonusGrab.checked && !formHasEligibleGrab()) {
           bonusGrab.checked = false;
           bonusGrab.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -21982,7 +21990,7 @@ window.setPricingData = function setPricingData(data) {
       row.hidden = !allow;
       row.setAttribute("aria-hidden", String(!allow));
     }
-    if (!allow && cb && cb.checked) {
+    if (!allow && cb && cb.checked && !formHasEligibleGrab()) {
       cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
