@@ -37,10 +37,11 @@ const ids = (ls) => Object.fromEntries(ls.map((l) => [l.productId || l.id, l.qty
 const wwFloor = { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingKind: "Gesamtes-Bad" };
 
 describe("winwall floor lines", () => {
-  test("three 100×250: one set + one single, adhesive for the whole area", async () => {
+  test("three 100×250: three singles (no sets), adhesive for the whole area", async () => {
     const l = await floorLines({ ...wwFloor, wallCladdingPanelSize: "15", wallCladdingQty: "3", wallCladdingArea: "7,5" });
-    expect(ids(l)).toEqual({ WS20325: 1, WS20315: 1, R_4260602: 13 }); // 7,5 / 0,6 = 12,5 → 13
-    expect(l.find((x) => x.productId === "WS20325").unitPrice).toBe(261.76);
+    expect(ids(l)).toEqual({ WS20315: 3, R_4260602: 13 }); // 7,5 / 0,6 = 12,5 → 13
+    expect(l.find((x) => x.productId === "WS20315").unitPrice).toBe(132.35);
+    expect(l.find((x) => x.productId === "WS20315").label).toMatch(/^- 3 Stk winwall Wandverkleidung als Fußboden 100×250 cm — /);
   });
   test("a typed decor is billed at the same list price", async () => {
     const l = await floorLines({ ...wwFloor, wallCladdingWwDecor: "custom", wallCladdingWwDecorCustom: "ws 203", wallCladdingPanelSize: "17", wallCladdingQty: "1", wallCladdingArea: "3" });

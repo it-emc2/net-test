@@ -62,9 +62,10 @@ describe("winwallPanelPlan", () => {
 });
 
 describe("winwallOrderLines / winwallSealingSets", () => {
-  test("pairs become sets, the 150 has no set", () => {
+  test("one line per format at the single price, never a set (2026-11-16)", () => {
     expect(winwallOrderLines("203", { 15: 3, 16: 2, 17: 1 }).map((l) => [l.productId, l.qty]))
-      .toEqual([["WS20325", 1], ["WS20315", 1], ["WS20326", 1], ["WS20317", 1]]);
+      .toEqual([["WS20315", 3], ["WS20316", 2], ["WS20317", 1]]);
+    expect(WINWALL_FORMATS.map((f) => f.code)).toEqual(["13", "15", "16", "17"]);
   });
   test("sealing area: wall plan + extra panels; typed Wandfläche wins; no walls → panel cover", () => {
     // ANG2026-1112-100246: U 70/161/70 × 55 cm → plan 2 panels; a 3rd (WC box) adds 2,05 m²
@@ -114,7 +115,7 @@ describe("winwall pricing", () => {
       wvWw_R_4260602: "on", wvWwQty_R_4260602: "4", wvWwSealing: "on", wvArea: "6", wvWwCut: "on",
     }));
     expect(q).toEqual({
-      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, R_4260602: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
+      WS20315: 2, WS20316: 1, WS80110: 3, WS80113: 2, R_4260602: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
     });
   });
   test("no freight per offer (collective orders); no cutting unless ticked", async () => {
@@ -124,8 +125,8 @@ describe("winwall pricing", () => {
   test("a typed NW decor is ordered and priced from the price list (no DB article)", async () => {
     const all = await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "custom", wvWwDecorCustom: "nw 230", wvWwQty_15: "3", wvWwSealing: "on", wvArea: "4" });
     const by = Object.fromEntries(all.map((l) => [l.productId, l]));
-    expect(Object.keys(by).sort()).toEqual(["NW23015", "NW23025", "WS80301"]);
-    expect([by.NW23025.unitPrice, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([261.76, 132.35, 113.5]);
+    expect(Object.keys(by).sort()).toEqual(["NW23015", "WS80301"]);
+    expect([by.NW23015.qty, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([3, 132.35, 113.5]);
   });
   test("adhesive is the VIGOUR Flächenkleber from stock, no separate Silikon", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "WS203", wvWwQty_15: "1", wvWw_R_4260602: "on", wvWwQty_R_4260602: "2" }));
@@ -149,7 +150,7 @@ describe("winwall pricing", () => {
 describe("winwall rows (wvWwRows): several decors and formats", () => {
   const rows = (r) => JSON.stringify(r);
   const ww = { wvEnabled: true, wvSupplier: "ww" };
-  test("one order line per decor and format; equal pairs of one decor become a set", async () => {
+  test("one order line per decor and format; equal panels add up, no sets", async () => {
     const ls = await lines({
       ...ww, wvWwRows: rows([
         { code: "WS203", fmt: "15", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 },
@@ -157,12 +158,12 @@ describe("winwall rows (wvWwRows): several decors and formats", () => {
       ]),
     });
     const q = ids(ls);
-    expect(q).toEqual({ WS20325: 1, NW22016: 1, WS20317: 1 });
+    expect(q).toEqual({ WS20315: 2, NW22016: 1, WS20317: 1 });
     expect(ls.find((l) => l.productId === "NW22016").label).toContain("NW 220");
   });
   test("rows win over the old quantity fields; empty field and no rows leave old offers alone", async () => {
     expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2", wvWwRows: rows([{ code: "WS203", fmt: "13", qty: 1 }]) }))).toEqual({ WS20313: 1 });
-    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2" }))).toEqual({ WS20325: 1 });
+    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2" }))).toEqual({ WS20315: 2 });
     expect(computeFingerprint({ wandverkleidung: { wvWwRows: "", a: 1 } })).toBe(computeFingerprint({ wandverkleidung: { a: 1 } }));
   });
 });

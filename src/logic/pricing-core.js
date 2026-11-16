@@ -317,9 +317,6 @@ export const WINWALL_FORMATS = [
   { code: "15", widthCm: 100, heightCm: 250, price: 132.35 },
   { code: "16", widthCm: 125, heightCm: 250, price: 173.53 },
   { code: "17", widthCm: 150, heightCm: 250, price: 217.5 },
-  { code: "23", widthCm: 100, heightCm: 205, price: 220.59, set: true, single: "13" },
-  { code: "25", widthCm: 100, heightCm: 250, price: 261.76, set: true, single: "15" },
-  { code: "26", widthCm: 125, heightCm: 250, price: 338.24, set: true, single: "16" },
 ];
 export const WINWALL_SINGLE_FORMATS = ["13", "15", "16", "17"];
 export const WINWALL_EXTRAS = [
@@ -443,17 +440,14 @@ export function supplierCodes(payload, lines = []) {
   return { wv: wvCode, dw: dwCode, ...(floorWw ? { fb: "WV-WW" } : {}) };
 }
 
-/** Panels per single format → order lines: two of a kind become a set (cheaper). */
+/** Panels per format → order lines, one per format at the single price. No sets
+ *  (2026-11-16: 4 panels = 4 Stk, no set discount). */
 export function winwallOrderLines(decor, qtyByFormat = {}) {
   const lines = [];
   decor = winwallDecorCode(decor) || "WS203";
   for (const code of WINWALL_SINGLE_FORMATS) {
     const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
-    if (!n) continue;
-    const set = WINWALL_FORMATS.find((f) => f.set && f.single === code);
-    const sets = set ? Math.floor(n / 2) : 0;
-    if (sets) lines.push({ productId: `${decor}${set.code}`, qty: sets, format: set, panels: sets * 2 });
-    if (n - sets * 2) lines.push({ productId: `${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
+    if (n) lines.push({ productId: `${decor}${code}`, qty: n, format: wwFormat(code), panels: n });
   }
   return lines;
 }
@@ -1337,8 +1331,8 @@ function grossToNet(gross, taxRate) {
         const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
         for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
           const f = l.format;
-          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
-          add(l.productId, l.qty, `- ${l.panels} Stk winwall Wandverkleidung als Fußboden ${f.widthCm}×${f.heightCm} cm${f.set ? " (Set)" : ""} — Dekor: ${decorText}`, f.price, null,
+          const what = `${f.widthCm}×${f.heightCm} cm`;
+          add(l.productId, l.qty, `- ${l.panels} Stk winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f.price, null,
             { name: `winwall Wandverkleidung ${decorText} ${what}` });
         }
       } else if (wallCladdingQty > 0)
@@ -1584,7 +1578,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     let winwallPanels = 0;
     if (isWinwall) {
       // One group per decor: rows (wvWwRows, since 2026-11) or the single decor + the
-      // four quantity fields of older offers. Per decor two equal plates become a set.
+      // four quantity fields of older offers.
       const groups = new Map();
       let rowsMode = false;
       const rowsRaw = String(wv?.wvWwRows ?? "").trim();
@@ -1618,11 +1612,10 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
           const f = l.format;
           winwallPanels += l.panels;
-          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
+          const what = `${f.widthCm}×${f.heightCm} cm`;
           // Price from the price list: any decor (also a typed one) costs the same per format.
           // name for a typed decor that has no product in the DB
-          // Label in panels ("2 Stk … (Set)"); qty/price stay per set for the order.
-          add(l.productId, l.qty, `- ${l.panels} Stk winwall Duschrückwand ${f.widthCm}×${f.heightCm} cm${f.set ? " (Set)" : ""} — Dekor: ${decorText}`, f.price, null,
+          add(l.productId, l.qty, `- ${l.panels} Stk winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
             { name: `winwall Duschrückwand ${decorText} ${what}` });
         }
       }
