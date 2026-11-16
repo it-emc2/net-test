@@ -1,8 +1,9 @@
 // Angebotsversand / Zusammenfassung (ADR 026, phase 4) — slice 1, the frame of the page: contact
 // person, name and greeting of a two-person offer, how the offer was sent, enclosed documents.
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
-// internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Sending — mail,
-// post, signing — is still done in today's view.
+// internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
+// sending by mail and "Nur in Bitrix ablegen" (Senden.tsx). Product pictures, plan photos, post
+// and signing are still done in today's view.
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -13,6 +14,7 @@ import { LegacyLink, useOfferStore, useOfferType } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
 import { Mail } from "./Mail.js";
+import { Senden } from "./Senden.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
 const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | null)?.Kundendaten ?? {}) as Record<string, unknown>;
@@ -68,9 +70,11 @@ export function Versand() {
 
       <Mail />
 
-      <section className="grid gap-2 border-t border-border pt-4">
-        <h3 className="m-0 text-[1.05rem] font-semibold">Senden</h3>
-        <p className="m-0 text-muted-foreground">Gesendet wird noch in der bisherigen Ansicht — per E-Mail (auch mit eigenen Dateien, Produktbildern oder einer in Word geänderten Datei), per Post oder mit Unterschrift vor Ort. Ihre Eingaben werden mitgenommen.</p>
+      <Senden />
+
+      <section className="grid gap-2 border-t border-border pt-4" data-testid="zf-legacy">
+        <h3 className="m-0 text-[1.05rem] font-semibold">Weitere Versandwege</h3>
+        <p className="m-0 text-muted-foreground">Produktbilder-PDF, Grundriss / Fotos, Postversand und Unterschrift vor Ort gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>

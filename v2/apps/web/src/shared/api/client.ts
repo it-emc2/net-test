@@ -51,7 +51,7 @@ export async function call<N extends EndpointName>(name: N, opts: CallOptions = 
 }
 
 /** A document made by the server from the offer: the file and the name the server gave it. */
-export interface ServerFile { blob: Blob; filename: string; type: string }
+export interface ServerFile { blob: Blob; filename: string; type: string; status: number }
 /** the file name of a Content-Disposition header, "" when there is none */
 export function filenameOf(disposition: string | null): string {
   const m = (disposition ?? "").match(/filename\*=UTF-8''([^;]+)/i) || (disposition ?? "").match(/filename="?([^";]+)"?/i);
@@ -73,5 +73,5 @@ export async function postForFile(path: string, body: unknown, opts: { accept?: 
     throw new ApiFailure(text || `Der Server hat mit einem Fehler geantwortet (${res.status}).`, res.status, "HTTP_ERROR");
   }
   const blob = await res.blob();
-  return { blob, filename: filenameOf(res.headers.get("content-disposition")), type: String(res.headers.get("content-type") ?? "").toLowerCase() };
+  return { blob, filename: filenameOf(res.headers.get("content-disposition")), type: String(res.headers.get("content-type") ?? "").toLowerCase(), status: res.status };
 }
