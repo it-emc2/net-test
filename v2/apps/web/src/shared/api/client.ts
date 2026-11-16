@@ -49,3 +49,29 @@ export async function call<N extends EndpointName>(name: N, opts: CallOptions = 
   }
   return data as ResponseOf<N>;
 }
+
+/** A document made by the server from the offer: the file and the name the server gave it. */
+export interface ServerFile { blob: Blob; filename: string; type: string }
+/** the file name of a Content-Disposition header, "" when there is none */
+export function filenameOf(disposition: string | null): string {
+  const m = (disposition ?? "").match(/filename\*=UTF-8''([^;]+)/i) || (disposition ?? "").match(/filename="?([^";]+)"?/i);
+  try { return m?.[1] ? decodeURIComponent(m[1]) : ""; } catch { return m?.[1] ?? ""; }
+}
+/** POST the offer to a document route and get the file back. The document routes are today's
+ *  (not in the contract: they answer with a file, and a failure in their own words). */
+export async function postForFile(path: string, body: unknown, opts: { accept?: string; signal?: AbortSignal } = {}): Promise<ServerFile> {
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Accept: opts.accept ?? "*/*" }, body: JSON.stringify(body), ...(opts.signal ? { signal: opts.signal } : {}) });
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") throw err;
+    throw new ApiFailure("Keine Verbindung zum Server.", 0, "OFFLINE");
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => null)) as { error?: unknown; detail?: unknown } | null;
+    const text = isApiError(data) ? data.error.message : [data?.error, data?.detail].filter((x) => typeof x === "string" && x).join(" — ");
+    throw new ApiFailure(text || `Der Server hat mit einem Fehler geantwortet (${res.status}).`, res.status, "HTTP_ERROR");
+  }
+  const blob = await res.blob();
+  return { blob, filename: filenameOf(res.headers.get("content-disposition")), type: String(res.headers.get("content-type") ?? "").toLowerCase() };
+}
