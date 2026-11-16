@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 export NODE_ENV=development HOST=127.0.0.1 PORT=3001 LOG_LEVEL=info
 export MONGODB_URI="mongodb://127.0.0.1:27018/?directConnection=true" MONGODB_DB=oc_preview
-export GOTENBERG_URL=http://127.0.0.1:3000
+export GOTENBERG_URL="${GOTENBERG_URL:-http://127.0.0.1:3000}"
 DEAD=http://127.0.0.1:9
 export BITRIX_WEBHOOK_BASE="$DEAD/rest/0/blocked" PLANNING_API_BASE_URL=$DEAD OB24_BASE_URL=$DEAD EXTERNAL_API_BASE=$DEAD
 export SMTP_HOST=127.0.0.1 SMTP_PORT=9 SMTP_SEND_PORT=9 IMAP_HOST=127.0.0.1 IMAP_PORT=9
