@@ -1,6 +1,7 @@
 // The steps that exist as React screens.
 export { Angebotscheck } from "./angebotscheck/Angebotscheck.js";
 export { Arbeiten } from "./arbeiten/Arbeiten.js";
+export { Checkliste } from "./checkliste/Checkliste.js";
 export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
 export { Duschabtrennung } from "./duschabtrennung/Duschabtrennung.js";
 export { Duschvorhang } from "./duschvorhang/Duschvorhang.js";

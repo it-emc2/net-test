@@ -39,6 +39,7 @@ const duschvorhang = () => import("../features/steps/index.js").then((m) => ({ C
 const angebotscheck = () => import("../features/steps/index.js").then((m) => ({ Component: m.Angebotscheck }));
 const optional = () => import("../features/steps/index.js").then((m) => ({ Component: m.Optional }));
 const kosten = () => import("../features/steps/index.js").then((m) => ({ Component: m.Kosten }));
+const checkliste = () => import("../features/steps/index.js").then((m) => ({ Component: m.Checkliste }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
@@ -66,6 +67,7 @@ export const routes: RouteObject[] = [
           { path: "Kosten", lazy: kosten },
           { path: "Rabatt", lazy: rabatt },
           { path: "Angebotscheck", lazy: angebotscheck },
+          { path: "Checkliste", lazy: checkliste },
           { path: ":step", lazy: stepInLegacy },
         ],
       },
