@@ -129,7 +129,8 @@ describe("header and sidebar", () => {
     expect(header).toHaveTextContent("Angebotskonfigurator");
     expect(screen.getByRole("img", { name: "EmC2" })).toHaveAttribute("src", "/assets/logo.png");
     expect(screen.getByLabelText("Benutzermenü")).toHaveTextContent("ap@example.test");
-    expect(header.querySelector("[role=status]")).toBeNull();
+    expect(screen.getByRole("button", { name: "Benutzermenü öffnen: AP" })).toHaveTextContent(/^AP$/); // initials only
+    expect(await screen.findByText("Alles gespeichert")).toBeInTheDocument();
   });
 
   it("user menu: theme, dark mode and automatic saving use the same browser keys as today's UI", async () => {
@@ -138,13 +139,13 @@ describe("header and sidebar", () => {
     await screen.findByLabelText("Vorname");
     const root = document.documentElement;
     expect(root.dataset.theme).toBe("wohnen"); // BU's accent while nothing is chosen
-    await userEvent.selectOptions(screen.getByLabelText("Farbthema"), "pflege");
+    await userEvent.click(screen.getByRole("button", { name: "Pflege", hidden: true }));
     expect([root.dataset.theme, localStorage.getItem("emc2.theme")]).toEqual(["pflege", "pflege"]);
-    await userEvent.selectOptions(screen.getByLabelText("Farbthema"), "");
+    await userEvent.click(screen.getByRole("button", { name: "Je Angebotsart", hidden: true }));
     expect([root.dataset.theme, localStorage.getItem("emc2.theme")]).toEqual(["wohnen", null]);
-    await userEvent.click(screen.getByRole("switch", { name: "Dunkler Modus", hidden: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Dunkel", hidden: true }));
     expect([root.dataset.mode, localStorage.getItem("emc2.mode")]).toEqual(["dark", "dark"]);
-    await userEvent.click(screen.getByRole("switch", { name: "Dunkler Modus", hidden: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Hell", hidden: true }));
     expect(root.dataset.mode).toBe("light");
     await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true }));
     expect(localStorage.getItem("oc.autosave")).toBe("off");
