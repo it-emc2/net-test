@@ -10,6 +10,7 @@ export { Fussboden } from "./fussboden/Fussboden.js";
 export { Kosten } from "./kosten/Kosten.js";
 export { Kundendaten } from "./kundendaten/Kundendaten.js";
 export { Optional } from "./optional/Optional.js";
+export { Versand } from "./versand/Versand.js";
 export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
 
