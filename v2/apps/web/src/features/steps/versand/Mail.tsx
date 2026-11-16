@@ -1,12 +1,13 @@
 // "Angebot per E-Mail senden" — the form (ADR 026, phase 4; Angebotsversand slice 4, part 1):
 // deal number, recipient, CC, subject, text, the preview of the mail and the list of
-// attachments. The rules are mail-rules.ts. Sending itself (and own files, product pictures, an
-// edited Word file) is still done in today's view.
-import { X } from "lucide-react";
-import { useEffect, useMemo } from "react";
+// attachments. The rules are mail-rules.ts. Slice 4b, part 1: own files for the mail and the
+// offer edited in Word (kept while the offer is open — files are not part of the offer).
+import { FileCheck, FilePen, X } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { Check, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { attachments, ccDefault, countText, mailChanges, previewHtml, touchedOf, type MailField, type Touched } from "./mail-rules.js";
+import { TEXT, addFiles, fileSize, isDocx } from "./send-rules.js";
 
 type Offer = Record<string, unknown>;
 const st = () => useOfferStore.getState();
@@ -19,6 +20,8 @@ export function Mail() {
   const applied = useOfferStore((s) => s.scratch.mailAntrag) === true;
   const ccByHand = useOfferStore((s) => s.scratch.mailCc) as string | undefined;
   const removed = (useOfferStore((s) => s.scratch.mailRemoved) as string[] | undefined) ?? [];
+  const uploads = (useOfferStore((s) => s.scratch.mailUploads) as File[] | undefined) ?? [];
+  const dealMissing = useOfferStore((s) => s.scratch.dealMissing) === true; // a send was refused for want of it
   // an opened offer: what differs from what the offer would write by itself was changed by hand
   const touched = useMemo(() => remembered ?? touchedOf(offerNow()), [remembered]);
   const mail = (offer.mail ?? {}) as Record<string, unknown>;
@@ -42,7 +45,7 @@ export function Mail() {
     <section className="grid gap-3" aria-labelledby="zf-mail-title" data-testid="zf-mail">
       <h3 id="zf-mail-title" className="m-0 text-[1.05rem] font-semibold">Angebot per E-Mail senden</h3>
       <Check id="zf-mail-antrag" checked={applied} onChange={(on) => st().remember("mailAntrag", on)}>Antrag bei Pflegekasse bereits gestellt (Hinweis zur Antragsstellung im Text weglassen)</Check>
-      <Field label="Lead ID / Auftrag ID" id="zf-mail-deal" value={deal} inputMode="numeric" placeholder="z.B. 12345" onChange={(e) => setDeal(e.target.value)} />
+      <Field label="Lead ID / Auftrag ID" id="zf-mail-deal" value={deal} inputMode="numeric" placeholder="z.B. 12345" aria-invalid={dealMissing && !deal ? true : undefined} onChange={(e) => setDeal(e.target.value)} />
       <Field label="Empfänger E-Mail" id="zf-mail-to" type="email" value={String(mail.to ?? "")} placeholder="customer@example.com" onChange={(e) => type("to", e.target.value.trim())} />
       <Field label="CC (z.B. Ansprechpartner)" id="zf-mail-cc" value={cc} placeholder="ansprechpartner@example.com" onChange={(e) => { st().remember("mailCc", e.target.value); st().remember("mailTouched", { ...touched, cc: true }); }} />
       <Field label="Betreff" id="zf-mail-subject" value={String(mail.subject ?? "")} placeholder="ANG-..." onChange={(e) => type("subject", e.target.value)} />
@@ -53,19 +56,63 @@ export function Mail() {
         <iframe title="E-Mail Vorschau" sandbox="" srcDoc={html} className="h-[420px] w-full rounded-lg border border-border bg-white" data-testid="zf-mail-preview" />
       </div>
 
+      <EditedDocx />
+
       <div className="grid gap-2" data-testid="zf-mail-files">
-        <p className="m-0 flex items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length)}</span></p>
+        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length + uploads.length)}</span>
+          <AddFiles id="zf-mail-add" onAdd={(added) => st().remember("mailUploads", addFiles(uploads, added))} /></p>
         <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
-          {files.map((f) => (
-            <li key={f.id} data-testid="zf-mail-file" className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5">
-              <span className="grid min-w-0 flex-1"><span className="truncate font-semibold" title={f.name} data-part="name">{f.name}</span><span className="text-[0.85rem] text-muted-foreground" data-part="meta">{f.meta}</span></span>
-              {f.fixed
-                ? <span data-part="fixed" className="rounded-full border border-border px-2.5 py-0.5 text-[0.85rem] text-muted-foreground">Pflicht</span>
-                : <button type="button" title={`${f.name} entfernen`} aria-label={`${f.name} entfernen`} onClick={() => st().remember("mailRemoved", [...removed, f.id])} className={cn("grid size-12 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-input bg-card text-foreground")}><X aria-hidden className="size-5" /></button>}
-            </li>
-          ))}
+          {files.map((f) => <FileRow key={f.id} name={f.name} meta={f.meta} fixed={f.fixed} onRemove={() => st().remember("mailRemoved", [...removed, f.id])} />)}
+          {uploads.map((f, i) => <FileRow key={`u${i}`} name={f.name} meta={`Hinzugefügt · ${fileSize(f.size)}`} onRemove={() => st().remember("mailUploads", uploads.filter((_, j) => j !== i))} />)}
         </ul>
       </div>
     </section>
+  );
+}
+
+/** one file of a list: name, what it is, and "Pflicht" or a button that takes it out */
+export function FileRow({ name, meta, fixed = false, onRemove }: { name: string; meta: string; fixed?: boolean; onRemove: () => void }) {
+  return (
+    <li data-testid="zf-mail-file" className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5">
+      <span className="grid min-w-0 flex-1"><span className="truncate font-semibold" title={name} data-part="name">{name}</span><span className="text-[0.85rem] text-muted-foreground" data-part="meta">{meta}</span></span>
+      {fixed
+        ? <span data-part="fixed" className="rounded-full border border-border px-2.5 py-0.5 text-[0.85rem] text-muted-foreground">Pflicht</span>
+        : <button type="button" title={`${name} entfernen`} aria-label={`${name} entfernen`} onClick={onRemove} className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-input bg-card text-foreground"><X aria-hidden className="size-5" /></button>}
+    </li>
+  );
+}
+
+/** "+ Datei hinzufügen": a hidden file input behind a label that looks like a button */
+export function AddFiles({ id, onAdd }: { id: string; onAdd: (files: File[]) => void }) {
+  return (
+    <>
+      <label htmlFor={id} className="ml-auto inline-flex min-h-12 cursor-pointer items-center rounded-lg border-2 border-primary px-4 font-semibold text-primary">+ Datei hinzufügen</label>
+      <input id={id} type="file" multiple hidden onChange={(e) => { onAdd(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+    </>
+  );
+}
+
+/** "Angebot in Word angepasst?" — a hand-edited DOCX goes out instead of the offer made by the app */
+function EditedDocx() {
+  const file = useOfferStore((s) => s.scratch.editedDocx) as File | null | undefined;
+  const input = useRef<HTMLInputElement>(null);
+  const take = (f: File | undefined) => {
+    if (!f) return;
+    if (!isDocx(f.name)) { st().remember("sendStatus", { type: "error", text: TEXT.notDocx }); return; }
+    st().remember("editedDocx", f);
+  };
+  return (
+    <div role="button" tabIndex={0} aria-label="Bearbeitete Angebots-DOCX auswählen" data-testid="zf-docx" data-file={file ? "true" : "false"}
+      onClick={() => input.current?.click()} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.current?.click(); } }}
+      onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); take(e.dataTransfer.files[0]); }}
+      className={cn("flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3", file ? "border-[#d97706] bg-[#fff7e6]" : "border-[#1e8449] bg-card")}>
+      {file ? <FileCheck aria-hidden className="size-6 shrink-0 text-[#b45309]" /> : <FilePen aria-hidden className="size-6 shrink-0 text-[#1e8449]" />}
+      <span className="grid min-w-0 flex-1">
+        <strong className="truncate" data-part="title">{file ? file.name : "Angebot in Word angepasst?"}</strong>
+        <span className="text-[0.9rem] text-muted-foreground" data-part="text">{file ? "Diese Datei wird statt des automatisch erzeugten Angebots versendet." : "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet."}</span>
+      </span>
+      {file ? <button type="button" aria-label="Datei entfernen" onClick={(e) => { e.stopPropagation(); st().remember("editedDocx", null); }} className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-input bg-card"><X aria-hidden className="size-5" /></button> : null}
+      <input ref={input} type="file" accept=".docx" hidden data-testid="zf-docx-input" onClick={(e) => e.stopPropagation()} onChange={(e) => { take(e.target.files?.[0]); e.target.value = ""; }} />
+    </div>
   );
 }

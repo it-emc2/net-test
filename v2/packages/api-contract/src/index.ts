@@ -126,6 +126,14 @@ export const endpoints = {
   traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
+  /** the state of one send (ADR 023): status running | done | failed, and the answer of a finished send */
+  send: { method: "GET", path: "/api/sends/:sendId", response: z.looseObject({ send: z.looseObject({ status: z.string() }).nullish(), result: z.unknown().nullish() }) },
+  /** files a sent offer again in Bitrix from the stored files — nothing is sent again */
+  retryBitrix: { method: "POST", path: "/api/sends/:sendId/retry-bitrix", response: z.looseObject({ ok: z.boolean().nullish() }) },
+  /** after sending: the deal goes to "ANG verschickt" with the offer's own total; body: opportunity, finalTotal, workDays, offerType, offerNumber … */
+  moveSent: { method: "POST", path: "/api/bitrix/deal/:id/move-ang-verschickt", response: z.looseObject({}) },
+  /** audit: the dialog after sending was shown / closed without moving the deal; body: event, offerNumber, offerType */
+  logDialogEvent: { method: "POST", path: "/api/bitrix/deal/:id/log-dialog-event", response: z.looseObject({}) },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 
