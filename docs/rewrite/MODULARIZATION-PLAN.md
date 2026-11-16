@@ -247,6 +247,7 @@ Not yet: a link from today's UI into the new app (the way back is the address `/
 - **Header** (`app/Header.tsx`, as today's since U-008): logo and title; on the right the save state while an offer is open (and the "Speichern" button when automatic saving is off) and one user menu — name and e-mail, Farbthema, Dunkler Modus, Automatisch speichern, Zur bisherigen Ansicht, App neu laden, Abmelden. The menu is a native popover (no library in the start script; needs Safari 17 or newer).
 - **Preferences** (`shared/lib/prefs.ts`): theme, dark mode and automatic saving are stored under today's keys (`emc2.theme`, `emc2.mode`, `oc.autosave`), so a choice made in either UI applies in both. Theme "Je Angebotsart" (nothing stored) follows today's default per offer type.
 - **Sidebar**: stays in view on wide screens; on narrow screens the step list folds behind a button that names the open step.
+- **Kosten** (`features/steps/kosten`, Badumbau): 13 recordings (`kosten.json`, `v2/scripts/capture-kosten.cjs`), each with the price answer it was drawn from. The page stores nothing: sections and sums are computed from the price alone (`rules.ts`: `sections`, `sums`). "Preis neu berechnen" asks the live price again; today's button calls the recompute of a saved offer, which follows with the saved-offer screens. Measured at 834×1194 with 6x CPU throttle: 7 ms blocked on opening, 1 price call; no sideways scrolling.
 - Still to match: the "Versionen" button (list and restore of saved versions), icons of the Hauptmenü tiles.
 
 ### BU (Badumbau) build order (owner 2026-11-12: build the whole BU section)
@@ -265,7 +266,7 @@ Sizes are today's page in `index.html`. Small pages with few inputs (Duschabtren
 | 8 | Duschvorhang | 19 lines + configurator (550 lines of script) | **Built:** switch, situation (niche, corner, U-shape) with side lengths and drawing, the plan (curtain, rods, couplings, bends, ceiling supports, rings), every article with switch and quantity, other sizes, ceiling-support length, "Ihre Auswahl", the stored lines and configuration. |
 | 9 | Optionale Produkte | 1,411 lines, 217 inputs | open — largest catalog |
 | 10 | Aufschlag / Rabatt | 128 lines, 6 inputs | **Built:** markup (value, quick buttons, slider, minimum with reason, target-price search). **Open:** discount, Neukundenbonus, Haltegriff bonus, switch for old offers (Kleinmaterial rule) |
-| 11 | Kosten | script-built | open — incl. line edits (ADR 024) |
+| 11 | Kosten | script-built | **Built (Badumbau):** Auszuführende Arbeiten, Enthält je Einheit, Material grouped as in the offer document ("ohne Aufschlag", price changes since the offer), Optionale Produkte, the sums (Zwischensumme, Rabatt, Neukundenbonus, free grab bar, Netto, MwSt, Gesamt), "Preis neu berechnen". **Open:** the other offer types (open in today's UI), the info button with the Alltagshilfe formula, recompute of a saved offer at today's prices, line edits (ADR 024) |
 | 12 | Angebotscheck | script-built | open |
 | 13 | Angebotsversand | 605 lines, 31 inputs | open — mail, letter, signing, documents |
 | 14 | Checkliste | 41 lines, 4 inputs | open |
