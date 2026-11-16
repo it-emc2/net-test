@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { Check, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { attachments, ccDefault, countText, mailChanges, previewHtml, touchedOf, type MailField, type Touched } from "./mail-rules.js";
+import { ProductPictures } from "./Bilder.js";
+import { NO_PICTURES, picturesFile, type PictureState } from "./pictures.js";
 import { TEXT, addFiles, fileSize, isDocx } from "./send-rules.js";
 
 type Offer = Record<string, unknown>;
@@ -40,6 +42,8 @@ export function Mail() {
   const body = String(mail.body ?? "");
   const files = attachments(offer, removed);
   const html = useMemo(() => previewHtml(body, offer), [body, offer]);
+  const pictureState = (useOfferStore((s) => s.scratch.productPictures) as PictureState | undefined) ?? NO_PICTURES;
+  const pictures = picturesFile(pictureState, offer.offerNumber);
 
   return (
     <section className="grid gap-3" aria-labelledby="zf-mail-title" data-testid="zf-mail">
@@ -59,12 +63,16 @@ export function Mail() {
       <EditedDocx />
 
       <div className="grid gap-2" data-testid="zf-mail-files">
-        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length + uploads.length)}</span>
+        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length + uploads.length + (pictures ? 1 : 0))}</span>
           <AddFiles id="zf-mail-add" onAdd={(added) => st().remember("mailUploads", addFiles(uploads, added))} /></p>
         <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
-          {files.map((f) => <FileRow key={f.id} name={f.name} meta={f.meta} fixed={f.fixed} onRemove={() => st().remember("mailRemoved", [...removed, f.id])} />)}
+          {files.map((f, i) => [
+            <FileRow key={f.id} name={f.name} meta={f.meta} fixed={f.fixed} onRemove={() => st().remember("mailRemoved", [...removed, f.id])} />,
+            i === 0 && pictures ? <FileRow key="pictures" name={pictures.name} meta={pictures.meta} onRemove={() => st().remember("productPictures", { ...pictureState, on: false })} /> : null, // right after the offer itself
+          ])}
           {uploads.map((f, i) => <FileRow key={`u${i}`} name={f.name} meta={`Hinzugefügt · ${fileSize(f.size)}`} onRemove={() => st().remember("mailUploads", uploads.filter((_, j) => j !== i))} />)}
         </ul>
+        <ProductPictures />
       </div>
     </section>
   );
