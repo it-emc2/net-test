@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { call } from "../../../shared/api/index.js";
-import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore, usePrice } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import {
@@ -71,7 +71,7 @@ function Tiles({ tiles, picked, onPick }: { tiles: readonly Tile[]; picked: stri
       {tiles.map((t) => (
         <label key={t.value} data-testid="fb-tile" data-value={t.value} className="grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
           <input type="checkbox" name="fb-covering" className="sr-only" checked={picked === t.value} onChange={() => onPick(t.value)} />
-          <img src={t.img} alt="" className="size-20 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+          <img src={t.img} alt="" className={cn(IMG.tile, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
           <span data-part="caption">{t.caption}</span>
         </label>
       ))}
@@ -208,7 +208,7 @@ function Wall() {
                 <label key={d.value} data-value={d.value} className={tile}>
                   {/* while the wall's rest is used, the decor stays the wall's */}
                   <input type="radio" name="wc-decor" className="sr-only" checked={on} disabled={credit > 0 && !on} onChange={() => write({ wallCladdingWwDecor: d.value })} />
-                  {d.value === "custom" ? <span aria-hidden className="grid size-14 place-items-center rounded border-2 border-dashed border-input text-2xl">+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+                  {d.value === "custom" ? <span aria-hidden className={cn(IMG.swatch, "grid place-items-center rounded border-2 border-dashed border-input text-2xl")}>+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
                   <span data-part="caption">{d.caption}</span>
                 </label>
               );
@@ -248,7 +248,7 @@ function Wall() {
             {w.COLORS.map((c) => (
               <label key={c.value} data-value={c.value} className={tile}>
                 <input type="radio" name="wc-color" className="sr-only" checked={w.colorOf(dw) === c.value} onChange={() => write({ wallCladdingColor: c.value })} />
-                <img src={c.img} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                <img src={c.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
                 <span data-part="caption">{c.caption}</span>
                 {(settings.own[w.articlesFor(c.value)[997]] || 0) > 0 || (settings.own[w.articlesFor(c.value)[1497]] || 0) > 0 ? <span data-part="own" className="text-[0.8rem] font-normal text-muted-foreground">Lager: {[[997, settings.own[w.articlesFor(c.value)[997]]], [1497, settings.own[w.articlesFor(c.value)[1497]]]].filter(([, n]) => (n || 0) > 0).map(([z, n]) => `${z}: ${n}`).join(" / ")}</span> : null}
               </label>
@@ -261,7 +261,7 @@ function Wall() {
           <strong>Ihre Auswahl</strong>
           {rows.map((r) => (
             <div key={r.name} data-testid="wc-selected" className="flex items-center gap-3 border-t border-border pt-2">
-              {r.img ? <img src={r.img} alt="" className="size-12 shrink-0 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}
+              {r.img ? <img src={r.img} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}
               <span className="grid min-w-0 flex-1">
                 <strong data-part="name">{r.name}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price">{r.price}</span>
                 {r.stock ? <span data-part="badges" className="flex flex-wrap gap-2 text-[0.85rem] font-semibold"><span title={r.stock.text} className={cn("rounded-full px-2 py-0.5", r.stock.inStock ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>{r.stock.qty} {r.stock.inStock ? "Auf Lager" : "Auf Bestellung"}</span>{r.own ? <span className="rounded-full bg-muted px-2 py-0.5">{r.own} Im eigenen Lager</span> : null}</span> : null}

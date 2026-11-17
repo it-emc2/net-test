@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check as Tick, Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
-import { Button, Card, CardTitle, Field, Input, Switch, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Field, Input, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferField, useOfferStore } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import {
@@ -156,7 +156,7 @@ function Chosen({ line, tray }: { line: Line; tray: Tray | undefined }) {
             {COLORS.map((c) => (
               <label key={c.value} className="grid w-24 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
                 <input type="radio" name="trayColor" className="sr-only" value={c.value} checked={color === c.value} onChange={() => write({ trayColor: c.value })} />
-                <img src={colorImage(c.value)} alt="" className="size-14 rounded-full object-cover" loading="lazy" />
+                <img src={colorImage(c.value)} alt="" className={cn(IMG.swatch, "rounded-full object-cover")} loading="lazy" />
                 {c.label}
               </label>
             ))}
@@ -188,7 +188,7 @@ function Accessories({ line }: { line: Line }) {
           <div key={a.name} data-testid={`acc-${a.name}`} className="grid gap-2 rounded-lg border-2 border-input bg-card px-4 py-2 has-[:checked]:border-primary">
             <label className="flex min-h-12 cursor-pointer items-center gap-3">
               <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={on} onChange={(e) => write(toggleAccessory(a.name, a.value, e.target.checked))} />
-              <img src={a.img} alt="" className="size-12 rounded object-cover" loading="lazy" />
+              <img src={a.img} alt="" className={cn(IMG.row, "rounded object-cover")} loading="lazy" />
               <span className="grid"><span data-part="caption" className={cn(on && "font-bold")}>{text.caption}</span><small data-part="small" className="text-muted-foreground">{text.small}</small></span>
             </label>
             {a.name === "stelzlager" && on ? (
