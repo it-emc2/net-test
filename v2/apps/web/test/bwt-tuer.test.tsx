@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { DOORS, GRIPS, doorInfo } from "../src/features/steps/bwt/rules.js";
+import { DOORS, GRIPS, dimField, doorInfo } from "../src/features/steps/bwt/rules.js";
 import reference from "./fixtures/bwt-tuer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -12,8 +12,10 @@ const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
 const door = (key: string) => DOORS.find((d) => d.key === key)!;
 const cardOf = (key: string) => screen.getAllByTestId("bwt-door").find((c) => c.dataset.key === key)!;
+/** the panel of the chosen door (nothing for a door that is off) */
+const panelOf = (key: string) => screen.queryAllByTestId("bwt-door-panel").find((c) => c.dataset.key === key) ?? null;
 const DIM_NAME: Record<string, string> = { Height: "Höhe", Width: "Breite", StdWidth: "Standardbreite", DepthTop: "Tiefe O", DepthBottom: "Tiefe U" };
-const COLOR_LABEL: Record<string, string> = { weiß: "Weiß", Beige: "Bahama Beige", Manhattan: "Manhattan" };
+const COLOR_LABEL: Record<string, string> = { weiß: "Weiß", silber: "Silber", Beige: "Bahama Beige", Manhattan: "Manhattan" };
 const MATERIAL_LABEL: Record<string, string> = { "Weiß ich nicht": "Nicht bekannt" };
 const UMBAU_LABEL: Record<string, string> = { flat_surface: "Fläche ist gerade und eben im Bereich der BWT", fixture_free: "Fläche ist frei von Armaturen", not_whirlpool: "Ist kein Whirlpool" };
 
@@ -30,14 +32,20 @@ async function play(steps: (string | number)[][]) {
     else if (kind === "umbau") await user.click(screen.getByRole("checkbox", { name: UMBAU_LABEL[a as string]! }));
     else if (kind === "material") await user.click(screen.getByRole("radio", { name: MATERIAL_LABEL[a as string] ?? (a as string) }));
     else if (kind === "door") await user.click(within(cardOf(a as string)).getByRole("checkbox"));
-    else if (kind === "qty") fireEvent.change(within(cardOf(a as string)).getByLabelText(`Menge ${door(a as string).value}`), { target: { value: b } });
+    else if (kind === "qty") fireEvent.change(within(panelOf(a as string)!).getByLabelText("Menge"), { target: { value: b } });
     else if (kind === "color") {
-      const card = within(cardOf(a as string));
-      if (a === "wien") fireEvent.change(card.getByLabelText("Farbe Individual Tür - Wien"), { target: { value: b } });
-      else if (a === "glas") fireEvent.change(card.getByLabelText("Rahmen-Farbe"), { target: { value: b } });
-      else await user.click(card.getByRole("radio", { name: COLOR_LABEL[b as string]! }));
+      const panel = within(panelOf(a as string)!);
+      if (a === "glas") fireEvent.change(panel.getByLabelText("Rahmen-Farbe"), { target: { value: b } });
+      else await user.click(panel.getByRole("radio", { name: COLOR_LABEL[b as string]! }));
     }
-    else if (kind === "dim") fireEvent.change(within(cardOf(a as string)).getByLabelText(`${DIM_NAME[b as string]} ${door(a as string).value}`), { target: { value: c } });
+    else if (kind === "dim") {
+      // the sizes are only on the page while their door is picked: for a door that is off, the stored field is set as the page would have
+      const panel = panelOf(a as string), chip = b === "StdWidth";
+      const input = panel && !chip ? within(panel).queryByLabelText(`${DIM_NAME[b as string]} ${door(a as string).value}`) : null;
+      if (input) fireEvent.change(input, { target: { value: c } });
+      else if (panel && chip && c) await user.click(within(panel).getByRole("button", { name: c as string }));
+      else useOfferStore.getState().patch("bwt" as never, { [dimField(door(a as string), b as string)]: c } as never);
+    }
     else if (kind === "anschlag") await user.click(screen.getByRole("radio", { name: a === "Links" ? "← Links" : "Rechts →" }));
     else if (kind === "grip") await user.click(screen.getByRole("checkbox", { name: `Haltegriff ${a} cm` }));
     else if (kind === "gripqty") fireEvent.change(screen.getByLabelText(`Menge Haltegriff ${a} cm`), { target: { value: b } });
@@ -71,18 +79,57 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     expect(checked("bwtAnschlag")).toBe(v.anschlag);
     expect(offer().bwt.bwtSteelNoteEnabled === "on").toBe(v.steelNote);
     expect(v.doors.map((x) => door(x.key)).map((d) => {
-      const card = within(cardOf(d.key)), on = (card.getByRole("checkbox") as HTMLInputElement).checked;
-      const qty = card.queryByLabelText(`Menge ${d.value}`) as HTMLInputElement | null;
-      const color = d.colorKind === "pills" ? card.queryAllByRole("radio").find((r) => r.getAttribute("aria-checked") === "true")?.textContent
-        : (card.queryByLabelText(d.colorKind === "text" ? "Rahmen-Farbe" : `Farbe ${d.value}`) as HTMLInputElement | null)?.value;
-      const dims = Object.fromEntries(Object.keys(DIM_NAME).flatMap((f) => { const i = card.queryByLabelText(`${DIM_NAME[f]} ${d.value}`) as HTMLInputElement | null; return i ? [[f, i.value]] : []; }));
+      const on = (within(cardOf(d.key)).getByRole("checkbox") as HTMLInputElement).checked, panel = panelOf(d.key), card = panel ? within(panel) : null;
+      const qty = card?.queryByLabelText("Menge") as HTMLInputElement | null;
+      const color = !card ? undefined : d.colorKind === "text" ? (card.getByLabelText("Rahmen-Farbe") as HTMLInputElement).value
+        : card.queryAllByRole("radio").find((r) => r.getAttribute("aria-checked") === "true")?.textContent;
+      const dims = !card ? {} : Object.fromEntries(Object.keys(DIM_NAME).flatMap((f) => {
+        if (f === "StdWidth") return d.dims ? [[f, card.queryAllByRole("button", { pressed: true }).map((x) => x.textContent)[0] ?? ""]] : [];
+        const i = card.queryByLabelText(`${DIM_NAME[f]} ${d.value}`) as HTMLInputElement | null; return i ? [[f, i.value]] : [];
+      }));
       const key = Object.entries(COLOR_LABEL).find(([, l]) => l === color)?.[0] ?? color;
       return { key: d.key, on, qty: on ? qty!.value : null, color: on ? key! : null, dims };
-    })).toEqual(v.doors);
+    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-028)
     expect(GRIPS.map((g) => { const cb = screen.getByRole("checkbox", { name: g.label }) as HTMLInputElement; return { n: g.n, on: cb.checked, qty: cb.checked ? (screen.getByLabelText(`Menge ${g.label}`) as HTMLInputElement).value : null }; })).toEqual(v.grips);
   });
 
   it("the document lines of the picked door follow the stored fields", () => {
     for (const s of reference.scenarios) expect(doorInfo({ ...reference.base, ...(s.bwt as Record<string, unknown>) })).toEqual({ ...reference.base, ...(s.bwt as Record<string, any>) }.doorInfoById);
+  });
+
+  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-031)", async () => {
+    await open();
+    expect(screen.queryByTestId("bwt-missing")).toBeNull();
+    await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
+    expect((await screen.findByTestId("bwt-missing")).textContent).toBe("Bitte wählen Sie noch: Wannenform");
+    expect(screen.getByRole("radio", { name: "Normal, rechteckig" }).getAttribute("aria-invalid")).toBe("true");
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Normal, rechteckig" }));
+    await waitFor(() => expect(screen.queryByTestId("bwt-missing")).toBeNull());
+    const door = (await within(cardOf("std")).findByRole("checkbox")) as HTMLInputElement;
+    await userEvent.setup().click(door); // the door is picked by default: off → missing
+    await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
+    expect((await screen.findByTestId("bwt-missing")).textContent).toBe("Bitte wählen Sie noch: Tür");
+    expect(door.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("the door panel: one panel for the chosen door, quantity stepper (min 1), Standardbreite as chips (UX-CHANGES U-034)", async () => {
+    await open();
+    const user = userEvent.setup();
+    expect(screen.getAllByTestId("bwt-door")).toHaveLength(5);
+    expect(screen.getAllByTestId("bwt-door-panel")).toHaveLength(1);
+    const panel = within(screen.getByTestId("bwt-door-panel"));
+    await user.click(panel.getByRole("button", { name: "Menge erhöhen" }));
+    expect(offer().bwt.bwtDoorStdQty).toBe("2");
+    await user.click(panel.getByRole("button", { name: "Menge verringern" }));
+    await user.click(panel.getByRole("button", { name: "Menge verringern" }));
+    expect(offer().bwt.bwtDoorStdQty).toBe("1"); // never below 1
+    await user.click(within(cardOf("wien")).getByRole("checkbox"));
+    const wien = within(screen.getByTestId("bwt-door-panel"));
+    expect(screen.getAllByTestId("bwt-door-panel")).toHaveLength(1);
+    await user.click(wien.getByRole("button", { name: "45,5 cm" }));
+    expect(offer().bwt.bwtDoorIndWienStdWidth).toBe("45,5 cm");
+    await user.click(wien.getByRole("button", { name: "45,5 cm" }));
+    expect(offer().bwt.bwtDoorIndWienStdWidth).toBe("");
+    expect(wien.getByRole("radiogroup", { name: "Farbe" })).toBeTruthy();
   });
 });

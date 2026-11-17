@@ -150,6 +150,7 @@ function goOn(step: string, open: (step: string) => void): boolean {
   cancelFocus();
   const problem = checkStep(step);
   if (!problem) { toast.dismiss("step-check"); return true; }
+  useOfferStore.getState().remember(`tried:${step}`, true); // the step may now show what is missing on the page itself
   toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" });
   const elsewhere = !!problem.goTo && problem.goTo !== step;
   if (elsewhere) open(problem.goTo!);
