@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEBOUNCE_MS } from "../src/features/offer/model/usePrice.js";
-import { AUTOSAVE_MS, useOfferStore } from "../src/features/offer/index.js";
+import { AUTOSAVE_MS, flushDraft, useOfferStore } from "../src/features/offer/index.js";
 import { BASE, NO_DRAFT, USER, fakeServer, renderApp } from "./helpers.js";
 
 const PRICE = "POST /api/price";
@@ -105,7 +105,7 @@ describe("app shell", () => {
     fakeServer({ ...BASE, "PUT /api/deals/4711/draft": { status: 409, body: { error: { code: "REVISION_CONFLICT", message: "Der Entwurf wurde inzwischen an anderer Stelle geändert. Bitte neu laden.", requestId: "r" }, currentRevision: 9 } } });
     renderApp("/deal/4711/bu/Kundendaten");
     await userEvent.type(await screen.findByLabelText("Vorname"), "E");
-    await userEvent.click(screen.getByRole("link", { name: "Weitere Angaben in der bisherigen Ansicht" })); // saves at once
+    await act(async () => { await flushDraft(); }); // saves at once
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Nicht gespeichert");
     expect(alert.parentElement).toHaveAttribute("title", "Nicht gespeichert – an anderer Stelle geändert");

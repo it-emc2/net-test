@@ -2,20 +2,21 @@
 // payer with the insurance details, care level and budget, second person, Wohnumfeld, funding
 // and property, notes and the internal list. The stored fields are exactly today's
 // (test/kundendaten.test.tsx compares with what today's UI stores for the same inputs).
-// Still in today's UI: the uploaded confirmations (Kasse, Vermieter).
+// The confirmations of the Kasse and the landlord go straight to the Bitrix deal (uploads.ts).
 import { useEffect, useRef } from "react";
-import { useParams } from "react-router";
-import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
-import { Button, Card, CardTitle, Check, Field, Input, Label, SelectField, TextAreaField } from "../../../shared/ui/index.js";
+import { call } from "../../../shared/api/index.js";
+import { useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
+import { Button, Card, CardTitle, Check, Field, Input, Label, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
 import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
 import { Markup } from "../markup/Markup.js";
 import { markupChanges, markupTextSection } from "../markup/rules.js";
-import { Plus, Trash2, X } from "lucide-react";
+import { Camera, CircleAlert, CircleCheck, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
+import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
 
 const KD = "Kundendaten";
 
@@ -242,13 +243,66 @@ function SecondPerson() {
   );
 }
 
+/** One upload box: a chosen photo or file goes to the Bitrix deal at once. It never stops the
+ *  step — whatever happens is said in the box. `onDone` runs after a file went up. */
+async function sendUpload(kind: UploadKind, file: File, onDone?: () => void) {
+  const opened = useOfferStore.getState().dealId;
+  const memory = () => ((useOfferStore.getState().scratch.uploads as Uploads | undefined) ?? {});
+  // the offer that was open when the file was chosen may be closed by the time the answer comes
+  const show = (box: Box, done?: string[]) => {
+    const st = useOfferStore.getState();
+    if (st.dealId !== opened) return false;
+    st.remember("uploads", { ...memory(), [kind]: { done: done ?? memory()[kind]?.done ?? [], box } });
+    return true;
+  };
+  const deal = dealNumber(useOfferStore.getState().offer as Record<string, unknown> | null, opened);
+  const no = refusal(deal, file.size);
+  if (no) { show(no); return; }
+  show(running(file.name));
+  try {
+    const answer = await call("dealUpload", { params: { id: deal, type: kind }, body: { filename: fileName(kind, file.name), base64: await toBase64(file) } });
+    if (show(uploaded([...(memory()[kind]?.done ?? []), file.name], answer.kept !== false), [...(memory()[kind]?.done ?? []), file.name])) onDone?.();
+  } catch (err) {
+    show(failed((err as Error)?.message || String(err)));
+  }
+}
+function DealUpload({ kind, onDone }: { kind: UploadKind; onDone?: () => void }) {
+  const box = useOfferStore((s) => (s.scratch.uploads as Uploads | undefined)?.[kind]?.box) ?? idle(kind);
+  const id = `kd-upload-${kind}`, busy = box.state === "busy";
+  const Icon = busy ? LoaderCircle : box.state === "ok" ? CircleCheck : box.state === "err" ? CircleAlert : Camera;
+  return (
+    <div className="grid gap-1.5" data-testid={id}>
+      <span className="font-semibold" id={`${id}-label`} data-part="label">{UPLOADS[kind].label}</span>
+      <label
+        htmlFor={`${id}-file`} data-state={box.state} aria-busy={busy} data-part="box"
+        className={cn(
+          "flex min-h-[120px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-5 text-center",
+          busy && "pointer-events-none opacity-75", box.state === "ok" ? "border-[#1e8449] bg-[#eaf7ef] text-[#1e8449]" : box.state === "err" ? "border-[#c0392b] bg-[#fdecea] text-[#c0392b]" : "border-input bg-card",
+        )}
+      >
+        <span className="flex items-center gap-2 font-semibold"><Icon aria-hidden className={cn("size-6 shrink-0", busy && "animate-spin")} /><span data-part="title">{box.title}</span></span>
+        <span className="break-words text-[0.9rem] opacity-80" data-part="hint">{box.hint}</span>
+      </label>
+      <input
+        id={`${id}-file`} type="file" accept={ACCEPT} hidden disabled={busy} aria-labelledby={`${id}-label`} data-testid={`${id}-file`}
+        onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void sendUpload(kind, file, onDone); }}
+      />
+      <span className="sr-only" aria-live="polite">{box.state ? `${box.title} ${box.hint}` : ""}</span>
+    </div>
+  );
+}
+
 /** Funding (application to the Pflegekasse), living situation, landlord, parking and notes. */
 function Property() {
   const type = useOfferType();
   const payer = useOfferField<string>(KD, "payer");
   const application = useOfferField<string>(KD, "pflegekasseAntrag");
   const living = useOfferField<string>(KD, "wohnsituation");
+  const needed = useOfferField<string>(KD, "vermieterGenehmigungErforderlich");
   const notes = useOfferField<string>(KD, "notes") ?? "";
+  // a landlord's confirmation that went up answers "liegt vor" with Ja (stored for a rented home only)
+  const confirmed = () => useOfferStore.getState().scratch.landlordConfirmed === true;
+  const landlordDone = () => { useOfferStore.getState().remember("landlordConfirmed", true); const a = landlordAnswer(kdNow().wohnsituation, true); if (a.vermieterGenehmigung) setKd(a); };
   const notAh = type !== "ah"; // Alltagshilfe asks only about parking and notes here
   const JA_NEIN = ["Ja", "Nein"];
   return (
@@ -261,9 +315,16 @@ function Property() {
           {application === "Nein" ? <OfferChoice section={KD} name="pflegekasseEmc2Antrag" label="Darf EmC2 für Sie diesen Antrag stellen?" options={JA_NEIN} /> : null}
         </>
       ) : null}
-      {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd(chooseLivingSituation(v))} /> : null}
+      {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd({ ...chooseLivingSituation(v), ...landlordAnswer(v, confirmed()) })} /> : null}
       {type === "bu" || type === "bwt" || type === "hl" ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
-      {notAh && living === "Miete" ? <OfferChoice section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]} /> : null}
+      {showVermieter(type, needed) ? <DealUpload kind="vermieter" onDone={landlordDone} /> : null}
+      {notAh && living === "Miete" ? (
+        <OfferChoice
+          section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]}
+          // an answer given by hand counts from now on, not the upload before it
+          onChoose={(v) => { useOfferStore.getState().remember("landlordConfirmed", false); setKd({ vermieterGenehmigung: v }); }}
+        />
+      ) : null}
       <OfferChoice section={KD} name="parkenMoeglich" label="Parken vor dem Objekt möglich?" options={JA_NEIN} />
       <OfferText section={KD} name="parkDetails" label="Weitere Angaben zur Parksituation" placeholder="z. B. Hinterhof, Halteverbot, Fußweg zum Objekt" autoComplete="off" />
       <TextAreaField label="Notizen" id="kd-notes" value={notes} onChange={(v) => setKd({ notes: v })} placeholder="Freie Notizen …" />
@@ -279,7 +340,7 @@ function Wohnumfeld() {
   const done = useOfferField<string>(KD, "wohnumfeldDone");
   const stored = useOfferField(KD, "wohnumfeld");
   const remembered = useOfferStore((s) => s.scratch.wohnumfeldRows);
-  if (payer !== "Kassenkunde" || type === "ah") return null;
+  if (!showKasse(type, payer)) return null;
   const rows = amountRows({ wohnumfeld: stored }, remembered);
   const write = (next: AmountRow[], answer = done) => {
     const st = useOfferStore.getState();
@@ -312,6 +373,7 @@ function Wohnumfeld() {
           <p className="m-0" aria-live="polite" data-testid="we-used">Bereits verbraucht <strong>{usedText(rows)}</strong></p>
         </fieldset>
       ) : null}
+      <DealUpload kind="kasse" />
     </Card>
   );
 }
@@ -358,7 +420,6 @@ export function Kundendaten() {
   useTwoPersonsTexts();
   useAutoRoute(); // the way to the customer is worked out as soon as the address is known (U-011 B4)
   const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
-  const { dealId = "" } = useParams();
   return (
     <>
       <Contact />
@@ -371,11 +432,6 @@ export function Kundendaten() {
       <Wohnumfeld />
       <Property />
       <InternalList />
-      <Card aria-labelledby="kd-more">
-        <CardTitle id="kd-more">Weitere Angaben</CardTitle>
-        <p className="m-0">Hochgeladene Bestätigungen (Kasse, Vermieter) werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
-        <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
-      </Card>
     </>
   );
 }
