@@ -41,9 +41,8 @@ const SCENARIOS = {
   "extra work time": [["az", "130", "Anpassungsarbeiten"]],
   "markup 40": [["auf", "40"]],
   "discount on materials 5 %": [YES, ["slider", "5"]],
-  "Neukundenbonus": [YES, ["b300"]],
   "free grab bar": [["grip", 30, "1"], YES, ["bgrab"]],
-  "everything": [["door", "wien"], ["dim", "wien", "Height", "30"], ["grip", 40, "2"], ["free", "Sonderanfertigung Glas", "799,00", "BWT-CUS-001", "2"], ["task", "Fuge erneuern"], ["az", "045", "Silikon"], ["auf", "10"], YES, ["slider", "5"], ["b300"]],
+  "everything": [["door", "wien"], ["dim", "wien", "Height", "30"], ["grip", 40, "2"], ["free", "Sonderanfertigung Glas", "799,00", "BWT-CUS-001", "2"], ["task", "Fuge erneuern"], ["az", "045", "Silikon"], ["auf", "10"], YES, ["slider", "5"]],
 };
 /** the part of a price request that decides the answer on this page */
 const keyOf = (p) => [p?.Kundendaten?.payer, p?.Kundendaten?.aufschlag, !!p?.rabatt?.rabattEnabled, Number(p?.rabatt?.materialDiscountPct) || 0, !!p?.rabatt?.bonus300, !!p?.rabatt?.bonusGrab, Number(p?.duschwanne?.wallCladdingQty) || 0, Number(p?.optional?.qty_CLPESG30) || 0].join("|");

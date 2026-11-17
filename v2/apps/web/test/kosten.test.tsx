@@ -54,7 +54,7 @@ describe("Kosten — rules and what goes beyond the recordings", () => {
   });
 
   it("the other offer types still use today's view for this step", async () => {
-    await open({ total: 10 }, "bwt");
+    await open({ total: 10 }, "bl");
     expect(await screen.findByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeTruthy();
     expect(screen.queryByTestId("kosten-sums")).toBeNull();
   });

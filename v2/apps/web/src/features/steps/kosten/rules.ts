@@ -51,14 +51,54 @@ function grouped(list: RawLine[], exempt: ReadonlySet<string>): Row[] {
 }
 const INCLUDED = [/fahrzeugbereitstellung/i, /bereitstellung.*werkzeug/i, /ber.?umung der baustelle/i, /kilometerpauschale/i, /facharbeiter/i, /anfahrt/i];
 
-/** The sections of the page for a Badumbau, from a price. */
-export function sections(price: Price | null): Section[] {
+/** What the page needs besides the price: the offer type (the Badewannentür has its own lines) and the offer. */
+export interface Ctx { type?: string | null; offer?: Record<string, any> | null }
+
+/** Badewannentür: the tasks of the Arbeiten step are lines without a price, after the priced work */
+const DOOR_TASK_TITLES: Record<string, string> = { deliver_install_bwt_door: "Liefern und Montieren der nachfolgend aufgeführten Badewannentür" };
+function bwtTaskRows(bwt: Fields): Row[] {
+  const tasks = (Array.isArray(bwt.workTasks) ? bwt.workTasks : []).map((v) => DOOR_TASK_TITLES[String(v)]).filter(Boolean) as string[];
+  const free = (Array.isArray(bwt.extraTasks) ? bwt.extraTasks : []).map((t) => String(t ?? "").trim()).filter(Boolean);
+  return [...tasks, ...free].map((t) => row({ label: `- ${t}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 }, new Set()));
+}
+/** Badewannentür: the extra work time of the Arbeitszeit step is shown task by task ("Extra Arbeitszeit:" + one line each) */
+function bwtExtraTimeLabel(label: string, az: Fields): string {
+  const lines = (Array.isArray(az.extraTasks) ? (az.extraTasks as Fields[]) : []).flatMap((t) => {
+    const dur = String(t.durationHHMM ?? "").trim(), task = String(t.task ?? "").trim();
+    return dur || task ? [`    -${dur ? ` (${dur})` : ""}${task ? `: ${task}` : ""}`] : [];
+  });
+  return lines.length ? `Extra Arbeitszeit:\n${lines.join("\n")}` : label;
+}
+
+/** Badewannentür "Enthält je Einheit": the server's lines, else (older answers) built from the services and the door, delivery and small-material lines */
+function bwtIncluded(price: Price, _offer: Fields): RawLine[] {
+  const own = Array.isArray(price.bwtIncludedDisplayUI) ? (price.bwtIncludedDisplayUI as Fields[]) : [];
+  if (own.length) return own.map((r) => ({ productId: String(r.productId || r.key || ""), label: String(r.label || "-"), qty: n(r.qty), unitPrice: n(r.unitPrice), lineTotal: n(r.lineTotal) }));
+  const svc = lines(price.servicesDisplayUI).length ? lines(price.servicesDisplayUI) : lines(price.services);
+  const out: RawLine[] = [];
+  const km = svc.find((s) => /kilometerpauschale/i.test(String(s.label || s.name || "")));
+  if (km && typeof km.amount === "number" && km.amount > 0) out.push({ productId: String(km.key || km.productId || "kilometer"), label: String(km.label || km.name || "-"), qty: 1, unitPrice: km.amount, lineTotal: km.amount });
+  const work = svc.find((s) => s.key === "facharbeiter" || /facharbeiter|arbeitszeit/i.test(String(s.label || s.name || "")));
+  if (work && n(work.amount) > 0) out.push({ productId: String(work.key || work.productId || "facharbeiter"), label: String(work.label || work.name || "-"), qty: n(work.qty ?? 1) || 1, unitPrice: n(work.unitPrice ?? work.amount), lineTotal: n(work.amount) });
+  const docx = (price.materialsDisplayDocx as Fields | undefined)?.lines, mat = Array.isArray(docx) && docx.length ? lines(price.materialsDisplayDocx) : lines(price.materials);
+  for (const [id, short] of [["140322", "Lieferkosten Badewannentür"], ["1226", "Universal / Standard Tür"], ["KM02", "Kleinmaterial"]] as const) {
+    const l = mat.find((x) => idOf(x) === id), qty = n(l?.qty);
+    if (l && qty > 0) out.push({ productId: id, label: `- ${qty.toFixed(2).replace(/\.00$/, "")} Stk ${short}`, qty, unitPrice: n(l.unitPrice), lineTotal: n(l.lineTotal) });
+  }
+  return out;
+}
+
+/** The sections of the page, from a price (Badumbau; for the Badewannentür with `ctx`). */
+export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
   if (!price) return [];
+  const bwt = ctx.type === "bwt", offer = ctx.offer ?? {};
   const exempt = new Set((Array.isArray(price.markupExemptIds) ? price.markupExemptIds : []).map(String));
   const services = (price.services ?? {}) as Fields, materials = (price.materials ?? {}) as Fields;
   const work: Row[] = [], included: Row[] = [];
   for (const s of lines(price.servicesDisplayUI).length ? lines(price.servicesDisplayUI) : lines(services)) {
-    const label = String(s.label || "").trim(), plain = label.replace(/^\s*-\s*/, "");
+    let label = String(s.label || "").trim();
+    if (bwt && (s.key === "extraAufgabe" || /extra\s*aufgabe/i.test(label.replace(/^\s*-\s*/, "")))) label = bwtExtraTimeLabel(label, (offer.Arbeitszeit ?? {}) as Fields);
+    const plain = label.replace(/^\s*-\s*/, "");
     const facharbeiter = s.key === "facharbeiter" || /facharbeiter/i.test(String(s.label || ""));
     const unitPrice = Number.isFinite(Number(s.unitPrice)) && s.unitPrice != null ? Number(s.unitPrice) : facharbeiter && n(services.laborRate) ? n(services.laborRate) : n(s.amount);
     const r = row({ productId: s.key || s.productId, label: label || s.name || s.productId || "-", qty: s.qty ?? 1, unit: s.unit || "", unitPrice, lineTotal: s.amount }, new Set());
@@ -69,6 +109,15 @@ export function sections(price: Price | null): Section[] {
   const drift = materials.vigorPriceDrift as { totalDelta?: unknown; lines?: unknown[] } | undefined, delta = n(drift?.totalDelta);
   const optLines = Array.isArray((price.optionalDisplayUI as Fields | undefined)?.lines) ? lines(price.optionalDisplayUI)
     : (Array.isArray(price.items) ? (price.items as RawLine[]) : []).map((i) => ({ productId: i.productId, name: i.productId, qty: i.qty, unitPrice: i.unitPrice, lineTotal: i.lineTotal }));
+  if (bwt) {
+    const inc = bwtIncluded(price, offer), drift2 = drift && Math.abs(delta) >= 0.005 && (drift.lines?.length ?? 0) > 1;
+    return [
+      { num: "", title: String(services.title || "Auszuführende Arbeiten"), rows: [...work, ...bwtTaskRows((offer.bwt ?? {}) as Fields)], footer: "" },
+      { num: "", title: "Enthält je Einheit", rows: inc.map((l) => row(l, new Set())), footer: `Summe Leistungen: ${eur(inc.reduce((a, l) => a + n(l.lineTotal), 0))}` },
+      { num: "", title: String(materials.title || "Material für Badumbau"), rows: matLines.map((l) => row(l, exempt)), footer: `Summe Material: ${eur(matSum)}`,
+        note: drift2 ? { text: `Preis geändert: ${drift!.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
+    ];
+  }
   return [
     { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
@@ -80,15 +129,16 @@ export function sections(price: Price | null): Section[] {
 }
 
 /** "Summen": purchase sums → markup → (subtotal → discount / bonus) → net → VAT → total */
-export function sums(price: Price | null): SumRow[] {
+export function sums(price: Price | null, ctx: Ctx = {}): SumRow[] {
   if (!price) return [];
+  const num = (s: string) => (ctx.type === "bwt" ? "" : s);
   const services = (price.services ?? {}) as Fields, materials = (price.materials ?? {}) as Fields;
   const optional = n((price.optionalDisplayUI as Fields | undefined)?.sum), discount = n(price.rabattAmount), bonus = n(price.bonusGross);
   const grabReal = n(price.grabBonusReal), grabMat = n(price.grabBonusMaterial), grabWork = n(price.grabBonusArbeit), base = n(price.markupBase);
   return [
-    { num: "I", label: "Auszuführende Arbeiten:", value: eur(services.sum) },
-    { num: "II", label: `${String(materials.title || "Material für Badumbau")}:`, value: eur((price.materialsDisplayUI as Fields | undefined)?.sum ?? materials.sum ?? 0) },
-    ...(optional ? [{ num: "III", label: "Optionale Produkte:", value: eur(optional) }] : []),
+    { num: num("I"), label: "Auszuführende Arbeiten:", value: eur(services.sum) },
+    { num: num("II"), label: `${String(materials.title || "Material für Badumbau")}:`, value: eur((price.materialsDisplayUI as Fields | undefined)?.sum ?? materials.sum ?? 0) },
+    ...(optional ? [{ num: num("III"), label: "Optionale Produkte:", value: eur(optional) }] : []),
     { label: `Aufschlag (${percent(price.markupPct)}%${base ? ` auf ${eur(base)}` : ""}):`, value: eur(price.markup) },
     ...(discount || bonus ? [{ label: "Zwischensumme:", value: eur(price.Nettobetrag), rule: true }] : []),
     ...(discount ? [{ label: "Rabatt:", value: `− ${eur(discount)}` }] : []),
