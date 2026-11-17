@@ -2,7 +2,7 @@
 // offer started without a deal number. Today's UI reads and writes the SAME draft, so a step
 // that is not rebuilt yet can be continued there and back without losing anything.
 //  - opening an offer loads its draft; none yet → a new, empty offer
-//  - every change is saved AUTOSAVE_MS after the last one; `flushDraft()` saves at once
+//  - every change is saved AUTOSAVE_MS after the last one (and kept in a localStorage snapshot when the page goes away); `flushDraft()` saves at once
 //  - a draft changed elsewhere in the meantime is never overwritten (server answers 409)
 import { isNewOfferType, pricingRulesOf, type NewOfferType, type Offer } from "@oc/domain";
 import { useEffect, useState } from "react";
@@ -12,6 +12,29 @@ import { usePrefs } from "../../../shared/lib/prefs.js";
 import { useOfferStore } from "./store.js";
 
 export const AUTOSAVE_MS = 2500;
+
+// Synchronous device snapshot (localStorage): the page may go away within the autosave delay and
+// a request or IndexedDB write may not finish during unload. `revision` = server revision it is based on.
+const SNAP = "oc.snapshot.";
+interface Snapshot { at: number; revision: number; offerType: string; payload: unknown }
+export function writeSnapshot(): void {
+  const { offer, dealId, version, savedVersion, revision } = useOfferStore.getState();
+  if (!offer || !dealId || version === savedVersion) return;
+  try { localStorage.setItem(SNAP + dealId, JSON.stringify({ at: Date.now(), revision, offerType: offer.activeOffer, payload: offer } satisfies Snapshot)); } catch { /* full / private mode: the server draft remains */ }
+}
+const readSnapshot = (dealId: string): Snapshot | null => { try { return JSON.parse(localStorage.getItem(SNAP + dealId) ?? "null"); } catch { return null; } };
+const dropSnapshot = (dealId: string) => { try { localStorage.removeItem(SNAP + dealId); } catch { /* ignore */ } };
+
+/** A snapshot based on the server revision that is still current holds newer input → open it as
+ *  unsaved changes (uploaded by autosave / "Speichern"). A snapshot of an older revision never wins. */
+function applySnapshot(dealId: string, type: NewOfferType, serverRevision: number): boolean {
+  const snap = readSnapshot(dealId);
+  if (!snap) return false;
+  if (snap.revision !== serverRevision || snap.offerType !== type || !snap.payload) { dropSnapshot(dealId); return false; }
+  useOfferStore.getState().load(snap.payload as Offer, dealId, serverRevision);
+  useOfferStore.setState({ version: 1 }); // dirty: savedVersion stays 0
+  return true;
+}
 
 export type OpenState =
   | { status: "loading" }
@@ -32,7 +55,7 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
       (d) => {
         if (!isNewOfferType(d.offerType)) return setState({ status: "error", message: "Dieser Entwurf hat eine Angebotsart, die hier nicht bearbeitet werden kann." });
         if (d.offerType !== type) return setState({ status: "other-type", type: d.offerType });
-        useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
+        if (!applySnapshot(dealId, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
         setState({ status: "ready" });
       },
       (err: unknown) => {
@@ -42,6 +65,7 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
           // settings (offline) it starts without one and is priced with the defaults
           call("publicConfig", { signal: ctl.signal }).then(pricingRulesOf, () => undefined).then((pricingRules) => {
             if (ctl.signal.aborted) return;
+            if (applySnapshot(dealId, type, 0)) return setState({ status: "ready" });
             useOfferStore.getState().start(type, { date: todayIso(), ...(pricingRules ? { pricingRules } : {}) }, dealId);
             setState({ status: "ready" });
           });
@@ -78,7 +102,10 @@ export function flushDraft(): Promise<SaveStatus> {
   inFlight = call("saveDealDraft", { params: { dealId }, body: { offerType: offer.activeOffer, payload: offer, baseRevision: revision } })
     .then((r): SaveStatus => {
       // only if the same offer is still open (the user may have gone to the Hauptmenü meanwhile)
-      if (useOfferStore.getState().dealId === dealId) useOfferStore.getState().saved(version, r.revision);
+      if (useOfferStore.getState().dealId === dealId) {
+        useOfferStore.getState().saved(version, r.revision);
+        if (useOfferStore.getState().version === version) dropSnapshot(dealId); // nothing newer typed meanwhile
+      }
       return tell({ state: "saved", at: new Date() });
     })
     .catch((err: unknown): SaveStatus =>
@@ -100,8 +127,15 @@ export function useAutosave(): void {
     const t = setTimeout(() => { void flushDraft(); }, AUTOSAVE_MS);
     return () => clearTimeout(t);
   }, [version, dirty, auto]);
+  useEffect(() => writeSnapshot, []); // leaving the offer in-app: nothing may be lost (Hauptmenü also saves at once)
 }
 
+/** The page goes away (reload, close, tab discarded): keep the input at once. Called by the app
+ *  shell on pagehide / visibilitychange→hidden (features register no window listeners, ADR 026). */
+export function flushNow(): void {
+  writeSnapshot();
+  if (usePrefs.getState().autosave) void flushDraft();
+}
 /** A new temporary key for an offer started without a deal number ("t-" + 24 hex, unguessable). */
 export function newTempKey(): string {
   const b = crypto.getRandomValues(new Uint8Array(12));
