@@ -22,14 +22,16 @@ export interface Door {
   /** "pills": Weiß / Bahama Beige / Manhattan · "select": weiß / silber · "text": frame colour typed */
   colorKind: "pills" | "select" | "text";
   facts: readonly string[]; dims: boolean;
+  /** the short specs line of the door panel (display only) */
+  spec?: string;
 }
 export const DOORS: readonly Door[] = [
   { key: "std", pid: "1226", value: "Universal / Standard Tür", img: "/assets/tur.jpg", qty: "bwtDoorStdQty", color: "bwtDoorStdColor", colorKind: "pills", dims: false,
-    facts: ["• Höhen 40 bis 33cm abschneidbar", "• Fix Bereite 40,5 cm", "• Tiefe O 25cm U 25cm"] },
+    facts: ["• Höhen 40 bis 33cm abschneidbar", "• Fix Bereite 40,5 cm", "• Tiefe O 25cm U 25cm"], spec: "Höhe 40–33 cm (kürzbar) · Breite 40,5 cm fix · Tiefe O/U 25 cm" },
   { key: "wien", pid: "1227", value: "Individual Tür - Wien", img: "/assets/wien.jpg", qty: "bwtDoorIndWienQty", color: "bwtDoorIndWienColor", colorKind: "select", dims: true, facts: [] },
   { key: "glas", pid: "1228", value: "Individual Tür - Wien Glas", img: "/assets/wienglas1.jpg", qty: "bwtDoorIndWienGlasQty", color: "bwtDoorIndWienGlasFrameColor", colorKind: "text", dims: true, facts: [] },
   { key: "verona", pid: "1225", value: "Budget Tür - Verona", img: "/assets/verona.png", qty: "bwtDoorBudgetQty", color: "bwtDoorBudgetColor", colorKind: "pills", dims: false,
-    facts: ["• Höhen 34,36,38,40 cm", "• Fix Bereite 40,5 cm", "• Tiefe O13 cm U20 cm"] },
+    facts: ["• Höhen 34,36,38,40 cm", "• Fix Bereite 40,5 cm", "• Tiefe O13 cm U20 cm"], spec: "Höhen 34 / 36 / 38 / 40 cm · Breite 40,5 cm fix · Tiefe O 13 cm, U 20 cm" },
   { key: "vario", pid: "1320", value: "Variodoor", img: "/assets/variodoor.jpg", qty: "bwtDoorVariodoorQty", color: "bwtDoorVariodoorColor", colorKind: "pills", dims: false, facts: [] },
 ];
 /** the dimension fields of Wien / Wien Glas: the field suffix and its name in the document */
