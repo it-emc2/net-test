@@ -4,7 +4,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { badge, enrichmentOf, enrichmentPatch, fullRouteHref, parseAddress, parseName, pause, searchEntries, todayEntries, weekView, type PlanningEntry } from "../src/features/home/planning-rules.js";
+import { badge, departure, enrichmentOf, enrichmentPatch, fullRouteHref, parseAddress, parseName, pause, searchEntries, todayEntries, weekView, type PlanningEntry } from "../src/features/home/planning-rules.js";
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 // @ts-expect-error — the capture script is the shared test data (CommonJS)
 import { weekPayload, CONTACT } from "../../../scripts/capture-home-planung.cjs";
@@ -77,15 +77,50 @@ describe("offer from an appointment (replay of today's UI)", () => {
   });
 });
 
+describe("layout", () => {
+  it("departure = first start minus the way; unknown stays unknown", () => {
+    expect(departure(540, 45)).toBe("08:15");
+    expect(departure(30, 45)).toBe("23:45");
+    expect(departure(540, null)).toBeNull();
+    expect(departure(undefined, 45)).toBeNull();
+  });
+  it("departure row says it is unknown without routing; left column order; pause is its own card", async () => {
+    fakeServer({ ...HANDLERS(null), "POST /api/routing/suggest-distance": { status: 504, body: { error: { code: "X", message: "x", requestId: "t" } } } });
+    renderApp("/");
+    await waitFor(() => expect(card("a1")).toBeTruthy());
+    expect(screen.getByTestId("departure")).toHaveTextContent("Abfahrt: Fahrzeit unbekannt");
+    const left = within(card("a1")).getByTestId("appt-left").textContent!;
+    expect(left.indexOf("09:00")).toBeLessThan(left.indexOf("bis 10:30 · 90 Min"));
+    expect(left.indexOf("bis 10:30 · 90 Min")).toBeLessThan(left.indexOf("BU"));
+    expect(left.indexOf("BU")).toBeLessThan(left.indexOf("Fixer Slot 1"));
+    expect(left.indexOf("Fixer Slot 1")).toBeLessThan(left.indexOf("70001"));
+    expect(screen.getByTestId("pause")).toHaveTextContent("Pause 12:00 – 12:30");
+    expect(screen.getByTestId("pause")).toHaveTextContent("30 Min");
+  });
+  it("departure with travel time and km; return row", async () => {
+    fakeServer({ ...HANDLERS(null), "POST /api/routing/suggest-distance": { body: { ok: true, oneWaySeconds: 2700, oneWayKm: 52 } } });
+    renderApp("/");
+    await waitFor(() => expect(screen.getByTestId("departure")).toHaveTextContent("Abfahrt 08:15"));
+    expect(screen.getByTestId("departure")).toHaveTextContent("45 Min · 52 km bis zum 1. Termin");
+    await waitFor(() => expect(screen.getByTestId("return")).toHaveTextContent("Rückfahrt ab 14:00"));
+  });
+  it("week: empty days are one line", async () => {
+    fakeServer(HANDLERS(null));
+    renderApp("/");
+    await waitFor(() => expect(screen.getAllByTestId("week-day-empty").length).toBeGreaterThan(0));
+    expect(screen.getAllByTestId("week-day-empty")[0]).toHaveTextContent("keine Termine");
+  });
+});
+
 describe("panel", () => {
   it("shows today's list with the same data; search, clear, cancelled card is not openable", async () => {
     fakeServer(HANDLERS(null));
     renderApp("/");
     await waitFor(() => expect(card("a1")).toBeTruthy());
     expect(screen.getByTestId("planning-meta")).toHaveTextContent(/^3 Termin\(e\) für /);
-    expect(card("a1")).toHaveTextContent("09:00 · 90 Min");
+    expect(card("a1")).toHaveTextContent("09:00bis 10:30 · 90 Min");
     expect(within(card("a1")).getByRole("link", { name: /Kunde anrufen/ })).toHaveAttribute("href", "tel:+49928100001".replace("+49928100001", "+499281000001"));
-    expect(within(card("c3")).getByRole("button", { name: /Nicht verfuegbar/ })).toBeDisabled();
+    expect(within(card("c3")).getByRole("button", { name: /Nicht verfügbar/ })).toBeDisabled();
     await userEvent.type(screen.getByLabelText("Termine suchen"), "beispiel");
     expect(card("a1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Suche löschen" }));
@@ -94,7 +129,7 @@ describe("panel", () => {
   it("Bitrix times replace the planned ones", async () => {
     fakeServer({ ...HANDLERS(null), "GET /api/bitrix/activities/today": { body: { byDealId: { "70001": { startMinutes: 600, endMinutes: 660 } } } } });
     renderApp("/");
-    await waitFor(() => expect(card("a1")).toHaveTextContent("10:00 · 60 Min"));
+    await waitFor(() => expect(card("a1")).toHaveTextContent("10:00bis 11:00 · 60 Min"));
   });
   it("the list cannot be loaded: its own error with a retry", async () => {
     const srv = fakeServer({ ...HANDLERS(null), "GET /api/planning/current": { status: 502, body: { error: { code: "X", message: "x", requestId: "t" } } } });

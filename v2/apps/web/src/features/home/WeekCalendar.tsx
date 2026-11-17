@@ -28,7 +28,7 @@ export function WeekCalendar({ onPick }: { onPick: (e: PlanningEntry) => void })
         <p className="m-0 flex items-center gap-2"><CalendarX aria-hidden className="size-5" />Keine Planungstermine in dieser Woche</p>
       ) : (
         <div className="grid gap-3 lg:grid-cols-5">
-          {view.days.map((d) => (
+          {view.days.map((d) => d.entries.length ? (
             <section key={d.date} data-testid="week-day" aria-current={d.today ? "date" : undefined} className={cn("grid content-start gap-2 rounded-lg border-2 p-3", d.today ? "border-primary bg-accent-weak" : "border-border")}>
               <header className="flex flex-wrap items-baseline gap-x-2">
                 <strong className="text-lg">{d.name}</strong>
@@ -38,14 +38,16 @@ export function WeekCalendar({ onPick }: { onPick: (e: PlanningEntry) => void })
                 <span className="w-full text-muted-foreground">{d.active} Termin{d.active !== 1 ? "e" : ""}{d.cancelled ? ` · ${d.cancelled} abg.` : ""}</span>
                 {d.zone ? <span className="flex w-full items-center gap-1 text-muted-foreground" title="Schwerpunkt-Region an diesem Tag"><MapPin aria-hidden className="size-4" />{d.zone}</span> : null}
               </header>
-              {d.entries.length ? d.entries.map((e) => (
+              {d.entries.map((e) => (
                 <button key={e.entryId} type="button" disabled={cancelled(e)} onClick={() => onPick(e)}
                   className={cn("grid min-h-14 cursor-pointer gap-0.5 rounded-lg border border-border bg-card p-2 text-left disabled:cursor-default disabled:opacity-60", cancelled(e) && "line-through")}>
                   <span className="flex items-center justify-between gap-2"><span className="font-semibold">{startClock(e) || "–"}</span><span className="text-[0.95rem] text-muted-foreground">{badge(e, true)}</span></span>
                   <span>{e.name || "Unbekannt"}</span>
                 </button>
-              )) : <p className="m-0 flex items-center gap-2 text-muted-foreground"><CalendarX aria-hidden className="size-5" />Keine Termine</p>}
+              ))}
             </section>
+          ) : (
+            <p key={d.date} data-testid="week-day-empty" className="m-0 flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-muted-foreground"><CalendarX aria-hidden className="size-5" /><strong className="font-semibold text-foreground">{d.name} {d.dateNum}. {d.month}</strong> · keine Termine{d.locked ? <Lock aria-label="Tag gesperrt" className="size-4" /> : null}</p>
           ))}
         </div>
       )}

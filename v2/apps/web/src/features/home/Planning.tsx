@@ -1,14 +1,14 @@
 // „Heutige Termine Planung“ + the offer picker + „Kunde nicht erreicht“, as today's Hauptmenü.
 // Starting an offer from an appointment: the customer data goes into Kundendaten (planning-rules.ts).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Car, Clock, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X } from "lucide-react";
+import { Ban, Car, Coffee, Hash, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
-import { badge, cancelled, clock, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, timeDisplay, todayEntries, typeTone, type PlanningEntry, type PlanningPayload } from "./planning-rules.js";
+import { badge, cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayEntries, typeTone, type PlanningEntry, type PlanningPayload } from "./planning-rules.js";
 
 export const PLANNING_KEY = ["planning-current"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -146,15 +146,17 @@ function NoContact({ dealId, onClose, onMoved }: { dealId: string; onClose: () =
 const TONE: Record<string, string> = { bu: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200", bwt: "bg-cyan-100 text-cyan-900 dark:bg-cyan-950 dark:text-cyan-200", hl: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200", ah: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200", hms: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200", manual: "bg-muted text-foreground" };
 export const Chip = ({ children, tone = "manual", className }: { children: ReactNode; tone?: string; className?: string }) => <span className={cn("inline-flex min-h-7 items-center rounded-full px-3 text-[0.95rem] font-semibold", TONE[tone], className)}>{children}</span>;
 
-/** the way to and from the company, from /api/routing/suggest-distance (cached per address) */
+/** the way to and from the company, from /api/routing/suggest-distance (cached per address): minutes and km one way */
 function useTravel(e: PlanningEntry | undefined) {
   const street = e?.street || "", plz = e?.postalCode || "", city = e?.city || "";
   const a = e?.address ? { street: street || e.address.split(",")[0]?.trim() || "", postalCode: plz || /(\d{5})/.exec(e.address)?.[1] || "", city: city || /\d{5}\s+([^,]+)/.exec(e.address)?.[1] || "" } : { street, postalCode: plz, city };
   const on = !!(a.street || a.postalCode || a.city);
   return useQuery({ queryKey: ["company-travel", a.street, a.postalCode, a.city], enabled: on, staleTime: Infinity, retry: false,
-    queryFn: () => call("suggestDistance", { body: { Kundendaten: a } }).then((r) => (r.ok && Number.isFinite(Number(r.oneWaySeconds)) ? Math.round(Number(r.oneWaySeconds) / 60) : null), () => null) }).data ?? null;
+    queryFn: () => call("suggestDistance", { body: { Kundendaten: a } }).then((r) => (r.ok && Number.isFinite(Number(r.oneWaySeconds)) ? { min: Math.round(Number(r.oneWaySeconds) / 60), km: r.oneWayKm != null ? Number(r.oneWayKm) : null } : null), () => null) }).data ?? null;
 }
-const Connector = ({ children }: { children: ReactNode }) => <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 text-[0.95rem] text-muted-foreground"><Car aria-hidden className="size-5" />{children}</div>;
+const Row = ({ children, className, ...p }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) => <div {...p} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-2.5", className)}>{children}</div>;
+const Dot = ({ c }: { c: string }) => <span aria-hidden className={cn("size-2 shrink-0 rounded-full", c)} />;
+const PRIO_DOT: Record<string, string> = { high: "bg-red-600", medium: "bg-amber-500", low: "bg-slate-400" };
 
 export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }) {
   const q = usePlanning();
@@ -175,9 +177,10 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
       void call("offersByDeal", { params: { dealId: id } }).then((l) => { if (l.length) mark(id); }, () => undefined);
     }
   }, [entries]);
-  const first = shown[0], last = shown[shown.length - 1];
-  const startMin = useTravel(first), endMin = useTravel(last !== first ? last : undefined);
+  const first = shown[0], last = [...shown].reverse().find((e) => !cancelled(e)); // the day ends with the last appointment that takes place
+  const startT = useTravel(first), endT = useTravel(last !== first ? last : undefined) ?? startT;
   const route = fullRouteHref(entries), p = pause(q.data?.planning?.todayPause, shown);
+  const home = entries.find((e) => e.companyAddress)?.companyAddress || "Firma";
   const open = (e: PlanningEntry) => { void call("logAction", { body: { event: "termin_opened", dealId: e.importDealId || "" } }).catch(() => undefined); setActive(e.entryId); onPick(e); };
   const meta = q.isPending ? "Lade Termine…" : q.isError ? "Planungsdaten konnten nicht geladen werden" : `${entries.length} Termin(e) für ${dateLabel}`;
   const asked = async (e: PlanningEntry) => {
@@ -185,6 +188,8 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
     const saved = await call("offersByDeal", { params: { dealId: id } }).then((l) => l.length > 0, () => false);
     if (saved) mark(id); else setNoShow(id);
   };
+  const dep = first ? departure(first.manualStartMinutes, startT?.min) : null;
+  const lastEnd = last && Number.isFinite(Number(last.manualStartMinutes)) && Number.isFinite(Number(last.duration)) ? Number(last.manualStartMinutes) + Number(last.duration) : null;
   return (
     <Card data-testid="home-appointments" aria-labelledby="planning-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -204,12 +209,6 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
           <Button variant="secondary" disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw aria-hidden className={q.isFetching ? "animate-spin" : ""} />{q.isFetching ? "Lädt…" : "Aktualisieren"}</Button>
         </div>
       </div>
-      {startMin && endMin && first && last && Number.isFinite(Number(first.manualStartMinutes)) && Number.isFinite(Number(last.manualStartMinutes)) && Number.isFinite(Number(last.duration)) ? (
-        <div className="grid grid-cols-2 gap-3" data-testid="day-overview">
-          <div className="grid rounded-lg bg-accent-weak p-3"><span className="font-semibold">Abfahrt Firma</span><strong className="text-xl">{clock(Number(first.manualStartMinutes) - startMin)}</strong><span className="text-muted-foreground">{startMin} Min Anfahrt</span></div>
-          <div className="grid rounded-lg bg-muted p-3"><span className="font-semibold">Erster Termin</span><strong className="text-xl">{clock(Number(first.manualStartMinutes))}</strong><span className="text-muted-foreground">{first.name || ""}</span></div>
-        </div>
-      ) : null}
       <div className="grid gap-2" aria-live="polite">
         {q.isPending ? <p className="m-0">Lade Termine…</p> : q.isError ? (
           <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-destructive p-4">
@@ -217,46 +216,59 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
             <div className="grid gap-2"><strong>Planungstermine konnten nicht geladen werden</strong><p className="m-0">Die Verbindung zum Server ist fehlgeschlagen.</p>
               <Button variant="secondary" className="justify-self-start" onClick={() => void q.refetch()}><RefreshCw aria-hidden />Erneut versuchen</Button></div>
           </div>
-        ) : !shown.length ? <p className="m-0">Keine Planungstermine für heute gefunden</p> : shown.map((e, i) => {
-          const off = cancelled(e), deal = e.importDealId ? String(e.importDealId) : "", tel = phoneHref(e.phone);
-          const travel = Number(e.travelMinutesAfter), s = Number(e.manualStartMinutes), d = Number(e.duration);
-          return (
-            <div key={e.entryId} className="grid gap-2">
-              {i === 0 && startMin ? <Connector><span className="font-semibold">{startMin} Min Anfahrt von Firma</span>{Number.isFinite(s) ? <span>Abfahrt ca. {clock(s - startMin)}</span> : null}</Connector> : null}
-              <article data-testid="appointment" data-id={e.entryId} className={cn("grid cursor-pointer gap-2 rounded-lg border-2 border-border p-4", active === e.entryId && "border-primary", off && "cursor-default opacity-70")} onClick={() => { if (!off) open(e); }}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div><div className={cn("text-lg font-bold", off && "line-through")}>{e.name || "Unbekannt"}</div><div className="text-muted-foreground">{subtitle(e)}</div></div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 font-semibold"><Clock aria-hidden className="size-5" />{timeDisplay(e)}</span>
-                    {e.taetigkeitenBadge ? <Chip tone={typeTone(e.taetigkeitenBadge)}>{String(e.taetigkeitenBadge).toUpperCase()}</Chip> : null}
-                    <Chip tone={off ? "manual" : e.locked ? "bu" : "manual"}>{badge(e)}</Chip>
-                    {deal ? <button type="button" aria-label={`Deal ${deal} in Bitrix öffnen`} className="min-h-11 cursor-pointer rounded-full border-2 border-border px-3 font-semibold" onClick={(ev) => { ev.stopPropagation(); window.open(DEAL_URL(deal), "_blank", "noopener"); }}>#{deal}</button> : null}
+        ) : !shown.length ? <p className="m-0">Keine Planungstermine für heute gefunden</p> : <>
+          {first ? (
+            <Row data-testid="departure" className="bg-accent-weak text-foreground">
+              <Car aria-hidden className="size-6 shrink-0 text-primary" />
+              {dep ? <>
+                <strong className="text-lg">Abfahrt {dep}</strong>
+                <span className="text-foreground/80">ab {home} · {startT!.min} Min{startT!.km != null ? ` · ${Math.round(startT!.km)} km` : ""} bis zum 1. Termin</span>
+              </> : <span className="text-muted-foreground">Abfahrt: Fahrzeit unbekannt</span>}
+              {route ? <Button asChild variant="secondary" className="ml-auto"><a href={route} target="_blank" rel="noopener"><Route aria-hidden />Route</a></Button> : null}
+            </Row>
+          ) : null}
+          {shown.map((e, i) => {
+            const off = cancelled(e), deal = e.importDealId ? String(e.importDealId) : "", tel = phoneHref(e.phone);
+            const travel = Number(e.travelMinutesAfter), s = Number(e.manualStartMinutes), d = Number(e.duration);
+            const hasStart = Number.isFinite(s) && s >= 0, hasDur = d > 0;
+            return (
+              <div key={e.entryId} className="grid gap-2">
+                <article data-testid="appointment" data-id={e.entryId} className={cn("grid cursor-pointer grid-cols-[140px_1fr] gap-[14px] rounded-lg border-2 border-border p-4", active === e.entryId && "border-primary", off && "cursor-default opacity-70")} onClick={() => { if (!off) open(e); }}>
+                  <div data-testid="appt-left" className="flex flex-col items-start gap-1.5 border-r border-border pr-3.5 text-[13px] text-muted-foreground">
+                    <span className="text-[1.4rem] font-medium tabular-nums leading-tight text-foreground">{hasStart ? clock(s) : "–"}</span>
+                    <span className="whitespace-nowrap">{hasStart && hasDur ? `bis ${clock(s + d)} · ${d} Min` : hasDur ? `${d} Min` : "Dauer offen"}</span>
+                    {e.taetigkeitenBadge ? <span className="flex items-center gap-2"><Dot c="bg-primary" />{String(e.taetigkeitenBadge).toUpperCase()}</span> : null}
+                    <span className="flex items-center gap-2"><Dot c={off ? "bg-slate-400" : e.locked ? "bg-primary" : PRIO_DOT[String(e.priority || "").toLowerCase()] ?? "bg-slate-400"} />{badge(e)}</span>
+                    {deal ? <button type="button" aria-label={`Deal ${deal} in Bitrix öffnen`} className="-ml-1 flex min-h-11 cursor-pointer items-center gap-1.5 px-1" onClick={(ev) => { ev.stopPropagation(); window.open(DEAL_URL(deal), "_blank", "noopener"); }}><Hash aria-hidden className="size-4" />{deal}</button> : null}
                   </div>
-                </div>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  <span className="flex items-center gap-2"><MapPin aria-hidden className="size-5 shrink-0" />{e.address || "Ort unbekannt"}</span>
-                  <span className="flex items-center gap-2"><Mail aria-hidden className="size-5 shrink-0" />{e.email || "Keine E-Mail"}</span>
-                  <span className="flex items-center gap-2"><Phone aria-hidden className="size-5 shrink-0" />{e.phone || "Keine Telefonnummer"}</span>
-                  <span className="flex items-center gap-2 text-muted-foreground">{e.dateLabel || "Ohne Datum"}</span>
-                </div>
-                {e.hinweise ? <p className="m-0 flex items-start gap-2 rounded-lg bg-amber-100 p-2 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />{e.hinweise}</p> : null}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {tel ? <Button asChild variant="secondary"><a href={`tel:${tel}`} aria-label={`Kunde anrufen: ${e.phone}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button> : null}
-                  {e.address ? <Button asChild variant="secondary"><a href={routeHref(e.address)} target="_blank" rel="noopener" aria-label={`Route zu ${e.address}`} onClick={(ev) => ev.stopPropagation()}>Route</a></Button> : null}
-                  <Button disabled={off} onClick={(ev) => { ev.stopPropagation(); open(e); }}>{off ? <><Ban aria-hidden />Nicht verfuegbar</> : "In Konfigurator öffnen"}</Button>
-                  {!off && deal && !done.has(deal) ? <Button variant="outline" onClick={(ev) => { ev.stopPropagation(); void asked(e); }}><PhoneOff aria-hidden />Termin hat nicht statt gefunden.</Button> : null}
-                </div>
-              </article>
-              {travel > 0 || (p && p.index === i) ? (
-                <Connector>
-                  {travel > 0 ? <><span className="font-semibold">{travel} Min Fahrt / Puffer</span>{Number.isFinite(s) && Number.isFinite(d) ? <span>an ca. {clock(s + d + travel)}</span> : null}</> : null}
-                  {p && p.index === i ? <Chip>{p.text}</Chip> : null}
-                </Connector>
-              ) : null}
-              {i === shown.length - 1 && last !== first && endMin ? <Connector><span className="font-semibold">{endMin} Min Rückfahrt zur Firma</span>{Number.isFinite(s) && Number.isFinite(d) ? <span>Ankunft ca. {clock(s + d + endMin)}</span> : null}</Connector> : null}
-            </div>
-          );
-        })}
+                  <div className="grid min-w-0 content-start gap-1.5">
+                    <div className={cn("text-[1.05rem] font-medium", off ? "text-muted-foreground line-through" : "text-foreground")}>{e.name || "Unbekannt"}</div>
+                    <div className="text-muted-foreground">{subtitle(e)}</div>
+                    <span className="flex items-center gap-2"><MapPin aria-hidden className="size-5 shrink-0" />{e.address || "Ort unbekannt"}</span>
+                    <span className="flex items-center gap-2"><Phone aria-hidden className="size-5 shrink-0" />{e.phone || "Keine Telefonnummer"}</span>
+                    <span className={cn("flex items-center gap-2", !e.email && "text-muted-foreground")}><Mail aria-hidden className="size-5 shrink-0" />{e.email || "Keine E-Mail"}</span>
+                    {e.hinweise ? <p className="m-0 flex items-start gap-2 rounded-lg bg-amber-100 p-2 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />{e.hinweise}</p> : null}
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      <Button disabled={off} onClick={(ev) => { ev.stopPropagation(); open(e); }}>{off ? <><Ban aria-hidden />Nicht verfügbar</> : "In Konfigurator öffnen"}</Button>
+                      {tel ? <Button asChild variant="secondary"><a href={`tel:${tel}`} aria-label={`Kunde anrufen: ${e.phone}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button> : null}
+                      {e.address ? <Button asChild variant="secondary"><a href={routeHref(e.address)} target="_blank" rel="noopener" aria-label={`Route zu ${e.address}`} onClick={(ev) => ev.stopPropagation()}>Route</a></Button> : null}
+                      {!off && deal && !done.has(deal) ? <Button variant="outline" onClick={(ev) => { ev.stopPropagation(); void asked(e); }}><PhoneOff aria-hidden />Termin hat nicht statt gefunden.</Button> : null}
+                    </div>
+                  </div>
+                </article>
+                {i < shown.length - 1 && travel > 0 ? (
+                  <Row data-testid="travel" className="border border-dashed border-border text-muted-foreground"><Car aria-hidden className="size-5" /><span className="font-medium text-foreground">{travel} Min Fahrt / Puffer</span>{Number.isFinite(s) && d > 0 ? <span>Ankunft ca. {clock(s + d + travel)}</span> : null}</Row>
+                ) : null}
+                {p && p.index === i ? (
+                  <Row data-testid="pause" className="bg-amber-100 py-3.5 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><Coffee aria-hidden className="size-6" /><span className="text-base font-medium">{p.text.replace(/^(Pause \d{2}:\d{2})–(\d{2}:\d{2}) · (\d+ Min)$/, "$1 – $2")}</span>{p.text.match(/(\d+ Min)$/) ? <span>{p.text.match(/(\d+ Min)$/)![1]}</span> : null}</Row>
+                ) : null}
+              </div>
+            );
+          })}
+          {endT && lastEnd != null ? (
+            <Row data-testid="return" className="bg-green-100 text-green-950 dark:bg-green-950 dark:text-green-100"><House aria-hidden className="size-5" /><span className="font-medium">Rückfahrt ab {clock(lastEnd)} · Ankunft ca. {clock(lastEnd + endT.min)}</span><span>nach {home} · {endT.min} Min</span></Row>
+          ) : null}
+        </>}
       </div>
       {noShow ? <NoContact dealId={noShow} onClose={() => setNoShow(null)} onMoved={() => mark(noShow)} /> : null}
     </Card>

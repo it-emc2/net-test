@@ -74,6 +74,11 @@ export function pause(p: NonNullable<PlanningPayload["planning"]>["todayPause"],
   return { text, index };
 }
 
+/** leaving time of the day: first start minus the way there; null when either is unknown */
+export const departure = (start: unknown, travelMin: number | null | undefined): string | null => {
+  const s = Number(start);
+  return Number.isFinite(s) && travelMin != null && travelMin > 0 ? clock(s - travelMin) : null;
+};
 export const phoneHref = (v?: string) => String(v || "").trim().replace(/[^+\d]/g, "");
 export const routeHref = (address: string) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 export function fullRouteHref(entries: PlanningEntry[]): string | null {
