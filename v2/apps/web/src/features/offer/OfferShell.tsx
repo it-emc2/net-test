@@ -9,6 +9,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { usePrefs } from "../../shared/lib/prefs.js";
 import { Alert, Button, ButtonLink, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
+import { BarMoney, SelfPayRows } from "./EigenAnteil.js";
 import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, useSaveStatus } from "./model/draft.js";
 import { useNav, useWide } from "./model/nav.js";
 import { useOfferStore } from "./model/store.js";
@@ -20,7 +21,7 @@ function Total() {
   const { total, pending, error } = usePrice();
   if (error) return <Alert kind="error">Der Preis kann gerade nicht berechnet werden.</Alert>;
   return (
-    <p className="m-0 whitespace-nowrap text-lg" aria-live="polite">
+    <p className={"m-0 whitespace-nowrap text-lg"} aria-live="polite">
       <span>Gesamt</span> <strong>{euro(total)}</strong>
       {pending ? <span className="hidden text-[0.95rem] text-muted-foreground lg:inline"> wird berechnet …</span> : null}
     </p>
@@ -215,13 +216,13 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         {prev ? <Link to={`${base}/${prev}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
         <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold"><span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span>{stepLabel(step)}</p>
         {next ? <Link to={`${base}/${next}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
-        <Total />
+        <BarMoney base={base} fallback={<Total />} />
       </div> : null}
-      <StepDrawer onHome={goHome} total={<Total />}><StepList type={type} base={base} current={step} statuses={statuses} /></StepDrawer>
+      <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} current={step} statuses={statuses} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
         <p className="m-0 font-bold">{title}</p>
         <StepList type={type} base={base} current={step} statuses={statuses} />
-        {wide && sidebar ? <Total /> : null}
+        {wide && sidebar ? <><Total /><SelfPayRows base={base} /></> : null}
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
         <Button variant="secondary" onClick={goHome}>Zum Hauptmenü</Button>
       </nav>
