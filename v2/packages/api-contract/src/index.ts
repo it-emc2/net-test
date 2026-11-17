@@ -114,6 +114,15 @@ export const endpoints = {
   /** the people who can be the contact person of an offer (active, with a signature), sorted by name */
   /** today's planning (appointments of the week); the Hauptmenü shows today's */
   planningCurrent: { method: "GET", path: "/api/planning/current", response: z.looseObject({ planning: z.looseObject({}).nullish() }) },
+  /** planning panel: the times of today's Bitrix calendar entries per deal, { byDealId: { <deal>: { startMinutes, endMinutes } } } */
+  bitrixActivitiesToday: { method: "GET", path: "/api/bitrix/activities/today", response: z.looseObject({ byDealId: z.record(z.string(), z.looseObject({})).nullish() }) },
+  /** planning panel: the deal with its contact (Anrede, e-mail, phone, address) — fills a new offer from an appointment */
+  bitrixDeal: { method: "GET", path: "/api/bitrix/deal/:id", response: z.looseObject({ contact: z.looseObject({}).nullish() }) },
+  bitrixContact: { method: "GET", path: "/api/bitrix/contact/:id", response: z.looseObject({ result: z.looseObject({}).nullish() }) },
+  /** a saved offer exists for this deal? (the list is empty if not) */
+  offersByDeal: { method: "GET", path: "/api/offers/by-deal/:dealId", response: z.array(z.unknown()) },
+  /** „Termin hat nicht stattgefunden“: the deal goes back to „Besichtigungstermin vereinbaren“; body: comment, reason */
+  moveBesichtigung: { method: "POST", path: "/api/bitrix/deal/:id/move-besichtigung", response: z.looseObject({ commentFailed: z.boolean().nullish(), plannerSynced: z.boolean().nullish() }) },
   users: { method: "GET", path: "/api/users", response: z.array(z.looseObject({ email: z.string(), name: z.string() })) },
   /** a finished offer is kept under its number (after a PDF was made); body: offerNumber, offerType, payload, pricing, savedAt, clientSaveId */
   saveOffer: { method: "POST", path: "/api/offers", response: z.looseObject({}) },

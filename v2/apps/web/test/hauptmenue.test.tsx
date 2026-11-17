@@ -52,7 +52,7 @@ describe("Hauptmenü", () => {
   it("deal without a draft: message, tiles start its offer; text goes to today's UI", async () => {
     fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
     renderApp("/");
-    await screen.findByText("Keine Planungstermine für heute gefunden.");
+    await screen.findByText("Keine Planungstermine für heute gefunden");
     await userEvent.type(screen.getByLabelText("Öffnen"), "777{Enter}");
     await screen.findByText(/Für Auftrag 777 gibt es noch kein Angebot/);
     expect(screen.getByRole("link", { name: /Badumbau/ })).toHaveAttribute("href", "/deal/777/bu");
