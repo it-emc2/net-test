@@ -3,19 +3,20 @@
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
 // internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
 // sending by mail and "Nur in Bitrix ablegen" (Senden.tsx); part 2: product pictures and plan
-// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Signing is
-// still done in today's view.
+// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Slice 6:
+// signing on site on both tabs (Unterschrift.tsx) and the signed documents by post (Post.tsx).
+// The history of sends: Verlauf.tsx (U-015).
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
-import { useParams } from "react-router";
 import { call } from "../../../shared/api/index.js";
 import { Card, CardTitle, Check, Field, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
-import { LegacyLink, useOfferStore, useOfferType } from "../../offer/index.js";
+import { useOfferStore, useOfferType } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
 import { Mail } from "./Mail.js";
 import { Post } from "./Post.js";
+import { Verlauf } from "./Verlauf.js";
 import { Senden } from "./Senden.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
@@ -24,7 +25,6 @@ const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | nu
 const setKd = (fields: Record<string, unknown>) => useOfferStore.getState().patch("Kundendaten" as never, fields as never);
 
 export function Versand() {
-  const { dealId = "" } = useParams();
   const type = useOfferType();
   const offer = (useOfferStore((s) => s.offer) ?? {}) as Record<string, any>;
   // the list of contact persons, and who is signed in (asked here: this step must not pull the login screen into its chunk)
@@ -60,6 +60,8 @@ export function Versand() {
           {status.sent ? <CircleCheck aria-hidden className="size-5 shrink-0" /> : null}<span data-part="text">{status.text}</span>
         </p>
 
+      <Verlauf />
+
       <Dokumente />
 
       {docs ? (
@@ -86,12 +88,6 @@ export function Versand() {
       <div role="tabpanel" id="zf-panel-post" aria-labelledby="zf-tab-post" hidden={tab !== "post"} className="grid gap-4">
         <Post />
       </div>
-
-      <section className="grid gap-2 border-t border-border pt-4" data-testid="zf-legacy">
-        <h3 className="m-0 text-[1.05rem] font-semibold">Weitere Versandwege</h3>
-        <p className="m-0 text-muted-foreground">Unterschrift vor Ort, per Link und der Postversand unterschriebener Unterlagen gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
-        <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
-      </section>
     </Card>
   );
 }
