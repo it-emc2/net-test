@@ -42,14 +42,14 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
     try {
       const problem = checkStep("Kundendaten");
       if (problem) { toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" }); navigate(`/deal/${dealKey}/${typeParam}/${problem.goTo ?? "Kundendaten"}`); return; }
-      // asked before the save: the save stores the offer as final, so "no" must come before anything is written
-      const missing = missingMain(offerNow(), price.data as never);
-      if (missing.length && !(await new Promise<boolean>((resolve) => setMain({ items: missing, resolve })))) { say({ type: "info", text: TEXT.cancelled }); return; }
       // The last mail of this offer carried a hand-edited Word file: the signing view would show the
       // standard rendering — not what the customer has. Stopped before anything is saved (audit F4;
       // the server refuses the same with HAND_EDITED_SENT).
       const sentNumber = String(offerNow().offerNumber || "").trim();
       if (sentNumber && (st().scratch.handEditedNumber === sentNumber || sentHandEdited(sends, sentNumber))) throw new NeedsNewVersion(VERSION.handEditedSent);
+      // asked before the save: the save stores the offer as final, so "no" must come before anything is written
+      const missing = missingMain(offerNow(), price.data as never);
+      if (missing.length && !(await new Promise<boolean>((resolve) => setMain({ items: missing, resolve })))) { say({ type: "info", text: TEXT.cancelled }); return; }
       if (!sentNumber) await giveNumber();
       // the deal's draft must hold what is signed: a refused or failed save stops here (audit F7)
       const unsaved = await saveBeforeSend(NOTHING.sign);
