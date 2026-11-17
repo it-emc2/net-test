@@ -1,10 +1,13 @@
 // The steps of each offer type, in today's order (guard: test/steps.test.ts compares this list
-// with the Playwright snapshots of the current UI). `built` names the steps that already exist
+// with the Playwright snapshots of the current UI) — but for Badumbau, where Arbeitszeit moved
+// behind the material (owner decision U-011 B4). The other types follow when all their steps
+// exist here: until then a step in today's UI goes on in today's order. `built` names the steps that already exist
 // as React screens — every other step still opens in today's UI.
 import type { NewOfferType } from "@oc/domain";
 
 export const STEPS: Record<NewOfferType, readonly string[]> = {
-  bu: ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Kosten", "Angebotscheck", "Zusammenfassung", "Checkliste", "referenzVorher", "referenzNachher"],
+  // Badumbau (U-011 B4): Arbeitszeit comes after the work and the material — its suggestion is built from them
+  bu: ["Kundendaten", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Arbeitszeit", "Rabatt", "Kosten", "Angebotscheck", "Zusammenfassung", "Checkliste", "referenzVorher", "referenzNachher"],
   bwt: ["Kundendaten", "Arbeitszeit", "bwtArbeiten", "bwt", "Rabatt", "Kosten", "Zusammenfassung", "referenzNachher"],
   hl: ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt", "Kosten", "Zusammenfassung"],
   bl: ["Kundendaten", "Arbeitszeit", "bl", "Kosten", "Zusammenfassung"],
@@ -33,7 +36,7 @@ export const firstStep = (type: NewOfferType): string => STEPS[type][0]!;
 export interface StepGroup { title: string; num?: string; steps: readonly string[] }
 export const STEP_GROUPS: Partial<Record<NewOfferType, readonly StepGroup[]>> = {
   bu: [
-    { title: "Auszuführende Arbeiten", num: "I", steps: ["Arbeitszeit", "Arbeiten"] },
+    { title: "Auszuführende Arbeiten", num: "I", steps: ["Arbeiten"] },
     { title: "Material für Badumbau", num: "II", steps: ["Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang"] },
     { title: "Zusammenfassung", steps: ["Angebotscheck", "Zusammenfassung", "Checkliste"] },
   ],

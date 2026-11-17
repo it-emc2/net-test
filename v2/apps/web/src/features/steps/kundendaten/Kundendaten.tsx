@@ -15,6 +15,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
+import { useAutoRoute } from "../arbeitszeit/auto-route.js";
 
 const KD = "Kundendaten";
 
@@ -355,6 +356,7 @@ function useTwoPersonsTexts() {
 
 export function Kundendaten() {
   useTwoPersonsTexts();
+  useAutoRoute(); // the way to the customer is worked out as soon as the address is known (U-011 B4)
   const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
   const { dealId = "" } = useParams();
   return (

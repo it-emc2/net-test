@@ -298,8 +298,9 @@ describe("„Weiter“ on Kundendaten asks for what today's UI asks for, every o
     if ("sonderaufschlagValue" in typed) useOfferStore.getState().patchAll(markupChanges(scenario.type, typed.sonderaufschlagValue!, offer().Kundendaten.payer, typed.aufschlagBegruendung ?? ""));
     expect(stored()).toEqual(scenario.kundendaten);
 
-    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
-    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(scenario.next.step));
+    // Badumbau: the step after Kundendaten is "Arbeiten" now (Arbeitszeit moved behind the material, U-011 B4)
+    await userEvent.click(screen.getByRole("link", { name: /^Weiter zu (Arbeitszeit|Arbeiten)$/ }));
+    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(scenario.type === "bu" && scenario.next.step === "Arbeitszeit" ? "Arbeiten" : scenario.next.step));
     expect(!!offer().Kundendaten.date).toBe(scenario.next.date); // an empty date becomes today's
     const said = scenario.next.said[0];
     if (!said) return; // went on (a message of an earlier case may still be fading out)
@@ -313,7 +314,7 @@ describe("„Weiter“ on Kundendaten asks for what today's UI asks for, every o
     // markup missing on Badumbau: the user is taken to Aufschlag / Rabatt, the focus follows a moment later
     const first = await open("bu");
     useOfferStore.getState().patchAll(markupChanges("bu", "", offer().Kundendaten.payer, ""));
-    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeiten" }));
     await waitFor(() => expect(first.state.location.pathname.split("/")[4]).toBe("Rabatt"));
     cleanup(); // the offer is left before the focus was set
     await open("bl"); // Badelift has the markup field on Kundendaten
@@ -326,7 +327,7 @@ describe("„Weiter“ on Kundendaten asks for what today's UI asks for, every o
   it("the first missing field gets the focus", async () => {
     await open("bu");
     await play([["radio", "salutation", "Herr"]]);
-    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeitszeit" }));
+    await userEvent.click(screen.getByRole("link", { name: "Weiter zu Arbeiten" }));
     await waitFor(() => expect(screen.getByLabelText("Vorname")).toHaveFocus());
   });
 });
