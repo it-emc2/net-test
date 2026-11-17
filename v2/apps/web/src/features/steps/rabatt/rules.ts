@@ -96,7 +96,7 @@ export function overview(price: Price | null, type: string | null, pricingRules:
   return {
     rows: [
       { num: num("I"), label: "Auszuführende Arbeiten", value: eur((price?.services as { sum?: unknown } | undefined)?.sum) },
-      { num: num("II"), label: "Material für Badumbau", value: eur(materials) },
+      { num: num("II"), label: String((price?.materials as { title?: unknown } | undefined)?.title || "Material für Badumbau"), value: eur(materials) }, // FIXED vs. today: a Badewannentür says „Material für Badewannentür“ (today the label is fixed)
       ...(optional ? [{ num: num("III"), label: "Optionale Produkte", value: eur(optional) }] : []),
       { num: "", label: `Aufschlag ${pctLabel}%${pricingRules?.kleinInAufschlag === false ? " (ohne Kleinmaterial)" : ""}`, value: eur(price?.markup) },
     ],
