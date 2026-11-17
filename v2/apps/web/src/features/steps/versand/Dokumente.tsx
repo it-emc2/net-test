@@ -9,7 +9,10 @@ import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
-import { ACTIONS, PREVIEWS, cardsOf, csvName, newOfferNumber, type ActionId, type Download as DownloadAction, type PreviewDoc, type PreviewKey } from "./documents.js";
+import { StopActions } from "./NeueVersion.js";
+import { useSends } from "./Verlauf.js";
+import { TEXT as VERSION, mayRenumber, setStop } from "./version.js";
+import { ACTIONS, PREVIEWS, cardsOf, csvName, type ActionId, type Download as DownloadAction, type PreviewDoc, type PreviewKey } from "./documents.js";
 
 type Offer = Record<string, unknown>;
 const offerNow = () => (useOfferStore.getState().offer ?? {}) as Offer;
@@ -67,6 +70,8 @@ export function Dokumente() {
   const navigate = useNavigate();
   const price = usePrice();
   const [busy, setBusy] = useState<ActionId | null>(null);
+  const sends = useSends().sends.data;
+  const changed = useOfferStore((s) => s.scratch["stop-docs"]) === "new-version";
 
   /** as "Weiter" on Kundendaten: complete entries and a valid markup, else say what is missing and go there */
   const ready = (): boolean => {
@@ -79,17 +84,28 @@ export function Dokumente() {
   const preview = usePreview(ready);
 
   const download = async (id: ActionId, a: DownloadAction) => {
-    if (a.stamp) giveNumber(); // also when the entries turn out incomplete (as today)
-    if (!ready()) return;
+    if (busy) return;
     setBusy(id);
+    setStop("docs", null);
     try {
-      const offer = offerNow(), number = String(offer.offerNumber || "") || newOfferNumber();
+      // DOCX and PDF give the offer a new number, also when the entries turn out incomplete (as
+      // today) — but never a number that was sent: that would unlock a sent offer without a word
+      // (audit F5; renumbering a sent offer is "Neue Version erstellen" only). Any download of an
+      // offer without a number gives it one first: what is saved or named is the offer's own
+      // number (audit F13).
+      if (a.stamp ? mayRenumber(offerNow(), sends) : !String(offerNow().offerNumber || "").trim()) await giveNumber();
+      if (!ready()) return;
+      const offer = offerNow(), number = String(offer.offerNumber || "");
       const file = await postForFile(a.path, offer);
       if (a.save) { // a PDF went out: the offer is kept under its number
         try {
           await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: offer, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
           toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
-        } catch (err) { toast.error("Speichern fehlgeschlagen", { description: messageOf(err, `Angebot ${number} konnte nicht gespeichert werden.`) }); }
+        } catch (err) {
+          // sent and changed since: no second document under the sent number
+          if (err instanceof ApiFailure && (err.code === "OFFER_CHANGED" || err.code === "HAND_EDITED_SENT")) { setStop("docs", "new-version"); toast.error("Kein neues PDF unter der versendeten Nummer", { description: VERSION.changedPdf }); return; }
+          toast.error("Speichern fehlgeschlagen", { description: messageOf(err, `Angebot ${number} konnte nicht gespeichert werden.`) });
+        }
       }
       handFile(file.blob, a.csv ? csvName(number) : file.filename || a.fallback);
     } catch (err) {
@@ -120,6 +136,12 @@ export function Dokumente() {
             </article>
           ))}
         </div>
+        {changed ? (
+          <div className="grid gap-2 rounded-lg border border-[#f3dfb0] bg-[#fdf6e3] p-3" role="status" data-testid="zf-studio-changed">
+            <p className="m-0">{VERSION.changedPdf}</p>
+            <StopActions place="docs" />
+          </div>
+        ) : null}
       </section>
 
       {p ? (

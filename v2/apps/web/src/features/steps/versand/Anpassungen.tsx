@@ -2,9 +2,11 @@
 // rules are overrides.ts. The rows on the page are remembered while the offer is open (an empty
 // row is on the page but not in the offer); the offer stores only what says something.
 import { Lock, Plus, X } from "lucide-react";
-import { useParams } from "react-router";
 import { Button, Input, Label, TextAreaField, cn } from "../../../shared/ui/index.js";
-import { LegacyLink, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
+import { useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
+import { NewVersionButton } from "./NeueVersion.js";
+import { useSends } from "./Verlauf.js";
+import { isSentNumber } from "./version.js";
 import { TARGETS, badge, grossHint, hasPriceAndNotes, rowsOf, stored, type Rows, type Target } from "./overrides.js";
 
 const overridesNow = () => (useOfferStore.getState().offer as Record<string, unknown> | null)?.offerOverrides;
@@ -29,17 +31,19 @@ const Group = ({ title, add, onAdd, children, name }: { title: string; add: stri
 );
 
 export function Anpassungen() {
-  const { dealId = "" } = useParams();
   const type = useOfferType();
   const overrides = useOfferStore((s) => (s.offer as Record<string, unknown> | null)?.offerOverrides);
+  const sentState = useOfferStore((s) => (s.offer as Record<string, unknown> | null)?.zusammenfassung);
   const number = useOfferStore((s) => String((s.offer as Record<string, unknown> | null)?.offerNumber ?? ""));
+  const sends = useSends().sends.data;
   const remembered = useOfferStore((s) => s.scratch.overrideRows) as Rows | undefined;
   const note = useOfferStore((s) => s.scratch.internalNote) as string | undefined;
   const price = usePrice();
   const rows = remembered ?? rowsOf(overrides);
   const mark = badge(overrides);
-  // a draft that still has the number of a sent offer gets that offer's frozen price
-  const frozen = !!number && (price.data as Record<string, unknown> | null)?._locked === true;
+  // A draft that still has the number of a sent offer gets that offer's frozen price. Said only
+  // when the number really was sent (audit F11): a number that was merely saved is not "versendet".
+  const frozen = (price.data as Record<string, unknown> | null)?._locked === true && isSentNumber({ offerNumber: number, zusammenfassung: sentState }, sends);
   const more = hasPriceAndNotes(type);
   const set = (change: Partial<Rows>) => write({ ...rows, ...change });
   const at = <T,>(list: readonly T[], i: number, value: T) => list.map((x, k) => (k === i ? value : x));
@@ -58,7 +62,7 @@ export function Anpassungen() {
           {frozen ? (
             <div className="grid gap-2 rounded-lg border border-[#f3dfb0] bg-[#fdf6e3] p-3" data-part="locked-note">
               <p className="m-0">Diese Angebotsnummer wurde bereits versendet – der Preis ist eingefroren, Preisänderungen wirken erst in einer neuen Version.</p>
-              <LegacyLink dealId={dealId} step="Zusammenfassung">Neue Version in der bisherigen Ansicht erstellen</LegacyLink>
+              <div><NewVersionButton place="adjust" /></div>
             </div>
           ) : null}
 

@@ -122,6 +122,22 @@ export function flushDraft(): Promise<SaveStatus> {
   return inFlight;
 }
 
+/** The newer state of the deal's draft replaces what is open here (after a save was refused
+ *  because the draft was changed elsewhere). What was typed on this device since is given up.
+ *  False: it could not be loaded — nothing changed. */
+export async function reloadDraft(): Promise<boolean> {
+  const { offer, dealId } = useOfferStore.getState();
+  if (!offer || !dealId) return false;
+  try {
+    const d = await call("dealDraft", { params: { dealId } });
+    if (useOfferStore.getState().dealId !== dealId || d.offerType !== offer.activeOffer) return false;
+    dropSnapshot(dealId);
+    useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
+    tell({ state: "idle" });
+    return true;
+  } catch { return false; }
+}
+
 /** Saves the open offer by itself after each change — unless the user switched that off
  *  ("Automatisch speichern" in the user menu; then they save with the "Speichern" button). */
 export function useAutosave(): void {

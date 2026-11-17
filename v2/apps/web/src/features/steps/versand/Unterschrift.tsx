@@ -6,11 +6,13 @@ import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
+import { checkStep, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
 import { MainItems, Question, type Ask } from "./Senden.js";
 import { errorOf, missingMain, type MainItem } from "./send-rules.js";
-import { historyChanged } from "./Verlauf.js";
+import { historyChanged, useSends } from "./Verlauf.js";
+import { StopActions } from "./NeueVersion.js";
+import { NOTHING, NeedsNewVersion, TEXT as VERSION, refusal, saveBeforeSend, sentHandEdited, setStop } from "./version.js";
 import { TEXT, ready, request, signedBefore, type Signing } from "./sign-rules.js";
 
 type Offer = Record<string, any>;
@@ -30,18 +32,28 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
   const [question, setQuestion] = useState<Ask | null>(null);
   const [main, setMain] = useState<{ items: MainItem[]; resolve: (yes: boolean) => void } | null>(null);
   const say = (s: Status) => st().remember(key, s);
+  const place = `sign-${via}` as const;
+  const sends = useSends().sends.data;
 
   const start = async () => {
     if (lock.current) return;
     lock.current = true;
+    setStop(place, null);
     try {
       const problem = checkStep("Kundendaten");
       if (problem) { toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" }); navigate(`/deal/${dealKey}/${typeParam}/${problem.goTo ?? "Kundendaten"}`); return; }
       // asked before the save: the save stores the offer as final, so "no" must come before anything is written
       const missing = missingMain(offerNow(), price.data as never);
       if (missing.length && !(await new Promise<boolean>((resolve) => setMain({ items: missing, resolve })))) { say({ type: "info", text: TEXT.cancelled }); return; }
-      if (!String(offerNow().offerNumber || "").trim()) giveNumber();
-      await flushDraft().catch(() => undefined);
+      // The last mail of this offer carried a hand-edited Word file: the signing view would show the
+      // standard rendering — not what the customer has. Stopped before anything is saved (audit F4;
+      // the server refuses the same with HAND_EDITED_SENT).
+      const sentNumber = String(offerNow().offerNumber || "").trim();
+      if (sentNumber && (st().scratch.handEditedNumber === sentNumber || sentHandEdited(sends, sentNumber))) throw new NeedsNewVersion(VERSION.handEditedSent);
+      if (!sentNumber) await giveNumber();
+      // the deal's draft must hold what is signed: a refused or failed save stops here (audit F7)
+      const unsaved = await saveBeforeSend(NOTHING.sign);
+      if (unsaved) { say({ type: "error", text: unsaved.text }); setStop(place, unsaved.stop); return; }
       const offer = offerNow(), type = String(offer.activeOffer || "bu").toLowerCase(), number = String(offer.offerNumber || "");
       const payload = { ...offer, activeOffer: type, offerNumber: number };
       // the signing view has no way back to an offer that was not stored
@@ -50,7 +62,8 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
         toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
       } catch (err) {
         // an offer that was sent and changed since is refused here already: say what to do, not "could not be saved"
-        if (err instanceof ApiFailure && err.code === "OFFER_CHANGED") { say({ type: "error", text: TEXT.offerChanged }); return; }
+        const refused = err instanceof ApiFailure ? refusal(err.code, TEXT.offerChanged) : null;
+        if (refused) throw refused;
         toast.error("Speichern fehlgeschlagen", { description: messageOf(err) }); say({ type: "error", text: TEXT.notSaved }); return;
       }
 
@@ -67,12 +80,12 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
         if (!again) { say({ type: "info", text: TEXT.cancelled }); return; }
         ({ res, body } = await ask(true));
       }
-      if (!res.ok) { const e = errorOf(body); throw new Error(e.code === "OFFER_CHANGED" ? TEXT.offerChanged : e.message || `Fehler (${res.status})`); }
+      if (!res.ok) { const e = errorOf(body); throw refusal(e.code, TEXT.offerChanged) ?? new Error(e.message || `Fehler (${res.status})`); }
       historyChanged();
       const signing = body as Signing, opened = window.open(String(signing.link), "_blank");
       // a tablet that blocks new windows still gets there: the link stays under the message
       say({ type: "success", text: ready(signing), ...(opened ? {} : { link: String(signing.link) }) });
-    } catch (err) { say({ type: "error", text: messageOf(err) || TEXT.failed }); }
+    } catch (err) { say({ type: "error", text: messageOf(err) || TEXT.failed }); if (err instanceof NeedsNewVersion) setStop(place, "new-version"); }
     finally { lock.current = false; setBusy(false); }
   };
 
@@ -90,6 +103,7 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
           {status.link ? <a href={status.link} target="_blank" rel="noreferrer" data-part="link" className="ml-2 inline-flex min-h-12 items-center font-semibold text-primary underline">Unterschriften-Ansicht öffnen</a> : null}
         </p>
       ) : null}
+      <div className="w-full basis-full empty:hidden"><StopActions place={place} /></div>
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${dealKey}/${typeParam}/${page}`); }} /> : null}
       {question ? <Question q={question} /> : null}
     </div>

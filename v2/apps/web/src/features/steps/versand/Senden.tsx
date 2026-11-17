@@ -11,10 +11,12 @@ import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
+import { checkStep, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
 import { SignOnSite } from "./Unterschrift.js";
 import { historyChanged } from "./Verlauf.js";
+import { StopActions } from "./NeueVersion.js";
+import { NOTHING, NeedsNewVersion, refusal, saveBeforeSend, setStop } from "./version.js";
 import { ccDefault, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
   TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
@@ -75,6 +77,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
   return { busy, send: async () => {
     if (lock.current) return; // locked before the first wait: a second tap starts nothing
     lock.current = true; setBusy(true);
+    setStop("mail", null);
     try {
       const problem = checkStep("Kundendaten");
       if (problem) { toast.error("Angaben unvollständig", { description: problem.message, id: "step-check" }); navigate(`/deal/${key}/${typeParam}/${problem.goTo ?? "Kundendaten"}`); return; }
@@ -86,8 +89,10 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       const missing = missingMain(first, price.data as never);
       if (missing.length && !(await askMain(missing))) { status({ type: "info", text: TEXT.cancelled }); return; }
       // an offer that was never given a number gets it now — subject, text and PDF name the same one
-      if (!String(offerNow().offerNumber || "").trim()) giveNumber();
-      await flushDraft().catch(() => undefined);
+      if (!String(offerNow().offerNumber || "").trim()) await giveNumber();
+      // the deal's draft must hold what goes out: a refused or failed save stops the send (audit F7)
+      const unsaved = await saveBeforeSend(NOTHING.mail);
+      if (unsaved) { status({ type: "error", text: unsaved.text }); setStop("mail", unsaved.stop); return; }
 
       const offer = offerNow(), scratch = st().scratch, type = String(offer.activeOffer || "bu").toLowerCase();
       const number = String(offer.offerNumber || "");
@@ -135,14 +140,15 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       let res = await post(form);
       if (res.status === 409) {
         const conflict = (await res.json().catch(() => ({}))) as Offer, e = errorOf(conflict);
-        if (e.code === "OFFER_CHANGED") throw new Error(TEXT.offerChanged);
+        const refused = refusal(e.code, TEXT.offerChanged); // sent and changed since, or sent hand-edited (audit F4)
+        if (refused) throw refused;
         if (e.code !== "ALREADY_SENT") throw new Error(e.message || "Versand läuft bereits.");
         const again = await ask({ title: "Angebot noch einmal senden?", message: `Für diesen Deal wurde am ${atLocal(conflict.lastSentAt)} schon eine Angebots-E-Mail gesendet (${conflict.lastOfferNumber || "-"}).`, yes: "Ja, noch einmal senden", no: "Nein, nicht senden" });
         if (!again) { push("info", TEXT.notAgain); return; }
         form.set("forceResend", "1");
         res = await post(form);
       }
-      if (!res.ok) { const e = errorOf(await res.json().catch(() => ({}))); throw new Error(e.message || `HTTP ${res.status}`); }
+      if (!res.ok) { const e = errorOf(await res.json().catch(() => ({}))); throw refusal(e.code, TEXT.offerChanged) ?? new Error(e.message || `HTTP ${res.status}`); }
       const result = (await res.json().catch(() => ({}))) as SentResult;
 
       st().remember("internalNote", "");
@@ -154,7 +160,8 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
         toast.warning("Bitrix-Ablage fehlgeschlagen", { description: text });
       } else push("success", done(result.attachmentNames ?? []));
       st().remember("editedDocx", null); // never applies to the next send by accident
-      if (result.signingLink === "off-hand-edited") toast.info(TEXT.handEdited);
+      // remembered for "Vor Ort unterschreiben": the signing view would show another document (audit F4)
+      if (result.signingLink === "off-hand-edited") { toast.info(TEXT.handEdited); st().remember("handEditedNumber", number); }
       st().patch("zusammenfassung" as never, { versand: { art: "mail", versendetAm: new Date().toISOString() } } as never);
       const sentOffer = offerNow();
       onSent({ dealId: deal, result, offerNumber: number, offer: { ...sentOffer, offerNumber: number } });
@@ -165,6 +172,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       } catch { /* the send record on the server is the proof; the offer is saved with the next save */ }
     } catch (err) {
       push("error", `Senden fehlgeschlagen: ${messageOf(err)}`);
+      if (err instanceof NeedsNewVersion) setStop("mail", "new-version");
     } finally { lock.current = false; setBusy(false); }
   }, materialCodes: () => materialCodes(price.data) };
 }
@@ -301,6 +309,7 @@ export function Senden() {
           ); })}
         </div>
       ) : null}
+      <StopActions place="mail" />
 
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${key}/${typeParam}/${page}`); }} /> : null}
       {question ? <Question q={question} /> : null}
