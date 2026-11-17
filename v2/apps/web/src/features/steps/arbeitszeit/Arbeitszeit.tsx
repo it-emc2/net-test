@@ -2,27 +2,22 @@
 // nights away; Alltagshilfe: travel zone), time on site, travel time with the second worker's
 // rate, and the extra work of a Badewannentür. The stored fields are exactly today's
 // (test/arbeitszeit.test.tsx compares with what today's UI stores for the same inputs).
+// The route is asked for by itself as soon as the address is known (auto-route.ts, U-011 B4).
 // Still in today's UI: the cost overview and the automatic suggestion (it is built from the
 // steps that follow).
-import { useState } from "react";
 import { useParams } from "react-router";
 import { Plus, Trash2 } from "lucide-react";
-import { ApiFailure, call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Field, Input, Label, SelectField } from "../../../shared/ui/index.js";
 import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
+import { askRoute, useAutoRoute, writeArbeitszeit, type RouteHint } from "./auto-route.js";
 import {
-  EMPTY_EXTRA, NO_ADDRESS, TOO_LONG, ZONE_BUTTONS, addMinutes, derived, extraRows, fromRoute, fromSeconds, hoursText, leaveDuration,
+  EMPTY_EXTRA, TOO_LONG, ZONE_BUTTONS, addMinutes, extraRows, fromSeconds, hoursText, leaveDuration,
   roundTripText, storedExtra, totalText, travelDaysText, travelTooLong, typeDuration, zoneText, type ExtraRow,
 } from "./rules.js";
 
 const AZ = "Arbeitszeit";
 type Fields = Record<string, unknown>;
-const offerNow = () => (useOfferStore.getState().offer ?? {}) as Record<string, any>;
-/** change entries; everything that follows from them is brought up to date in the same change */
-function write(fields: Fields) {
-  const o = offerNow();
-  useOfferStore.getState().patch(AZ as never, derived({ ...(o.Arbeitszeit ?? {}), ...fields }, { type: o.activeOffer, payer: o.Kundendaten?.payer, postalCode: o.Kundendaten?.postalCode }) as never);
-}
+const write = writeArbeitszeit;
 /** typing a duration: digits become H:MM; deleting is left alone so the field can be emptied */
 const typed = (before: string, raw: string) => (raw.length < before.length && before.startsWith(raw) ? raw : typeDuration(raw));
 
@@ -54,28 +49,14 @@ function Way() {
   const travelTime = useOfferField<string>(AZ, "travelTimeHHMM") ?? "";
   const zone = useOfferField<number>(AZ, "ahTravelZone") ?? 0;
   const pressed = useOfferStore((s) => s.scratch.zonePressed as number | undefined);
-  const [hint, setHint] = useState<{ text: string; basis?: string }>({ text: "" });
+  const hint = (useOfferStore((s) => s.scratch.routeHint) as RouteHint | undefined) ?? { text: "" };
   const ah = type === "ah";
-  const suggest = async () => {
-    const kd = offerNow().Kundendaten ?? {};
-    const address = { street: String(kd.street ?? "").trim(), city: String(kd.city ?? "").trim(), postalCode: String(kd.postalCode ?? "").trim(), state: kd.state ?? "", country: kd.country ?? "" };
-    if (!address.street && !address.city && !address.postalCode) { setHint({ text: NO_ADDRESS }); return; }
-    setHint({ text: "Berechne Routenvorschlag …" });
-    try {
-      const route = await call("suggestDistance", { body: { Kundendaten: address } });
-      const found = route.ok ? fromRoute(route) : null;
-      if (!found) { setHint({ text: route.ok ? "Keine sinnvolle Strecke ermittelt." : "Routenvorschlag fehlgeschlagen." }); return; }
-      write(found.fields);
-      setHint({ text: found.text, basis: found.basis });
-    } catch (err) {
-      setHint({ text: err instanceof ApiFailure && err.status ? err.message : "Routenvorschlag fehlgeschlagen (Netzwerkfehler)." });
-    }
-  };
+  useAutoRoute(); // the way follows the address by itself; the button asks again
   const view = { distanceKm: distance, travelDays, workDays, uebernachten: nights };
   return (
     <Card aria-labelledby="az-way">
       <CardTitle id="az-way">Anfahrt</CardTitle>
-      <div><Button variant="secondary" onClick={() => { void suggest(); }}>Strecke aus Adresse vorschlagen</Button></div>
+      <div><Button variant="secondary" onClick={() => { void askRoute(true); }}>Strecke aus Adresse vorschlagen</Button></div>
       {hint.text ? <p className="m-0 text-muted-foreground" role="status" data-testid="az-routing">{hint.text}{hint.basis ? <><br /><span className="text-[0.9rem]">{hint.basis}</span></> : null}</p> : null}
       {ah ? (
         <div className="grid gap-2">

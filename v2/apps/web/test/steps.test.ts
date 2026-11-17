@@ -12,8 +12,11 @@ const snapshot = (type: string) =>
     .split("\n").map((l) => l.trim()).filter((l) => l && !NOT_STEPS.has(l));
 
 describe("steps per offer type", () => {
-  it.each(NEW_OFFER_TYPES.map((t) => [t] as const))("%s: same steps in the same order as today's UI", (type) => {
-    expect([...STEPS[type]]).toEqual(snapshot(type));
+  it.each(NEW_OFFER_TYPES.map((t) => [t] as const))("%s: the steps of today's UI, in its order (Badumbau: Arbeitszeit after the material)", (type) => {
+    const today = snapshot(type);
+    // Badumbau: Arbeitszeit after the work and the material (U-011 B4) — everything else as today
+    const want = type === "bu" ? [...today.filter((s) => s !== "Arbeitszeit").slice(0, today.indexOf("Rabatt") - 1), "Arbeitszeit", ...today.slice(today.indexOf("Rabatt"))] : today;
+    expect([...STEPS[type]]).toEqual(want);
   });
   it("helpers", () => {
     expect(firstStep("bu")).toBe("Kundendaten");

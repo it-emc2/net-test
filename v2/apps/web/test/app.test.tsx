@@ -181,7 +181,7 @@ describe("header and sidebar", () => {
     expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("sidebar: the open step is the current page; groups as today", async () => {
+  it("sidebar: the open step is the current page; groups as today (Arbeitszeit after the material)", async () => {
     fakeServer(BASE);
     renderApp(`/deal/${TEMP}/bu/Duschwanne`);
     const nav = await screen.findByRole("navigation", { name: "Schritte" });
@@ -190,7 +190,7 @@ describe("header and sidebar", () => {
     expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
     expect(nav).toHaveTextContent("II · Material für Badumbau");
     // narrow screens: the bar names the open step (the list is the drawer, see header.test)
-    expect(screen.getByRole("group", { name: "Schrittleiste" })).toHaveTextContent("Schritt 4/16 · Duschwanne");
+    expect(screen.getByRole("group", { name: "Schrittleiste" })).toHaveTextContent("Schritt 3/16 · Duschwanne");
   });
 
   it("Weiter and Zurück lead through the steps in order; none before the first, none after the last", async () => {

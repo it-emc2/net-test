@@ -99,7 +99,8 @@ describe("Optionale Produkte stores and shows what today's UI does", () => {
     for (const k of new Set([...Object.keys(base), ...Object.keys(offer())])) if (k !== "optional") expect([k, changed(base[k], offer()[k])]).toEqual([k, elsewhere[k] ?? {}]); // the tasks and the work time follow; nothing else changes
 
     const v = scenario.view as unknown as View;
-    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(v.step)); // "Weiter" asks for nothing on this step
+    // after the optional products comes Arbeitszeit now (U-011 B4; today: Aufschlag / Rabatt)
+    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(v.step === "Rabatt" ? "Arbeitszeit" : v.step)); // "Weiter" asks for nothing on this step
     expect(v.said).toEqual([]);
     if (v.step !== "Optional") return; // gone on: the next step is on the page
     expect(screen.getAllByTestId("opt-card").map((c) => ({ id: c.dataset.id, on: c.getAttribute("aria-pressed") === "true", badge: part(c, "badge"), counted: c.querySelector('[data-part="badge"]')!.getAttribute("data-counted") === "true" })).filter((c) => c.on || c.counted || c.badge !== "✓ 0")).toEqual(v.cards);

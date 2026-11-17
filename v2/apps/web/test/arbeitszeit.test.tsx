@@ -75,7 +75,9 @@ describe("Arbeitszeit stores and shows what today's UI does, every offer type", 
 
     // "Weiter": goes on only with distance, time on site and travel time
     await userEvent.click(screen.getByRole("link", { name: /^Weiter zu/ }));
-    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(scenario.next));
+    // Badumbau: Arbeitszeit now comes after the material (U-011 B4) — where today goes on to "Arbeiten", it goes on to "Aufschlag / Rabatt"
+    const next = scenario.type === "bu" && scenario.next === "Arbeiten" ? "Rabatt" : scenario.next;
+    await waitFor(() => expect(router.state.location.pathname.split("/")[4]).toBe(next));
     if (scenario.next === "Arbeitszeit") expect(await screen.findByText(/^Bitte in „Arbeitszeit“ ausfüllen: /)).toBeInTheDocument();
   });
 });
