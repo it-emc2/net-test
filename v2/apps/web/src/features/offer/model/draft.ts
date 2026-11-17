@@ -43,6 +43,12 @@ export type OpenState =
   | { status: "other-type"; type: NewOfferType }
   | { status: "error"; message: string };
 
+/** What the Hauptmenü hands to the offer it is about to start (an appointment of the planning): one
+ *  shot, used only if `dealId` starts as a NEW offer (an existing draft is never overwritten). */
+let pendingStart: { dealId: string; apply: () => void } | null = null;
+export const prefillNextOffer = (dealId: string, apply: () => void) => { pendingStart = { dealId, apply }; };
+const takePrefill = (dealId: string) => { const p = pendingStart; pendingStart = null; if (p?.dealId === dealId) p.apply(); };
+
 /** Makes the offer of `dealId` the open one: its draft, or a new empty offer of `type`. */
 export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
   const [state, setState] = useState<OpenState>({ status: "loading" });
@@ -55,6 +61,7 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
       (d) => {
         if (!isNewOfferType(d.offerType)) return setState({ status: "error", message: "Dieser Entwurf hat eine Angebotsart, die hier nicht bearbeitet werden kann." });
         if (d.offerType !== type) return setState({ status: "other-type", type: d.offerType });
+        pendingStart = null; // an existing draft is never overwritten by an appointment
         if (!applySnapshot(dealId, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
         setState({ status: "ready" });
       },
@@ -67,6 +74,7 @@ export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
             if (ctl.signal.aborted) return;
             if (applySnapshot(dealId, type, 0)) return setState({ status: "ready" });
             useOfferStore.getState().start(type, { date: todayIso(), ...(pricingRules ? { pricingRules } : {}) }, dealId);
+            takePrefill(dealId);
             setState({ status: "ready" });
           });
           return;

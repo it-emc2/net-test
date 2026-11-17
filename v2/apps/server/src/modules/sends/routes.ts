@@ -62,7 +62,7 @@ export async function registerSends(app: FastifyInstance, d: { deals: DealWrites
     return { ok: true, sends: rows.map(sendView) };
   });
 
-  // the sends of a deal, every offer number of it (the "Versandverlauf" on the Versand step, U-023)
+  // the sends of a deal, every offer number of it (the "Versandverlauf" on the Versand step, U-024)
   app.get("/api/deals/:dealId/sends", async (req, reply) => {
     const dealId = String((req.params as { dealId: string }).dealId ?? "").trim();
     if (!dealId || dealId.length > 64) return fail(req, reply, 400, "BAD_DEAL_ID", "Ungültige Deal-Kennung");

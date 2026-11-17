@@ -3,7 +3,7 @@
 // when, how, to whom, whether it was signed, whether the documents are in Bitrix, and the stored
 // document. A failed send is only shown while it is the latest one. A Bitrix filing that failed
 // can be repeated from here (nothing is sent again).
-// U-023 (owner 2026-11-17): the list holds the sends of the deal (all its offer numbers); a line
+// U-024 (owner 2026-11-17): the list holds the sends of the deal (all its offer numbers); a line
 // of another offer number than the open one names it. Nothing sent: no list at all.
 type Fields = Record<string, unknown>;
 const obj = (v: unknown): Fields => (v && typeof v === "object" && !Array.isArray(v) ? (v as Fields) : {});

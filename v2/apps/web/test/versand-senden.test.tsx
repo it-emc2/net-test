@@ -33,7 +33,7 @@ interface View {
 }
 interface Act { act: string[]; requests: Obj[]; toasts: string[][]; alerts: string[]; stored: Obj; view: View }
 interface Scenario { name: string; type: string; offer: Obj; pre: unknown[][]; answers: [string, number, Obj][]; view: View; acts: Act[] }
-// U-023 (owner 2026-11-17): "Nur in Bitrix ablegen" and the files for Bitrix only are gone from
+// U-024 (owner 2026-11-17): "Nur in Bitrix ablegen" and the files for Bitrix only are gone from
 // the page — the scenarios that use them are not replayed (the recording stays as it was). The
 // own files for the customer are covered below ("files added in the drop zone …").
 const REMOVED = new Set(["only in Bitrix", "only in Bitrix without recipient", "own files for the customer and for Bitrix"]);
@@ -140,7 +140,7 @@ function expected(v: View): Partial<View> {
   const out: Partial<View> = { step: v.step, hp: v.hp, ask: v.ask, stage: v.stage ? { ...v.stage, title: unicon(v.stage.title), body: unicon(v.stage.body) } : null };
   if (v.step !== "Zusammenfassung") return out;
   return { ...out, send: { ...v.send, label: v.docx.remove ? v.send.label : v.send.label.replace("Geänderte DOCX senden", "An Kunden senden") } as View["send"], docx: v.docx,
-    // U-023: the button "Nur in Bitrix ablegen" and the list "Nur für Bitrix" are gone — not compared
+    // U-024: the button "Nur in Bitrix ablegen" and the list "Nur für Bitrix" are gone — not compared
     attachments: v.attachments, count: v.count, deal: v.deal, note: v.note, status, versand: unicon(v.versand) };
 }
 const comparable = (v: Partial<View>) => ({ ...v, ...(v.versand ? { versand: clock(v.versand) } : {}), ...(v.send ? { send: { label: v.send.label, disabled: v.send.disabled } } : {}) });
@@ -288,7 +288,7 @@ describe("sending — rules and what goes beyond the recordings", () => {
     } finally { Object.assign(POLL_MS, was); }
   });
 
-  it("files added in the drop zone (chosen, dropped, pasted) go to the customer as attachments; nothing for Bitrix only, no product pictures (U-023)", async () => {
+  it("files added in the drop zone (chosen, dropped, pasted) go to the customer as attachments; nothing for Bitrix only, no product pictures (U-024)", async () => {
     const user = await ready();
     expect(screen.queryByTestId("zf-bitrix-files")).toBeNull();
     expect(screen.getByTestId("zf-send").querySelector('[data-action="bitrix"]')).toBeNull();

@@ -1,5 +1,5 @@
 // "Versandverlauf" (ADR 026, phase 4; UX-CHANGES U-015): what really went out for this deal
-// (U-023: all offer numbers of the deal; without a deal number the sends of the open offer).
+// (U-024: all offer numbers of the deal; without a deal number the sends of the open offer).
 // Drawn only when something was sent.
 // The rules are history-rules.ts. Asked again after every send or hand-over on this page, and
 // when the window comes back to the front (a signature happens in another window).

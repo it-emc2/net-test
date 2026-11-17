@@ -5,7 +5,7 @@
 // sending by mail (Senden.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Slice 6:
 // signing on site on both tabs (Unterschrift.tsx) and the signed documents by post (Post.tsx).
 // The history of sends: Verlauf.tsx (U-015).
-// U-023 (owner-approved mock 2026-11-17), top to bottom: contact person and send status, the
+// U-024 (owner-approved mock 2026-11-17), top to bottom: contact person and send status, the
 // enclosed documents, the history (only when something was sent), the choice "Per E-Mail" /
 // "Per Post", and "Mehr Optionen" (closed) with the Dokumentenstudio and "Angebot anpassen".
 import { useQuery } from "@tanstack/react-query";

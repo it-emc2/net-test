@@ -27,7 +27,7 @@ async function open(s: Scenario, payload = offerOf(s), price: Obj = { total: 10,
   fakeServer({ ...BASE, "GET /api/users": { body: reference.users }, "POST /api/price": { body: price }, [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
   renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
   const card = await screen.findByTestId("oo-card");
-  openMore(); // U-023: "Angebot anpassen" is in "Mehr Optionen"
+  openMore(); // U-024: "Angebot anpassen" is in "Mehr Optionen"
   (card as HTMLDetailsElement).open = true;
   return card;
 }

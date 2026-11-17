@@ -38,7 +38,7 @@ export function renderApp(path: string) {
   return router;
 }
 
-/** Versand (U-023): the Dokumentenstudio and "Angebot anpassen" sit in "Mehr Optionen", closed by default — open it */
+/** Versand (U-024): the Dokumentenstudio and "Angebot anpassen" sit in "Mehr Optionen", closed by default — open it */
 export function openMore() {
   const b = document.getElementById("zf-more-trigger");
   if (b && b.getAttribute("aria-expanded") !== "true") fireEvent.click(b);

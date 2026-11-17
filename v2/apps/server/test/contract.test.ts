@@ -910,7 +910,7 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
 
       const list = await get("/api/offers/ANG-REC-1/sends");
       expect(list.body.sends.map((x: any) => x.sendId)).toEqual(["send-rec-0001"]);
-      // the sends of the deal, across its offer numbers (Versandverlauf, U-023)
+      // the sends of the deal, across its offer numbers (Versandverlauf, U-024)
       const byDeal = await get("/api/deals/9311/sends");
       expect(byDeal.body.sends.map((x: any) => [x.sendId, x.offerNumber])).toContainEqual(["send-rec-0001", "ANG-REC-1"]);
       expect((await get("/api/sends/unknown-send-id")).status).toBe(404);

@@ -2,7 +2,7 @@
 // step-by-step messages, the question about main items
 // that are not in the offer, the "already sent" question, and the dialog after sending with the
 // move of the deal. The rules are send-rules.ts; what the mail says is Mail.tsx / mail-rules.ts.
-// U-023 (owner 2026-11-17): "Nur in Bitrix ablegen", the files for Bitrix only, the plan photos
+// U-024 (owner 2026-11-17): "Nur in Bitrix ablegen", the files for Bitrix only, the plan photos
 // and the product-picture PDF are gone; the send carries `includeProductImages: ""` as before
 // that feature (the server route for a filing only stays — today's UI still uses it).
 import { CircleCheck, CircleX, Info, LoaderCircle, Send, TriangleAlert } from "lucide-react";
@@ -124,7 +124,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       form.append("payload", JSON.stringify(payload));
       form.append("excludePreset", JSON.stringify(excluded(offer, (scratch.mailRemoved as string[] | undefined) ?? [])));
       form.append("excludeBitrixPresets", "");
-      form.append("includeProductImages", ""); // no product-picture PDF (removed, U-023)
+      form.append("includeProductImages", ""); // no product-picture PDF (removed, U-024)
       form.append("dealId", deal);
       form.append("contactId", String((offer.Kundendaten ?? {}).bitrixContactId ?? "").trim());
       form.append("sendId", crypto.randomUUID());

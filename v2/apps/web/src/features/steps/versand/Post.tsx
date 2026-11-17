@@ -303,7 +303,7 @@ export function Post() {
           {fixed.map((f) => <FileRow key={f.id} name={f.filename} meta={f.label} onRemove={() => st().patch("docSelection" as never, { [f.id]: false } as never)} />)}
           {uploads.map((u) => <FileRow key={u.id} name={u.file.name} meta={`Upload · ${uploadSize(u.file.size)}`} onRemove={() => st().remember("postUploads", uploadsNow().filter((x) => x.id !== u.id))} />)}
         </ul>
-        {/* U-023: own PDFs are added in a drop zone below the list (only PDFs, as before) */}
+        {/* U-024: own PDFs are added in a drop zone below the list (only PDFs, as before) */}
         <DropZone id="zf-post-add" data-testid="zf-post-drop" accept="application/pdf,.pdf" title="PDF hier ablegen, einfügen (⌘V) oder auswählen" onFiles={add} />
         <p className="m-0 text-[0.95rem] text-muted-foreground" data-part="hint">{TEXT.hint}</p>
       </div>

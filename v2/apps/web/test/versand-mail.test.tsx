@@ -73,7 +73,7 @@ describe("the mail form shows and stores what today's UI does", () => {
       else if (kind === "deal" || kind === "to" || kind === "cc" || kind === "subject") fireEvent.change(input(`zf-mail-${kind}`), { target: { value: x } });
       else if (kind === "body") fireEvent.change(input("zf-mail-body"), { target: { value: x!.startsWith("+") ? `${input("zf-mail-body").value}\n\n${x!.slice(1)}` : x } });
       else if (kind === "ap") await user.selectOptions(screen.getByLabelText("Ansprechpartner"), x!);
-      else if (kind === "stamp") { openMore(); await user.click(screen.getByRole("button", { name: "Angebot: DOCX" })); } // U-023: the studio is in "Mehr Optionen"
+      else if (kind === "stamp") { openMore(); await user.click(screen.getByRole("button", { name: "Angebot: DOCX" })); } // U-024: the studio is in "Mehr Optionen"
       else useOfferStore.getState().patch("Kundendaten" as never, { [f!]: v } as never); // a change made on Kundendaten
       await waitFor(() => expect(shown()).toEqual(a.view));
       // a text that only got the offer's new number is "unchanged" in the recording (every number reads <number> there)

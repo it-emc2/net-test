@@ -2,7 +2,7 @@
 // modules/web/addons/offer-record.js draws it): one line per send — when, how, to whom, signed,
 // Bitrix state, stored document — and repeat a failed Bitrix filing. Check level "Light": the
 // rules against the add-on's wording, the list on the page, and the one action in it.
-// U-023 (owner 2026-11-17): the list holds the sends of the deal and is not drawn when nothing
+// U-024 (owner 2026-11-17): the list holds the sends of the deal and is not drawn when nothing
 // was sent — the test "an offer that never went out" changed with it, the deal tests are new.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -73,13 +73,13 @@ describe("Versandverlauf — on the page", () => {
     expect([link.getAttribute("href"), link.getAttribute("target")]).toEqual([`/api/sends/${ID}/files/f1`, "_blank"]);
   });
 
-  it("nothing sent: no list at all (U-023; before: \"Dieses Angebot wurde noch nicht versendet.\")", async () => {
+  it("nothing sent: no list at all (U-024; before: \"Dieses Angebot wurde noch nicht versendet.\")", async () => {
     const server = await open({ body: { ok: true, sends: [] } });
     await waitFor(() => expect(server.count(`GET /api/offers/${NUMBER}/sends`)).toBeGreaterThan(0));
     expect(screen.queryByTestId("zf-history")).toBeNull();
   });
 
-  it("with a deal number: the sends of the deal, a line of another offer number names it (U-023)", async () => {
+  it("with a deal number: the sends of the deal, a line of another offer number names it (U-024)", async () => {
     const withDeal: Reply = { body: { ...(draft.body as Obj), payload: { ...offer, auftragId: "65418" } } };
     const server = await open({ body: { ok: true, sends: [] } }, { "GET /api/deals/65418/sends": { body: { ok: true, sends: [{ ...MAILED, offerNumber: NUMBER }, { sendId: "old", channel: "post", status: "done", offerNumber: "ANG2026-1101-080000", to: "Erika Muster", finishedAt: "2026-11-01T08:00:00.000Z" }] } } }, withDeal);
     await screen.findByTestId("zf-history");
@@ -112,7 +112,7 @@ describe("Versandverlauf — on the page", () => {
   });
 
   it("after a send on this page the list is read again", async () => {
-    const server = await open({ body: { ok: true, sends: [MAILED] } }); // U-023: the list is only drawn with a send in it
+    const server = await open({ body: { ok: true, sends: [MAILED] } }); // U-024: the list is only drawn with a send in it
     await screen.findByTestId("zf-history");
     const was = server.count(`GET /api/offers/${NUMBER}/sends`);
     historyChanged();

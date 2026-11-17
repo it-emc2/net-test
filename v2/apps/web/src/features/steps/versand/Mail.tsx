@@ -2,7 +2,7 @@
 // deal number, recipient, CC, subject, text, the preview of the mail and the list of
 // attachments. The rules are mail-rules.ts. Slice 4b, part 1: own files for the mail and the
 // offer edited in Word (kept while the offer is open — files are not part of the offer).
-// U-023 (owner-approved mock 2026-11-17): files are added in a drop zone right below the list
+// U-024 (owner-approved mock 2026-11-17): files are added in a drop zone right below the list
 // (drag and drop, paste, "Datei auswählen"); the product-picture PDF is gone.
 import { FileCheck, FilePen, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
