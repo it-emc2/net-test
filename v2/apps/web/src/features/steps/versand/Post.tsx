@@ -17,6 +17,7 @@ import {
 } from "./post-rules.js";
 import { MainItems, Modal, Question, SentDialog, follow, type Ask, type Sent } from "./Senden.js";
 import { SignOnSite } from "./Unterschrift.js";
+import { historyChanged } from "./Verlauf.js";
 import { TEXT as SIGN, canPostSigned, signedLetter, signedParts, signedSent, type SignedDoc } from "./sign-rules.js";
 import { TEXT as SEND_TEXT, bitrixJobs, errorOf, materialCodes, missingMain, type MainItem } from "./send-rules.js";
 
@@ -85,6 +86,7 @@ async function sendSigned(io: { release: () => Promise<{ confirmedBy: string } |
   const result = (await res.json().catch(() => ({}))) as Posted & Offer;
   if (!res.ok || result.ok === false) throw new Error(errorOf(result).message || `Postversand fehlgeschlagen (${res.status}).`);
   const done = signedSent(result);
+  historyChanged();
   say(done.ok ? "success" : "error", done.text);
   if (done.warn) toast.warning("Bitrix-Ablage fehlgeschlagen", { description: done.warn });
 }
@@ -149,6 +151,7 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   if (!res.ok || result.ok === false) throw new Error(errorOf(result).message || `Postversand fehlgeschlagen (${res.status}).`);
 
   const text = sentText(result);
+  historyChanged();
   if (result.bitrix?.ok === false) {
     const warn = filingFailed(String(result.bitrix.error ?? "").trim());
     say("error", `${text} – ${warn}`);

@@ -10,6 +10,7 @@ import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/inde
 import { giveNumber } from "./number.js";
 import { MainItems, Question, type Ask } from "./Senden.js";
 import { errorOf, missingMain, type MainItem } from "./send-rules.js";
+import { historyChanged } from "./Verlauf.js";
 import { TEXT, ready, request, signedBefore, type Signing } from "./sign-rules.js";
 
 type Offer = Record<string, any>;
@@ -63,6 +64,7 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
         ({ res, body } = await ask(true));
       }
       if (!res.ok) { const e = errorOf(body); throw new Error(e.code === "OFFER_CHANGED" ? TEXT.offerChanged : e.message || `Fehler (${res.status})`); }
+      historyChanged();
       const signing = body as Signing, opened = window.open(String(signing.link), "_blank");
       // a tablet that blocks new windows still gets there: the link stays under the message
       say({ type: "success", text: ready(signing), ...(opened ? {} : { link: String(signing.link) }) });

@@ -104,8 +104,8 @@ describe("the frame of Angebotsversand — rules and what goes beyond the record
     expect(sendStatus({ zusammenfassung: { versand: { art: "mail", versendetAm: "2026-11-16T09:30:00.000Z" } } })).toEqual({ sent: true, text: "Versendet per E-Mail am 16.11.2026 um 10:30 Uhr." });
   });
 
-  it("what is not built yet is reached in today's view", async () => {
+  it("the step is complete: nothing points to today's view any more", async () => {
     await open(first);
-    expect(screen.getByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeNull();
   });
 });
