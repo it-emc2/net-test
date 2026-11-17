@@ -1,6 +1,6 @@
 // The door section of Badewannentür: five equal tiles in one row (the tile is the control; one door
 // at a time), and below them one full-width panel for the chosen door — specs, sizes (Wien, Wien
-// Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-035): the stored fields and
+// Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-034): the stored fields and
 // the rules are slice 1's (rules.ts).
 import { Check as Tick, Info, Minus, Plus } from "lucide-react";
 import { Card, CardTitle, IMG, Input, cn } from "../../../shared/ui/index.js";

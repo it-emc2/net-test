@@ -112,7 +112,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     expect(door.getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("the door panel: one panel for the chosen door, quantity stepper (min 1), Standardbreite as chips (UX-CHANGES U-035)", async () => {
+  it("the door panel: one panel for the chosen door, quantity stepper (min 1), Standardbreite as chips (UX-CHANGES U-034)", async () => {
     await open();
     const user = userEvent.setup();
     expect(screen.getAllByTestId("bwt-door")).toHaveLength(5);
