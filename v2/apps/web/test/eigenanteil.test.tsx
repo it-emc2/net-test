@@ -34,12 +34,12 @@ describe("rule: price answers stay consistent", () => {
 describe("Eigenanteil", () => {
   it("Kassenkunde: pill with the amount; breakdown has the numbers", async () => {
     await open({});
-    const pill = await screen.findByRole("button", { name: /^Eigenanteil .*320,00.*Aufschlüsselung/ });
+    const pill = await screen.findByRole("button", { name: /^Gesamt 4\.500,00.*Eigenanteil 320,00.*Aufschlüsselung/ });
     expect(pill).toHaveTextContent("320,00");
     const pop = screen.getByLabelText("Eigenanteil Aufschlüsselung", { selector: "div" });
     expect(pop).toHaveTextContent("4.500,00");
     expect(pop).toHaveTextContent("−4.180,00");
-    expect(pop).toHaveTextContent("Wohnumfeld");
+    expect(pop).toHaveTextContent("davon schon genutzt");
   });
   it("Selbstzahler: nothing", async () => {
     await open({}, "Selbstzahler");
@@ -60,9 +60,9 @@ describe("Eigenanteil", () => {
   });
   it("two persons → label; Wohnumfeld used → shown", async () => {
     await open({ subsidyAmount: 8360, subsidyAmount_max: 7160, subsidyKind: "ZWEI PERSONEN MIT PFLEGEGRAD", selfPayAmount: 0 });
-    const pill = await screen.findByRole("button", { name: /Eigenanteil · 2 Personen/ });
+    const pill = await screen.findByRole("button", { name: /Eigenanteil · 2 Pers\./ });
     expect(pill).toBeInTheDocument();
-    expect(screen.getByLabelText("Eigenanteil Aufschlüsselung", { selector: "div" })).toHaveTextContent("+1.200,00");
+    expect(screen.getByLabelText("Eigenanteil Aufschlüsselung", { selector: "div" })).toHaveTextContent("1.200,00");
   });
   it("drawer: Eigenanteil row and the calculation line", async () => {
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) { this.setAttribute("open", ""); };

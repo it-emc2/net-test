@@ -1,7 +1,8 @@
 // Eigenanteil for Kassenkunden (parity with today's bottom bar, `updateSummaryWidgetSelfPay`).
 // Display only: every number comes from the price answer (pricing core: subsidy by budget option,
 // minus the used Wohnumfeld amount, selfPay = max(0, total − subsidy)).
-import { TriangleAlert } from "lucide-react";
+import { ChevronDown, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { euro } from "../../shared/lib/format.js";
 import { cn } from "../../shared/ui/index.js";
@@ -24,50 +25,64 @@ export function useSelfPay(): SelfPay | null {
   return selfPayParts(payer, usePrice().data as Record<string, Num | string> | null);
 }
 
-const label = (s: SelfPay) => (s.twoPersons ? "Eigenanteil · 2 Personen" : "Eigenanteil");
+const label = (s: SelfPay, short = false) => (s.twoPersons ? `Eigenanteil · 2 ${short ? "Pers." : "Personen"}` : "Eigenanteil");
 const n = (v: number) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 }); // 4.500 · 4.180,50
 const calc = (s: SelfPay) => `${n(s.total)} − ${n(s.subsidy)} Pflegekasse${s.prior ? ` + ${n(s.prior)} Wohnumfeld` : ""}`; // selfPay = total − (subsidy − used)
+const GREEN = "text-green-800 dark:text-green-300";
+const BOX = "flex h-11 shrink-0 items-stretch overflow-hidden rounded-lg border border-input bg-card text-left leading-tight";
 
-/** step bar: the pill (tap → breakdown) or, without a subsidy option, the chip that leads to Kundendaten */
-export function SelfPayPill({ base }: { base: string }) {
+/** step bar, Kassenkunde: ONE money button — Gesamt | Eigenanteil | ⌄ (tap → breakdown). Without a
+ *  subsidy option the tinted part is the amber chip that leads to Kundendaten. Others: `fallback`. */
+export function BarMoney({ base, fallback }: { base: string; fallback: ReactNode }) {
   const s = useSelfPay();
-  if (!s) return null;
+  if (!s) return <>{fallback}</>;
+  const gesamt = (
+    <span className="grid content-center px-3">
+      <span className="text-[0.75rem] text-foreground/75">Gesamt</span>
+      <span className="text-[0.95rem] font-medium tabular-nums text-foreground/80">{euro(s.total)}</span>
+    </span>
+  );
   if (!s.hasOption) return (
-    <Link to={`${base}/Kundendaten`} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-amber-500 bg-amber-500/10 px-3 text-[0.9rem] font-semibold text-amber-700 no-underline dark:text-amber-400">
-      <TriangleAlert aria-hidden className="size-4" />Zuschuss wählen
-    </Link>
+    <div className={BOX}>{gesamt}
+      <Link to={`${base}/Kundendaten`} className="flex items-center gap-1.5 border-l border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] font-semibold text-amber-800 no-underline dark:text-amber-300">
+        <TriangleAlert aria-hidden className="size-4" />Zuschuss wählen
+      </Link>
+    </div>
   );
   return (
     <>
-      <button
-        type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`${label(s)} ${euro(s.selfPay)} – Aufschlüsselung`}
-        className="grid min-h-11 shrink-0 cursor-pointer content-center rounded-xl border border-success/50 bg-success/15 px-3 py-0.5 text-left leading-tight text-foreground"
-      >
-        <span className="text-[0.8rem] text-foreground/80">{label(s)}</span>
-        <strong className="text-base font-medium tabular-nums" data-testid="selfpay-amount">{euro(s.selfPay)}</strong>
+      <button type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`Gesamt ${euro(s.total)}, ${label(s, true)} ${euro(s.selfPay)} – Aufschlüsselung`} className={cn(BOX, "cursor-pointer p-0")}>
+        {gesamt}
+        <span className="grid content-center border-l border-success/50 bg-success/15 px-3">
+          <span className={cn("text-[0.75rem]", GREEN)}>{label(s, true)}</span>
+          <strong data-testid="selfpay-amount" className={cn("text-[0.95rem] font-medium tabular-nums", GREEN)}>{euro(s.selfPay)}</strong>
+        </span>
+        <span aria-hidden className="grid place-items-center border-l border-input px-2 text-foreground/75"><ChevronDown className="size-4" /></span>
       </button>
-      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[min(360px,calc(100vw-24px))] rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl">
+      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl">
         <dl className="m-0 grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-2 tabular-nums">
-          <dt>Gesamt</dt><dd className="m-0 whitespace-nowrap text-right">{euro(s.total)}</dd>
-          <dt>Zuschuss Pflegekasse</dt><dd className="m-0 whitespace-nowrap text-right">−{euro(s.subsidy)}</dd>
-          <dt className={cn(!s.prior && "text-foreground/70")}>Bereits genutzt<span className="block text-[0.8rem] text-foreground/70">Wohnumfeld</span></dt><dd className={cn("m-0 whitespace-nowrap text-right", !s.prior && "text-foreground/70")}>{s.prior ? `+${euro(s.prior)}` : euro(0)}</dd>
-          <dt className="mt-1 border-t border-border pt-2 font-bold">{label(s)}</dt><dd className="m-0 mt-1 whitespace-nowrap border-t border-border pt-2 text-right font-bold">{euro(s.selfPay)}</dd>
+          <dt className="text-foreground/75">Gesamt</dt><dd className="m-0 whitespace-nowrap text-right">{euro(s.total)}</dd>
+          <dt className="text-foreground/75">Zuschuss Pflegekasse</dt><dd className="m-0 whitespace-nowrap text-right">−{euro(s.subsidy)}</dd>
+          <dt className="text-[0.9rem] text-foreground/75">davon schon genutzt</dt><dd className={cn("m-0 whitespace-nowrap text-right text-[0.9rem]", !s.prior && "text-foreground/75")}>{euro(s.prior)}</dd>
         </dl>
-        {s.selfPay === 0 ? <p className="m-0 mt-2 text-[0.85rem] text-muted-foreground">Komplett über Pflegekasse</p> : null}
+        <div className="mt-3 rounded-lg bg-success/15 px-3 py-2.5">
+          <p className="m-0 flex items-baseline justify-between gap-4 font-medium"><span>{label(s)} Kunde</span><span className={cn("whitespace-nowrap text-[1.25rem] tabular-nums", GREEN)}>{euro(s.selfPay)}</span></p>
+          {s.selfPay === 0 ? <p className="m-0 mt-0.5 text-[0.85rem] text-foreground/75">Komplett über Pflegekasse</p> : null}
+        </div>
       </div>
     </>
   );
 }
 
-/** drawer / sidebar rows: Eigenanteil in bold green and the calculation line */
+/** drawer / sidebar: the same receipt in small — Eigenanteil block and the calculation line */
 export function SelfPayRows({ base }: { base: string }) {
   const s = useSelfPay();
   if (!s) return null;
-  if (!s.hasOption) return <SelfPayPill base={base} />;
+  if (!s.hasOption) return <Link to={`${base}/Kundendaten`} className="flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] font-semibold text-amber-800 no-underline dark:text-amber-300"><TriangleAlert aria-hidden className="size-4" />Zuschuss wählen</Link>;
   return (
-    <div className="grid gap-0.5" data-testid="selfpay-rows">
-      <p className="m-0 flex justify-between gap-3"><span>{label(s)}</span><strong className="text-success">{euro(s.selfPay)}</strong></p>
-      <p className="m-0 text-[0.8rem] text-muted-foreground">{calc(s)}{s.selfPay === 0 ? " · Komplett über Pflegekasse" : ""}</p>
+    <div className="rounded-lg bg-success/15 px-3 py-2" data-testid="selfpay-rows">
+      <p className="m-0 flex items-baseline justify-between gap-3 font-medium"><span>{label(s)}</span><span className={cn("whitespace-nowrap text-[1.1rem] tabular-nums", GREEN)}>{euro(s.selfPay)}</span></p>
+      <p className="m-0 text-[0.8rem] text-foreground/75">{calc(s)}{s.selfPay === 0 ? " · Komplett über Pflegekasse" : ""}</p>
     </div>
   );
 }
