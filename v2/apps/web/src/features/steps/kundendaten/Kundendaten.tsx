@@ -2,7 +2,7 @@
 // payer with the insurance details, care level and budget, second person, Wohnumfeld, funding
 // and property, notes and the internal list. The stored fields are exactly today's
 // (test/kundendaten.test.tsx compares with what today's UI stores for the same inputs).
-// Still in today's UI: the uploaded confirmations (Kasse, Vermieter).
+// Still in today's UI: the uploaded confirmation of the Kasse (the Vermieter's is VermieterUpload.tsx).
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router";
 import { LegacyLink, useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
@@ -15,6 +15,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
+import { VermieterUpload } from "./VermieterUpload.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
 
 const KD = "Kundendaten";
@@ -249,6 +250,7 @@ function Property() {
   const application = useOfferField<string>(KD, "pflegekasseAntrag");
   const living = useOfferField<string>(KD, "wohnsituation");
   const notes = useOfferField<string>(KD, "notes") ?? "";
+  const landlordNeeded = useOfferField<string>(KD, "vermieterGenehmigungErforderlich");
   const notAh = type !== "ah"; // Alltagshilfe asks only about parking and notes here
   const JA_NEIN = ["Ja", "Nein"];
   return (
@@ -263,6 +265,7 @@ function Property() {
       ) : null}
       {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd(chooseLivingSituation(v))} /> : null}
       {type === "bu" || type === "bwt" || type === "hl" ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
+      {(type === "bu" || type === "bwt" || type === "hl") && landlordNeeded === "Ja" ? <VermieterUpload /> : null}
       {notAh && living === "Miete" ? <OfferChoice section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]} /> : null}
       <OfferChoice section={KD} name="parkenMoeglich" label="Parken vor dem Objekt möglich?" options={JA_NEIN} />
       <OfferText section={KD} name="parkDetails" label="Weitere Angaben zur Parksituation" placeholder="z. B. Hinterhof, Halteverbot, Fußweg zum Objekt" autoComplete="off" />
@@ -373,7 +376,7 @@ export function Kundendaten() {
       <InternalList />
       <Card aria-labelledby="kd-more">
         <CardTitle id="kd-more">Weitere Angaben</CardTitle>
-        <p className="m-0">Hochgeladene Bestätigungen (Kasse, Vermieter) werden noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0">Die hochgeladene Bestätigung der Kasse wird noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Kundendaten">Weitere Angaben in der bisherigen Ansicht</LegacyLink>
       </Card>
     </>
