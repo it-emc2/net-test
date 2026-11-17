@@ -16,6 +16,8 @@ import {
   recipientOf, sentText, sourceKey, statics, uploadSize, warning, withBalance, type AddressField, type Enclosed, type Posted, type Recipient,
 } from "./post-rules.js";
 import { MainItems, Modal, Question, SentDialog, follow, type Ask, type Sent } from "./Senden.js";
+import { SignOnSite } from "./Unterschrift.js";
+import { TEXT as SIGN, canPostSigned, signedLetter, signedParts, signedSent, type SignedDoc } from "./sign-rules.js";
 import { TEXT as SEND_TEXT, bitrixJobs, errorOf, materialCodes, missingMain, type MainItem } from "./send-rules.js";
 
 type Offer = Record<string, any>;
@@ -45,7 +47,8 @@ async function base64(blob: Blob): Promise<string> {
 }
 const dealOf = (o: Offer) => String(o.auftragId ?? (o.mail ?? {}).auftragId ?? "").trim();
 
-async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; askMain: (items: MainItem[]) => Promise<boolean>; release: () => Promise<{ confirmedBy: string } | null>; live: (l: Omit<Live, "resolve">) => Promise<boolean>; onSent: (s: Sent) => void; price: Offer | null }) {
+/** before any letter: the address complete, and a deal number or the release by password. null: stopped (said in the status) */
+async function addressAndDeal(release: () => Promise<{ confirmedBy: string } | null>) {
   keep(true);
   const first = offerNow(), recipient = recipientOf(first), bad = invalid(recipient);
   st().remember("postInvalid", bad);
@@ -55,10 +58,41 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   st().remember("postDealMissing", !deal);
   if (!deal) {
     say("warning", TEXT.noDeal);
-    released = await io.release();
-    if (!released) { document.getElementById("zf-post-deal")?.focus(); say("error", TEXT.noRelease); return; }
+    released = await release();
+    if (!released) { document.getElementById("zf-post-deal")?.focus(); say("error", TEXT.noRelease); return null; }
     st().remember("postDealMissing", false);
   }
+  return { first, recipient, deal, released };
+}
+const printerMode = () => call("postConfig").then((r) => String(r.mode || "").toLowerCase()).catch(() => ""); // unknown counts as live: better one question too many
+
+/** the signed documents as a letter — the only way a customer without e-mail gets the signed copy */
+async function sendSigned(io: { release: () => Promise<{ confirmedBy: string } | null>; live: (l: Omit<Live, "resolve">) => Promise<boolean> }) {
+  const start = await addressAndDeal(io.release);
+  if (!start) return;
+  const { first, recipient, deal, released } = start, number = String(first.offerNumber || "").trim();
+  if (!number) throw new Error(SIGN.noNumber);
+  say("info", SIGN.loadingSigned);
+  const signed = await call("signedDocuments", { params: { offerNumber: number } });
+  const parts = signedParts(signed.documents as SignedDoc[]);
+  if (!parts) throw new Error("Keine unterschriebenen Unterlagen gefunden.");
+  if ((await printerMode()) !== "test" && !(await io.live({ recipient, documents: signed.documents.map((d) => d.filename), offerNumber: number }))) { say("info", TEXT.cancelled); return; }
+  say("info", SIGN.sendingSigned);
+  const sendId = crypto.randomUUID(), body = JSON.stringify(signedLetter({ deal, recipient, ...parts, release: released, offerNumber: number, sendId }));
+  let res: Response;
+  try { res = await fetch("/api/post/send", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body }); }
+  catch { const followed = await follow(sendId, (t) => say("info", t)); if (!followed) throw new Error("Keine Verbindung zum Server."); res = followed; }
+  const result = (await res.json().catch(() => ({}))) as Posted & Offer;
+  if (!res.ok || result.ok === false) throw new Error(errorOf(result).message || `Postversand fehlgeschlagen (${res.status}).`);
+  const done = signedSent(result);
+  say(done.ok ? "success" : "error", done.text);
+  if (done.warn) toast.warning("Bitrix-Ablage fehlgeschlagen", { description: done.warn });
+}
+
+async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; askMain: (items: MainItem[]) => Promise<boolean>; release: () => Promise<{ confirmedBy: string } | null>; live: (l: Omit<Live, "resolve">) => Promise<boolean>; onSent: (s: Sent) => void; price: Offer | null }) {
+  const start = await addressAndDeal(io.release);
+  if (!start) return;
+  const { first, recipient, deal, released } = start;
   const main = missingMain(first, io.price as never);
   if (main.length && !(await io.askMain(main))) { say("info", TEXT.cancelled); return; }
   if (!String(offerNow().offerNumber || "").trim()) giveNumber();
@@ -66,7 +100,7 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
 
   const offer = offerNow(), type = String(offer.activeOffer || "bu").toLowerCase(), number = String(offer.offerNumber || "");
   const payload = { ...offer, activeOffer: type, offerNumber: number }, pdfName = `${number}.pdf`, enclosed = enclosedNow(offer);
-  const mode = await call("postConfig").then((r) => String(r.mode || "").toLowerCase()).catch(() => ""); // unknown counts as live: better one question too many
+  const mode = await printerMode();
   if (mode !== "test" && !(await io.live({ recipient, documents: [pdfName, ...enclosed.map((e) => e.filename)], offerNumber: number }))) { say("info", TEXT.cancelled); return; }
 
   // an offer that reached the customer before goes out as the exact document sent then
@@ -192,7 +226,7 @@ export function Post() {
   const price = usePrice();
   const navigate = useNavigate();
   const { dealId: key = "", type: typeParam = "" } = useParams();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false), [busySigned, setBusySigned] = useState(false); // each letter locks its own button, as today
   const lock = useRef(false);
   const [question, setQuestion] = useState<Ask | null>(null);
   const [main, setMain] = useState<{ items: MainItem[]; resolve: (yes: boolean) => void } | null>(null);
@@ -225,6 +259,27 @@ export function Post() {
     } catch (err) { say("error", messageOf(err) || "Postversand fehlgeschlagen."); }
     finally { lock.current = false; setBusy(false); }
   };
+  const tapSigned = async () => {
+    if (lock.current) return;
+    lock.current = true; setBusySigned(true);
+    try {
+      await sendSigned({
+        release: () => new Promise((resolve) => setRelease({ resolve: (r) => { setRelease(null); resolve(r); } })),
+        live: (l) => new Promise<boolean>((resolve) => setLive({ ...l, resolve: (yes) => { setLive(null); resolve(yes); } })),
+      });
+    } catch (err) { say("error", messageOf(err) || "Postversand fehlgeschlagen."); }
+    finally { lock.current = false; setBusySigned(false); }
+  };
+  // offered once a signature started from this tab is complete — asked each time the tab is opened
+  const onTab = useOfferStore((s) => s.scratch.sendTab) === "post", number = String(offer.offerNumber || "").trim();
+  const [signedReady, setSignedReady] = useState(false);
+  useEffect(() => {
+    setSignedReady(false);
+    if (!onTab || !number) return;
+    let on = true;
+    void call("signingStatus", { params: { offerNumber: number } }).then((list) => { if (on) setSignedReady(canPostSigned(list)); }).catch(() => undefined);
+    return () => { on = false; };
+  }, [onTab, number]);
   const warn = warning(recipient);
   const wide: Partial<Record<AddressField, string>> = { street: "sm:col-span-2" };
 
@@ -261,6 +316,11 @@ export function Post() {
       {status ? (() => { const Icon = ICONS[status.type]; return (
         <p role="status" aria-live="polite" data-testid="zf-post-status" data-type={status.type} className={cn("m-0 flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2", TONE[status.type])}><Icon aria-hidden className="mt-0.5 size-4 shrink-0" /><span data-part="text">{status.text}</span></p>
       ); })() : null}
+
+      {signedReady ? (
+        <div><Button variant="outline" data-action="post-signed" disabled={busySigned} onClick={() => void tapSigned()}><Mailbox aria-hidden className="size-4" /><span data-part="label">Unterschriebene Unterlagen per Post senden</span></Button></div>
+      ) : null}
+      <SignOnSite via="post" />
 
       {release ? <Release onDone={release.resolve} /> : null}
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${key}/${typeParam}/${page}`); }} /> : null}
