@@ -7881,6 +7881,7 @@ button.pad-clear {
 
 .today-calendar-topline {
   display: flex;
+  flex-direction: row-reverse;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -7890,6 +7891,8 @@ button.pad-clear {
 .today-calendar-title-wrap {
   min-width: 0;
   display: flex;
+  flex-direction: row-reverse;
+  text-align: right;
   align-items: flex-start;
   gap: 10px;
 }
@@ -7928,7 +7931,7 @@ button.pad-clear {
 .today-calendar-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 8px;
   flex: 0 0 auto;
 }
@@ -8270,6 +8273,10 @@ button.pad-clear {
   .today-calendar-topline {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .today-calendar-title-wrap {
+    align-self: flex-end;
   }
 
   .today-calendar-right {
