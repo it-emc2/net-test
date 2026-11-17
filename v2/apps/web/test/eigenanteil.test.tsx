@@ -39,7 +39,7 @@ describe("Eigenanteil", () => {
     const pop = screen.getByLabelText("Eigenanteil Aufschlüsselung", { selector: "div" });
     expect(pop).toHaveTextContent("4.500,00");
     expect(pop).toHaveTextContent("−4.180,00");
-    expect(pop).toHaveTextContent("bereits genutzt (Wohnumfeld)");
+    expect(pop).toHaveTextContent("Wohnumfeld");
   });
   it("Selbstzahler: nothing", async () => {
     await open({}, "Selbstzahler");

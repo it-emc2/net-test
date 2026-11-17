@@ -23,7 +23,7 @@ function Total({ bar = false }: { bar?: boolean }) {
   const small = bar && useOfferField<string>("Kundendaten", "payer") === "Kassenkunde";
   if (error) return <Alert kind="error">Der Preis kann gerade nicht berechnet werden.</Alert>;
   return (
-    <p className={cn("m-0 whitespace-nowrap", small ? "text-[0.8rem] text-muted-foreground" : "text-lg")} aria-live="polite">
+    <p className={cn("m-0 whitespace-nowrap", small ? "text-[0.9rem] text-foreground/80" : "text-lg")} aria-live="polite">
       <span>Gesamt</span> {small ? <span className="tabular-nums">{euro(total)}</span> : <strong>{euro(total)}</strong>}
       {pending ? <span className="hidden text-[0.95rem] text-muted-foreground lg:inline"> wird berechnet …</span> : null}
     </p>

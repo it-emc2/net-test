@@ -43,15 +43,15 @@ export function SelfPayPill({ base }: { base: string }) {
         type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`${label(s)} ${euro(s.selfPay)} – Aufschlüsselung`}
         className="grid min-h-11 shrink-0 cursor-pointer content-center rounded-xl border border-success/50 bg-success/15 px-3 py-0.5 text-left leading-tight text-foreground"
       >
-        <span className="text-[0.75rem] text-muted-foreground">{label(s)}</span>
+        <span className="text-[0.8rem] text-foreground/80">{label(s)}</span>
         <strong className="text-base font-medium tabular-nums" data-testid="selfpay-amount">{euro(s.selfPay)}</strong>
       </button>
-      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-card p-4 whitespace-nowrap text-card-foreground shadow-xl">
-        <dl className="m-0 grid tabular-nums grid-cols-[1fr_auto] gap-x-4 gap-y-2">
-          <dt>Gesamt</dt><dd className="m-0 text-right">{euro(s.total)}</dd>
-          <dt>Zuschuss Pflegekasse</dt><dd className="m-0 text-right">−{euro(s.subsidy)}</dd>
-          <dt className={cn(!s.prior && "text-muted-foreground")}>bereits genutzt (Wohnumfeld)</dt><dd className={cn("m-0 text-right", !s.prior && "text-muted-foreground")}>{s.prior ? `+${euro(s.prior)}` : euro(0)}</dd>
-          <dt className="mt-1 border-t border-border pt-2 font-bold">{label(s)}</dt><dd className="m-0 mt-1 border-t border-border pt-2 text-right font-bold">{euro(s.selfPay)}</dd>
+      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[min(360px,calc(100vw-24px))] rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl">
+        <dl className="m-0 grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-2 tabular-nums">
+          <dt>Gesamt</dt><dd className="m-0 whitespace-nowrap text-right">{euro(s.total)}</dd>
+          <dt>Zuschuss Pflegekasse</dt><dd className="m-0 whitespace-nowrap text-right">−{euro(s.subsidy)}</dd>
+          <dt className={cn(!s.prior && "text-foreground/70")}>Bereits genutzt<span className="block text-[0.8rem] text-foreground/70">Wohnumfeld</span></dt><dd className={cn("m-0 whitespace-nowrap text-right", !s.prior && "text-foreground/70")}>{s.prior ? `+${euro(s.prior)}` : euro(0)}</dd>
+          <dt className="mt-1 border-t border-border pt-2 font-bold">{label(s)}</dt><dd className="m-0 mt-1 whitespace-nowrap border-t border-border pt-2 text-right font-bold">{euro(s.selfPay)}</dd>
         </dl>
         {s.selfPay === 0 ? <p className="m-0 mt-2 text-[0.85rem] text-muted-foreground">Komplett über Pflegekasse</p> : null}
       </div>
