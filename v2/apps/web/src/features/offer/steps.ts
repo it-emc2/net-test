@@ -59,3 +59,17 @@ const CHECKS = new Map<string, () => StepProblem | null>();
 /** A screen says what its step needs (the frame around the steps does not know the screens). */
 export const setStepCheck = (step: string, check: () => StepProblem | null): void => { CHECKS.set(step, check); };
 export const checkStep = (step: string): StepProblem | null => CHECKS.get(step)?.() ?? null;
+
+/** What the step list shows for a step (U-011 D2). Derived from the offer, never stored. */
+export type StepStatus =
+  | { kind: "warn"; reason: string }   // the step's own check finds a problem
+  | { kind: "check"; open: number }    // Angebotscheck: rows still open
+  | { kind: "off" }                    // material step switched off → does not count
+  | { kind: "done" }                   // no problem and has content
+  | { kind: "open" }                   // no content yet
+  | { kind: "none" };                  // a step without a status rule (summary, costs …)
+type StatusFn = (type: NewOfferType, offer: unknown, price: unknown) => Record<string, StepStatus>;
+let STATUSES: StatusFn = () => ({});
+/** The step screens say how a step's status follows from the offer (the frame does not know them). */
+export const setStepStatuses = (fn: StatusFn): void => { STATUSES = fn; };
+export const stepStatuses: StatusFn = (type, offer, price) => (offer ? STATUSES(type, offer, price) : {});

@@ -16,7 +16,8 @@ export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
 
 // what "Weiter" asks for on these steps before it goes on
-import { setStepCheck } from "../offer/index.js";
+import { setStepCheck, setStepStatuses } from "../offer/index.js";
+import { statuses } from "./status.js";
 import { useOfferStore } from "../offer/index.js";
 import { arbeitszeitProblem } from "./arbeitszeit/rules.js";
 import { fussbodenProblem } from "./fussboden/rules.js";
@@ -29,3 +30,5 @@ setStepCheck("Fussboden", () => { const o = useOfferStore.getState().offer as Re
 // "Optional" has no check, as today: the question of the shower system is asked for on "Weiter"
 // in today's code, but that check is wired to a step name that does not exist (optional/rules.ts
 // keeps the rule as `optionalProblem`, ready to be registered here).
+
+setStepStatuses(statuses); // step list: done / warning / open / not chosen (U-011 D2)

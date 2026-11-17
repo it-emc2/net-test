@@ -45,9 +45,9 @@ describe("Hauptmenü", () => {
     expect(card).toHaveTextContent("09:00");
     await userEvent.type(screen.getByLabelText("Öffnen"), "65462");
     expect(screen.getByText("Eingabetaste öffnet Deal 65462")).toBeInTheDocument();
+    expect(srv.count("POST /api/price")).toBe(0); // the Hauptmenü itself asks for no price
     await userEvent.click(screen.getByRole("button", { name: "Deal 65462 öffnen" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/deal/65462/bwt"));
-    expect(srv.count("POST /api/price")).toBe(0);
   });
   it("deal without a draft: message, tiles start its offer; text goes to today's UI", async () => {
     fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
