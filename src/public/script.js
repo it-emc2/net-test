@@ -13540,9 +13540,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     listEl.innerHTML = rows.length
       ? rows.map((r, i) => {
           const open = i === activeIdx && !collapsed;
-          return `<div class="wv-row" data-i="${i}">
+          return `<div class="wv-row${r.custom && !r.code ? " is-bad" : ""}" data-i="${i}">
             ${r.code ? `<img class="wv-row__sw" src="./assets/winwall/${esc(r.code)}.jpg" alt="" onerror="this.style.visibility='hidden'" />` : `<span class="wv-row__sw"></span>`}
-            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
+            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${r.custom && !r.code ? "Dekor-Nr. ungültig (z. B. WS 233) – Zeile fehlt im Preis" : open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
             <select class="wv-row__size wv-ww-fmtsel" aria-label="Format">${FMTS.map(([c, t]) => `<option value="${c}"${c === r.fmt ? " selected" : ""}>${t}</option>`).join("")}</select>
             <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
             <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
