@@ -3,7 +3,7 @@
 import { LoaderCircle, PenLine } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { call } from "../../../shared/api/index.js";
+import { ApiFailure, call } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
@@ -48,7 +48,11 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
       try {
         await call("saveOffer", { body: { offerNumber: number, offerType: type, payload, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
         toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
-      } catch (err) { toast.error("Speichern fehlgeschlagen", { description: messageOf(err) }); say({ type: "error", text: TEXT.notSaved }); return; }
+      } catch (err) {
+        // an offer that was sent and changed since is refused here already: say what to do, not "could not be saved"
+        if (err instanceof ApiFailure && err.code === "OFFER_CHANGED") { say({ type: "error", text: TEXT.offerChanged }); return; }
+        toast.error("Speichern fehlgeschlagen", { description: messageOf(err) }); say({ type: "error", text: TEXT.notSaved }); return;
+      }
 
       setBusy(true);
       say({ type: "info", text: TEXT.opening });

@@ -3,13 +3,14 @@
 // checks and questions before the send, the same request, the same messages, the same dialog
 // after it, and store the same. Reference: fixtures/versand-post.json, recorded from today's UI by
 // v2/scripts/capture-versand-post.cjs (every route answered there as here; no letter is sent).
-// On purpose different, matched below as such: a field marked as missing loses its mark once it is filled (today
+// On purpose different, matched below as such: the address is the one of Kundendaten, shown and not typed here
+// (U-018: today the tab has its own address fields, which do not change where the letter goes) (today
 // only with the next send), a document that cannot be made is named in words, and the send guard of v2 (sendId, the offer itself) is part of the send.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { ADDRESS, alreadySent, changedQuestion, filled, invalid, liveQuestion, missing, priorQuestion, priorSend, sentText, statics, uploadSize, withBalance, type Recipient } from "../src/features/steps/versand/post-rules.js";
+import { ADDRESS, addressOf, alreadySent, changedQuestion, invalid, liveQuestion, missing, priorQuestion, priorSend, sentText, statics, uploadSize, withBalance, type Recipient } from "../src/features/steps/versand/post-rules.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import reference from "./fixtures/versand-post.json" with { type: "json" };
 import { renderApp } from "./helpers.js";
@@ -95,7 +96,9 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 // ---- what the page shows ----
 const part = (el: Element | null | undefined, name: string) => flat(el?.querySelector(`[data-part="${name}"]`)?.textContent);
 const tiles = (sec: Element): Tile[] => Array.from(sec.querySelectorAll('[data-testid="zf-mail-file"]')).map((t) => ({ name: part(t, "name"), meta: part(t, "meta"), fixed: !!t.querySelector('[data-part="fixed"]') }));
-const FIELD: Record<string, string> = { deal: "zf-post-deal", ...Object.fromEntries(ADDRESS.map((f) => [f, `zf-post-${f}`])) };
+const dealField = () => document.getElementById("zf-post-deal") as HTMLInputElement;
+/** where Kundendaten keeps a part of the address */
+const KD: Record<string, string> = { FirstName: "firstName", LastName: "lastName", Street: "street", Zip: "postalCode", City: "city", Country: "country" };
 const buttons = (el: Element) => Array.from(el.querySelectorAll<HTMLButtonElement>(":scope > div:last-child button"));
 function shown() {
   const post = screen.getByTestId("zf-post"), panel = document.getElementById("zf-panel-post")!, files = screen.getByTestId("zf-post-files");
@@ -106,7 +109,8 @@ function shown() {
     mailShown: !document.getElementById("zf-panel-mail")!.hidden,
     post: {
       shown: !panel.hidden, warning: panel.hidden ? "" : flat(screen.queryByTestId("zf-post-warning")?.textContent), // today's warning is only drawn on the open tab
-      fields: Object.fromEntries(Object.entries(FIELD).map(([k, id]) => { const el = document.getElementById(id) as HTMLInputElement; return [k, { value: el.value, invalid: el.getAttribute("aria-invalid") === "true" }]; })),
+      fields: { deal: { value: dealField().value, invalid: dealField().getAttribute("aria-invalid") === "true" },
+        ...Object.fromEntries(ADDRESS.map((f) => [f, { value: flat(screen.getByTestId("zf-post-address").querySelector(`[data-field="${f}"]`)?.textContent), invalid: false }])) },
       files: tiles(files), send: { label: part(send, "label"), disabled: send.disabled },
       status: st ? { type: st.dataset.type === "warning" ? "warn" : st.dataset.type!, text: part(st, "text") } : null,
     },
@@ -128,7 +132,8 @@ function expected(v: View) {
     post: {
       // today's warning is not drawn again when Kundendaten fills a field: it then names a field that is filled (not copied)
       shown: p.shown, warning: ADDRESS.every((f) => p.fields[f]!.value.trim()) ? "" : p.warning,
-      fields: Object.fromEntries(Object.entries(p.fields).map(([k, f]) => [k, { value: f.value, invalid: f.invalid && !f.value.trim() }])), // a mark goes once the field is filled
+      // the address is read from Kundendaten (no fields of its own, so no marks); the deal number keeps its mark while it is missing
+      fields: Object.fromEntries(Object.entries(p.fields).map(([k, f]) => [k, { value: f.value.trim(), invalid: k === "deal" && f.invalid && !f.value.trim() }])),
       files: p.files, send: p.send, status: p.status,
     },
     mailFiles: v.attachments.map((t) => t.name),
@@ -146,7 +151,10 @@ async function act(a: string[], user: ReturnType<typeof userEvent.setup>) {
   const field = (id: string) => document.getElementById(id) as HTMLInputElement;
   if (kind === "tab") await user.click(document.getElementById(`zf-tab-${x}`)!);
   else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: x } });
-  else if (kind === "pfield") fireEvent.change(field(x === "AuftragId" ? "zf-post-deal" : FIELD[{ FirstName: "firstName", LastName: "lastName", Street: "street", Zip: "zipCode", City: "city", Country: "country" }[x!]!]!), { target: { value: y } });
+  else if (kind === "pfield") { // the deal number is typed here; the address is typed on Kundendaten (today: in fields of the Post tab)
+    if (x === "AuftragId") fireEvent.change(dealField(), { target: { value: y } });
+    else useOfferStore.getState().patch("Kundendaten" as never, { [KD[x!]!]: y } as never);
+  }
   else if (kind === "kfield") useOfferStore.getState().patch("Kundendaten" as never, { [x!]: y } as never); // typed on the Kundendaten step
   else if (kind === "pfile") await user.upload(field("zf-post-add"), fileOf(x!));
   else if (kind === "premove") await user.click(within(screen.getByTestId("zf-post-files")).getByRole("button", { name: `${x} entfernen` }));
@@ -171,7 +179,8 @@ async function act(a: string[], user: ReturnType<typeof userEvent.setup>) {
 const liveMode = (s: Scenario) => s.name.startsWith("live:");
 
 describe("the letter does what today's UI does", () => {
-  it.each(SCENARIOS.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, s) => {
+  // "Kundendaten changed later" is today's rule that a typed address is kept — there is no typed address any more (see below)
+  it.each(SCENARIOS.filter((s) => s.name !== "Kundendaten changed later").map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, s) => {
     server(s, offerOf(s));
     mode = liveMode(s) ? "live" : "test";
     const moved = s.acts.flatMap((a) => a.requests).find((r) => String(r.path).endsWith("/move-ang-verschickt"));
@@ -202,7 +211,9 @@ describe("the letter does what today's UI does", () => {
       const stored = mask(changed(before, offer())), { zusammenfassung: z, Arbeitszeit: _a, ...rest } = a.stored;
       if (z) expect(stored.zusammenfassung?.versand?.art).toBe(z.versand.art);
       const { zusammenfassung: _z, ...mine } = stored;
-      expect(mine).toEqual(mask(rest));
+      // an address part "typed": today into the tab's own field (stored with the letter), here on Kundendaten — the letter's data must be the same
+      if (a.act[0] === "pfield" && a.act[1] !== "AuftragId") expect(mine.postal).toEqual(mask(rest).postal);
+      else expect(mine).toEqual(mask(rest));
     }
   });
 });
@@ -220,10 +231,10 @@ describe("the letter — rules and what goes beyond the recordings", () => {
   };
   const sendAll = async (user: ReturnType<typeof userEvent.setup>) => { await act(["psend"], user); await act(["hp", "all"], user); };
 
-  it("an empty field is filled from Kundendaten, a filled one is kept; the country is Deutschland unless said", () => {
-    const o = { Kundendaten: { firstName: " Erika ", lastName: "Muster", street: "Musterweg 4", postalCode: "95028", city: "Hof" }, postal: { recipient: { street: "Andere Str. 5", city: " " } } };
-    expect(filled(o)).toEqual({ firstName: "Erika", lastName: "Muster", street: "Andere Str. 5", zipCode: "95028", city: "Hof", country: "Deutschland" });
-    expect(filled({ Kundendaten: { country: "Österreich" } }).country).toBe("Österreich");
+  it("the address is the one of Kundendaten; the country is Deutschland unless Kundendaten says otherwise", () => {
+    const o = { Kundendaten: { firstName: " Erika ", lastName: "Muster", street: "Musterweg 4", postalCode: "95028", city: "Hof" }, postal: { recipient: { street: "Andere Str. 5", city: "Bayreuth" } } };
+    expect(addressOf(o)).toEqual({ firstName: "Erika", lastName: "Muster", street: "Musterweg 4", zipCode: "95028", city: "Hof", country: "Deutschland" }); // an address kept from today's tab does not count
+    expect(addressOf({ Kundendaten: { country: "Österreich" } }).country).toBe("Österreich");
   });
 
   it("the warning names what is missing; the country stops the send but is not named", () => {
@@ -284,15 +295,29 @@ describe("the letter — rules and what goes beyond the recordings", () => {
     expect(screen.queryByTestId("zf-sent")).toBeNull();
   });
 
-  it("the first missing field of the address gets the focus", async () => {
+  it("the address follows Kundendaten at once: shown, stored with the letter and sent", async () => {
+    const user = await open();
+    useOfferStore.getState().patch("Kundendaten" as never, { street: "Neue Str. 9", city: "Bayreuth" } as never);
+    const shownPart = (f: string) => flat(screen.getByTestId("zf-post-address").querySelector(`[data-field="${f}"]`)?.textContent);
+    await waitFor(() => expect(["street", "zipCode", "city", "country"].map(shownPart)).toEqual(["Neue Str. 9", "95028", "Bayreuth", "Deutschland"]));
+    await waitFor(() => expect(offer().postal.recipient).toMatchObject({ street: "Neue Str. 9", city: "Bayreuth" }));
+    await sendAll(user);
+    await screen.findByTestId("zf-sent");
+    expect(seen.find((r) => r.path === "/api/post/send")!.body.recipient).toEqual({ name: "Erika Muster", street: "Neue Str. 9", zipCode: "95028", city: "Bayreuth", country: "Deutschland" });
+  });
+
+  it("an incomplete address stops the send and leads to Kundendaten", async () => {
     const s = SCENARIOS.find((x) => x.name === "send: address incomplete")!;
     server(s, offerOf(s));
-    renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
+    const router = renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
     await screen.findByTestId("zf-post");
     const user = userEvent.setup();
     for (const p of s.pre) await act(p, user);
     await act(["psend"], user);
-    await waitFor(() => expect(document.activeElement?.id).toBe("zf-post-street"));
+    await waitFor(() => expect(part(screen.getByTestId("zf-post-status"), "text")).toBe("Bitte zuerst die vollständige Postadresse ausfüllen."));
+    expect(seen).toEqual([]);
+    await user.click(within(screen.getByTestId("zf-post-address")).getByRole("link", { name: "In Kundendaten ändern" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${KEY}/bu/Kundendaten`));
   });
 
   it("two taps on send start one send", async () => {

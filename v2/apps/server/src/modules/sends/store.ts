@@ -166,7 +166,7 @@ export class OfferChangedError extends Error {
 export async function assertUnchangedSinceSent(offerNumber: string, payload: unknown): Promise<any | null> {
   const prior = await lastSentOffer(offerNumber);
   if (!prior) return null;
-  const diff = identityDifferences(prior.identity as OfferIdentity, offerIdentity(payload, offerNumber));
+  const diff = identityDifferences(prior.identity as OfferIdentity, offerIdentity(payload, offerNumber), { sent: prior.payload, now: payload });
   if (diff.length) {
     throw new OfferChangedError(diff, { sendId: prior.sendId, channel: prior.channel, at: prior.finishedAt ?? prior.startedAt, to: prior.to || "", by: prior.by || "" });
   }
