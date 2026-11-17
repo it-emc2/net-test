@@ -104,7 +104,7 @@ export function materialsOf(b: Fields): { name: string; productId: string; qty: 
   return out.length ? out : null;
 }
 
-/** "Weiter": the shape of the tub and the door are needed (UX-CHANGES U-029; today only the old page's form check asks) */
+/** "Weiter": the shape of the tub and the door are needed (UX-CHANGES U-030; today only the old page's form check asks) */
 export function bwtMissing(b: Fields): { shape: boolean; door: boolean } {
   return { shape: !str(b.bwtShape), door: !DOORS.some((d) => doorOn(b, d)) };
 }

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { BONUS_LINE, attachments, bodyDefault, bodyHtml, excluded, greetingLine, keptBody, mailChanges, subjectDefault, touchedOf, withBonusLine } from "../src/features/steps/versand/mail-rules.js";
 import reference from "./fixtures/versand-mail.json" with { type: "json" };
-import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { BASE, fakeServer, openMore, renderApp } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 type Obj = Record<string, any>;
@@ -73,7 +73,7 @@ describe("the mail form shows and stores what today's UI does", () => {
       else if (kind === "deal" || kind === "to" || kind === "cc" || kind === "subject") fireEvent.change(input(`zf-mail-${kind}`), { target: { value: x } });
       else if (kind === "body") fireEvent.change(input("zf-mail-body"), { target: { value: x!.startsWith("+") ? `${input("zf-mail-body").value}\n\n${x!.slice(1)}` : x } });
       else if (kind === "ap") await user.selectOptions(screen.getByLabelText("Ansprechpartner"), x!);
-      else if (kind === "stamp") await user.click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+      else if (kind === "stamp") { openMore(); await user.click(screen.getByRole("button", { name: "Angebot: DOCX" })); } // U-024: the studio is in "Mehr Optionen"
       else useOfferStore.getState().patch("Kundendaten" as never, { [f!]: v } as never); // a change made on Kundendaten
       await waitFor(() => expect(shown()).toEqual(a.view));
       // a text that only got the offer's new number is "unchanged" in the recording (every number reads <number> there)

@@ -83,7 +83,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
       const dims = Object.fromEntries(Object.keys(DIM_NAME).flatMap((f) => { const i = card.queryByLabelText(`${DIM_NAME[f]} ${d.value}`) as HTMLInputElement | null; return i ? [[f, i.value]] : []; }));
       const key = Object.entries(COLOR_LABEL).find(([, l]) => l === color)?.[0] ?? color;
       return { key: d.key, on, qty: on ? qty!.value : null, color: on ? key! : null, dims };
-    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-026)
+    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-027)
     expect(GRIPS.map((g) => { const cb = screen.getByRole("checkbox", { name: g.label }) as HTMLInputElement; return { n: g.n, on: cb.checked, qty: cb.checked ? (screen.getByLabelText(`Menge ${g.label}`) as HTMLInputElement).value : null }; })).toEqual(v.grips);
   });
 
@@ -91,7 +91,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     for (const s of reference.scenarios) expect(doorInfo({ ...reference.base, ...(s.bwt as Record<string, unknown>) })).toEqual({ ...reference.base, ...(s.bwt as Record<string, any>) }.doorInfoById);
   });
 
-  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-029)", async () => {
+  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-030)", async () => {
     await open();
     expect(screen.queryByTestId("bwt-missing")).toBeNull();
     await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
