@@ -2957,6 +2957,11 @@ color: metaColor || null,
           items: [], _clientSideOffer: true,
         };
       }
+      // BWT bills only its own tab. The hidden BU forms still ride along in the
+      // payload (stale values) — drop them so they never become material lines.
+      if (_offerKey === "bwt") {
+        payload = { ...payload, duschwanne: {}, wandverkleidung: {}, duschabtrennung: {}, optional: {} };
+      }
       const selections = collectSelections(payload);
       const ids = [...new Set(selections.map((s) => s.productId))];
       const productMap = await getProductsByIds(ids);
