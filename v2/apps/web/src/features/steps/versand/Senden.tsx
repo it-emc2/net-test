@@ -22,8 +22,8 @@ import {
 type Offer = Record<string, any>;
 type Kind = "info" | "success" | "error" | "warning";
 type Status = { type: Kind; text: string } | { log: [Kind, string][] };
-interface Sent { bitrixOnly: boolean; dealId: string; result: SentResult; offerNumber: string; offer: Offer }
-interface Ask { title: string; message: string; yes: string; no: string; resolve: (yes: boolean) => void }
+export interface Sent { bitrixOnly: boolean; dealId: string; result: SentResult; offerNumber: string; offer: Offer; /** another heading than the mail's (the letter) */ title?: string }
+export interface Ask { title: string; message: string; yes: string; no: string; resolve: (yes: boolean) => void }
 
 const st = () => useOfferStore.getState();
 const offerNow = () => (st().offer ?? {}) as Offer;
@@ -35,7 +35,7 @@ export const POLL_MS = { every: 3000, max: 6 * 60_000, notFound: 4 };
 
 /** The send guard (ADR 023): if the connection drops, ask the server until the send is finished.
  *  null: the server never saw the request — nothing was sent. */
-async function follow(sendId: string): Promise<Response | null> {
+export async function follow(sendId: string, told0: (text: string) => void = (t) => push("info", t)): Promise<Response | null> {
   const t0 = Date.now();
   let missing = 0, told = false;
   while (Date.now() - t0 < POLL_MS.max) {
@@ -50,7 +50,7 @@ async function follow(sendId: string): Promise<Response | null> {
     const s = r.send?.status;
     if (s === "done") return new Response(JSON.stringify(r.result ?? { ok: true, sendId }), { status: 200 });
     if (s === "failed") return new Response(JSON.stringify({ error: "Send failed", detail: String((r.send as Offer).error ?? ""), sendId }), { status: 500 });
-    if (!told) { told = true; push("info", TEXT.stillRunning); }
+    if (!told) { told = true; told0(TEXT.stillRunning); }
   }
   return new Response(JSON.stringify({ error: TEXT.tooLong, sendId }), { status: 504 });
 }
@@ -169,7 +169,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
 }
 
 /** a dialog over the page: Esc and a tap beside it mean "no" */
-function Modal({ id, labelledBy, onCancel, children }: { id: string; labelledBy: string; onCancel: () => void; children: ReactNode }) {
+export function Modal({ id, labelledBy, onCancel, children }: { id: string; labelledBy: string; onCancel: () => void; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => { box.current?.querySelector<HTMLElement>("input, button")?.focus(); }, []);
   return (
@@ -180,7 +180,7 @@ function Modal({ id, labelledBy, onCancel, children }: { id: string; labelledBy:
   );
 }
 
-function MainItems({ items, onDone }: { items: MainItem[]; onDone: (send: boolean, page?: string) => void }) {
+export function MainItems({ items, onDone }: { items: MainItem[]; onDone: (send: boolean, page?: string) => void }) {
   const [ok, setOk] = useState<Record<string, boolean>>({});
   const all = items.every((i) => ok[i.key]);
   return (
@@ -206,7 +206,7 @@ function MainItems({ items, onDone }: { items: MainItem[]; onDone: (send: boolea
   );
 }
 
-function Question({ q }: { q: Ask }) {
+export function Question({ q }: { q: Ask }) {
   return (
     <Modal id="zf-ask" labelledBy="zf-ask-title" onCancel={() => q.resolve(false)}>
       <h3 id="zf-ask-title" className="m-0 text-lg font-semibold">{q.title}</h3>
@@ -220,7 +220,7 @@ function Question({ q }: { q: Ask }) {
 }
 
 /** after sending: what went out, the move of the deal, and the repeated filing if Bitrix failed */
-function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onClose: () => void }) {
+export function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onClose: () => void }) {
   const [moved, setMoved] = useState(false), [moving, setMoving] = useState(false), [line, setLine] = useState<{ ok: boolean; text: string; then?: string } | null>(null);
   const [retry, setRetry] = useState<"idle" | "busy" | "done" | "failed">("idle");
   const type = String(s.offer.activeOffer || "").toLowerCase();
@@ -247,7 +247,7 @@ function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onClose: ()
   const names = s.result.attachmentNames ?? [];
   return (
     <Modal id="zf-sent" labelledBy="zf-sent-title" onCancel={close}>
-      <h3 id="zf-sent-title" className="m-0 flex items-center gap-2 text-lg font-semibold"><CircleCheck aria-hidden className="size-6 text-[#1e8449]" />{sentTitle(s.bitrixOnly)}</h3>
+      <h3 id="zf-sent-title" className="m-0 flex items-center gap-2 text-lg font-semibold"><CircleCheck aria-hidden className="size-6 text-[#1e8449]" />{s.title ?? sentTitle(s.bitrixOnly)}</h3>
       <p className="m-0 text-muted-foreground" data-part="text">Anhänge: {names.length ? names.join(", ") : "-"}</p>
       {line ? <p role="status" data-part="body" className={cn("m-0 font-semibold", line.ok ? "text-[#1e8449]" : "text-destructive")}>{line.text}{line.then ? <><br />{line.then}</> : null}</p> : null}
       {filingFailed ? (

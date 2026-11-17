@@ -68,7 +68,7 @@ function server(s: Scenario, payload: Obj) {
     if (url === "/api/auth/me") return json({ user: { email: "capture@local.test", name: "Capture", role: "user" } });
     if (url === "/api/users") return json(reference.users);
     if (url === `/api/deals/${KEY}/draft` && method === "GET") return json({ dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" });
-    if (url === `/api/deals/${KEY}/draft` && method === "PUT") return json({ dealId: KEY, revision: 4, updatedAt: "2026-11-16T10:00:00Z" });
+    if (url === `/api/deals/${KEY}/draft` && method === "PUT") return json({ dealId: KEY, revision: 4, changed: true });
     if (url === "/api/price") return json({ total: 10, selfPayAmount: 0 });
     if (url === "/api/price/inputs") return json({});
     if (url === "/api/offers" && method === "POST") { seen.push({ path: url, offerNumber: mask(body.offerNumber), offerType: body.offerType, payload: Object.keys(changed(before, body.payload ?? {})) }); return json({ ok: true }); }
@@ -118,7 +118,7 @@ function shown(router: { state: { location: { pathname: string } } }): Partial<V
   const btn = (a: string) => send.querySelector<HTMLButtonElement>(`[data-action="${a}"]`)!;
   const st = screen.queryByTestId("zf-send-status"), lines = st ? Array.from(st.querySelectorAll("p")).map((p) => [p.dataset.type!, part(p, "text")] as Line) : [];
   const status = useOfferStore.getState().scratch.sendStatus as Obj | null | undefined;
-  const deal = screen.getByLabelText("Lead ID / Auftrag ID") as HTMLInputElement;
+  const deal = screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }) as HTMLInputElement;
   return mask({
     step, ...dialogs,
     send: { label: part(btn("send"), "label"), disabled: btn("send").disabled }, bitrix: { label: part(btn("bitrix"), "label"), disabled: btn("bitrix").disabled },
@@ -152,7 +152,7 @@ async function act(kind: string, a: string | undefined, user: ReturnType<typeof 
   } else if (kind === "confirm") await user.click(within(screen.getByTestId("zf-ask")).getAllByRole("button")[a === "yes" ? 1 : 0]!);
   else if (kind === "move") await user.click(within(screen.getByTestId("zf-sent")).getByRole("button", { name: /ANG verschickt/ }));
   else if (kind === "close") await user.click(within(screen.getByTestId("zf-sent")).getByRole("button", { name: "Schließen" }));
-  else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID"), { target: { value: a } });
+  else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: a } });
   else if (kind === "note") fireEvent.change(screen.getByLabelText(/Interne Notiz/), { target: { value: a } });
   else if (kind === "doc") await user.click(screen.getByTestId("zf-docs").querySelector<HTMLElement>(`#zf-doc-${a}`)!);
   else if (kind === "tile" || kind === "untile") await user.click(within(screen.getByTestId("zf-mail-files")).getByRole("button", { name: `${a} entfernen` }));
@@ -206,7 +206,7 @@ describe("sending — rules and what goes beyond the recordings", () => {
     server(filled, offerOf(filled));
     renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
     await screen.findByTestId("zf-send");
-    fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID"), { target: { value: "65418" } });
+    fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: "65418" } });
     return userEvent.setup();
   };
   const sendAll = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -298,7 +298,7 @@ describe("sending — rules and what goes beyond the recordings", () => {
     server(filled, o);
     renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
     await screen.findByTestId("zf-send");
-    fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID"), { target: { value: "65418" } });
+    fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: "65418" } });
     await waitFor(() => expect(String(offer().mail.body)).toContain("1. Ihr Angebot ANG-2025-_____")); // the blank, while there is no number
     await sendAll(userEvent.setup());
     await screen.findByTestId("zf-sent");
