@@ -10,7 +10,7 @@ import { useNavigate } from "react-router";
 import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
 import { useWallSettings } from "../fussboden/settings.js";
 import { restOf, restText, settled, takeRest } from "../fussboden/wand.js";
-import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { useQuery } from "@tanstack/react-query";
@@ -60,7 +60,7 @@ function Decors({ onPick }: { onPick: (value: string, text?: string) => void }) 
         {[...WW_DECORS, { value: "custom", caption: customCaption(wv) }].map((d) => (
           <label key={d.value} className="grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere] has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
             <input type="radio" name="wvWwDecor" className="sr-only" value={d.value} checked={picked === d.value} onChange={() => onPick(d.value, d.value === "custom" ? String(wv.wvWwDecorCustom ?? "") : "")} />
-            {d.value === "custom" ? <span aria-hidden className="grid size-14 place-items-center rounded border-2 border-dashed border-input text-2xl">+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+            {d.value === "custom" ? <span aria-hidden className={cn(IMG.swatch, "grid place-items-center rounded border-2 border-dashed border-input text-2xl")}>+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
             <span data-part={d.value === "custom" ? "custom-caption" : undefined}>{d.caption}</span>
           </label>
         ))}
@@ -164,7 +164,7 @@ function Calculator({ kit }: { kit: CalcKit }) {
               <span data-part="letter" className="grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: TONES[i]!.solid }}>{TONES[i]!.letter}</span>
               <span className="grid min-w-0 flex-1"><span data-part="name">{WALLS[key].name}</span><small data-part="sub" className="text-destructive">{Number(width.replace(",", ".")) > 0 ? "" : "Breite fehlt"}</small></span>
               <Button variant="outline" aria-label={`Dekor für ${WALLS[key].name} wählen`} aria-expanded={open === key} onClick={() => toggle(key)}>
-                {caption ? <img src={kit.tiles.find((t) => t.value === wd[key])?.img} alt="" className="size-7 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}<span data-part="decor">{caption || "Dekor wählen"}</span>
+                {caption ? <img src={kit.tiles.find((t) => t.value === wd[key])?.img} alt="" className={cn(IMG.mini, "rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}<span data-part="decor">{caption || "Dekor wählen"}</span>
               </Button>
               <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} max={2000} step={1} inputMode="decimal" placeholder="Breite" aria-label={`Breite ${WALLS[key].name} in cm`} value={width} onChange={(e) => apply({ [WALLS[key].field]: e.target.value })} /></span>cm</span>
             </div>
@@ -173,7 +173,7 @@ function Calculator({ kit }: { kit: CalcKit }) {
                 <div className="flex flex-wrap gap-2">
                   {kit.tiles.map((d) => (
                     <button key={d.value} type="button" data-value={d.value} aria-pressed={wd[key] === d.value} onClick={() => pick(d.value)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", wd[key] === d.value ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={d.img} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                      <img src={d.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
                     </button>
                   ))}
                 </div>
@@ -212,7 +212,7 @@ function Rows() {
           <div key={i} data-testid="wv-row" data-open={open} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => tap(i)} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
-                {r.code ? <img src={`/assets/winwall/${r.code}.jpg`} alt="" className="size-10 shrink-0 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className="size-10 shrink-0" />}
+                {r.code ? <img src={`/assets/winwall/${r.code}.jpg`} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
                 <span className="grid min-w-0"><b data-part="title">{rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{rowNote(rows, i, open)}</small></span>
               </button>
               <select aria-label={`Format Zeile ${i + 1}`} value={r.fmt} onChange={(e) => set(rows.map((x, j) => (j === i ? { ...x, fmt: e.target.value } : x)), ui.idx, ui.folded)} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-2 text-foreground">
@@ -255,7 +255,7 @@ function VigourRows() {
             <div className="flex flex-wrap items-center gap-2">
               {/* as today: a tap marks the row and turns the tiles — open ↔ folded */}
               <button type="button" onClick={() => remember("wvRowOpen", { idx: i, folded: !ui.folded })} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
-                {vg.colorImage(r.color) ? <img src={vg.colorImage(r.color)} alt="" className="size-10 shrink-0 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className="size-10 shrink-0" />}
+                {vg.colorImage(r.color) ? <img src={vg.colorImage(r.color)} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
                 <span className="grid min-w-0"><b data-part="title">{vg.colorLabel(r.color)}</b><small data-part="note" className="text-muted-foreground">{open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
               </button>
               <select aria-label={`Breite Zeile ${i + 1}`} value={r.size} onChange={(e) => change(i, { size: Number(e.target.value) as 997 | 1497 })} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-2 text-foreground">
@@ -274,7 +274,7 @@ function VigourRows() {
                 <div className="flex flex-wrap gap-2">
                   {VG_COLORS.map((c) => (
                     <button key={c.value} type="button" data-value={c.value} aria-pressed={r.color === c.value} onClick={() => change(i, { color: c.value })} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", r.color === c.value ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={c.img} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{c.caption}
+                      <img src={c.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{c.caption}
                     </button>
                   ))}
                 </div>
@@ -386,7 +386,7 @@ function KeramicoRows() {
           <div key={i} data-testid="bx-row" data-open={open} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => remember("wvRowOpen", { idx: i, folded: i === ui.idx ? !ui.folded : false })} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
-                <img src={bx.image(r.pid)} alt="" className="size-10 shrink-0 rounded object-cover" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                <img src={bx.image(r.pid)} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
                 <span className="grid min-w-0"><b data-part="title">{bx.rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
               </button>
               <span className="flex items-center gap-1">
@@ -411,7 +411,7 @@ function KeramicoRows() {
                 <div className="flex flex-wrap gap-2">
                   {bx.DECORS.map((d) => (
                     <button key={d.value} type="button" data-value={d.value} aria-pressed={r.pid === d.pid} onClick={() => set(rows.map((x, j) => (j === i ? bx.withDecor(x, d.value) : x)), ui.idx, ui.folded)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", r.pid === d.pid ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={d.img} alt="" className="size-14 rounded object-cover" loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                      <img src={d.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
                     </button>
                   ))}
                 </div>

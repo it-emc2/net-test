@@ -7,7 +7,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { Button, Card, CardTitle, Choices, Input, Label, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Choices, Input, Label, cn, IMG } from "../../../shared/ui/index.js";
 import { LegacyLink, useOfferStore } from "../../offer/index.js";
 import { optChanges } from "../arbeiten/rules.js";
 import { CATEGORIES, type Category, type Product } from "./catalog.js";
@@ -42,8 +42,8 @@ function Tile({ p, opt, children }: { p: Product; opt: Fields; children?: ReactN
     <div data-testid="opt-tile" data-id={p.id} className="grid content-start gap-2">
       <label className={cn("grid min-h-12 cursor-pointer grid-cols-[auto_1fr] items-center gap-3 rounded-lg border-2 bg-card p-2", on ? "border-primary bg-accent-weak font-bold" : "border-input", locked && "cursor-default opacity-50 grayscale")}>
         <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={on} disabled={locked} onChange={() => act((s) => toggleProduct(s, p.id))} />
-        <span className="grid min-w-0 grid-cols-[4rem_1fr] items-center gap-3">
-          <img src={p.img} alt="" loading="lazy" className="size-16 rounded object-contain" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+        <span className="grid min-w-0 grid-cols-[6rem_1fr] items-center gap-3">
+          <img src={p.img} alt="" loading="lazy" className={cn(IMG.tile, "rounded object-contain")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
           <span data-part="name" className="min-w-0 break-words text-[0.95rem]">{p.name}</span>
         </span>
       </label>
@@ -230,8 +230,8 @@ export function Optional() {
             return (
               <button key={c.id} type="button" data-testid="opt-card" data-id={c.id} aria-pressed={on} onClick={() => show(c.id)}
                 className={cn("relative grid min-h-12 cursor-pointer content-start justify-items-center gap-2 rounded-lg border-2 bg-card p-3 text-center text-foreground", on ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                <img src={c.img} alt="" loading="lazy" className="h-24 w-full rounded object-contain" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
-                <span data-part="name">{c.name}</span>
+                <img src={c.img} alt="" loading="lazy" className={cn(IMG.product, "w-full rounded object-contain")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                <span data-part="name" lang="de" className="max-w-full hyphens-auto [overflow-wrap:anywhere]">{c.name}</span>
                 <span data-part="badge" data-counted={n > 0} className={cn("absolute right-2 top-2 rounded-full px-2 py-0.5 text-[0.85rem] font-bold", n > 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{`✓ ${n}`}</span>
               </button>
             );

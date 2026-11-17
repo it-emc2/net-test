@@ -2,7 +2,7 @@
 // cards, the hinge and the four grab bars. The stored fields are exactly today's
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Not yet here (slice 2): free items, note, sketch and the two note texts.
-import { Card, CardTitle, Check, Choices, Input, Label, cn } from "../../../shared/ui/index.js";
+import { Card, CardTitle, Check, Choices, Input, Label, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { COLORS, DIMS, DOORS, GRIPS, MATERIALS, SHAPES, UMBAU, dimField, doorOn, gripOn, setMaterial, toggleDoor, toggleGrip, toggleUmbau, umbauOn, materialsOf, withInfo, type Door } from "./rules.js";
 
@@ -30,7 +30,7 @@ function DoorCard({ d, b }: { d: Door; b: Fields }) {
     <div data-testid="bwt-door" data-key={d.key} className={CARD}>
       <label className="grid cursor-pointer justify-items-center gap-2">
         <input type="checkbox" name="bwtDoorType" className="size-5 accent-[var(--primary)]" aria-label={d.value} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
-        <img src={d.img} alt="" loading="lazy" className="h-28 object-contain" />
+        <img src={d.img} alt="" loading="lazy" className={cn(IMG.product, "object-contain")} />
         <strong>{d.value}</strong>
         {d.facts.map((f) => <small key={f} className="text-muted-foreground">{f}</small>)}
       </label>

@@ -13,6 +13,16 @@ export { Alert, Button, Card, CardTitle, Input, Label, buttonVariants };
 // with the first screen that needs it, not with the start script
 export { cn };
 
+/** The picture standard (UX-CHANGES U-011 A6): one size per role, everywhere — large enough to
+ *  read on the tablet without zooming. Use with cn(IMG.<role>, "rounded object-cover" | "object-contain").
+ *   mini    a picture beside a caption inside a button
+ *   row     a picture in a list row (a chosen product, an accessory)
+ *   swatch  a decor, colour or surface to choose from
+ *   tile    a product in a tile to choose from
+ *   product a product photo that stands for itself (height; the width follows)
+ *  At the app's text size (18 px): 45 / 72 / 90 / 108 px, a product photo 144 px tall. */
+export const IMG = { mini: "size-10", row: "size-16", swatch: "size-20", tile: "size-24", product: "h-32" } as const;
+
 export function Page({ title, lead, children }: { title: string; lead?: string; children?: ReactNode }) {
   return (
     <main className="mx-auto grid max-w-3xl gap-4 px-4 pb-16 pt-8">
