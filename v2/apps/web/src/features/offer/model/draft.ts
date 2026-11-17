@@ -127,16 +127,15 @@ export function useAutosave(): void {
     const t = setTimeout(() => { void flushDraft(); }, AUTOSAVE_MS);
     return () => clearTimeout(t);
   }, [version, dirty, auto]);
-  // the page goes away (reload, close, tab discarded): keep the input at once
-  useEffect(() => {
-    const leave = () => { writeSnapshot(); if (usePrefs.getState().autosave) void flushDraft(); };
-    const hidden = () => { if (document.visibilityState === "hidden") leave(); };
-    window.addEventListener("pagehide", leave);
-    document.addEventListener("visibilitychange", hidden);
-    return () => { window.removeEventListener("pagehide", leave); document.removeEventListener("visibilitychange", hidden); writeSnapshot(); }; // leaving the offer in-app: nothing may be lost (Hauptmenü also saves at once)
-  }, []);
+  useEffect(() => writeSnapshot, []); // leaving the offer in-app: nothing may be lost (Hauptmenü also saves at once)
 }
 
+/** The page goes away (reload, close, tab discarded): keep the input at once. Called by the app
+ *  shell on pagehide / visibilitychange→hidden (features register no window listeners, ADR 026). */
+export function flushNow(): void {
+  writeSnapshot();
+  if (usePrefs.getState().autosave) void flushDraft();
+}
 /** A new temporary key for an offer started without a deal number ("t-" + 24 hex, unguessable). */
 export function newTempKey(): string {
   const b = crypto.getRandomValues(new Uint8Array(12));
