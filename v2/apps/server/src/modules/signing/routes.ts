@@ -81,24 +81,46 @@ export function signingService(d: SigningDeps) {
     const { bitrixEntityType, bitrixEntityId } = deriveBitrixTarget({ dealId: a.dealId, contactId: a.contactId });
     const base = String(a.baseUrl || "").replace(/\/+$/, "");
 
-    // Reuse an open request for the same offer (keeps already-signed documents).
+    // One open request per offer (audit 2026-11-17, F10). The same offer → the open request is
+    // used again (keeps already-signed documents). "Same" by the content hash of the send guard:
+    // before, the whole payload was compared as JSON, and the workflow sections differ after
+    // every send — each resend opened another request, all of them valid at the same time.
+    // Every other open request of that number is closed, so that two requests can never be
+    // completed side by side: a duplicate left by an earlier send, or the request for an older
+    // state of the offer (possible only while nothing is signed/sent — the send guard refuses
+    // a changed offer after that).
     const offerNumberStr = String(a.offerNumber || payload?.offerNumber || "");
     let warning: string | null = null;
     if (offerNumberStr) {
-      const candidates = await SigningRequest.find({ offerNumber: offerNumberStr, status: { $nin: ["completed", "expired"] } }).sort({ createdAt: -1 });
-      const existing: any = candidates.find((c) => !isExpired(c as any));
+      const open = (await SigningRequest.find({ offerNumber: offerNumberStr, status: { $nin: ["completed", "expired"] } }).sort({ createdAt: -1 }))
+        .filter((c) => !isExpired(c as any)) as any[];
+      const now = offerIdentity(payload, offerNumberStr);
+      const signedIn = (c: any) => (c.documents || []).filter((x: any) => x.status === "signed").length;
+      const same = open.filter((c) => {
+        const then = offerIdentity(c.payloadSnapshot, offerNumberStr);
+        return then.contentHash === now.contentHash && then.ansprechpartner === now.ansprechpartner;
+      });
+      // the one the customer already signed in wins, else the newest
+      const existing = same.find((c) => signedIn(c) > 0) ?? same[0];
+      const close = (keep: any) => SigningRequest.updateMany(
+        { offerNumber: offerNumberStr, status: { $nin: ["completed", "expired"] }, ...(keep ? { _id: { $ne: keep._id } } : {}) },
+        { $set: { status: "expired", expiresAt: new Date() } },
+      );
       if (existing) {
-        if (JSON.stringify(existing.payloadSnapshot) === JSON.stringify(payload)) {
-          return { sr: existing, link: `${base}/sign/${existing.token}`, token: existing.token, customerType: existing.customerType, reused: true };
-        }
-        const signedCount = (existing.documents || []).filter((x: any) => x.status === "signed").length;
+        if (open.length > 1) await close(existing);
+        return { sr: existing, link: `${base}/sign/${existing.token}`, token: existing.token, customerType: existing.customerType, reused: true };
+      }
+      const newest = open[0];
+      if (newest) {
+        const signedCount = signedIn(newest);
         if (signedCount > 0) {
           warning =
             `Das Angebot wurde geändert, seit der Kunde ${signedCount} von ` +
-            `${existing.documents.length} Dokument(en) unterschrieben hat. ` +
+            `${newest.documents.length} Dokument(en) unterschrieben hat. ` +
             `Der bisherige Fortschritt geht mit dem neuen Link verloren.`;
           if (!a.force) return { needsConfirm: true as const, warning };
         }
+        await close(null);
       }
     }
 
@@ -290,7 +312,8 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const offerNo = String(b.offerNumber || payload?.offerNumber || "");
       const identity = offerIdentity(payload, offerNo);
       const asSent = structuredClone(payload);
-      try { await assertUnchangedSinceSent(offerNo, payload); }
+      let sentBefore = false;
+      try { sentBefore = !!(await assertUnchangedSinceSent(offerNo, payload)); }
       catch (e) {
         if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
         req.log.warn({ err: e }, "sent-offer check failed — continuing");
@@ -305,8 +328,8 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       if (b.via === "post" && sr.via !== "post") { sr.via = "post"; await sr.save(); }
 
       // Send record for the hand-over (clients that send a sendId): on-site signing counts as
-      // "sent" from the first signature on, a mailed link at once. The locked offer (pinned price)
-      // is made sure of on the server — before, that was the browser's best-effort save.
+      // "sent" from the first signature on, a mailed link at once. The stored offer is made the
+      // handed-over one on the server (an older saved state is replaced) — before, that was the browser's best-effort save.
       if (SEND_ID.test(String(b.sendId || ""))) {
         try {
           if (!(await sendForSigning(token))) {
@@ -318,7 +341,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
               payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, startedAt: new Date(), finishedAt: new Date(),
             });
           }
-          if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent });
+          if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent, onlyIfMissing: sentBefore });
         } catch (e) { req.log.warn({ err: e }, "send record for signing failed"); }
       }
 
@@ -368,7 +391,8 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
     const token = String((req.params as any).token || "").trim();
     const sr: any = await SigningRequest.findOne({ token });
     if (!sr) { fail(req, reply, 404, "NOT_FOUND", "Ungültiger oder abgelaufener Link"); return null; }
-    if (isExpired(sr)) {
+    // also a request that was closed because a newer one replaced it (status "expired")
+    if (isExpired(sr) || sr.status === "expired") {
       if (sr.status !== "completed") { sr.status = "expired"; await sr.save(); }
       // 410 is cacheable by default — without no-store a reload shows the state from before
       // "Neuen Link anfordern" (main PR #321)

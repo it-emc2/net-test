@@ -277,9 +277,14 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         }
       } else if (recordOpen) await step("mail", "skipped", "nur Bitrix");
 
-      // the offer is out: the locked offer (pinned price) must exist — no longer left to the browser.
+      // the offer is out: the stored offer (pinned price) must exist — no longer left to the browser.
       // Only for clients that send a sendId, so the answer and side effects without one stay as before.
-      if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload });
+      // An older state stored under the number is replaced by what went out, with the price that
+      // went out (audit 2026-11-17, F8) — the send record and the stored offer agree.
+      if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({
+        offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload,
+        pricing: offerComputed, onlyIfMissing: !!resendOf,
+      });
 
       const event = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
       void UserActionLog.create({ event, dealId: String(dealId || ""), offerNumber: payload?.offerNumber || offerNumber, offerType: payload?.activeOffer || offerType })

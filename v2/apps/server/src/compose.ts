@@ -2,7 +2,6 @@
 // PDF engine) and registers every module. No routes live here.
 import type { FastifyInstance } from "fastify";
 import type { AppConfig as Cfg } from "@oc/config";
-import { createPricingEngine } from "@oc/pricing";
 import { registerAuth } from "./modules/auth/index.js";
 import { registerPricing, registerSubmissions } from "./modules/pricing/index.js";
 import { BusinessConfig } from "./platform/business-config.js";
@@ -11,7 +10,7 @@ import { vigorPriceFetcher } from "./integrations/vigor.js";
 import { registerOffersExternal, registerOffersRead, registerOffersWrite } from "./modules/offers/index.js";
 import { registerDealDrafts } from "./modules/deal-drafts/index.js";
 import { registerSends } from "./modules/sends/index.js";
-import { sentOfferRecorder } from "./modules/sends/index.js";
+import { createSentAwarePricing, sentOfferRecorder } from "./modules/sends/index.js";
 import { registerOfferNumbers } from "./modules/sends/index.js";
 import { registerAdmin } from "./modules/admin/index.js";
 import { registerCustomers } from "./modules/customers/index.js";
@@ -63,10 +62,11 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   if (!deps.businessConfig) await businessConfig.init(app.log);
   app.addHook("onClose", async () => businessConfig.stop());
 
-  const pricing = createPricingEngine(Product as any, {
+  // sent offers return their stored price; an offer that was only saved does so while it is
+  // unchanged (sends/pinned-price.ts); drafts/offers feed the snapshot cache (legacy pricing.js)
+  const { pricing, unpinned: unpinnedPricing } = createSentAwarePricing(Product as any, {
     cfg: businessConfig,
     fetchVigourNetPrices: vigorPriceFetcher(cfg.VIGOR_MONGODB_URI ?? cfg.MONGODB_URI),
-    // locked (sent) offers return their stored price; drafts/offers feed the snapshot cache (legacy pricing.js)
     OfferModel: Offer as any,
     DraftModel: Draft as any,
   });
@@ -119,7 +119,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   await registerSends(app, { deals });
   await registerOfferNumbers(app);
-  const ensureSentOffer = sentOfferRecorder(pricing, app.log);
+  const ensureSentOffer = sentOfferRecorder(unpinnedPricing, app.log);
   const signingSvc = await registerSigning(app, {
     ensureSentOffer,
     deals, renderer: deps.signingRenderer ?? ownSigningRenderer,

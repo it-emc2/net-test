@@ -9,7 +9,9 @@
 // and how each step went. The same `sendId` never sends twice.
 import { createHash } from "node:crypto";
 import mongoose, { Schema } from "mongoose";
+import { Offer } from "../../platform/models.js";
 import { identityDifferences, offerIdentity, type OfferIdentity } from "./identity.js";
+import { wasSentBeforeRecords } from "./offer-record.js";
 
 const model = <T>(name: string, schema: Schema<T>) =>
   (mongoose.models[name] as mongoose.Model<T>) ?? mongoose.model<T>(name, schema);
@@ -144,10 +146,15 @@ export async function readSendFile(fileId: string): Promise<Buffer | null> {
   return Buffer.concat(chunks);
 }
 
-/** The last completed send of an offer that went to the customer (e-mail or post; not signed-documents letters). */
+/**
+ * The last completed send of an offer that went to the customer (e-mail, post, signing link,
+ * on-site from the first signature; not signed-documents letters).
+ * Not "Nur in Bitrix ablegen" (channel "bitrix"): nothing reached the customer, so it must not
+ * make the offer immutable (audit 2026-11-17, F9) — also not for records written before that.
+ */
 export async function lastSentOffer(offerNumber: string): Promise<any | null> {
   if (!offerNumber) return null;
-  return OfferSend.findOne({ offerNumber, status: "done", identity: { $ne: null } }).sort({ startedAt: -1 }).lean();
+  return OfferSend.findOne({ offerNumber, status: "done", identity: { $ne: null }, channel: { $ne: "bitrix" } }).sort({ startedAt: -1 }).lean();
 }
 
 export class OfferChangedError extends Error {
@@ -165,7 +172,19 @@ export class OfferChangedError extends Error {
  */
 export async function assertUnchangedSinceSent(offerNumber: string, payload: unknown): Promise<any | null> {
   const prior = await lastSentOffer(offerNumber);
-  if (!prior) return null;
+  if (!prior) {
+    // No send record: an offer the OLD app sent is known by its own logs, and what it sent is
+    // the offer stored under the number. Since 2026-11-17 this holds for every caller (save,
+    // e-mail, post, signing) — before, only saving was checked, and a changed offer could go
+    // out under the old app's number with the old, pinned total.
+    const nr = String(offerNumber || "").trim();
+    if (!nr || !payload || typeof payload !== "object") return null;
+    const stored: any = await Offer.findOne({ offerNumber: nr, locked: true }, { payload: 1 }).lean();
+    if (stored?.payload && offerIdentity(stored.payload, nr).contentHash !== offerIdentity(payload, nr).contentHash && (await wasSentBeforeRecords(nr))) {
+      throw new OfferChangedError(["Inhalt (Positionen, Preise oder Kundendaten)"], { sendId: "", channel: "", at: new Date(0), to: "", by: "" });
+    }
+    return null;
+  }
   const diff = identityDifferences(prior.identity as OfferIdentity, offerIdentity(payload, offerNumber), { sent: prior.payload, now: payload });
   if (diff.length) {
     throw new OfferChangedError(diff, { sendId: prior.sendId, channel: prior.channel, at: prior.finishedAt ?? prior.startedAt, to: prior.to || "", by: prior.by || "" });

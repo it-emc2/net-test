@@ -211,8 +211,22 @@ New read API: `GET /api/sends/:sendId`, `GET /api/offers/:offerNumber/sends`, `G
 - **Versandverlauf** on the Angebotsversand page: what really went out, when, how, to whom, signed or not, Bitrix state (with "Ablage wiederholen"), stored document.
 - New collections: `signing_completions`, `offer_numbers` (indexes in migration 003). Legacy collections: `offers` gains documents only (the same ones the browser used to save); `signingrequests` is written with the same fields as before.
 
+**Addendum 2026-11-17 — audit of the sending flows, server-side findings (F1–F3, F8–F10).**
+- **"Locked" means "sent" (F1, F2).** The stored flag `offers.locked` is still set by every save (download, before an on-site signature, after a send) and therefore only means "saved". Whether the stored price is **pinned** is decided in one place, `sends/pinned-price.ts`:
+  - offer was **sent** — a completed send record with an identity (e-mail, post, signing link, on-site from the first signature), or the old app's logs (mail log, letter, signed document) → the stored price, always, as before;
+  - offer was only **saved** → the stored price while its content is unchanged (content hash of the send guard: key order, empty values and workflow sections do not count); **changed → priced fresh**. Before, the old total stayed on the changed positions and went out in the mail, the letter and the signing view.
+  - The pricing core is untouched (it must stay identical to the old app's file): for the one case that is priced fresh the server hands it an offer model that reports the stored offer as not locked. The price endpoint, the documents and the save all use this engine. Offers stored as `locked: true` before today follow the same rule — no migration.
+  - The send guard (decision C) now knows the old app's sends everywhere: a changed offer under a number the old app sent is refused for e-mail, post and signing too (before: only for saving).
+- **After a send the stored offer is the sent content (F8).** If another state is stored under the number (saved, then changed and sent without a save), it is replaced by what went out, with the price that went out. A repeated send of the same offer replaces nothing.
+- **"Nur in Bitrix ablegen" is not a send (F9).** Channel `bitrix` never makes an offer immutable — also not for records written before today. The record itself stays (Versandverlauf).
+- **"Original per Post senden" posts the stored original or nothing (F3).** The original is the offer PDF (or letter) of the last send; for an offer signed on site, the signed offer PDF. Nothing stored → `409 ORIGINAL_NOT_STORED`, nothing goes to the printer. Before, the PDF rendered from the changed offer was posted.
+- **One open signing request per offer (F10).** The same offer (content hash and Ansprechpartner) uses the open request again — a resend by e-mail and a later on-site signature share one request. Every other open request of that number is closed (`status: "expired"`; its link answers 410 and offers "Neuen Link anfordern"): duplicates left by earlier resends, and the request for an older state of an offer that is not signed yet.
+- Tests: `apps/server/test/send-guard-audit.test.ts`; the contract test for "never sent → priced fresh" now uses a change that moves the price. Four comparisons with the old app say where v2 differs on purpose (price of a changed never-sent offer; the closed older request).
+
 **Still open.**
-- `locked` is still set by every save (downloads); the app's own "sent" bar still reads it — the Versandverlauf is the reliable view.
+- `locked` is still set by every save (see addendum 2026-11-17: it no longer pins the price by itself); the old app's own "sent" bar and `freshNumberIfSent` (a draft saved from a stored offer gets a new number) still read the flag — the Versandverlauf is the reliable view.
+- Old-app sends that left no log with the offer number (a letter is logged once per deal — a later letter for the same deal overwrites the number) are not recognisable as sent: such an offer keeps its price while unchanged, but a changed one is priced fresh and may be saved.
+- Client-side findings of the same audit (F4–F7, F11–F13: hand-edited DOCX vs. signing, renumbering on download, "Neue Version" in React, failed draft save before a send) follow after the rebuild of the send page.
 - E-mail-first offers: the app can put a different number into the PDF than it saves afterwards (audit create F06) — a fix belongs in the app's send code, not in an add-on.
 
 ## ADR 024 — Single positions can be reworded and repriced per offer (U-014, 2026-11-12)
