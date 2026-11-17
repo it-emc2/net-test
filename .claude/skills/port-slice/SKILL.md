@@ -8,6 +8,12 @@ description: Use when porting a screen, step or slice of today's configurator UI
 Today's UI (`src/public`, served by v2 too) is the reference. Everything not in
 `docs/rewrite/UX-CHANGES.md` must behave exactly like today (ADR 004).
 
+## Setup (before anything else)
+
+`node_modules` missing in this worktree? Run `bash v2/scripts/ensure-deps.sh` (the SessionStart
+hook normally does it): clones them from another worktree in seconds, `npm ci` only if no lockfile matches.
+Never start a plain `npm install`.
+
 ## 0. Decide the check level FIRST
 
 | Level | When | Recording | Tests | Local check |
