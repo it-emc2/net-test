@@ -42,6 +42,7 @@ const kosten = () => import("../features/steps/index.js").then((m) => ({ Compone
 const checkliste = () => import("../features/steps/index.js").then((m) => ({ Component: m.Checkliste }));
 const versand = () => import("../features/steps/index.js").then((m) => ({ Component: m.Versand }));
 const bwt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badewannentuer }));
+const bwtArbeiten = () => import("../features/steps/index.js").then((m) => ({ Component: m.BwtArbeiten }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
@@ -68,6 +69,7 @@ export const routes: RouteObject[] = [
           { path: "Optional", lazy: optional },
           { path: "Kosten", lazy: kosten },
           { path: "Rabatt", lazy: rabatt },
+          { path: "bwtArbeiten", lazy: bwtArbeiten },
           { path: "bwt", lazy: bwt },
           { path: "Angebotscheck", lazy: angebotscheck },
           { path: "Checkliste", lazy: checkliste },
