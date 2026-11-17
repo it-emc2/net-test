@@ -1,6 +1,7 @@
 // Step status in the step list (U-011 D2): derived from the offer, shown in the sidebar.
 import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { shortReason } from "../src/features/offer/OfferShell.js";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -32,9 +33,9 @@ describe("step status", () => {
     await open();
     patch("duschwanne", { addFlooring: true });
     await waitFor(() => expect(state(/^Fußboden/)).toBe("warn"));
-    const text = link(/^Fußboden/).textContent!.replace("Fußboden", "").trim();
-    expect(text.length).toBeGreaterThan(3);
-    expect(link(/^Fußboden/).getAttribute("aria-label")).toBe(`Fußboden – ${text}`);
+    const full = link(/^Fußboden/).getAttribute("aria-label")!.replace("Fußboden – ", "");
+    expect(full.length).toBeGreaterThan(3);
+    expect(link(/^Fußboden/)).toHaveTextContent(shortReason(full));
   });
 
   it("Optional: done with one pick; Wandverkleidung: off until switched on", async () => {
@@ -72,5 +73,8 @@ describe("step status", () => {
     await waitFor(() => expect(state(/^Duschwanne/)).toBe("done"));
     expect(state(/^Duschabtrennung/)).toBe("done");
     expect(state(/^Duschvorhang/)).toBe("off");
+  });
+  it("reason line shows the missing items only, in short form", () => {
+    expect(shortReason("Bitte in „Kundendaten“ ausfüllen: Anrede, Genehmigung des Vermieters erforderlich?")).toBe("Anrede, Vermieter-Genehmigung");
   });
 });

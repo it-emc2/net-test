@@ -38,6 +38,9 @@ const countsIn = (st: Record<string, StepStatus>) => {
   const k = Object.values(st).map((v) => v.kind).filter((v) => v !== "off" && v !== "none");
   return { done: k.filter((v) => v === "done").length, total: k.length };
 };
+/** the missing items only: no "Bitte in „Schritt“ ausfüllen:" prefix, short forms of long field labels */
+const SHORT: [RegExp, string][] = [[/Genehmigung des Vermieters erforderlich\??/g, "Vermieter-Genehmigung"], [/\?/g, ""]];
+export const shortReason = (m: string): string => SHORT.reduce((t, [re, to]) => t.replace(re, to), m.replace(/^Bitte in „[^“]*“ ausfüllen:\s*/, "")).trim();
 const WORDS: Partial<Record<StepStatus["kind"], string>> = { done: "erledigt", open: "offen", off: "nicht gewählt" };
 function StatusIcon({ s }: { s: StepStatus }) {
   const c = "size-5 shrink-0";
@@ -69,13 +72,13 @@ function StepList({ type, base, current, statuses }: { type: NewOfferType; base:
           const group = groupStartingAt(type, s);
           const st = statuses[s] ?? { kind: "none" as const };
           const active = s === current;
-          const right = st.kind === "off" ? "nicht gewählt" : st.kind === "check" ? `${st.open} offen` : "";
+          const right = st.kind === "check" ? `${st.open} offen` : "";
           const said = st.kind === "warn" ? st.reason : st.kind === "check" ? `${st.open} offen` : WORDS[st.kind];
           return (
             <li key={s}>
               {group ? <p className="mb-1 mt-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">{group.num ? `${group.num} · ` : ""}{group.title}</p> : null}
               <NavLink
-                to={`${base}/${s}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)}
+                to={`${base}/${s}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
                 className={cn(
                   "flex min-h-12 items-center gap-3 rounded-lg border border-transparent px-3 py-1.5 text-foreground no-underline transition-colors hover:bg-accent-weak",
                   active && "border-accent bg-accent-weak font-bold", st.kind === "off" && "text-muted-foreground",
@@ -83,10 +86,11 @@ function StepList({ type, base, current, statuses }: { type: NewOfferType; base:
               >
                 <StatusIcon s={st} />
                 <span className="grid min-w-0 flex-1">
-                  <span>{stepLabel(s)}</span>
-                  {st.kind === "warn" ? <span className="text-[0.85rem] font-normal text-amber-700 dark:text-amber-400">{st.reason}</span> : null}
+                  <span className="truncate">{stepLabel(s)}</span>
+                  {st.kind === "warn" ? <span className="line-clamp-2 text-[0.85rem] font-normal text-amber-700 dark:text-amber-400">{shortReason(st.reason)}</span> : null}
+                  {st.kind === "off" ? <span className="text-[0.85rem] font-normal">nicht gewählt</span> : null}
                 </span>
-                {right ? <span className={cn("shrink-0 text-[0.85rem] font-normal", st.kind === "check" ? "text-destructive" : "text-muted-foreground")}>{right}</span> : null}
+                {right ? <span className={cn("ml-2 shrink-0 text-[0.85rem] font-normal", st.kind === "check" ? "text-destructive" : "text-muted-foreground")}>{right}</span> : null}
               </NavLink>
             </li>
           );
