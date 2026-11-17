@@ -136,6 +136,8 @@ export const endpoints = {
   moveSent: { method: "POST", path: "/api/bitrix/deal/:id/move-ang-verschickt", response: z.looseObject({}) },
   /** audit: the dialog after sending was shown / closed without moving the deal; body: event, offerNumber, offerType */
   logDialogEvent: { method: "POST", path: "/api/bitrix/deal/:id/log-dialog-event", response: z.looseObject({}) },
+  /** the offer's products for the product-picture PDF; body: payload (the offer) */
+  productImageList: { method: "POST", path: "/api/email/product-image-list", response: z.looseObject({ products: z.array(z.looseObject({ productId: z.string(), name: z.string() })).nullish() }) },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 

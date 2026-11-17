@@ -2,8 +2,8 @@
 // person, name and greeting of a two-person offer, how the offer was sent, enclosed documents.
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
 // internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
-// sending by mail and "Nur in Bitrix ablegen" (Senden.tsx). Product pictures, plan photos, post
-// and signing are still done in today's view.
+// sending by mail and "Nur in Bitrix ablegen" (Senden.tsx); part 2: product pictures and plan
+// photos (Bilder.tsx). Post and signing are still done in today's view.
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -74,7 +74,7 @@ export function Versand() {
 
       <section className="grid gap-2 border-t border-border pt-4" data-testid="zf-legacy">
         <h3 className="m-0 text-[1.05rem] font-semibold">Weitere Versandwege</h3>
-        <p className="m-0 text-muted-foreground">Produktbilder-PDF, Grundriss / Fotos, Postversand und Unterschrift vor Ort gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0 text-muted-foreground">Postversand und Unterschrift vor Ort gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>
