@@ -163,6 +163,8 @@ export const endpoints = {
   signingStatus: { method: "GET", path: "/api/signing/status/:offerNumber", response: z.array(z.looseObject({ status: z.string().nullish(), via: z.string().nullish() })) },
   /** the signed documents of an offer as files (base64) */
   signedDocuments: { method: "GET", path: "/api/signing/status/:offerNumber/signed", response: z.looseObject({ documents: z.array(z.looseObject({ key: z.string().nullish(), filename: z.string(), base64: z.string() })) }) },
+  /** a photo or file for the Bitrix deal (type: kasse | vermieter): into the deal's file field and as a timeline note; body: filename, base64. kept false: the field holds only the newest file */
+  dealUpload: { method: "POST", path: "/api/bitrix/deal/:id/upload/:type", response: z.looseObject({ ok: z.boolean().nullish(), kept: z.boolean().nullish() }) },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 

@@ -9,7 +9,7 @@ import { eur } from "../kosten/rules.js";
 import { addRow, parseMoney, removeRow, rowsOf, storedRows, type Row } from "./extras-rules.js";
 import { set, str, useBwt, write } from "./store.js";
 
-/** "2 × 25,00 € = 50,00 €" for a row with quantity and price above 0 (display only; UX-CHANGES U-028) */
+/** "2 × 25,00 € = 50,00 €" for a row with quantity and price above 0 (display only; UX-CHANGES U-029) */
 const lineTotal = (r: Row): string => {
   const qty = Number(r.qty) || 0, price = parseMoney(r.price);
   return qty > 0 && price > 0 ? `${String(qty).replace(".", ",")} × ${eur(price)} = ${eur(qty * price)}` : "";

@@ -39,7 +39,7 @@ function row(l: RawLine, exempt: ReadonlySet<string>): Row {
   if (exempt.has(idOf(l))) tags.push({ text: "ohne Aufschlag", kind: "plain" });
   const cur = n(l.currentNet), quoted = n(l.unitPrice);
   if (cur > 0 && Math.abs(cur - quoted) >= 0.005) { const up = cur > quoted; tags.push({ text: `${up ? "▲ +" : "▼ −"}${eur(Math.abs(cur - quoted))} heute`, kind: up ? "up" : "down", title: `Angebotspreis ${eur(quoted)} — heute ${eur(cur)}` }); }
-  // the unit price shown is the one that gives the line total (markup included), so quantity × unit = total (UX-CHANGES U-032; today a grab bar line showed the purchase price)
+  // the unit price shown is the one that gives the line total (markup included), so quantity × unit = total (UX-CHANGES U-033; today a grab bar line showed the purchase price)
   const qty = n(l.qty ?? 1), total = n(l.lineTotal), shown = qty > 0 && total > 0 && Math.abs(quoted * qty - total) >= 0.005 ? total / qty : l.unitPrice ?? 0;
   return { id: String(l.productId || l.id || l.key || ""), label: stripBrand(labelOf(l)), tags, qty: `${qtyText(l.qty)}${l.unit ? ` ${l.unit}` : ""}`, unit: eur(shown), total: eur(l.lineTotal ?? 0) };
 }
@@ -61,7 +61,7 @@ const DOOR_TASK_TITLES: Record<string, string> = { deliver_install_bwt_door: "Li
 function bwtTaskRows(bwt: Fields): Row[] {
   const tasks = (Array.isArray(bwt.workTasks) ? bwt.workTasks : []).map((v) => DOOR_TASK_TITLES[String(v)]).filter(Boolean) as string[];
   const free = (Array.isArray(bwt.extraTasks) ? bwt.extraTasks : []).map((t) => String(t ?? "").trim()).filter(Boolean);
-  // tasks have no price: one quiet row each (UX-CHANGES U-031)
+  // tasks have no price: one quiet row each (UX-CHANGES U-032)
   return [...tasks, ...free].map((t) => ({ ...(row({ label: `- ${t}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 }, new Set()) as Exclude<Row, { subtitle: string }>), task: true }));
 }
 /** Badewannentür: the extra work time of the Arbeitszeit step is shown task by task ("Extra Arbeitszeit:" + one line each) */

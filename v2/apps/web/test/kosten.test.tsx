@@ -72,7 +72,7 @@ describe("Kosten — rules and what goes beyond the recordings", () => {
     expect(material.rows).toEqual([
       { subtitle: "KLEINMATERIAL" }, { id: "KM01", label: "- 1 Stk Kleinmaterial [KM01]", tags: [{ text: "ohne Aufschlag", kind: "plain" }], qty: "1", unit: eur(20), total: eur(20) },
       { subtitle: "WANDVERKLEIDUNG" }, { id: "V1", label: "- 2 Stk Paneel [V1]", tags: [{ text: `▲ +${eur(10)} heute`, kind: "up", title: `Angebotspreis ${eur(100)} — heute ${eur(110)}` }], qty: "2", unit: eur(100), total: eur(200) },
-      { subtitle: "WEITERES" }, { id: "V2", label: "Wanne", tags: [{ text: `▼ −${eur(17.5)} heute`, kind: "down", title: `Angebotspreis ${eur(80)} — heute ${eur(62.5)}` }], qty: "1,5 m²", unit: eur(80 / 1.5), total: eur(80) } /* quantity × unit = total (U-032) */,
+      { subtitle: "WEITERES" }, { id: "V2", label: "Wanne", tags: [{ text: `▼ −${eur(17.5)} heute`, kind: "down", title: `Angebotspreis ${eur(80)} — heute ${eur(62.5)}` }], qty: "1,5 m²", unit: eur(80 / 1.5), total: eur(80) } /* quantity × unit = total (U-033) */,
     ]);
     expect(material.note).toEqual({ text: `Preis geändert: 2 Artikel kosten heute insgesamt −${eur(7.5)} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: false });
     expect(sections({ ...price, materials: { ...price.materials, vigorPriceDrift: { totalDelta: 10, lines: [1] } } })[2]!.note).toBeNull(); // one article says it on its own line

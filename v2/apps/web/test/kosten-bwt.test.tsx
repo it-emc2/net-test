@@ -22,7 +22,7 @@ async function open(price: unknown, offer?: Record<string, Record<string, unknow
   if (offer) { await waitFor(() => expect(useOfferStore.getState().offer).toBeTruthy()); useOfferStore.getState().patchAll(offer as never); }
 }
 const num = (t: string) => Number(t.replace(/[^\d,-]/g, "").replace(",", ".")) || 0;
-/** what the page shows now where today's recording differs (approved, U-031 / U-032): task lines are one quiet row; the unit price is the one that gives the line total */
+/** what the page shows now where today's recording differs (approved, U-032 / U-033): task lines are one quiet row; the unit price is the one that gives the line total */
 const approved = (rows: Record<string, unknown>[]) => rows.map((r) => {
   if (r.unit === undefined) return r;
   const unit = String(r.unit), qty = num(String(r.qty)), total = num(String(r.total));

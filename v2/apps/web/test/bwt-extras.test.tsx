@@ -23,7 +23,7 @@ async function open() {
   fakeServer({ ...BASE });
   renderApp(`/deal/${KEY}/bwt/bwt`);
   await screen.findByRole("heading", { name: "Freier Posten & Hinweise" });
-  await userEvent.setup().click(screen.getByText("Skizze und Notiz")); // folded until opened (U-029)
+  await userEvent.setup().click(screen.getByText("Skizze und Notiz")); // folded until opened (U-030)
   await screen.findByTestId("sketch-pad");
   return structuredClone(offer());
 }
@@ -145,7 +145,7 @@ describe("free items — fixed against today's UI", () => {
   });
 });
 
-describe("free items and sketch — approved changes (U-028, U-029)", () => {
+describe("free items and sketch — approved changes (U-029, U-030)", () => {
   it("a row with quantity and price shows its line total; the line is folded until there is content", async () => {
     fakeServer({ ...BASE });
     renderApp(`/deal/${KEY}/bwt/bwt`);

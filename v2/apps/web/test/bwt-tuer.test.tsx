@@ -89,7 +89,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
       }));
       const key = Object.entries(COLOR_LABEL).find(([, l]) => l === color)?.[0] ?? color;
       return { key: d.key, on, qty: on ? qty!.value : null, color: on ? key! : null, dims };
-    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-027)
+    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-028)
     expect(GRIPS.map((g) => { const cb = screen.getByRole("checkbox", { name: g.label }) as HTMLInputElement; return { n: g.n, on: cb.checked, qty: cb.checked ? (screen.getByLabelText(`Menge ${g.label}`) as HTMLInputElement).value : null }; })).toEqual(v.grips);
   });
 
@@ -97,7 +97,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     for (const s of reference.scenarios) expect(doorInfo({ ...reference.base, ...(s.bwt as Record<string, unknown>) })).toEqual({ ...reference.base, ...(s.bwt as Record<string, any>) }.doorInfoById);
   });
 
-  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-030)", async () => {
+  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-031)", async () => {
     await open();
     expect(screen.queryByTestId("bwt-missing")).toBeNull();
     await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
@@ -112,7 +112,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     expect(door.getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("the door panel: one panel for the chosen door, quantity stepper (min 1), Standardbreite as chips (UX-CHANGES U-034)", async () => {
+  it("the door panel: one panel for the chosen door, quantity stepper (min 1), Standardbreite as chips (UX-CHANGES U-035)", async () => {
     await open();
     const user = userEvent.setup();
     expect(screen.getAllByTestId("bwt-door")).toHaveLength(5);
