@@ -92,8 +92,8 @@ describe("layout", () => {
     const left = within(card("a1")).getByTestId("appt-left").textContent!;
     expect(left.indexOf("09:00")).toBeLessThan(left.indexOf("bis 10:30 · 90 Min"));
     expect(left.indexOf("bis 10:30 · 90 Min")).toBeLessThan(left.indexOf("BU"));
-    expect(left.indexOf("BU")).toBeLessThan(left.indexOf("Fixer Slot 1"));
-    expect(left.indexOf("Fixer Slot 1")).toBeLessThan(left.indexOf("70001"));
+    expect(left.indexOf("BU")).toBeLessThan(left.indexOf("#70001"));
+    expect(left).not.toMatch(/Slot|Priorität/); // slot and priority are not on the card (U-023)
     expect(screen.getByTestId("pause")).toHaveTextContent("Pause 12:00 – 12:30");
     expect(screen.getByTestId("pause")).toHaveTextContent("30 Min");
   });

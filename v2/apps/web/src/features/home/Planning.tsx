@@ -1,14 +1,14 @@
 // „Heutige Termine Planung“ + the offer picker + „Kunde nicht erreicht“, as today's Hauptmenü.
 // Starting an offer from an appointment: the customer data goes into Kundendaten (planning-rules.ts).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Car, Coffee, Hash, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X } from "lucide-react";
+import { Ban, Car, Coffee, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
-import { badge, cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayEntries, typeTone, type PlanningEntry, type PlanningPayload } from "./planning-rules.js";
+import { cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayEntries, typeTone, type PlanningEntry, type PlanningPayload } from "./planning-rules.js";
 
 export const PLANNING_KEY = ["planning-current"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -155,8 +155,6 @@ function useTravel(e: PlanningEntry | undefined) {
     queryFn: () => call("suggestDistance", { body: { Kundendaten: a } }).then((r) => (r.ok && Number.isFinite(Number(r.oneWaySeconds)) ? { min: Math.round(Number(r.oneWaySeconds) / 60), km: r.oneWayKm != null ? Number(r.oneWayKm) : null } : null), () => null) }).data ?? null;
 }
 const Row = ({ children, className, ...p }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) => <div {...p} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-2.5", className)}>{children}</div>;
-const Dot = ({ c }: { c: string }) => <span aria-hidden className={cn("size-2 shrink-0 rounded-full", c)} />;
-const PRIO_DOT: Record<string, string> = { high: "bg-red-600", medium: "bg-amber-500", low: "bg-slate-400" };
 
 export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }) {
   const q = usePlanning();
@@ -237,9 +235,8 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
                   <div data-testid="appt-left" className="flex flex-col items-start gap-1.5 border-r border-border pr-3.5 text-[13px] text-muted-foreground">
                     <span className="text-[1.4rem] font-medium tabular-nums leading-tight text-foreground">{hasStart ? clock(s) : "–"}</span>
                     <span className="whitespace-nowrap">{hasStart && hasDur ? `bis ${clock(s + d)} · ${d} Min` : hasDur ? `${d} Min` : "Dauer offen"}</span>
-                    {e.taetigkeitenBadge ? <span className="flex items-center gap-2"><Dot c="bg-primary" />{String(e.taetigkeitenBadge).toUpperCase()}</span> : null}
-                    <span className="flex items-center gap-2"><Dot c={off ? "bg-slate-400" : e.locked ? "bg-primary" : PRIO_DOT[String(e.priority || "").toLowerCase()] ?? "bg-slate-400"} />{badge(e)}</span>
-                    {deal ? <button type="button" aria-label={`Deal ${deal} in Bitrix öffnen`} className="-ml-1 flex min-h-11 cursor-pointer items-center gap-1.5 px-1" onClick={(ev) => { ev.stopPropagation(); window.open(DEAL_URL(deal), "_blank", "noopener"); }}><Hash aria-hidden className="size-4" />{deal}</button> : null}
+                    {e.taetigkeitenBadge ? <Chip tone={typeTone(e.taetigkeitenBadge)} className="self-start font-semibold">{String(e.taetigkeitenBadge).toUpperCase()}</Chip> : null}
+                    {deal ? <button type="button" aria-label={`Deal ${deal} in Bitrix öffnen`} className="-my-1.5 flex min-h-11 cursor-pointer items-center self-start" onClick={(ev) => { ev.stopPropagation(); window.open(DEAL_URL(deal), "_blank", "noopener"); }}><span className="inline-flex min-h-7 items-center rounded-full border-2 border-border px-3 text-[0.95rem] font-semibold text-foreground">#{deal}</span></button> : null}
                   </div>
                   <div className="grid min-w-0 content-start gap-1.5">
                     <div className={cn("text-[1.05rem] font-medium", off ? "text-muted-foreground line-through" : "text-foreground")}>{e.name || "Unbekannt"}</div>
