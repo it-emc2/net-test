@@ -118,8 +118,8 @@ function UserMenu() {
 export function Header() {
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 overflow-hidden border-b border-border bg-card/95 px-4 backdrop-blur">
-      <div className="min-w-0"><Suspense fallback={<Brand />}><HeaderLeft /></Suspense></div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="min-w-[12rem] flex-1"><Suspense fallback={<Brand />}><HeaderLeft /></Suspense></div>
+      <div className="flex min-w-0 shrink items-center gap-2">
         <Suspense fallback={null}><SaveState /></Suspense>
         <UserMenu />
       </div>

@@ -97,7 +97,7 @@ describe("app shell", () => {
     await waitFor(() => expect(saves.length || s.calls.filter((c) => c.key.startsWith("PUT ")).length).toBe(1));
     const save = s.calls.find((c) => c.key.startsWith("PUT "))!.body as any;
     expect([save.offerType, save.baseRevision, save.payload.Kundendaten.city]).toEqual(["bu", 0, "Hof 24"]);
-    await screen.findByText(/Automatisch gespeichert/);
+    await screen.findByTitle(/Automatisch gespeichert/);
     expect([S().revision, S().savedVersion]).toEqual([1, 25]);
   });
 
@@ -106,7 +106,9 @@ describe("app shell", () => {
     renderApp("/deal/4711/bu/Kundendaten");
     await userEvent.type(await screen.findByLabelText("Vorname"), "E");
     await userEvent.click(screen.getByRole("link", { name: "Weitere Angaben in der bisherigen Ansicht" })); // saves at once
-    expect(await screen.findByText("Nicht gespeichert – an anderer Stelle geändert")).toHaveAttribute("role", "alert");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Nicht gespeichert");
+    expect(alert.parentElement).toHaveAttribute("title", "Nicht gespeichert – an anderer Stelle geändert");
     expect(S().savedVersion).toBe(0);
   });
 
@@ -163,7 +165,7 @@ describe("header and sidebar", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(AUTOSAVE_MS * 2); });
     vi.useRealTimers();
     expect(s.calls.some((c) => c.key.startsWith("PUT "))).toBe(false);
-    expect(screen.getByText("Nicht gespeicherte Änderungen")).toBeInTheDocument();
+    expect(screen.getByTitle("Nicht gespeicherte Änderungen")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await screen.findByText(/^Gespeichert · /);
     expect(s.calls.filter((c) => c.key.startsWith("PUT "))).toHaveLength(1);

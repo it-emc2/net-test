@@ -47,6 +47,23 @@ describe("header", () => {
   });
 });
 
+describe("header room", () => {
+  it("long save states are short in the pill (full text in the title), so the customer name keeps its room", async () => {
+    fakeServer({ ...BASE });
+    renderApp("/deal/65462/bu/Kundendaten");
+    await userEvent.type(await screen.findByLabelText(/^Nachname/), "Muster-Lange-Name");
+    const pill = await screen.findByTitle("Änderungen werden gleich gespeichert");
+    expect(pill).toHaveTextContent(/^Speichert …$/);
+    expect(screen.getByTestId("header-offer")).toHaveTextContent("Badumbau · Muster-Lange-Name");
+    expect(screen.getByRole("link", { name: "Versionen" })).toHaveAttribute("title", "Versionen");
+  });
+  it("the logo has a light badge in dark mode", async () => {
+    fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
+    renderApp("/");
+    expect((await screen.findByRole("img", { name: "EmC2" })).className).toContain("dark:bg-white");
+  });
+});
+
 describe("user menu", () => {
   it("a swatch sets the theme; the multicolour one sets \"\"", async () => {
     fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
