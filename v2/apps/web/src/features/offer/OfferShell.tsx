@@ -159,7 +159,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
       <nav
         aria-label="Schritte"
         className={cn(
-          "sticky top-14 z-30 -mx-4 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 border-b border-border bg-background px-4 py-2",
+          "sticky top-16 z-30 -mx-4 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 border-b border-border bg-background px-4 py-2",
           "[grid-template-areas:'toggle_total''title_title''steps_steps''home_home']",
           "lg:top-20 lg:z-auto lg:mx-0 lg:max-h-[calc(100dvh-6rem)] lg:grid-cols-1 lg:content-start lg:gap-4 lg:self-start lg:overflow-y-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pr-1",
           "lg:[grid-template-areas:'title''steps''total''home']",
