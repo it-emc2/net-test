@@ -3,6 +3,7 @@
 // calculation. Everything comes from the price (rules.ts); the page stores nothing.
 // Built for Badumbau and Badewannentür; the other offer types still use today's view for this step.
 import { useQueryClient } from "@tanstack/react-query";
+import { Wrench } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { Button, Card, CardTitle, cn } from "../../../shared/ui/index.js";
@@ -25,6 +26,10 @@ function Lines({ rows }: { rows: Row[] }) {
         </div>
         {rows.map((r, i) => ("subtitle" in r ? (
           <div key={`s${i}`} className="col-span-4 mt-2 font-bold" data-part="subtitle">{r.subtitle}</div>
+        ) : r.task ? (
+          <div key={`t${i}`} className="col-span-4 flex items-start gap-2 text-muted-foreground" data-testid="kosten-task">
+            <Wrench aria-hidden className="mt-1 size-4 shrink-0" /><span><span data-part="label">{r.label}</span> · in Arbeitszeit enthalten</span>
+          </div>
         ) : (
           <div key={`${r.id}-${i}`} className="contents" role="row" data-testid="kosten-line" data-line-id={r.id}>
             <span role="cell" className="whitespace-pre-line">

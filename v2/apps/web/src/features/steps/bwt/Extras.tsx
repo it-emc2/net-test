@@ -3,10 +3,17 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useRef } from "react";
 import { Button, Card, CardTitle, Check, Input, TextAreaField } from "../../../shared/ui/index.js";
-import { SketchPad, type Sketch } from "../../../shared/ui/sketch-pad.js";
+import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { useOfferStore } from "../../offer/index.js";
+import { eur } from "../kosten/rules.js";
 import { addRow, parseMoney, removeRow, rowsOf, storedRows, type Row } from "./extras-rules.js";
 import { set, str, useBwt, write } from "./store.js";
+
+/** "2 × 25,00 € = 50,00 €" for a row with quantity and price above 0 (display only; UX-CHANGES U-027) */
+const lineTotal = (r: Row): string => {
+  const qty = Number(r.qty) || 0, price = parseMoney(r.price);
+  return qty > 0 && price > 0 ? `${String(qty).replace(".", ",")} × ${eur(price)} = ${eur(qty * price)}` : "";
+};
 
 /** the rows being edited are kept as typed (in memory); the stored list follows every change */
 function FreeItems() {
@@ -34,7 +41,10 @@ function FreeItems() {
             {cell(i, "qty", "Menge", "", { type: "number", inputMode: "numeric", min: 1, step: 1 })}
             {cell(i, "id", "ID", "z. B. BWT-CUS-001")}
           </div>
-          <Button variant="outline" size="icon" aria-label="Diese Zeile entfernen" onClick={() => put(removeRow(rows, i))}><Trash2 aria-hidden /></Button>
+          <div className="flex items-center gap-3 self-end">
+            {lineTotal(rows[i]!) ? <span data-part="line-total" className="whitespace-nowrap tabular-nums text-[0.95rem] text-muted-foreground">{lineTotal(rows[i]!)}</span> : null}
+            <Button variant="outline" size="icon" aria-label="Diese Zeile entfernen" onClick={() => put(removeRow(rows, i))}><Trash2 aria-hidden /></Button>
+          </div>
         </div>
       ))}
       <small id="bwt-extras-help" className="text-muted-foreground">Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.</small>
@@ -57,12 +67,23 @@ export function Extras() {
   const b = useBwt();
   const sketch = (b.sketch && typeof b.sketch === "object" ? b.sketch : { json: str(b.bwtSketchJson), dataUrl: str(b.bwtSketchDataUrl) }) as Partial<Sketch>;
   const store = (next: Sketch) => write(() => ({ sketch: { json: next.json, dataUrl: next.dataUrl }, bwtSketchJson: next.json, bwtSketchDataUrl: next.dataUrl }));
+  const noteLines = str(b.bwtNote).trim() ? str(b.bwtNote).trim().split(/\r?\n/).length : 0;
+  const summary = [hasSketch(sketch) ? "Skizze vorhanden" : "", noteLines ? `${noteLines} ${noteLines === 1 ? "Zeile" : "Zeilen"} Notiz` : ""].filter(Boolean).join(" · ");
+  const remembered = useOfferStore((s) => s.scratch.bwtSketchOpen) as boolean | undefined;
+  const open = remembered ?? !!summary; // opens by itself when there is a sketch or a note
   return (
     <Card aria-labelledby="bwt-extras-title" data-testid="bwt-extras">
       <CardTitle id="bwt-extras-title">Freier Posten & Hinweise</CardTitle>
       <FreeItems />
-      <TextAreaField id="bwt-note" label="Zusätzliche Hinweise zur Badewannentür (für das Angebot)" placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen." rows={20} value={str(b.bwtNote)} onChange={(v) => set("bwtNote", v)} />
-      <SketchPad value={sketch} onChange={store} />
+      <details className="rounded-lg border-2 border-border p-3" data-testid="bwt-sketch" open={open} onToggle={(e) => { const to = e.currentTarget.open; if (to !== open) useOfferStore.getState().remember("bwtSketchOpen", to); }}>
+        <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 font-semibold">Skizze und Notiz{summary ? <span className="font-normal text-muted-foreground">{summary}</span> : null}</summary>
+        {open ? (
+          <div className="grid gap-4 pt-3">
+            <TextAreaField id="bwt-note" label="Zusätzliche Hinweise zur Badewannentür (für das Angebot)" placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen." rows={20} value={str(b.bwtNote)} onChange={(v) => set("bwtNote", v)} />
+            <SketchPad value={sketch} onChange={store} />
+          </div>
+        ) : null}
+      </details>
       <NoteText id="bwt-steel" tick="bwtSteelNoteEnabled" text="bwtSteelNoteText" label="Stahl‑emaillierte Badewanne – Hinweis in Angebot übernehmen" />
       <NoteText id="bwt-proxy" tick="bwtProxyNoteEnabled" text="bwtProxyNoteText" label="Stellvertretung – Hinweis in Angebot übernehmen" />
     </Card>

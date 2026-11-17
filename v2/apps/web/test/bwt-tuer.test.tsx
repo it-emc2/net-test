@@ -4,7 +4,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { DOORS, GRIPS, doorInfo } from "../src/features/steps/bwt/rules.js";
+import { DOORS, GRIPS, dimField, doorInfo } from "../src/features/steps/bwt/rules.js";
 import reference from "./fixtures/bwt-tuer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -37,7 +37,12 @@ async function play(steps: (string | number)[][]) {
       else if (a === "glas") fireEvent.change(card.getByLabelText("Rahmen-Farbe"), { target: { value: b } });
       else await user.click(card.getByRole("radio", { name: COLOR_LABEL[b as string]! }));
     }
-    else if (kind === "dim") fireEvent.change(within(cardOf(a as string)).getByLabelText(`${DIM_NAME[b as string]} ${door(a as string).value}`), { target: { value: c } });
+    else if (kind === "dim") {
+      // the sizes are only on the page while their door is picked: for a door that is off, the stored field is set as the page would have
+      const input = within(cardOf(a as string)).queryByLabelText(`${DIM_NAME[b as string]} ${door(a as string).value}`);
+      if (input) fireEvent.change(input, { target: { value: c } });
+      else useOfferStore.getState().patch("bwt" as never, { [dimField(door(a as string), b as string)]: c } as never);
+    }
     else if (kind === "anschlag") await user.click(screen.getByRole("radio", { name: a === "Links" ? "← Links" : "Rechts →" }));
     else if (kind === "grip") await user.click(screen.getByRole("checkbox", { name: `Haltegriff ${a} cm` }));
     else if (kind === "gripqty") fireEvent.change(screen.getByLabelText(`Menge Haltegriff ${a} cm`), { target: { value: b } });
@@ -78,11 +83,26 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
       const dims = Object.fromEntries(Object.keys(DIM_NAME).flatMap((f) => { const i = card.queryByLabelText(`${DIM_NAME[f]} ${d.value}`) as HTMLInputElement | null; return i ? [[f, i.value]] : []; }));
       const key = Object.entries(COLOR_LABEL).find(([, l]) => l === color)?.[0] ?? color;
       return { key: d.key, on, qty: on ? qty!.value : null, color: on ? key! : null, dims };
-    })).toEqual(v.doors);
+    })).toEqual(v.doors.map((x) => (x.on ? x : { ...x, dims: {} }))); // sizes of a door that is off are not on the page (UX-CHANGES U-026)
     expect(GRIPS.map((g) => { const cb = screen.getByRole("checkbox", { name: g.label }) as HTMLInputElement; return { n: g.n, on: cb.checked, qty: cb.checked ? (screen.getByLabelText(`Menge ${g.label}`) as HTMLInputElement).value : null }; })).toEqual(v.grips);
   });
 
   it("the document lines of the picked door follow the stored fields", () => {
     for (const s of reference.scenarios) expect(doorInfo({ ...reference.base, ...(s.bwt as Record<string, unknown>) })).toEqual({ ...reference.base, ...(s.bwt as Record<string, any>) }.doorInfoById);
+  });
+
+  it("Weiter needs the tub shape; the page says what is missing and marks the fields (UX-CHANGES U-029)", async () => {
+    await open();
+    expect(screen.queryByTestId("bwt-missing")).toBeNull();
+    await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
+    expect((await screen.findByTestId("bwt-missing")).textContent).toBe("Bitte wählen Sie noch: Wannenform");
+    expect(screen.getByRole("radio", { name: "Normal, rechteckig" }).getAttribute("aria-invalid")).toBe("true");
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Normal, rechteckig" }));
+    await waitFor(() => expect(screen.queryByTestId("bwt-missing")).toBeNull());
+    const door = (await within(cardOf("std")).findByRole("checkbox")) as HTMLInputElement;
+    await userEvent.setup().click(door); // the door is picked by default: off → missing
+    await userEvent.setup().click(screen.getAllByRole("link", { name: /^Weiter zu/ })[0]!);
+    expect((await screen.findByTestId("bwt-missing")).textContent).toBe("Bitte wählen Sie noch: Tür");
+    expect(door.getAttribute("aria-invalid")).toBe("true");
   });
 });

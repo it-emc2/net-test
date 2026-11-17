@@ -5,6 +5,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
+import { eur } from "../src/features/steps/kosten/rules.js";
 import { parseMoney, rowsOf, storedRows } from "../src/features/steps/bwt/extras-rules.js";
 import { COLORS, SIZES, TOOLS } from "../src/shared/ui/sketch-pad.js";
 import reference from "./fixtures/bwt-extras.json" with { type: "json" };
@@ -22,6 +23,8 @@ async function open() {
   fakeServer({ ...BASE });
   renderApp(`/deal/${KEY}/bwt/bwt`);
   await screen.findByRole("heading", { name: "Freier Posten & Hinweise" });
+  await userEvent.setup().click(screen.getByText("Skizze und Notiz")); // folded until opened (U-028)
+  await screen.findByTestId("sketch-pad");
   return structuredClone(offer());
 }
 const rowEls = () => screen.getAllByTestId("bwt-row");
@@ -139,5 +142,20 @@ describe("free items — fixed against today's UI", () => {
     expect(offer().bwt.quickAdd.map((q: { label: string }) => q.label)).toEqual(["Zweiter"]);
     await user.click(within(rowEls()[0]!).getByRole("button", { name: "Diese Zeile entfernen" }));
     expect([rowEls().length, cellOf(0, "name").value, "quickAdd" in offer().bwt]).toEqual([1, "", false]);
+  });
+});
+
+describe("free items and sketch — approved changes (U-027, U-028)", () => {
+  it("a row with quantity and price shows its line total; the line is folded until there is content", async () => {
+    fakeServer({ ...BASE });
+    renderApp(`/deal/${KEY}/bwt/bwt`);
+    await screen.findByRole("heading", { name: "Freier Posten & Hinweise" });
+    expect(screen.queryByTestId("sketch-pad")).toBeNull();
+    fireEvent.change(cellOf(0, "price"), { target: { value: "25" } });
+    fireEvent.change(cellOf(0, "qty"), { target: { value: "2" } });
+    expect(rowEls()[0]!.querySelector('[data-part="line-total"]')!.textContent).toBe(`2 × ${eur(25)} = ${eur(50)}`);
+    useOfferStore.getState().patch("bwt" as never, { bwtNote: "a\nb" } as never);
+    await screen.findByTestId("sketch-pad"); // opens by itself
+    expect(screen.getByText("2 Zeilen Notiz")).toBeTruthy();
   });
 });

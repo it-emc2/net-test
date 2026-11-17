@@ -11,7 +11,7 @@ type Fields = Record<string, unknown>;
 export interface Price { [k: string]: unknown }
 interface RawLine { productId?: string; id?: string; key?: string; name?: string; label?: string; qty?: unknown; unit?: string; unitPrice?: unknown; lineTotal?: unknown; amount?: unknown; source?: string; category?: string; currentNet?: unknown }
 export interface Tag { text: string; kind: "plain" | "up" | "down"; title?: string }
-export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string };
+export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string; task?: boolean };
 export interface Section { num: string; title: string; rows: Row[]; footer: string; note?: { text: string; up: boolean } | null }
 export interface Sum { num?: string; label: string; value: string; rule?: boolean; total?: boolean; note?: undefined }
 export type SumRow = Sum | { note: string };
@@ -39,7 +39,9 @@ function row(l: RawLine, exempt: ReadonlySet<string>): Row {
   if (exempt.has(idOf(l))) tags.push({ text: "ohne Aufschlag", kind: "plain" });
   const cur = n(l.currentNet), quoted = n(l.unitPrice);
   if (cur > 0 && Math.abs(cur - quoted) >= 0.005) { const up = cur > quoted; tags.push({ text: `${up ? "▲ +" : "▼ −"}${eur(Math.abs(cur - quoted))} heute`, kind: up ? "up" : "down", title: `Angebotspreis ${eur(quoted)} — heute ${eur(cur)}` }); }
-  return { id: String(l.productId || l.id || l.key || ""), label: stripBrand(labelOf(l)), tags, qty: `${qtyText(l.qty)}${l.unit ? ` ${l.unit}` : ""}`, unit: eur(l.unitPrice ?? 0), total: eur(l.lineTotal ?? 0) };
+  // the unit price shown is the one that gives the line total (markup included), so quantity × unit = total (UX-CHANGES U-031; today a grab bar line showed the purchase price)
+  const qty = n(l.qty ?? 1), total = n(l.lineTotal), shown = qty > 0 && total > 0 && Math.abs(quoted * qty - total) >= 0.005 ? total / qty : l.unitPrice ?? 0;
+  return { id: String(l.productId || l.id || l.key || ""), label: stripBrand(labelOf(l)), tags, qty: `${qtyText(l.qty)}${l.unit ? ` ${l.unit}` : ""}`, unit: eur(shown), total: eur(l.lineTotal ?? 0) };
 }
 
 export const MATERIAL_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
@@ -59,7 +61,8 @@ const DOOR_TASK_TITLES: Record<string, string> = { deliver_install_bwt_door: "Li
 function bwtTaskRows(bwt: Fields): Row[] {
   const tasks = (Array.isArray(bwt.workTasks) ? bwt.workTasks : []).map((v) => DOOR_TASK_TITLES[String(v)]).filter(Boolean) as string[];
   const free = (Array.isArray(bwt.extraTasks) ? bwt.extraTasks : []).map((t) => String(t ?? "").trim()).filter(Boolean);
-  return [...tasks, ...free].map((t) => row({ label: `- ${t}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 }, new Set()));
+  // tasks have no price: one quiet row each (UX-CHANGES U-030)
+  return [...tasks, ...free].map((t) => ({ ...(row({ label: `- ${t}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 }, new Set()) as Exclude<Row, { subtitle: string }>), task: true }));
 }
 /** Badewannentür: the extra work time of the Arbeitszeit step is shown task by task ("Extra Arbeitszeit:" + one line each) */
 function bwtExtraTimeLabel(label: string, az: Fields): string {

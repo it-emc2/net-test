@@ -103,3 +103,12 @@ export function materialsOf(b: Fields): { name: string; productId: string; qty: 
   for (const g of GRIPS) if (gripOn(b, g.n)) { const qty = Number.parseInt(str(b[g.qty]) || "0", 10) || 0; if (qty) out.push({ name: g.label, productId: ids[g.n]!, qty }); }
   return out.length ? out : null;
 }
+
+/** "Weiter": the shape of the tub and the door are needed (UX-CHANGES U-029; today only the old page's form check asks) */
+export function bwtMissing(b: Fields): { shape: boolean; door: boolean } {
+  return { shape: !str(b.bwtShape), door: !DOORS.some((d) => doorOn(b, d)) };
+}
+export function bwtProblem(b: Fields): { message: string; focus: string } | null {
+  const m = bwtMissing(b), names = [m.shape ? "Wannenform" : "", m.door ? "Tür" : ""].filter(Boolean);
+  return names.length ? { message: `Bitte wählen Sie noch: ${names.join(", ")}`, focus: m.shape ? '[name="bwtShape"]' : '[name="bwtDoorType"]' } : null;
+}

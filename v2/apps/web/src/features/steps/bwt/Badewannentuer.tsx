@@ -3,26 +3,27 @@
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
 import { Card, CardTitle, Check, Choices, Input, Label, cn, IMG } from "../../../shared/ui/index.js";
+import { useOfferStore } from "../../offer/index.js";
 import { Extras } from "./Extras.js";
 import { set, str, useBwt, write, type Fields } from "./store.js";
-import { COLORS, DIMS, DOORS, GRIPS, MATERIALS, SHAPES, UMBAU, dimField, doorOn, gripOn, setMaterial, toggleDoor, toggleGrip, toggleUmbau, umbauOn, type Door } from "./rules.js";
+import { COLORS, DIMS, DOORS, GRIPS, MATERIALS, SHAPES, UMBAU, dimField, doorOn, gripOn, setMaterial, toggleDoor, toggleGrip, toggleUmbau, umbauOn, bwtMissing, bwtProblem, type Door } from "./rules.js";
 
 const CARD = "grid content-start gap-2 rounded-lg border-2 border-input bg-card p-3 has-[input[name=bwtDoorType]:checked]:border-primary has-[input[name=bwtDoorType]:checked]:bg-accent-weak";
 const Num = ({ label, field, b, step = 1, min }: { label: string; field: string; b: Fields; step?: number; min?: number }) => (
   <Input type="number" aria-label={label} inputMode="decimal" step={step} min={min} value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
 );
 
-function DoorCard({ d, b }: { d: Door; b: Fields }) {
+function DoorCard({ d, b, invalid }: { d: Door; b: Fields; invalid: boolean }) {
   const on = doorOn(b, d);
   return (
     <div data-testid="bwt-door" data-key={d.key} className={CARD}>
       <label className="grid cursor-pointer justify-items-center gap-2">
-        <input type="checkbox" name="bwtDoorType" className="size-5 accent-[var(--primary)]" aria-label={d.value} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
+        <input type="checkbox" name="bwtDoorType" className="size-5 accent-[var(--primary)]" aria-label={d.value} aria-invalid={invalid || undefined} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
         <img src={d.img} alt="" loading="lazy" className={cn(IMG.product, "object-contain")} />
         <strong>{d.value}</strong>
         {d.facts.map((f) => <small key={f} className="text-muted-foreground">{f}</small>)}
       </label>
-      {d.dims ? (
+      {d.dims && on ? (
         <div className="grid gap-1.5" data-part="dims">
           {DIMS.map(([suffix, name]) => {
             const field = dimField(d, suffix), label = `${name} ${d.value}`;
@@ -68,11 +69,14 @@ function DoorCard({ d, b }: { d: Door; b: Fields }) {
 
 export function Badewannentuer() {
   const b = useBwt();
+  const tried = useOfferStore((s) => s.scratch["tried:bwt"]) === true, problem = tried ? bwtProblem(b) : null;
+  const missing = tried ? bwtMissing(b) : { shape: false, door: false }; // after "Weiter" was refused: what is still missing, on the page itself
   return (
     <div className="grid gap-4" data-testid="bwt-step">
+      {problem ? <p role="alert" data-testid="bwt-missing" className="m-0 rounded-lg border-2 border-destructive bg-card px-4 py-3 font-semibold text-destructive">{problem.message}</p> : null}
       <Card aria-labelledby="bwt-bestand">
         <CardTitle id="bwt-bestand">Badewanne — Bestandsaufnahme</CardTitle>
-        <Choices legend="Wählen Sie Ihre bestehende Wannenform" name="bwtShape" required options={SHAPES.map((s) => ({ value: s, label: s }))} value={str(b.bwtShape)} onChange={(v) => set("bwtShape", v)} />
+        <Choices legend="Wählen Sie Ihre bestehende Wannenform" name="bwtShape" required invalid={missing.shape} options={SHAPES.map((s) => ({ value: s, label: s }))} value={str(b.bwtShape)} onChange={(v) => set("bwtShape", v)} />
         <fieldset className="m-0 grid gap-2 border-0 p-0"><legend className="mb-1.5 p-0 font-semibold">Umbau-Check</legend>
           {UMBAU.map(([key, label]) => <Check key={key} id={`bwt-umbau-${key}`} checked={umbauOn(b, key)} onChange={() => write((x) => toggleUmbau(x, key))}>{label}</Check>)}
         </fieldset>
@@ -80,7 +84,7 @@ export function Badewannentuer() {
       </Card>
       <Card aria-labelledby="bwt-tuer">
         <CardTitle id="bwt-tuer">Wählen Sie Ihren gewünschten Tür-Typen</CardTitle>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] items-start gap-3">{DOORS.map((d) => <DoorCard key={d.key} d={d} b={b} />)}</div>
+        <div className={cn("grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] items-start gap-3", missing.door && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>{DOORS.map((d) => <DoorCard key={d.key} d={d} b={b} invalid={missing.door} />)}</div>
       </Card>
       <Card aria-labelledby="bwt-konfig">
         <CardTitle id="bwt-konfig">Türanschlag</CardTitle>
