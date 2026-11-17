@@ -192,6 +192,21 @@ export async function assertUnchangedSinceSent(offerNumber: string, payload: unk
   return prior;
 }
 
+/**
+ * Audit 2026-11-17, F4: an offer that went out with a hand-edited DOCX. The send identity keeps
+ * the hash of that DOCX (`identity.handEdited`); a record without the field is not hand-edited.
+ * The form data can no longer reproduce what the customer has: signing would show the standard
+ * rendering, a resend another document. Both are refused with this answer.
+ */
+export const handEditedOf = (send: any): string => String(send?.identity?.handEdited || "");
+export const handEditedSentBody = (send: any, requestId: string) => ({
+  error: {
+    code: "HAND_EDITED_SENT", requestId,
+    message: "Dieses Angebot wurde mit einem von Hand bearbeiteten Dokument versendet. Es kann nicht aus den Formulardaten unterschrieben oder erneut versendet werden. Bitte erstellen Sie eine neue Version.",
+  },
+  sent: { sendId: send?.sendId || "", channel: send?.channel || "", at: send?.finishedAt ?? send?.startedAt ?? null, to: send?.to || "", by: send?.by || "" },
+});
+
 export const offerChangedBody = (e: OfferChangedError, requestId: string) => ({
   error: { code: "OFFER_CHANGED", message: e.message, requestId }, differences: e.differences, sent: e.sent,
 });

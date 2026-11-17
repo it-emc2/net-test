@@ -284,3 +284,40 @@ describe("F10 — one open signing request per offer", () => {
     expect((await sign(s1.body.token, s1.body.documents[0])).statusCode).toBe(410);
   }, 120000);
 });
+
+describe("F4 — an offer that went out hand-edited (server part)", () => {
+  const docx = (text: string) => ({ editedDocx: { filename: "angebot.docx", content: `PK-${text}` } });
+
+  it("is not handed over for signature from the form data, and is resent only with the same document", async () => {
+    const A = { ...BU, offerNumber: "F4-A" };
+    const first = await mail(mailFields("F4-A", A, "audit-f4-0001", docx("hand-edited")));
+    expect(first.body).toMatchObject({ ok: true, signingLink: "off-hand-edited" });
+    const rec: any = await db().collection("offer_sends").findOne({ sendId: "audit-f4-0001" });
+    expect(rec.identity.handEdited).toBe(rec.files.find((f: any) => f.role === "editedDocx").sha256);
+
+    const signing = await call("POST", "/api/signing", { payload: A, offerNumber: "F4-A", offerType: "bu", sendEmail: false, sendId: "audit-f4-0002" });
+    expect(signing.status).toBe(409);
+    expect(signing.body.error.code).toBe("HAND_EDITED_SENT");
+    expect(signing.body.error.message).toMatch(/von Hand bearbeitet/);
+    expect(await openRequests("F4-A")).toHaveLength(0);
+
+    for (const [sendId, extra] of [["audit-f4-0003", {}], ["audit-f4-0004", docx("another edit")]] as const) {
+      const r = await mail(mailFields("F4-A", A, sendId, { forceResend: "1", ...extra }));
+      expect(r.status, sendId).toBe(409);
+      expect(r.body.error.code, sendId).toBe("HAND_EDITED_SENT");
+    }
+    const same = await mail(mailFields("F4-A", A, "audit-f4-0005", { forceResend: "1", ...docx("hand-edited") }));
+    expect(same.status, JSON.stringify(same.body).slice(0, 300)).toBe(200);
+  }, 120000);
+
+  it("sent as the standard document: a resend with a hand-edited one is another document and refused", async () => {
+    const A = { ...BU, offerNumber: "F4-B" };
+    expect((await mail(mailFields("F4-B", A, "audit-f4-0006"))).status).toBe(200);
+    const edited = await mail(mailFields("F4-B", A, "audit-f4-0007", { forceResend: "1", ...docx("hand-edited") }));
+    expect(edited.status).toBe(409);
+    expect(edited.body.error.code).toBe("OFFER_CHANGED");
+    // a record from before this field existed counts as not hand-edited: signing stays possible
+    const signing = await call("POST", "/api/signing", { payload: A, offerNumber: "F4-B", offerType: "bu", sendEmail: false, sendId: "audit-f4-0008" });
+    expect(signing.status).toBe(201);
+  }, 120000);
+});

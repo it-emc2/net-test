@@ -22,7 +22,7 @@ import {
 } from "./fields.js";
 import { documentHtml, documentPdf, signedPdf, type SigningRenderer } from "./documents.js";
 import {
-  OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
+  OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, handEditedOf, handEditedSentBody, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
   sendForSigning, storeSendFile, type SendFile,
 } from "../sends/index.js";
 import { offerIdentity } from "../sends/index.js";
@@ -313,7 +313,12 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const identity = offerIdentity(payload, offerNo);
       const asSent = structuredClone(payload);
       let sentBefore = false;
-      try { sentBefore = !!(await assertUnchangedSinceSent(offerNo, payload)); }
+      try {
+        const prior = await assertUnchangedSinceSent(offerNo, payload);
+        sentBefore = !!prior;
+        // sent hand-edited: the signing page would show the standard rendering, not what the customer has (audit F4)
+        if (handEditedOf(prior)) return reply.status(409).send(handEditedSentBody(prior, req.id));
+      }
       catch (e) {
         if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
         req.log.warn({ err: e }, "sent-offer check failed — continuing");
