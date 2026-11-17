@@ -17,13 +17,22 @@ const pricing = pricingFactory(Product);
 // locked number to the sent total, so keeping the number would leave the
 // Entwurf stuck on it forever. Give it its own number instead — same format as
 // the client's genOfferNumber(), bumped on the rare same-second collision.
+// Berlin wall-clock, like the client: the server runs in UTC, which made the
+// new number look an hour older than the sent one.
+export function berlinOfferNumber(d = new Date()) {
+  const s = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).format(d); // "2026-11-16 13:33:15"
+  const [, y, mo, da, h, mi, se] = s.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  return `ANG${y}-${mo}${da}-${h}${mi}${se}`;
+}
+
 async function freshNumberIfSent(offerNumber) {
   if (!offerNumber) return null;
   if (!(await Offer.exists({ offerNumber, locked: true }))) return null;
 
-  const d = new Date();
-  const p2 = (n) => String(n).padStart(2, "0");
-  const base = `ANG${d.getFullYear()}-${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+  const base = berlinOfferNumber();
   for (let i = 0; i < 10; i++) {
     const candidate = i === 0 ? base : `${base}-${i}`;
     const taken =
