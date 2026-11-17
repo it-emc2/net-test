@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/v2/scripts/ensure-deps.sh\"; [ -f \"$f\" ] && bash \"$f\" || true",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}
