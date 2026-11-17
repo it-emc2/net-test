@@ -22,6 +22,20 @@ export class PlanningClient {
     return { status: up.status, body: { ok: up.ok, status: up.status, raw: await up.text() } };
   }
 
+  /** the lean API (route-plannung #35) needs the key; without it nothing is asked */
+  get hasKey() { return !!this.opts.apiKey; }
+
+  /** GET /api/planning/today | /week — JSON, status + body passed on */
+  async lean(path: string): Promise<{ status: number; body: unknown }> {
+    const up = await this.fetchImpl(`${this.base()}${path}`, { headers: { Accept: "application/json", ...this.headers() } });
+    const body = await up.json().catch(() => ({ ok: false, raw: "not JSON" }));
+    return { status: up.status, body };
+  }
+  /** GET /api/planning/today/stream — server-sent events */
+  leanStream(signal: AbortSignal) {
+    return this.fetchImpl(`${this.base()}/api/planning/today/stream`, { headers: { Accept: "text/event-stream", "Cache-Control": "no-cache", ...this.headers() }, signal });
+  }
+
   /** GET /api/planning/stream — server-sent events, piped through by the route. */
   stream(signal: AbortSignal) {
     return this.fetchImpl(`${this.base()}/api/planning/stream`, { headers: { Accept: "text/event-stream", "Cache-Control": "no-cache", ...this.headers() }, signal });
