@@ -112,6 +112,8 @@ export const endpoints = {
   /** the shower-curtain catalogue: curtains, rods, the mandatory rosettes and the other fittings, with net prices and stock */
   vorhangProducts: { method: "GET", path: "/api/vorhang/products", response: z.looseObject({ curtains: z.array(z.unknown()), rods: z.array(z.unknown()), mandatory: z.array(z.unknown()), optional: z.array(z.unknown()) }) },
   /** the people who can be the contact person of an offer (active, with a signature), sorted by name */
+  /** today's planning (appointments of the week); the Hauptmenü shows today's */
+  planningCurrent: { method: "GET", path: "/api/planning/current", response: z.looseObject({ planning: z.looseObject({}).nullish() }) },
   users: { method: "GET", path: "/api/users", response: z.array(z.looseObject({ email: z.string(), name: z.string() })) },
   /** a finished offer is kept under its number (after a PDF was made); body: offerNumber, offerType, payload, pricing, savedAt, clientSaveId */
   saveOffer: { method: "POST", path: "/api/offers", response: z.looseObject({}) },
