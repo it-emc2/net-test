@@ -1,5 +1,5 @@
 // Send records API (ADR 023) — new in v2. Read-only: status of one send (the client polls it
-// when its connection dropped mid-send), the sends of an offer, and the stored files.
+// when its connection dropped mid-send), the sends of an offer or of a deal, and the stored files.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildInternalNoteComment, type DealWrites } from "../../integrations/bitrix-deal.js";
 import { OfferSend, SEND_ID, readSendFile, recordStep, sendView, type SendFile } from "./store.js";
@@ -59,6 +59,14 @@ export async function registerSends(app: FastifyInstance, d: { deals: DealWrites
   app.get("/api/offers/:offerNumber/sends", async (req) => {
     const { offerNumber } = req.params as { offerNumber: string };
     const rows = await OfferSend.find({ offerNumber: String(offerNumber) }, { payload: 0, pricing: 0, result: 0 }).sort({ startedAt: -1 }).limit(50).lean();
+    return { ok: true, sends: rows.map(sendView) };
+  });
+
+  // the sends of a deal, every offer number of it (the "Versandverlauf" on the Versand step, U-024)
+  app.get("/api/deals/:dealId/sends", async (req, reply) => {
+    const dealId = String((req.params as { dealId: string }).dealId ?? "").trim();
+    if (!dealId || dealId.length > 64) return fail(req, reply, 400, "BAD_DEAL_ID", "Ungültige Deal-Kennung");
+    const rows = await OfferSend.find({ dealId }, { payload: 0, pricing: 0, result: 0 }).sort({ startedAt: -1 }).limit(50).lean();
     return { ok: true, sends: rows.map(sendView) };
   });
 

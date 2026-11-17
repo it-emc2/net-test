@@ -1,7 +1,6 @@
 // Sending the offer — the rules of today's UI (src/public/EmailManager.js send(), angebotscheck.js
 // confirmHauptpunkte; reference: test/fixtures/versand-senden.json, v2/scripts/capture-versand-senden.cjs):
-//  - before sending: Kundendaten and markup complete, a deal number, a recipient (not for "Nur in
-//    Bitrix ablegen"), and for Badumbau one confirmation per main item that is not in the offer
+//  - before sending: Kundendaten and markup complete, a deal number, a recipient, and for Badumbau one confirmation per main item that is not in the offer
 //  - the documents for Bitrix are made first (DOCX of the offer, Hassmann CSV, Kalkulation, the
 //    carts and the note on online orders); a missing optional cart never stops the send, any
 //    other missing document does — no partial set goes out
@@ -94,18 +93,14 @@ export const TEXT = {
   offerChanged: "Dieses Angebot wurde bereits versendet und kann nicht mehr geändert werden. Bitte erstellen Sie eine neue Version („Neue Version erstellen“) und senden Sie diese.",
   handEdited: "Handbearbeitetes Angebot: Die E-Mail enthält keinen Link zur Online-Unterschrift.",
 } as const;
-export const started = (bitrixOnly: boolean) => (bitrixOnly ? "Bitrix-Ablage gestartet …" : "Sende-Vorgang gestartet …");
-export function sending(bitrixOnly: boolean, edited: boolean): string {
-  if (bitrixOnly) return edited ? "Konvertiere geänderte DOCX zu PDF & lege Dokumente in Bitrix ab …" : "Erzeuge Angebots-PDF & lege Dokumente in Bitrix ab …";
-  return edited ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …" : "Erzeuge Angebots-PDF & sende E-Mail …";
-}
-export const done = (bitrixOnly: boolean, names: readonly string[]) => `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${names.join(", ") || "-"}`;
-export function filingFailed(bitrixOnly: boolean, error: string): string {
+export const started = "Sende-Vorgang gestartet …";
+export const sending = (edited: boolean): string => (edited ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …" : "Erzeuge Angebots-PDF & sende E-Mail …");
+export const done = (names: readonly string[]) => `E-Mail gesendet — Anhänge: ${names.join(", ") || "-"}`;
+export function filingFailed(error: string): string {
   const why = error ? ` (${error})` : "";
-  return bitrixOnly ? `Die Ablage in Bitrix hat nicht geklappt${why}. Bitte versuchen Sie es erneut.`
-    : `E-Mail wurde gesendet, die Ablage in Bitrix hat nicht geklappt${why}. Bitte legen Sie Angebot und Anhänge im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.`;
+  return `E-Mail wurde gesendet, die Ablage in Bitrix hat nicht geklappt${why}. Bitte legen Sie Angebot und Anhänge im Deal ab oder geben Sie dem Innendienst Bescheid – nicht erneut senden.`;
 }
-export const sentTitle = (bitrixOnly: boolean) => (bitrixOnly ? "Dokumente in Bitrix abgelegt" : "E-Mail gesendet");
+export const sentTitle = "E-Mail gesendet";
 export const atLocal = (iso: unknown): string => { const d = new Date(String(iso ?? "")); return Number.isNaN(d.getTime()) ? "kürzlich" : d.toLocaleString("de-DE"); };
 
 // ---- the answer of the server ----

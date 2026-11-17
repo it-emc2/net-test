@@ -157,14 +157,14 @@ export const endpoints = {
   confirmPassword: { method: "POST", path: "/api/auth/confirm-password", response: z.looseObject({ email: z.string().nullish() }) },
   /** how an offer was sent before (newest first) */
   offerSends: { method: "GET", path: "/api/offers/:offerNumber/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },
+  /** the sends of a deal across its offer numbers (newest first) */
+  dealSends: { method: "GET", path: "/api/deals/:dealId/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },
   /** the signatures asked for an offer (newest first): status, and "post" when started from the Post tab */
   signingStatus: { method: "GET", path: "/api/signing/status/:offerNumber", response: z.array(z.looseObject({ status: z.string().nullish(), via: z.string().nullish() })) },
   /** the signed documents of an offer as files (base64) */
   signedDocuments: { method: "GET", path: "/api/signing/status/:offerNumber/signed", response: z.looseObject({ documents: z.array(z.looseObject({ key: z.string().nullish(), filename: z.string(), base64: z.string() })) }) },
-  /** the offer's products for the product-picture PDF; body: payload (the offer) */
   /** a photo or file for the Bitrix deal (type: kasse | vermieter): into the deal's file field and as a timeline note; body: filename, base64. kept false: the field holds only the newest file */
   dealUpload: { method: "POST", path: "/api/bitrix/deal/:id/upload/:type", response: z.looseObject({ ok: z.boolean().nullish(), kept: z.boolean().nullish() }) },
-  productImageList: { method: "POST", path: "/api/email/product-image-list", response: z.looseObject({ products: z.array(z.looseObject({ productId: z.string(), name: z.string() })).nullish() }) },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 
