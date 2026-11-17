@@ -1,24 +1,12 @@
 // Badewannentür (BWT), slice 1: the existing tub (shape, Umbau-Check, material), the five door
 // cards, the hinge and the four grab bars. The stored fields are exactly today's
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
-// Not yet here (slice 2): free items, note, sketch and the two note texts.
+// Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
 import { Card, CardTitle, Check, Choices, Input, Label, cn, IMG } from "../../../shared/ui/index.js";
-import { useOfferStore } from "../../offer/index.js";
-import { COLORS, DIMS, DOORS, GRIPS, MATERIALS, SHAPES, UMBAU, dimField, doorOn, gripOn, setMaterial, toggleDoor, toggleGrip, toggleUmbau, umbauOn, materialsOf, withInfo, type Door } from "./rules.js";
+import { Extras } from "./Extras.js";
+import { set, str, useBwt, write, type Fields } from "./store.js";
+import { COLORS, DIMS, DOORS, GRIPS, MATERIALS, SHAPES, UMBAU, dimField, doorOn, gripOn, setMaterial, toggleDoor, toggleGrip, toggleUmbau, umbauOn, type Door } from "./rules.js";
 
-type Fields = Record<string, unknown>;
-const useBwt = () => useOfferStore((s) => ((s.offer as Record<string, Fields> | null)?.bwt ?? {}) as Fields);
-const str = (v: unknown) => (v == null ? "" : String(v));
-/** write a change of the step: the fields and the document lines made again, in one change */
-const write = (change: (b: Fields) => Fields) => {
-  const store = useOfferStore.getState(), b = ((store.offer as Record<string, Fields> | null)?.bwt ?? {}) as Fields;
-  const fields = withInfo(b, change(b)), next = { ...b, ...fields };
-  for (const k of Object.keys(fields)) if (fields[k] === undefined) delete next[k];
-  store.patch("bwt" as never, fields as never);
-  const materials = materialsOf(next);
-  if (materials && JSON.stringify(materials) !== JSON.stringify((store.offer as Fields | null)?.materials)) useOfferStore.getState().setTop({ materials });
-};
-const set = (field: string, value: string) => write(() => ({ [field]: value }));
 const CARD = "grid content-start gap-2 rounded-lg border-2 border-input bg-card p-3 has-[input[name=bwtDoorType]:checked]:border-primary has-[input[name=bwtDoorType]:checked]:bg-accent-weak";
 const Num = ({ label, field, b, step = 1, min }: { label: string; field: string; b: Fields; step?: number; min?: number }) => (
   <Input type="number" aria-label={label} inputMode="decimal" step={step} min={min} value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
@@ -113,6 +101,7 @@ export function Badewannentuer() {
           })}
         </div>
       </Card>
+      <Extras />
     </div>
   );
 }
