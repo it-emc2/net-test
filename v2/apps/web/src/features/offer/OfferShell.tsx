@@ -41,7 +41,10 @@ const countsIn = (st: Record<string, StepStatus>) => {
 };
 /** the missing items only: no "Bitte in „Schritt“ ausfüllen:" prefix, short forms of long field labels */
 const SHORT: [RegExp, string][] = [[/Genehmigung des Vermieters erforderlich\??/g, "Vermieter-Genehmigung"], [/\?/g, ""]];
-export const shortReason = (m: string): string => SHORT.reduce((t, [re, to]) => t.replace(re, to), m.replace(/^Bitte in „[^“]*“ ausfüllen:\s*/, "")).trim();
+export const shortReason = (m: string): string => {
+  const t = SHORT.reduce((t, [re, to]) => t.replace(re, to), m.replace(/^Bitte (?:in „[^“]*“ ausfüllen|füllen Sie alle Pflichtfelder in „[^“"]*["“] aus):\s*/, "")).trim();
+  return /^Bitte prüfen Sie die rot markierten Pflichtfelder\.?$/.test(t) ? "Pflichtfelder rot markiert" : t; // never the generic "Weiter" sentence itself
+};
 const WORDS: Partial<Record<StepStatus["kind"], string>> = { done: "erledigt", open: "offen", off: "nicht gewählt" };
 function StatusIcon({ s }: { s: StepStatus }) {
   const c = "size-5 shrink-0";

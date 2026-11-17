@@ -144,6 +144,10 @@ export const endpoints = {
   confirmPassword: { method: "POST", path: "/api/auth/confirm-password", response: z.looseObject({ email: z.string().nullish() }) },
   /** how an offer was sent before (newest first) */
   offerSends: { method: "GET", path: "/api/offers/:offerNumber/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },
+  /** the signatures asked for an offer (newest first): status, and "post" when started from the Post tab */
+  signingStatus: { method: "GET", path: "/api/signing/status/:offerNumber", response: z.array(z.looseObject({ status: z.string().nullish(), via: z.string().nullish() })) },
+  /** the signed documents of an offer as files (base64) */
+  signedDocuments: { method: "GET", path: "/api/signing/status/:offerNumber/signed", response: z.looseObject({ documents: z.array(z.looseObject({ key: z.string().nullish(), filename: z.string(), base64: z.string() })) }) },
   /** the offer's products for the product-picture PDF; body: payload (the offer) */
   productImageList: { method: "POST", path: "/api/email/product-image-list", response: z.looseObject({ products: z.array(z.looseObject({ productId: z.string(), name: z.string() })).nullish() }) },
 } as const;
