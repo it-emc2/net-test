@@ -103,6 +103,52 @@ export async function registerRouting(app: FastifyInstance, d: { routing: Routin
       if (!reply.sent) return reply.status(500).send({ ok: false, error: { code: "PLANNING_FAILED", message: (error as Error)?.message || String(error), requestId: req.id } });
     }
   });
+
+  // ---- lean planning API for the React app (route-plannung #35). The key stays on the server:
+  //      the browser only ever sees these routes. ----
+  const DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const noKey = (req: FastifyRequest, reply: FastifyReply) => fail(req, reply, 503, "PLANNING_KEY_MISSING", "Der Planungsdienst ist auf diesem Server nicht eingerichtet (PLANNING_API_KEY fehlt).");
+  const lean = async (req: FastifyRequest, reply: FastifyReply, path: string) => {
+    if (!planning.hasKey) return noKey(req, reply);
+    try {
+      const up = await planning.lean(path);
+      if (up.status === 401 || up.status === 403) return fail(req, reply, 502, "PLANNING_KEY_REJECTED", "Der Planungsdienst hat den Zugangsschlüssel dieses Servers abgelehnt.");
+      if (up.status >= 400) return fail(req, reply, up.status, "PLANNING_FAILED", (up.body as { error?: string })?.error || "Der Planungsdienst hat einen Fehler gemeldet.");
+      return reply.send(up.body);
+    } catch (error) {
+      req.log.error({ err: error }, "planning lean failed");
+      return fail(req, reply, 502, "PLANNING_FAILED", "Der Planungsdienst ist nicht erreichbar.");
+    }
+  };
+  app.get("/api/planning/v2/today", async (req, reply) => {
+    const date = (req.query as Record<string, string | undefined>).date;
+    if (date !== undefined && !DAY.test(date)) return fail(req, reply, 400, "BAD_REQUEST", "date must be YYYY-MM-DD");
+    return lean(req, reply, `/api/planning/today${date ? `?date=${date}` : ""}`);
+  });
+  app.get("/api/planning/v2/week", async (req, reply) => {
+    const from = (req.query as Record<string, string | undefined>).from;
+    if (!from || !DAY.test(from)) return fail(req, reply, 400, "BAD_REQUEST", "from must be YYYY-MM-DD");
+    return lean(req, reply, `/api/planning/week?from=${from}`);
+  });
+  app.get("/api/planning/v2/today/stream", async (req, reply) => {
+    if (!planning.hasKey) return noKey(req, reply);
+    const controller = new AbortController();
+    req.raw.on("close", () => controller.abort());
+    try {
+      const upstream = await planning.leanStream(controller.signal);
+      if (!upstream.ok || !upstream.body) return fail(req, reply, 502, "PLANNING_STREAM", "Der Planungsdienst liefert keinen Stream.");
+      reply.hijack();
+      const res = reply.raw;
+      res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+      try { for await (const chunk of upstream.body as unknown as AsyncIterable<Uint8Array>) res.write(chunk); }
+      catch (error) { if (!controller.signal.aborted) res.write(`event: error\ndata: ${JSON.stringify({ error: "Verbindung zum Planungsdienst unterbrochen" })}\n\n`); }
+      res.end();
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      req.log.error({ err: error }, "planning lean stream failed");
+      if (!reply.sent) return fail(req, reply, 502, "PLANNING_FAILED", "Der Planungsdienst ist nicht erreichbar.");
+    }
+  });
 }
 
 // ---- today's customers (legacy src/routes/todayscustomers.js, mounted under /api) ----

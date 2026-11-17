@@ -3,20 +3,25 @@
 import { NEW_OFFER_TYPES } from "@oc/domain";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useSession } from "../auth/index.js";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { OFFER_TITLES, useOfferStore } from "../offer/index.js";
 import { Alert, Button, Card, Field, Page, Tile } from "../../shared/ui/index.js";
-import { Appointments } from "./Appointments.js";
+import { OfferPicker, PlanningToday } from "./Planning.js";
+import { WeekCalendar } from "./WeekCalendar.js";
+import type { PlanningEntry } from "./planning-rules.js";
 import { DeviceDrafts } from "./DeviceDrafts.js";
 import { classifyOpen } from "./rules.js";
 
 export function HomePage() {
   const close = useOfferStore((s) => s.close);
+  const admin = useSession().user?.role === "admin";
   useEffect(() => { close(); }, [close]);
   const nav = useNavigate();
   const [text, setText] = useState("");
   const [deal, setDeal] = useState(""); // a deal without a draft yet: the tiles start its offer
   const [msg, setMsg] = useState("");
+  const [pick, setPick] = useState<PlanningEntry | null>(null); // the appointment the offer picker is open for
   const { kind, value } = classifyOpen(text);
 
   // „Öffnen“ with a deal number: its draft knows the offer type; no draft yet → pick a type below
@@ -35,7 +40,7 @@ export function HomePage() {
 
   return (
     <Page title="Hauptmenü">
-      <Appointments onOpenDeal={(id) => void openDeal(id)} />
+      <PlanningToday onPick={setPick} />
       <h2>Neues Angebot</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {NEW_OFFER_TYPES.map((t) => <Tile key={t} to={`${base}/${t}`} title={OFFER_TITLES[t]} text={t.toUpperCase()} />)}
@@ -52,8 +57,11 @@ export function HomePage() {
         </form>
         {msg ? <Alert>{msg}</Alert> : null}
       </Card>
+      <WeekCalendar onPick={setPick} />
       <DeviceDrafts />
-      <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href="/">Zur bisherigen Ansicht</a></p>
+      {pick ? <OfferPicker entry={pick} onClose={() => setPick(null)} /> : null}
+      <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href="/">Zur bisherigen Ansicht</a>
+        {admin ? <> · <a className="text-primary underline" href="/" data-testid="debug-link">Debug-Ansicht Planung (bisherige Ansicht)</a></> : null}</p>
     </Page>
   );
 }
