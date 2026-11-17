@@ -39,6 +39,8 @@ const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.t
 const offer = () => useOfferStore.getState().offer as unknown as Obj;
 
 let seen: Obj[] = [], handed: string[] = [], failing: Record<string, number> = {}, before: Obj = {};
+/** the sends the server knows (null: it does not answer, as in the recordings), and the number register */
+let sends: Obj[] | null = null, claims: Obj[] = [], claimAnswer: Obj | null = null;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 function server(s: Scenario, payload: Obj) {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -48,6 +50,8 @@ function server(s: Scenario, payload: Obj) {
     if (url === `/api/deals/${KEY}/draft` && method === "GET") return json({ dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" });
     if (url === "/api/price") return json({ total: 10, selfPayAmount: 0, services: { sum: 5, lines: [] } });
     if (url === "/api/price/inputs") return json({});
+    if (sends && /\/sends$/.test(url)) return json({ ok: true, sends });
+    if (url === "/api/offer-numbers/claim") { claims.push(body); return claimAnswer ? json(claimAnswer) : json({ ok: true, offerNumber: body.current, changed: false }); }
     if (url === "/api/offers" && method === "POST") { seen.push({ path: url, offerNumber: String(body.offerNumber).replace(NUM, "<new number>"), offerType: body.offerType, pricing: !!body.pricing && Object.keys(body.pricing).length > 0, keys: Object.keys(body).sort(), payloadIsOffer: same(body.payload, offer()) }); return json({ ok: true }); }
     const file = method === "POST" ? FILES[url] : undefined;
     if (file) {
@@ -59,7 +63,7 @@ function server(s: Scenario, payload: Obj) {
   }));
 }
 beforeEach(() => {
-  seen = []; handed = []; failing = {};
+  seen = []; handed = []; failing = {}; sends = null; claims = []; claimAnswer = null;
   let n = 0;
   vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:test/${++n}`);
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
@@ -132,12 +136,109 @@ describe("the Dokumentenstudio — rules and what goes beyond the recordings", (
   const filled = SCENARIOS.find((s) => s.name === "Angebot as PDF")!;
   it("the offer could not be saved after the PDF: said in words, the file is handed over all the same", async () => {
     await open(filled);
-    vi.mocked(globalThis.fetch).mockImplementationOnce(vi.mocked(globalThis.fetch).getMockImplementation()!); // keep the stub, then make the save fail
     const real = vi.mocked(globalThis.fetch).getMockImplementation()!;
-    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => (url === "/api/offers" ? json({ error: { code: "OFFER_CHANGED", message: "Dieses Angebot wurde bereits versendet und kann nicht geändert werden.", requestId: "t" } }, 409) : real(url as never, init as never)));
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => (url === "/api/offers" ? json({ error: { code: "SAVE_FAILED", message: "Die Datenbank ist nicht erreichbar.", requestId: "t" } }, 503) : real(url, init)));
     await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: PDF" }));
     await waitFor(() => expect(handed).toEqual(["Angebot_TEST.pdf"]));
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Speichern fehlgeschlagen", { description: "Dieses Angebot wurde bereits versendet und kann nicht geändert werden." });
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Speichern fehlgeschlagen", { description: "Die Datenbank ist nicht erreichbar." });
+  });
+
+  // ---- audit 2026-11-17 ----
+  const SENT = "ANG2026-1116-093000";
+  const sentOffer = () => ({ ...offerOf(filled), offerNumber: SENT, zusammenfassung: { versand: { art: "mail", versendetAm: "2026-11-16T09:31:00.000Z" } } });
+  const number = () => String((useOfferStore.getState().offer as unknown as Obj).offerNumber ?? "");
+
+  // Deliberately different from the recordings (they show today's UI giving every DOCX / PDF a
+  // new number): a number that was sent stays — renumbering it is "Neue Version erstellen" only.
+  it.each(["Angebot: DOCX", "Angebot: PDF", "Kalkulation: DOCX", "Kalkulation: PDF"])("F5: %s of a sent offer keeps its number", async (button) => {
+    await open(filled, sentOffer());
+    await userEvent.setup().click(screen.getByRole("button", { name: button }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toBe(SENT);
+    expect(claims).toEqual([]); // no new number was minted
+    expect((useOfferStore.getState().offer as unknown as Obj).zusammenfassung.versand.art).toBe("mail");
+    for (const [, init] of vi.mocked(globalThis.fetch).mock.calls.filter(([u, i]) => u === "/api/offers" && (i as RequestInit)?.method === "POST")) expect(JSON.parse(String((init as RequestInit).body)).offerNumber).toBe(SENT);
+  });
+  it("F5: sent as the deal's sends say (the offer itself does not): the number stays too", async () => {
+    sends = [{ sendId: "s1", offerNumber: SENT, status: "done", channel: "post" }];
+    await open(filled, { ...offerOf(filled), offerNumber: SENT });
+    await waitFor(() => expect(vi.mocked(globalThis.fetch).mock.calls.some(([u]) => String(u).endsWith("/sends"))).toBe(true));
+    await new Promise((r) => setTimeout(r, 30));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toBe(SENT);
+  });
+  it("F5: a number that was not sent is renumbered as today; one whose sends are not known is kept", async () => {
+    sends = [{ sendId: "s0", offerNumber: SENT, status: "done", channel: "bitrix" }, { sendId: "s1", offerNumber: SENT, status: "failed", channel: "email" }]; // filed only, and a failed mail: not sent
+    await open(filled, { ...offerOf(filled), offerNumber: SENT });
+    await waitFor(() => expect(vi.mocked(globalThis.fetch).mock.calls.some(([u]) => String(u).endsWith("/sends"))).toBe(true));
+    await new Promise((r) => setTimeout(r, 30));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
+    expect(number()).not.toBe(SENT);
+  });
+  it("F5: the sends are not known (no answer): the number is kept", async () => {
+    await open(filled, { ...offerOf(filled), offerNumber: SENT }); // sends = null: the server does not answer
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toBe(SENT);
+  });
+  it("F5: a sent offer that was changed gets no second PDF under its number — the action is offered instead", async () => {
+    await open(filled, sentOffer());
+    const real = vi.mocked(globalThis.fetch).getMockImplementation()!;
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => (url === "/api/offers" ? json({ error: { code: "OFFER_CHANGED", message: "Dieses Angebot wurde bereits versendet und kann nicht geändert werden.", requestId: "t" } }, 409) : real(url, init)));
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: PDF" }));
+    const note = await screen.findByTestId("zf-studio-changed");
+    expect(handed).toEqual([]);
+    expect(note.textContent).toContain("Unter der versendeten Nummer wird kein neues PDF erstellt");
+    expect(within(note).getByRole("button", { name: "Neue Version erstellen" })).toBeTruthy();
+    expect(number()).toBe(SENT);
+  });
+
+  it("F13: \"Kalkulation · Neue Version\" on an offer without a number gives the offer the number it is saved under", async () => {
+    const o = offerOf(filled); delete o.offerNumber;
+    await open(filled, o);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Kalkulation: Neue Version" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
+    const saved = vi.mocked(globalThis.fetch).mock.calls.filter(([u, i]) => u === "/api/offers" && (i as RequestInit)?.method === "POST").map(([, i]) => JSON.parse(String((i as RequestInit).body)));
+    expect(saved).toHaveLength(1);
+    expect(saved[0].offerNumber).toBe(number());
+    expect(saved[0].payload.offerNumber).toBe(number());
+  });
+  it("F13: with a number, \"Kalkulation · Neue Version\" keeps it (as today)", async () => {
+    sends = [];
+    await open(filled, { ...offerOf(filled), offerNumber: SENT });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Kalkulation: Neue Version" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toBe(SENT);
+  });
+
+  it("F12: a new number is registered; one that is taken is replaced by the server's and said", async () => {
+    vi.spyOn(toast, "info");
+    const o = offerOf(filled); delete o.offerNumber;
+    claimAnswer = { ok: true, offerNumber: "ANG2026-1117-101502", changed: true, reason: "taken" };
+    await open(filled, o);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(claims).toHaveLength(1);
+    expect(claims[0]!.current).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
+    expect(claims[0]!.claimId).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(number()).toBe("ANG2026-1117-101502");
+    expect(vi.mocked(toast.info)).toHaveBeenCalledWith(`Die Angebotsnummer ${claims[0]!.current} war bereits vergeben. Dieses Angebot hat jetzt die Nummer ANG2026-1117-101502.`);
+    // the document was made from the offer with the number it has in the end
+    const made = vi.mocked(globalThis.fetch).mock.calls.filter(([u]) => u === "/docx-template").map(([, i]) => JSON.parse(String((i as RequestInit).body)));
+    expect(made.at(-1).offerNumber).toBe("ANG2026-1117-101502");
+  });
+  it("F12: the register does not answer (offline, older server): the minted number stays", async () => {
+    const o = offerOf(filled); delete o.offerNumber;
+    await open(filled, o);
+    const real = vi.mocked(globalThis.fetch).getMockImplementation()!;
+    vi.mocked(globalThis.fetch).mockImplementation(async (url, init) => { if (url === "/api/offer-numbers/claim") throw new TypeError("Failed to fetch"); return real(url, init); });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Angebot: DOCX" }));
+    await waitFor(() => expect(handed).toHaveLength(1));
+    expect(number()).toMatch(/^ANG\d{4}-\d{4}-\d{6}$/);
   });
 
   it("an open preview is made again when the offer changes, and the old one stays meanwhile", async () => {
