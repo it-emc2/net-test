@@ -4,8 +4,8 @@ import { isDraftKey } from "@oc/api-contract";
 import { isNewOfferType, type NewOfferType } from "@oc/domain";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { euro } from "../../shared/lib/format.js";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Circle, CircleAlert, CircleCheck, Minus, TriangleAlert } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { usePrefs } from "../../shared/lib/prefs.js";
 import { Alert, Button, ButtonLink, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
@@ -14,7 +14,7 @@ import { useNav, useWide } from "./model/nav.js";
 import { useOfferStore } from "./model/store.js";
 import { StepDrawer } from "./StepDrawer.js";
 import { usePrice } from "./model/usePrice.js";
-import { OFFER_TITLES, STEPS, checkStep, firstStep, groupStartingAt, isStepOf, stepLabel } from "./steps.js";
+import { OFFER_TITLES, STEPS, checkStep, firstStep, groupStartingAt, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
 
 function Total() {
   const { total, pending, error } = usePrice();
@@ -27,34 +27,79 @@ function Total() {
   );
 }
 
-/** The step list with today's progress marks: steps before the open one are done. */
-function StepList({ type, base, current }: { type: NewOfferType; base: string; current: string }) {
-  const at = STEPS[type].indexOf(current);
+/** status of every step, derived from the offer (memoized; follows typing with a delay, never blocks it) */
+function useStatuses(type: NewOfferType): Record<string, StepStatus> {
+  const offer = useDeferredValue(useOfferStore((s) => s.offer));
+  const price = usePrice().data;
+  // the step checks read the store itself, which holds exactly this offer
+  return useMemo(() => stepStatuses(type, offer, price), [type, offer, price]);
+}
+const countsIn = (st: Record<string, StepStatus>) => {
+  const k = Object.values(st).map((v) => v.kind).filter((v) => v !== "off" && v !== "none");
+  return { done: k.filter((v) => v === "done").length, total: k.length };
+};
+/** the missing items only: no "Bitte in „Schritt“ ausfüllen:" prefix, short forms of long field labels */
+const SHORT: [RegExp, string][] = [[/Genehmigung des Vermieters erforderlich\??/g, "Vermieter-Genehmigung"], [/\?/g, ""]];
+export const shortReason = (m: string): string => {
+  const t = SHORT.reduce((t, [re, to]) => t.replace(re, to), m.replace(/^Bitte (?:in „[^“]*“ ausfüllen|füllen Sie alle Pflichtfelder in „[^“"]*["“] aus):\s*/, "")).trim();
+  return /^Bitte prüfen Sie die rot markierten Pflichtfelder\.?$/.test(t) ? "Pflichtfelder rot markiert" : t; // never the generic "Weiter" sentence itself
+};
+const WORDS: Partial<Record<StepStatus["kind"], string>> = { done: "erledigt", open: "offen", off: "nicht gewählt" };
+function StatusIcon({ s }: { s: StepStatus }) {
+  const c = "size-5 shrink-0";
+  switch (s.kind) {
+    case "done": return <CircleCheck aria-hidden className={cn(c, "text-step-done")} />;
+    case "warn": return <TriangleAlert aria-hidden className={cn(c, "text-amber-500")} />;
+    case "check": return <CircleAlert aria-hidden className={cn(c, "text-destructive")} />;
+    case "off": return <Minus aria-hidden className={cn(c, "text-muted-foreground")} />;
+    case "open": return <Circle aria-hidden className={cn(c, "text-muted-foreground")} />;
+    default: return <span aria-hidden className="size-2 shrink-0 rounded-full bg-step-idle mx-1.5" />;
+  }
+}
+
+/** The step list with a status per step (done / warning / open / not chosen) and the progress on top. */
+function StepList({ type, base, current, statuses }: { type: NewOfferType; base: string; current: string; statuses: Record<string, StepStatus> }) {
+  const { done, total } = countsIn(statuses);
   return (
-    <ol className="m-0 grid list-none gap-1 p-0">
-      {STEPS[type].map((s, i) => {
-        const group = groupStartingAt(type, s);
-        const state = i === at ? "active" : i < at ? "done" : "idle";
-        return (
-          <li key={s}>
-            {group ? <p className="mb-1 mt-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">{group.num ? `${group.num} · ` : ""}{group.title}</p> : null}
-            <NavLink
-              to={`${base}/${s}`} data-state={state}
-              className={cn(
-                "flex min-h-12 items-center gap-3 rounded-lg border border-transparent px-3 text-foreground no-underline transition-colors hover:bg-accent-weak",
-                state === "active" && "border-accent bg-accent-weak font-bold",
-              )}
-            >
-              <span aria-hidden className={cn("grid size-5 shrink-0 place-items-center rounded-full border-2", state === "idle" ? "border-step-idle" : state === "done" ? "border-step-done bg-step-done text-white" : "border-step-active")}>
-                {state === "done" ? <Check className="size-3.5" strokeWidth={3} /> : state === "active" ? <span className="size-2 rounded-full bg-step-active" /> : null}
-              </span>
-              <span>{stepLabel(s)}</span>
-              {state === "done" ? <span className="sr-only"> (erledigt)</span> : null}
-            </NavLink>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="grid gap-2">
+      {total ? (
+        <div>
+          <p className="m-0 text-[0.9rem] text-muted-foreground" data-testid="step-progress">{done} von {total} Schritten erledigt</p>
+          <div role="progressbar" aria-label="Fortschritt" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-step-done transition-[width]" style={{ width: `${(done / total) * 100}%` }} />
+          </div>
+        </div>
+      ) : null}
+      <ol className="m-0 grid list-none gap-1 p-0">
+        {STEPS[type].map((s) => {
+          const group = groupStartingAt(type, s);
+          const st = statuses[s] ?? { kind: "none" as const };
+          const active = s === current;
+          const right = st.kind === "check" ? `${st.open} offen` : "";
+          const said = st.kind === "warn" ? st.reason : st.kind === "check" ? `${st.open} offen` : WORDS[st.kind];
+          return (
+            <li key={s}>
+              {group ? <p className="mb-1 mt-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">{group.num ? `${group.num} · ` : ""}{group.title}</p> : null}
+              <NavLink
+                to={`${base}/${s}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
+                className={cn(
+                  "flex min-h-12 items-center gap-3 rounded-lg border border-transparent px-3 py-1.5 text-foreground no-underline transition-colors hover:bg-accent-weak",
+                  active && "border-accent bg-accent-weak font-bold", st.kind === "off" && "text-muted-foreground",
+                )}
+              >
+                <StatusIcon s={st} />
+                <span className="grid min-w-0 flex-1">
+                  <span className="truncate">{stepLabel(s)}</span>
+                  {st.kind === "warn" ? <span className="line-clamp-2 text-[0.85rem] font-normal text-amber-700 dark:text-amber-400">{shortReason(st.reason)}</span> : null}
+                  {st.kind === "off" ? <span className="text-[0.85rem] font-normal">nicht gewählt</span> : null}
+                </span>
+                {right ? <span className={cn("ml-2 shrink-0 text-[0.85rem] font-normal", st.kind === "check" ? "text-destructive" : "text-muted-foreground")}>{right}</span> : null}
+              </NavLink>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -133,6 +178,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const setOfferType = usePrefs((p) => p.setOfferType);
   useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
   useAutosave();
+  const statuses = useStatuses(type);
   useEffect(() => cancelFocus, []); // leaving the offer: nothing is focused afterwards
   // a failed save is also a toast — it must not be overlooked while typing further down
   const saving = useSaveStatus();
@@ -171,10 +217,10 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         {next ? <Link to={`${base}/${next}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
         <Total />
       </div> : null}
-      <StepDrawer onHome={goHome} total={<Total />}><StepList type={type} base={base} current={step} /></StepDrawer>
+      <StepDrawer onHome={goHome} total={<Total />}><StepList type={type} base={base} current={step} statuses={statuses} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
         <p className="m-0 font-bold">{title}</p>
-        <StepList type={type} base={base} current={step} />
+        <StepList type={type} base={base} current={step} statuses={statuses} />
         {wide && sidebar ? <Total /> : null}
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
         <Button variant="secondary" onClick={goHome}>Zum Hauptmenü</Button>

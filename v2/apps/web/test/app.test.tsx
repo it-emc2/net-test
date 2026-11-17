@@ -181,12 +181,12 @@ describe("header and sidebar", () => {
     expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("sidebar: steps before the open one are marked done, the open one active; groups as today", async () => {
+  it("sidebar: the open step is the current page; groups as today", async () => {
     fakeServer(BASE);
     renderApp(`/deal/${TEMP}/bu/Duschwanne`);
     const nav = await screen.findByRole("navigation", { name: "Schritte" });
-    const state = (name: string) => Array.from(nav.querySelectorAll("a")).find((a) => a.textContent?.startsWith(name))?.getAttribute("data-state");
-    expect([state("Kundendaten"), state("Arbeitszeit"), state("Arbeiten"), state("Duschwanne"), state("Fußboden"), state("Kosten")]).toEqual(["done", "done", "done", "active", "idle", "idle"]);
+    expect(within(nav).getByRole("link", { name: /^Duschwanne/ })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page")).toHaveLength(1);
     expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
     expect(nav).toHaveTextContent("II · Material für Badumbau");
     // narrow screens: the bar names the open step (the list is the drawer, see header.test)
