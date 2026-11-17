@@ -75,6 +75,8 @@ describe("step status", () => {
     expect(state(/^Duschvorhang/)).toBe("off");
   });
   it("reason line shows the missing items only, in short form", () => {
+    expect(shortReason("Bitte füllen Sie alle Pflichtfelder in „Fußboden\" aus: Fläche")).toBe("Fläche");
+    expect(shortReason("Bitte prüfen Sie die rot markierten Pflichtfelder.")).not.toMatch(/^Bitte/);
     expect(shortReason("Bitte in „Kundendaten“ ausfüllen: Anrede, Genehmigung des Vermieters erforderlich?")).toBe("Anrede, Vermieter-Genehmigung");
   });
 });
