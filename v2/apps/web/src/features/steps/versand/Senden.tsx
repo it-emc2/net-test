@@ -14,6 +14,7 @@ import { PlanPhotos, picturesNow } from "./Bilder.js";
 import { AddFiles, FileRow } from "./Mail.js";
 import { pictureFields } from "./pictures.js";
 import { SignOnSite } from "./Unterschrift.js";
+import { historyChanged } from "./Verlauf.js";
 import { ccDefault, countText, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
   TEXT, addFiles, atLocal, bitrixJobs, done, errorOf, fileSize, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
@@ -147,6 +148,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       const result = (await res.json().catch(() => ({}))) as SentResult;
 
       st().remember("internalNote", "");
+      historyChanged();
       const filing = result.bitrixComment;
       if (filing?.ok === false) {
         const text = filingFailed(bitrixOnly, String(filing.error ?? "").trim());
@@ -242,7 +244,7 @@ export function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onCl
   const filingFailed = s.result.bitrixComment?.ok === false && !!s.result.sendId;
   const refile = async () => {
     setRetry("busy");
-    try { await call("retryBitrix", { params: { sendId: s.result.sendId! }, body: {} }); setRetry("done"); }
+    try { await call("retryBitrix", { params: { sendId: s.result.sendId! }, body: {} }); setRetry("done"); historyChanged(); }
     catch { setRetry("failed"); }
   };
   const names = s.result.attachmentNames ?? [];
