@@ -48,8 +48,8 @@ describe("app shell", () => {
 
   it("a deal number in the address opens the offer for that deal; a step without a React screen links to today's UI", async () => {
     fakeServer(BASE);
-    renderApp("/deal/4711/bwt/Kosten");
-    await screen.findByText(/Badewannentür · Auftrag 4711/);
+    renderApp("/deal/4711/bl/Kosten");
+    await screen.findByText(/Badelift · Auftrag 4711/);
     expect(S().dealId).toBe("4711");
     expect(screen.getByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toHaveAttribute("href", "/?deal=4711#Kosten");
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1); // only the active step is on the page

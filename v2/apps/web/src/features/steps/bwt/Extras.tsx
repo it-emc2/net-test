@@ -61,7 +61,7 @@ export function Extras() {
     <Card aria-labelledby="bwt-extras-title" data-testid="bwt-extras">
       <CardTitle id="bwt-extras-title">Freier Posten & Hinweise</CardTitle>
       <FreeItems />
-      <TextAreaField id="bwt-note" label="Zusätzliche Hinweise zur Badewannentür (für das Angebot)" placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen." rows={6} value={str(b.bwtNote)} onChange={(v) => set("bwtNote", v)} />
+      <TextAreaField id="bwt-note" label="Zusätzliche Hinweise zur Badewannentür (für das Angebot)" placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen." rows={20} value={str(b.bwtNote)} onChange={(v) => set("bwtNote", v)} />
       <SketchPad value={sketch} onChange={store} />
       <NoteText id="bwt-steel" tick="bwtSteelNoteEnabled" text="bwtSteelNoteText" label="Stahl‑emaillierte Badewanne – Hinweis in Angebot übernehmen" />
       <NoteText id="bwt-proxy" tick="bwtProxyNoteEnabled" text="bwtProxyNoteText" label="Stellvertretung – Hinweis in Angebot übernehmen" />

@@ -5,6 +5,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
+import { overview } from "../src/features/steps/rabatt/rules.js";
 import { eur, sections, sums } from "../src/features/steps/kosten/rules.js";
 import reference from "./fixtures/kosten-bwt.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
@@ -51,5 +52,9 @@ describe("Kosten (Badewannentür) — rules", () => {
   });
   it("the sums of a Badewannentür have no numerals", () => {
     expect(sums({ services: { sum: 1 }, materials: { sum: 2 } }, { type: "bwt" }).map((r) => ("num" in r ? r.num : ""))).toEqual(["", "", "", "", "", ""]);
+  });
+  it("the overview on Aufschlag / Rabatt names the material of the offer type (fixed: today it always says Badumbau)", () => {
+    const row = (title?: string) => overview({ services: { sum: 1 }, materials: { sum: 2, ...(title ? { title } : {}) }, productsSubtotal: 2 }, "bwt", null, "").rows[1]!.label;
+    expect([row("Material für Badewannentür"), row()]).toEqual(["Material für Badewannentür", "Material für Badumbau"]);
   });
 });
