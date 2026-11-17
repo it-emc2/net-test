@@ -45,7 +45,7 @@ function shown() {
   const answer = screen.queryByRole("group", { name: GROUP.vermieterGenehmigung });
   return { kasse: box("kasse"), vermieter: box("vermieter"), approvalAsked: !!answer, approval: (answer?.querySelector("input:checked") as HTMLInputElement | null)?.value ?? "" };
 }
-/** Today's words → the React page's, where they differ on purpose (UX-CHANGES U-023):
+/** Today's words → the React page's, where they differ on purpose (UX-CHANGES U-024):
  *  - no connection / an answer without a message: today the browser's words ("Failed to fetch")
  *    or the bare status ("502"); the React page says it in German
  *  - an answer that is not asked (the home is not rented) is not marked on the React page: today
