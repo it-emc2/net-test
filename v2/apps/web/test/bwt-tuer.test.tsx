@@ -4,7 +4,8 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { DOORS, GRIPS, dimField, doorInfo } from "../src/features/steps/bwt/rules.js";
+import { readFileSync } from "node:fs";
+import { DOORS, GRIPS, dimField, doorFill, doorInfo } from "../src/features/steps/bwt/rules.js";
 import reference from "./fixtures/bwt-tuer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -131,5 +132,46 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     await user.click(wien.getByRole("button", { name: "45,5 cm" }));
     expect(offer().bwt.bwtDoorIndWienStdWidth).toBe("");
     expect(wien.getByRole("radiogroup", { name: "Farbe" })).toBeTruthy();
+  });
+
+  it("Türanschlag drawing: hinge and outward swing on the chosen side, in the door's colour (UX-CHANGES U-035)", async () => {
+    await open();
+    const user = userEvent.setup(), svg = () => screen.getByTestId("anschlag-drawing");
+    expect(svg().getAttribute("role")).toBe("img");
+    expect(svg().querySelector("title")!.textContent).toBe("Türanschlag");
+    expect(svg().querySelector('[data-part="hinge"]')).toBeNull(); // nothing chosen: no hinge, no swing
+    expect(svg().querySelector('[data-part="arc"]')).toBeNull();
+    await user.click(screen.getByRole("radio", { name: "← Links" }));
+    expect(svg().getAttribute("data-side")).toBe("Links");
+    expect(svg().querySelector('[data-part="hinge"]')!.getAttribute("cx")).toBe("80");
+    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M160 90 A80 80 0 0 1 80 170"); // from the closed end down (outward) to the open door
+    expect((svg().querySelector('[data-part="door"]') as SVGGElement).style.getPropertyValue("--bwt-open")).toBe("90deg");
+    await user.click(screen.getByRole("radio", { name: "Rechts →" }));
+    expect(svg().querySelector('[data-part="hinge"]')!.getAttribute("cx")).toBe("160");
+    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M80 90 A80 80 0 0 0 160 170");
+    expect((svg().querySelector('[data-part="door"]') as SVGGElement).style.getPropertyValue("--bwt-open")).toBe("-90deg");
+    expect(offer().bwt.bwtAnschlag).toBe("Rechts");
+    expect(svg().getAttribute("data-fill")).toBe("#fffdfa"); // Standard door, Weiß
+    await user.click(within(screen.getByTestId("bwt-door-panel")).getByRole("radio", { name: "Manhattan" }));
+    expect(svg().getAttribute("data-fill")).toBe("#D1D0CC");
+  });
+
+  it("door colour names: known names get their colour, free text and no door a neutral grey", () => {
+    const wien = { bwtDoorType: "Individual Tür - Wien", bwtDoorIndWienColor: "silber" }, glas = { bwtDoorType: "Individual Tür - Wien Glas" };
+    expect([doorFill(wien), doorFill({ ...glas, bwtDoorIndWienGlasFrameColor: "RAL 9005 Schwarz" }), doorFill({ ...glas, bwtDoorIndWienGlasFrameColor: "Anthrazit" }), doorFill({ ...glas, bwtDoorIndWienGlasFrameColor: "RAL 1234" }), doorFill({})])
+      .toEqual(["#c0c4c8", "#1f2937", "#374151", "#9ca3af", "#9ca3af"]);
+  });
+
+  it("the swing only runs when motion is allowed; with reduced motion the door is drawn open", () => {
+    const css = readFileSync(`${process.cwd().replace(/\/apps\/web$/, "")}/apps/web/src/styles.css`, "utf8");
+    expect(css).toMatch(/\.bwt-door-swing \{[^}]*transform: rotate\(var\(--bwt-open\)\)/); // the default (reduced motion): open, still
+    expect(css).toMatch(/@media \(prefers-reduced-motion: no-preference\) \{ \.bwt-door-swing \{[^}]*animation: bwt-door-swing 3\.2s/);
+  });
+
+  it("each grab bar option has its picture", async () => {
+    await open();
+    const imgs = screen.getAllByTestId("bwt-grip").map((g) => g.querySelector('img[data-part="grip-image"]') as HTMLImageElement);
+    expect(imgs).toHaveLength(4);
+    expect(imgs.every((i) => i.getAttribute("src") === "/assets/5b817c33100c0121ede70f11e341601c.jpg")).toBe(true);
   });
 });

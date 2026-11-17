@@ -114,3 +114,14 @@ export function bwtProblem(b: Fields): { message: string; focus: string } | null
   const m = bwtMissing(b), names = [m.shape ? "Wannenform" : "", m.door ? "Tür" : ""].filter(Boolean);
   return names.length ? { message: `Bitte wählen Sie noch: ${names.join(", ")}`, focus: m.shape ? '[name="bwtShape"]' : '[name="bwtDoorType"]' } : null;
 }
+
+/** The colour the door is drawn in: the chosen colour of the picked door. Known names get their colour, anything else
+ *  (free text of the frame colour) a neutral grey; no door picked: neutral too. */
+export const NEUTRAL_DOOR = "#9ca3af";
+const NAMED: [RegExp, string][] = [[/wei(ß|ss)|white/i, "#fffdfa"], [/beige/i, "#FDF5EA"], [/manhattan/i, "#D1D0CC"], [/silber|silver/i, "#c0c4c8"], [/schwarz|black/i, "#1f2937"], [/anthrazit/i, "#374151"], [/grau|grey|gray/i, "#9ca3af"]];
+export function doorFill(b: Fields): string {
+  const d = DOORS.find((x) => doorOn(b, x));
+  if (!d) return NEUTRAL_DOOR;
+  const name = str(b[d.color]);
+  return NAMED.find(([re]) => re.test(name))?.[1] ?? NEUTRAL_DOOR;
+}
