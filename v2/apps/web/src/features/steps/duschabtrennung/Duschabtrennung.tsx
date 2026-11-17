@@ -7,7 +7,7 @@ import { useQueries } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { call } from "../../../shared/api/index.js";
-import { Button, Card as Panel, CardTitle, Input, Switch, cn } from "../../../shared/ui/index.js";
+import { Button, Card as Panel, CardTitle, Input, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useParams } from "react-router";
 import { LegacyLink, useOfferStore } from "../../offer/index.js";
 import * as w from "./engine.js";
@@ -180,7 +180,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
             return (
               <button key={val.value} type="button" data-value={val.value} onClick={() => { logAnswer(step.paramId!, val); setLast({ id: step.paramId!, n: last.n + 1 }); set(z.answer(model, state, step.paramId!, val.value)); }} className={TILE}>
                 {drawings ? <span aria-hidden className="w-full max-w-40" dangerouslySetInnerHTML={{ __html: sketchSVG(specFor({ ...state.selections, [step.paramId!]: val.value }, state.sizes), { small: true, open: step.paramId === "Einbausituation" ? 0 : 0.45 }) }} />
-                  : src ? <img src={src} alt="" loading="lazy" className="h-24 max-w-full rounded object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
+                  : src ? <img src={src} alt="" loading="lazy" className={cn(IMG.product, "max-w-full rounded object-contain")} onError={(e) => { e.currentTarget.style.display = "none"; }} /> : null}
                 <span data-part="title" className="font-semibold">{name}</span>
                 {sub ? <span data-part="sub" className="text-[0.9rem] text-muted-foreground">{sub}</span> : null}
               </button>
@@ -222,7 +222,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
                   <div key={e.articleNumber} data-testid="da-extra" className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
                     <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
                       <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={on} onChange={() => set(z.toggleExtra(state, e.articleNumber))} />
-                      <img src={`/assets/Verbreiterungsprofil/${e.image}`} alt="" loading="lazy" className="size-10 shrink-0 rounded object-contain" onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
+                      <img src={`/assets/Verbreiterungsprofil/${e.image}`} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 rounded object-contain")} onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
                       <span className="grid"><span data-part="title">{e.name}</span><small data-part="sub" className="text-muted-foreground">{`${e.articleNumber} · ${e.finishText} · ${z.euro(e.net)}`}</small></span>
                     </label>
                     {on ? (
@@ -245,7 +245,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
                 return (
                   <button key={d.articleNumber} type="button" data-testid="da-tray" aria-pressed={on} onClick={() => set(z.pickTray(state, d.articleNumber))} className={cn(ROW, "cursor-pointer flex-wrap justify-between text-left text-foreground", on && "border-primary bg-accent-weak")}>
                     <span className="flex min-w-0 flex-1 items-center gap-3">
-                      <img src={`/assets/${d.image}`} alt="" loading="lazy" className="size-10 shrink-0 rounded object-contain" onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
+                      <img src={`/assets/${d.image}`} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 rounded object-contain")} onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
                       <span className="grid"><span data-part="title">{z.trayName(d, width)}</span><small data-part="sub" className="text-muted-foreground">{`${d.articleNumber} · ${z.euro(d.net)}`}</small></span>
                     </span>
                     <Stock article={d} />

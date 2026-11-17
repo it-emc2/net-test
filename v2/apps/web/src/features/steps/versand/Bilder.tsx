@@ -4,7 +4,7 @@
 import { Camera, Ruler } from "lucide-react";
 import { useRef, useState } from "react";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
-import { Button, cn } from "../../../shared/ui/index.js";
+import { Button, cn, IMG } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { useOfferStore } from "../../offer/index.js";
 import { NO_PICTURES, fitted, hasPicture, isImage, isTicked, jpgName, leftOut, planName, quantity, withOwnPicture, withProducts, type PictureState, type Product } from "./pictures.js";
@@ -69,7 +69,7 @@ function ProductRow({ p, s }: { p: Product; s: PictureState }) {
   const own = async (file: File | undefined) => { if (!file) return; try { const url = await readAsDataUrl(file); setPictures((x) => withOwnPicture(x, p.productId, url)); } catch { toast.error("Das Bild konnte nicht gelesen werden."); } };
   return (
     <li data-testid="zf-picture-row" data-product={p.productId} data-picture={s.own[p.productId] ? "own" : src ? "catalogue" : ""} className={cn("flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3 py-1.5", !can && "opacity-70")}>
-      {src ? <img src={src} alt="" className="size-12 shrink-0 rounded object-cover" /> : <span aria-hidden className="size-12 shrink-0 rounded bg-muted" />}
+      {src ? <img src={src} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} /> : <span aria-hidden className={cn(IMG.row, "shrink-0 rounded bg-muted")} />}
       <label className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" value={p.productId} checked={isTicked(p, s)} disabled={!can} onChange={(e) => setPictures((x) => ({ ...x, ticks: { ...x.ticks, [p.productId]: e.target.checked } }))} />
         <span className="grid min-w-0"><span className="truncate" title={p.name} data-part="name">{p.name}</span>{p.finish ? <span className="text-[0.85rem] text-muted-foreground" data-part="finish">{p.finish}</span> : null}</span>
