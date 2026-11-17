@@ -167,7 +167,7 @@ describe("header and sidebar", () => {
     expect(s.calls.some((c) => c.key.startsWith("PUT "))).toBe(false);
     expect(screen.getByTitle("Nicht gespeicherte Änderungen")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Speichern" }));
-    await screen.findByText(/^Gespeichert · /);
+    await screen.findByTitle(/^Gespeichert · /);
     expect(s.calls.filter((c) => c.key.startsWith("PUT "))).toHaveLength(1);
     await userEvent.click(screen.getByRole("switch", { name: "Automatisch speichern", hidden: true })); // back on for the other tests
   });
