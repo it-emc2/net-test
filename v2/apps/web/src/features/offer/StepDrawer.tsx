@@ -44,9 +44,9 @@ export function StepDrawer({ onHome, total, children }: { onHome: () => void; to
             <h2 className="mb-1 mt-4 px-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">Schritte</h2>
             {children}
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border p-3">
+          <div className="grid gap-2 border-t border-border p-3">
             {total}
-            <a href="/" className="flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground no-underline hover:bg-muted"><History aria-hidden className="size-4" />Versionen</a>
+            <a href="/" className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground no-underline hover:bg-muted"><History aria-hidden className="size-4" />Versionen</a>
           </div>
         </div>
       ) : null}

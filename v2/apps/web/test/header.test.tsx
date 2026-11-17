@@ -46,6 +46,11 @@ describe("header", () => {
     expect(screen.getByTestId("header-deal")).toHaveTextContent("Badumbau · Deal 65462");
     expect(screen.getByRole("link", { name: "Versionen" })).toBeInTheDocument();
   });
+  it("in an offer that is saved the pill is there (icon, full text in title)", async () => {
+    fakeServer({ ...BASE });
+    renderApp("/deal/65462/bu/Kundendaten");
+    expect(await screen.findByTitle("Alles gespeichert")).toBeInTheDocument();
+  });
 });
 
 describe("step drawer and step bar", () => {
