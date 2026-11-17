@@ -44,10 +44,10 @@ export function SelfPayPill({ base }: { base: string }) {
         className="grid min-h-11 shrink-0 cursor-pointer content-center rounded-xl border border-success/50 bg-success/15 px-3 py-0.5 text-left leading-tight text-foreground"
       >
         <span className="text-[0.75rem] text-muted-foreground">{label(s)}</span>
-        <strong data-testid="selfpay-amount">{euro(s.selfPay)}</strong>
+        <strong className="text-base font-medium tabular-nums" data-testid="selfpay-amount">{euro(s.selfPay)}</strong>
       </button>
-      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[320px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl">
-        <dl className="m-0 grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">
+      <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[340px] max-w-[calc(100vw-24px)] rounded-2xl border border-border bg-card p-4 whitespace-nowrap text-card-foreground shadow-xl">
+        <dl className="m-0 grid tabular-nums grid-cols-[1fr_auto] gap-x-4 gap-y-2">
           <dt>Gesamt</dt><dd className="m-0 text-right">{euro(s.total)}</dd>
           <dt>Zuschuss Pflegekasse</dt><dd className="m-0 text-right">−{euro(s.subsidy)}</dd>
           <dt className={cn(!s.prior && "text-muted-foreground")}>bereits genutzt (Wohnumfeld)</dt><dd className={cn("m-0 text-right", !s.prior && "text-muted-foreground")}>{s.prior ? `+${euro(s.prior)}` : euro(0)}</dd>
