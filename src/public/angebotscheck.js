@@ -918,6 +918,28 @@ export const HAUPTPUNKTE = [
   },
 ];
 
+/**
+ * winwall Platten-Zeile with a typed decor that is no decor number ("23013"):
+ * priced as nothing, left out of PDF and offer (ANG2026-1117-115333). Asked in
+ * the same pre-send confirmation as the missing main items.
+ */
+export function invalidDekorRows(payload) {
+  const wv = payload?.wandverkleidung;
+  if (!wv?.wvEnabled) return [];
+  try {
+    const bad = JSON.parse(wv.wvWwRows || "[]").some((r) => !r?.code && Number(r?.qty) > 0);
+    return bad
+      ? [{
+          key: "wvDekorUngueltig",
+          page: "Wandverkleidung",
+          question: "In der Wandverkleidung gibt es Platten-Zeilen mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot.",
+        }]
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 /** What the payload alone does not show, read at the moment of sending. */
 export function sendEnv(payload, win = window) {
   const safe = (fn) => {
@@ -969,7 +991,10 @@ export function missingHauptpunkte(payload, env, offerType = "bu") {
  * false to go back (and jumps to the page of the item clicked, if any).
  */
 export function confirmHauptpunkte(payload, offerType) {
-  const missing = missingHauptpunkte(payload, sendEnv(payload), offerType);
+  const missing = [
+    ...missingHauptpunkte(payload, sendEnv(payload), offerType),
+    ...invalidDekorRows(payload),
+  ];
   if (!missing.length) return Promise.resolve(true);
 
   return new Promise((resolve) => {

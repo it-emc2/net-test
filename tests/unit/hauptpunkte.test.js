@@ -3,6 +3,7 @@ import {
   missingHauptpunkte,
   sendEnv,
   confirmHauptpunkte,
+  invalidDekorRows,
 } from "../../src/public/angebotscheck.js";
 
 const noEnv = { daLines: 0, daOldPicks: 0, curtainLines: 0, optionalLines: 0, wvPanels: 0 };
@@ -146,5 +147,19 @@ describe("the popup", () => {
     document.querySelector('#hpConfirmOverlay [data-page="Wandverkleidung"]').click();
     await expect(result).resolves.toBe(false);
     expect(location.hash).toBe("#Wandverkleidung");
+  });
+});
+
+describe("invalid winwall decor rows", () => {
+  const wv = (rows, on = true) => ({ wandverkleidung: { wvEnabled: on, wvWwRows: JSON.stringify(rows) } });
+  test("a typed decor without code is flagged — ANG2026-1117-115333", () => {
+    const rows = [{ code: "NW220", fmt: "15", qty: 2 }, { code: null, fmt: "16", qty: 3, custom: true, text: "23013" }];
+    expect(invalidDekorRows(wv(rows)).map((x) => x.key)).toEqual(["wvDekorUngueltig"]);
+  });
+  test("valid rows, WV off, empty or broken data are not flagged", () => {
+    expect(invalidDekorRows(wv([{ code: "WS230", fmt: "15", qty: 1 }]))).toEqual([]);
+    expect(invalidDekorRows(wv([{ code: null, fmt: "15", qty: 1 }], false))).toEqual([]);
+    expect(invalidDekorRows({})).toEqual([]);
+    expect(invalidDekorRows({ wandverkleidung: { wvEnabled: true, wvWwRows: "x" } })).toEqual([]);
   });
 });
