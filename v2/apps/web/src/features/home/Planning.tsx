@@ -8,7 +8,7 @@ import { call, ApiFailure } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
-import { cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
+import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -177,7 +177,7 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
     const saved = await call("offersByDeal", { params: { dealId: id } }).then((l) => l.length > 0, () => false);
     if (saved) mark(id); else setNoShow(id);
   };
-  const dep = departure(plan?.departure), homeName = home?.name || "Firma";
+  const charge = chargeOf(plan?.charge), dep = departure(plan?.departure), homeName = home?.name || "Firma";
   const lastEnd = last && last.manualStartMinutes != null && last.duration ? last.manualStartMinutes + last.duration : null;
   const retMin = last?.driveAfter?.min;
   return (
@@ -257,12 +257,13 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
                 {p && p.index === i ? (
                   <Row data-testid="pause" className="bg-amber-100 py-3.5 text-amber-950 dark:bg-amber-950 dark:text-amber-100">
                     <Coffee aria-hidden className="size-6" /><span className="text-base font-medium">{p.text}</span><span>{p.min} Min</span>
-                    {plan?.charge?.name ? <span className="flex items-center gap-1.5" data-testid="charge"><Zap aria-hidden className="size-4" />Laden: {plan.charge.name}{plan.charge.power ? `, ${plan.charge.power}` : ""}</span> : null}
+                    {charge?.atPause ? <span className="flex items-center gap-1.5" data-testid="charge"><Zap aria-hidden className="size-4" />Laden: {charge.name}{charge.power ? `, ${charge.power}` : ""}{charge.route ? <a className="ml-1 inline-flex min-h-11 items-center underline" href={charge.route} target="_blank" rel="noopener" onClick={(ev) => ev.stopPropagation()}>Route</a> : null}</span> : null}
                   </Row>
                 ) : null}
               </div>
             );
           })}
+          {charge && !charge.atPause ? <p data-testid="charge-route" className="m-0 flex items-center gap-2 px-4 text-muted-foreground"><Zap aria-hidden className="size-4" />Laden unterwegs: {charge.name}{charge.power ? `, ${charge.power}` : ""}{charge.route ? <a className="inline-flex min-h-11 items-center text-primary underline" href={charge.route} target="_blank" rel="noopener">Route</a> : null}</p> : null}
           {plan?.returnAt ? (
             <Row data-testid="return" className="bg-green-100 text-green-950 dark:bg-green-950 dark:text-green-100"><House aria-hidden className="size-5" /><span className="font-medium">Rückfahrt{lastEnd != null ? ` ab ${clock(lastEnd)}` : ""} · Ankunft ca. {departure(plan.returnAt)}</span><span>nach {homeName}{retMin != null ? ` · ${retMin} Min` : ""}{kmOf(last?.driveAfter?.km)}</span></Row>
           ) : null}

@@ -6,7 +6,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { departure, entryOf, fullRouteHref, mondayKey, pause, prefill, searchEntries, todayModel, weekModel, type TodayPayload, type WeekPayload } from "../src/features/home/planning-rules.js";
+import { chargeOf, departure, entryOf, fullRouteHref, mondayKey, pause, prefill, searchEntries, todayModel, weekModel, type TodayPayload, type WeekPayload } from "../src/features/home/planning-rules.js";
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 import old from "./fixtures/home-planung.json";
 import lean from "./fixtures/home-planung-v2.json";
@@ -54,6 +54,12 @@ describe("rules", () => {
     expect(prefill(entryOf({ id: "x", status: "planned", customerNumber: "K-77", bitrixContactId: "5" }, "", false)).kunde.customerNumber).toBe("K-77");
     expect(prefill(entries[1]!).auftragId).toBe("5002"); // no deal: the contact, as today
   });
+  it("charging: at the pause with its Route; elsewhere a small line; the flat shape is read too", () => {
+    expect(chargeOf(TODAY.plan!.charge)).toEqual({ atPause: true, name: "Ladesäule Test", power: "150 kW DC", route: "https://www.google.com/maps/dir/?api=1&destination=50.7376,11.8456" });
+    expect(chargeOf({ atPause: false, charger: { name: "Q1" } })).toMatchObject({ atPause: false, name: "Q1", route: null });
+    expect(chargeOf({ name: "Flach", power: "22 kW" })).toMatchObject({ atPause: true, name: "Flach", power: "22 kW" });
+    expect(chargeOf(null)).toBeNull();
+  });
   it("week: 7 days from the API, counts, label", () => {
     const v = weekModel(WEEK, 0, new Date(2026, 10, 17));
     expect(v.days).toHaveLength(7);
@@ -99,7 +105,7 @@ describe("panel", () => {
     expect(screen.getByTestId("departure")).toHaveTextContent("Abfahrt 08:15ab Firma (Test) · 45 Min · 52 km bis zum 1. Termin");
     expect(screen.getAllByTestId("travel")[0]).toHaveTextContent("20 Min Fahrt / Puffer · 14 kmAnkunft ca. 10:50");
     expect(screen.getByTestId("pause")).toHaveTextContent("Pause 12:00 – 12:30");
-    expect(screen.getByTestId("charge")).toHaveTextContent("Laden: Ladesäule Test, 22 kW");
+    expect(screen.getByTestId("charge")).toHaveTextContent("Laden: Ladesäule Test, 150 kW DC");
     expect(screen.getByTestId("return")).toHaveTextContent("Rückfahrt ab 15:45 · Ankunft ca. 15:45nach Firma (Test) · 50 Min · 40 km");
     const left = within(card("a1")).getByTestId("appt-left").textContent!;
     expect(left).toMatch(/^09:00bis 10:30 · 90 MinBU#70001$/);
@@ -109,6 +115,13 @@ describe("panel", () => {
     expect(notes).toHaveAttribute("title", expect.stringContaining("Hund im Haus"));
     expect(within(card("b2")).getByTestId("warning")).toHaveTextContent("Knapp geplant: 5 Min");
     expect(within(card("c3")).getByTestId("warning")).toHaveTextContent("Deal noch in „Rückfragen“");
+  });
+  it("charging on the way is a small line, not in the pause card", async () => {
+    const plan = { ...TODAY.plan!, charge: { atPause: false, charger: { name: "Q1 Autostrom", power: "150 kW DC", lat: 50.7, lng: 11.8 } } };
+    fakeServer({ ...HANDLERS(null), "GET /api/planning/v2/today": { body: { ...TODAY, plan } } });
+    renderApp("/");
+    expect(await screen.findByTestId("charge-route")).toHaveTextContent("Laden unterwegs: Q1 Autostrom, 150 kW DC");
+    expect(screen.queryByTestId("charge")).toBeNull();
   });
   it("the service is not set up (503): its message and the link to today's view; no other endpoint is asked", async () => {
     const srv = fakeServer({ ...HANDLERS(null), "GET /api/planning/v2/today": { status: 503, body: { error: { code: "PLANNING_KEY_MISSING", message: "Der Planungsdienst ist auf diesem Server nicht eingerichtet (PLANNING_API_KEY fehlt).", requestId: "t" } } } });

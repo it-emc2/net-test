@@ -26,8 +26,13 @@
         "durationMinutes": 30
       },
       "charge": {
-        "name": "Ladesäule Test",
-        "power": "22 kW"
+        "atPause": true,
+        "charger": {
+          "name": "Ladesäule Test",
+          "power": "150 kW DC",
+          "lat": 50.7376,
+          "lng": 11.8456
+        }
       },
       "termine": [
         {

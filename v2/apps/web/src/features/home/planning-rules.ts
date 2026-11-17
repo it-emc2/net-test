@@ -20,7 +20,7 @@ export interface Termin {
 export interface Plan {
   date: string; generatedAt?: string; dayLocked?: boolean; departure?: string | null; returnAt?: string | null; totalKm?: number; termine: Termin[];
   startLocation?: { name?: string; street?: string; zip?: string; city?: string } | null;
-  pause?: { start?: string; end?: string; durationMinutes?: number } | null; charge?: { name?: string; power?: string | number } | null;
+  pause?: { start?: string; end?: string; durationMinutes?: number } | null; charge?: { atPause?: boolean; charger?: { name?: string; power?: string | number; lat?: number; lng?: number } | null; name?: string; power?: string | number } | null;
 }
 export interface TodayPayload { ok?: boolean; updatedAt?: string; plan?: Plan | null }
 export interface WeekEntry { id: string; start?: string; end?: string; name?: string; offerType?: string | null; dealId?: string | number | null; status?: string }
@@ -73,6 +73,14 @@ const blob = (e: PlanningEntry) => [e.name, e.address, e.phone, e.email, e.dateL
 export const searchEntries = (list: PlanningEntry[], q: string) => { const n = normalize(q.trim()); return n ? list.filter((e) => normalize(blob(e)).includes(n)) : list; };
 export const typeTone = (t?: string) => ({ BU: "bu", BWT: "bwt", HMS: "hms", WD: "hms", HL: "hl", AH: "ah" } as Record<string, string>)[(t || "").toUpperCase()] ?? "manual";
 export const subtitle = (e: PlanningEntry) => (cancelled(e) ? "Termin abgesagt" : e.dayLocked ? "Tag gesperrt" : e.locked ? "Termin fixiert" : "Planungstermin");
+
+/** the charging stop: { atPause, charger: { name, power, lat, lng } } (a flat { name, power } is read as at the pause) */
+export function chargeOf(c: Plan["charge"]): { atPause: boolean; name: string; power: string; route: string | null } | null {
+  const ch = c?.charger ?? (c?.name ? c : null);
+  if (!c || !ch?.name) return null;
+  const { lat, lng } = ch as { lat?: number; lng?: number };
+  return { atPause: c.atPause ?? !c.charger, name: ch.name, power: str(ch.power), route: Number.isFinite(lat) && Number.isFinite(lng) ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : null };
+}
 
 /** where the pause card goes: after the last appointment starting before the pause (none after: the last) */
 export function pause(p: Plan["pause"], entries: PlanningEntry[]): { text: string; index: number; from: string; to: string; min: number } | null {

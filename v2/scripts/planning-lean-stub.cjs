@@ -15,7 +15,7 @@ function todayPlan(date) {
     t({ order: 3, id: "c3", status: "planned", offerType: null, firstName: "", lastName: "Probst", name: "Probst", street: "Probeweg 9", zip: "95032", city: "Hof", phone: null, email: null, badge: "", stageAlert: "Deal noch in „Rückfragen“", driveMinutesBefore: 15, driveKmBefore: 9, driveMinutesAfter: 50, driveKmAfter: 40 }, 900, 45),
     t({ order: 4, id: "d4", status: "cancelled", offerType: "hl", dealId: "70003", firstName: "Anna", lastName: "Absage", name: "Anna Absage", street: "Weg 2", zip: "95028", city: "Hof", phone: null, email: null, badge: "HL", driveMinutesBefore: 0, driveKmBefore: 0, driveMinutesAfter: 0, driveKmAfter: 0 }, 1000, 30),
   ];
-  return { ok: true, updatedAt: `${date}T06:00:00.000Z`, plan: { date, generatedAt: `${date}T06:00:00.000Z`, timezone: "Europe/Berlin", dayLocked: false, startLocation: START, departure: "08:15", returnAt: "15:45", totalKm: 120, rangeKm: 400, pause: { start: "12:00", end: "12:30", durationMinutes: 30 }, charge: { name: "Ladesäule Test", power: "22 kW" }, termine } };
+  return { ok: true, updatedAt: `${date}T06:00:00.000Z`, plan: { date, generatedAt: `${date}T06:00:00.000Z`, timezone: "Europe/Berlin", dayLocked: false, startLocation: START, departure: "08:15", returnAt: "15:45", totalKm: 120, rangeKm: 400, pause: { start: "12:00", end: "12:30", durationMinutes: 30 }, charge: { atPause: true, charger: { name: "Ladesäule Test", power: "150 kW DC", lat: 50.7376, lng: 11.8456 } }, termine } };
 }
 function weekPlan(from) {
   const d0 = new Date(from + "T12:00:00");
