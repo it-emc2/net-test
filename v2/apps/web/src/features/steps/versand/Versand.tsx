@@ -3,8 +3,9 @@
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
 // internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
 // sending by mail and "Nur in Bitrix ablegen" (Senden.tsx); part 2: product pictures and plan
-// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Signing is
-// still done in today's view.
+// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Slice 6:
+// signing on site on both tabs (Unterschrift.tsx) and the signed documents by post (Post.tsx).
+// The history of sends is still shown in today's view.
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -88,8 +89,8 @@ export function Versand() {
       </div>
 
       <section className="grid gap-2 border-t border-border pt-4" data-testid="zf-legacy">
-        <h3 className="m-0 text-[1.05rem] font-semibold">Weitere Versandwege</h3>
-        <p className="m-0 text-muted-foreground">Unterschrift vor Ort, per Link und der Postversand unterschriebener Unterlagen gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
+        <h3 className="m-0 text-[1.05rem] font-semibold">Versandverlauf</h3>
+        <p className="m-0 text-muted-foreground">Was wann verschickt und unterschrieben wurde, zeigt noch die bisherige Ansicht. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>

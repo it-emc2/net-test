@@ -13,6 +13,7 @@ import { giveNumber } from "./number.js";
 import { PlanPhotos, picturesNow } from "./Bilder.js";
 import { AddFiles, FileRow } from "./Mail.js";
 import { pictureFields } from "./pictures.js";
+import { SignOnSite } from "./Unterschrift.js";
 import { ccDefault, countText, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
   TEXT, addFiles, atLocal, bitrixJobs, done, errorOf, fileSize, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
@@ -312,6 +313,8 @@ export function Senden() {
           ); })}
         </div>
       ) : null}
+
+      <SignOnSite via="mail" />
 
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${key}/${typeParam}/${page}`); }} /> : null}
       {question ? <Question q={question} /> : null}
