@@ -10,7 +10,9 @@ import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
+import { PlanPhotos, picturesNow } from "./Bilder.js";
 import { AddFiles, FileRow } from "./Mail.js";
+import { pictureFields } from "./pictures.js";
 import { ccDefault, countText, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
   TEXT, addFiles, atLocal, bitrixJobs, done, errorOf, fileSize, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
@@ -121,7 +123,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       form.append("payload", JSON.stringify(payload));
       form.append("excludePreset", JSON.stringify(excluded(offer, (scratch.mailRemoved as string[] | undefined) ?? [])));
       form.append("excludeBitrixPresets", "");
-      form.append("includeProductImages", "");
+      for (const [k, v] of Object.entries(pictureFields(picturesNow()))) form.append(k, String(v));
       form.append("dealId", deal);
       form.append("contactId", String((offer.Kundendaten ?? {}).bitrixContactId ?? "").trim());
       form.append("sendId", crypto.randomUUID());
@@ -288,6 +290,7 @@ export function Senden() {
         <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
           {bitrixFiles.map((f, i) => <FileRow key={i} name={f.name} meta={`Nur Bitrix · ${fileSize(f.size)}`} onRemove={() => st().remember("bitrixUploads", bitrixFiles.filter((_, j) => j !== i))} />)}
         </ul>
+        <PlanPhotos />
         <p className="m-0 text-[0.9rem] text-muted-foreground">Diese Dateien gehen nicht an den Kunden — sie landen beim Senden nur in der Bitrix-Timeline.</p>
       </div>
 
