@@ -19,10 +19,11 @@ const [actionsFile, type = "bu"] = process.argv.slice(2);
 if (!actionsFile) { console.error("usage: node v2/scripts/ipad-check.cjs <actions.cjs> [type]"); process.exit(2); }
 const actions = require(path.resolve(actionsFile));
 const token = (() => { const p = `${Date.now() + 3600e3}:capture@local.test`; return Buffer.from(p).toString("base64url") + "." + crypto.createHmac("sha256", SECRET).update(p).digest("hex"); })();
+const LAUNCH = { headless: true, ...(process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {}) }; // PW_CHANNEL=chromium: the full browser instead of the headless shell
 const KEY = "t-" + crypto.randomBytes(12).toString("hex");
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(LAUNCH);
   const ctx = await browser.newContext({ viewport: { width: 834, height: 1194 }, deviceScaleFactor: 2, hasTouch: true, serviceWorkers: "block", locale: "de-DE", timezoneId: "Europe/Berlin" });
   await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
   const page = await ctx.newPage();
