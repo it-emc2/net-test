@@ -2,6 +2,8 @@
 // modules/web/addons/offer-record.js draws it): one line per send — when, how, to whom, signed,
 // Bitrix state, stored document — and repeat a failed Bitrix filing. Check level "Light": the
 // rules against the add-on's wording, the list on the page, and the one action in it.
+// U-024 (owner 2026-11-17): the list holds the sends of the deal and is not drawn when nothing
+// was sent — the test "an offer that never went out" changed with it, the deal tests are new.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,8 +20,8 @@ const flat = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").tr
 const MAILED: Obj = { sendId: ID, channel: "email", status: "done", to: "kunde@example.test", finishedAt: "2026-11-15T09:30:00.000Z", steps: { bitrix: { status: "ok" } }, files: [{ role: "offer", fileId: "f1", filename: "a.pdf" }, { role: "bitrixDoc", fileId: "f2", filename: "k.pdf" }] };
 const offer = { ...(reference.bases as unknown as Record<string, Obj>).bu, offerNumber: NUMBER };
 const draft: Reply = { body: { dealId: KEY, offerType: "bu", payload: offer, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } };
-const open = async (sends: Reply | (() => Reply), more: Record<string, Reply> = {}) => {
-  const server = fakeServer({ ...BASE, "GET /api/deals/*/draft": draft, [`GET /api/offers/${NUMBER}/sends`]: sends, ...more });
+const open = async (sends: Reply | (() => Reply), more: Record<string, Reply> = {}, d: Reply = draft) => {
+  const server = fakeServer({ ...BASE, "GET /api/deals/*/draft": d, [`GET /api/offers/${NUMBER}/sends`]: sends, ...more });
   renderApp(`/deal/${KEY}/bu/Zusammenfassung`);
   await screen.findByTestId("zf-post");
   return server;
@@ -30,7 +32,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("Versandverlauf — the rules", () => {
   it("a mailed offer: when, how, to whom, filed, and the stored offer (other stored files are not offered)", () => {
-    expect(lineOf(MAILED)).toEqual({ id: ID, when: "15.11.2026, 10:30", how: "per E-Mail an kunde@example.test", notes: [{ tone: "ok", text: "✓ in Bitrix abgelegt" }], retry: false,
+    expect(lineOf(MAILED)).toEqual({ id: ID, when: "15.11.2026, 10:30", offer: "", how: "per E-Mail an kunde@example.test", notes: [{ tone: "ok", text: "✓ in Bitrix abgelegt" }], retry: false,
       files: [{ label: "Angebot ansehen", href: `/api/sends/${ID}/files/f1` }] });
   });
 
@@ -71,9 +73,18 @@ describe("Versandverlauf — on the page", () => {
     expect([link.getAttribute("href"), link.getAttribute("target")]).toEqual([`/api/sends/${ID}/files/f1`, "_blank"]);
   });
 
-  it("an offer that never went out says so", async () => {
-    await open({ body: { ok: true, sends: [] } });
-    expect(flat((await screen.findByTestId("zf-history")).textContent)).toBe(`Versandverlauf${TEXT.empty}`);
+  it("nothing sent: no list at all (U-024; before: \"Dieses Angebot wurde noch nicht versendet.\")", async () => {
+    const server = await open({ body: { ok: true, sends: [] } });
+    await waitFor(() => expect(server.count(`GET /api/offers/${NUMBER}/sends`)).toBeGreaterThan(0));
+    expect(screen.queryByTestId("zf-history")).toBeNull();
+  });
+
+  it("with a deal number: the sends of the deal, a line of another offer number names it (U-024)", async () => {
+    const withDeal: Reply = { body: { ...(draft.body as Obj), payload: { ...offer, auftragId: "65418" } } };
+    const server = await open({ body: { ok: true, sends: [] } }, { "GET /api/deals/65418/sends": { body: { ok: true, sends: [{ ...MAILED, offerNumber: NUMBER }, { sendId: "old", channel: "post", status: "done", offerNumber: "ANG2026-1101-080000", to: "Erika Muster", finishedAt: "2026-11-01T08:00:00.000Z" }] } } }, withDeal);
+    await screen.findByTestId("zf-history");
+    expect(rows()).toEqual(["15.11.2026, 10:30per E-Mail an kunde@example.test✓ in Bitrix abgelegtAngebot ansehen", "01.11.2026, 09:00Angebot ANG2026-1101-080000per Post an Erika Muster"]);
+    expect(server.count(`GET /api/offers/${NUMBER}/sends`)).toBe(0);
   });
 
   it("the list cannot be read: nothing is shown, nothing breaks", async () => {
@@ -101,7 +112,7 @@ describe("Versandverlauf — on the page", () => {
   });
 
   it("after a send on this page the list is read again", async () => {
-    const server = await open({ body: { ok: true, sends: [] } });
+    const server = await open({ body: { ok: true, sends: [MAILED] } }); // U-024: the list is only drawn with a send in it
     await screen.findByTestId("zf-history");
     const was = server.count(`GET /api/offers/${NUMBER}/sends`);
     historyChanged();

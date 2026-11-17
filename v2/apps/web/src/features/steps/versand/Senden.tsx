@@ -1,8 +1,11 @@
-// Sending (ADR 026, phase 4; Angebotsversand slice 4b, part 1): "An Kunden senden" and "Nur in
-// Bitrix ablegen", files for Bitrix only, the step-by-step messages, the question about main items
+// Sending (ADR 026, phase 4; Angebotsversand slice 4b, part 1): "An Kunden senden", the
+// step-by-step messages, the question about main items
 // that are not in the offer, the "already sent" question, and the dialog after sending with the
 // move of the deal. The rules are send-rules.ts; what the mail says is Mail.tsx / mail-rules.ts.
-import { CircleCheck, CircleX, Info, LoaderCircle, Send, Paperclip, TriangleAlert } from "lucide-react";
+// U-024 (owner 2026-11-17): "Nur in Bitrix ablegen", the files for Bitrix only, the plan photos
+// and the product-picture PDF are gone; the send carries `includeProductImages: ""` as before
+// that feature (the server route for a filing only stays — today's UI still uses it).
+import { CircleCheck, CircleX, Info, LoaderCircle, Send, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
@@ -10,21 +13,18 @@ import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
-import { PlanPhotos, picturesNow } from "./Bilder.js";
-import { AddFiles, FileRow } from "./Mail.js";
-import { pictureFields } from "./pictures.js";
 import { SignOnSite } from "./Unterschrift.js";
 import { historyChanged } from "./Verlauf.js";
-import { ccDefault, countText, excluded, touchedOf, type Touched } from "./mail-rules.js";
+import { ccDefault, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
-  TEXT, addFiles, atLocal, bitrixJobs, done, errorOf, fileSize, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
+  TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
   type MainItem, type SentResult,
 } from "./send-rules.js";
 
 type Offer = Record<string, any>;
 type Kind = "info" | "success" | "error" | "warning";
 type Status = { type: Kind; text: string } | { log: [Kind, string][] };
-export interface Sent { bitrixOnly: boolean; dealId: string; result: SentResult; offerNumber: string; offer: Offer; /** another heading than the mail's (the letter) */ title?: string }
+export interface Sent { dealId: string; result: SentResult; offerNumber: string; offer: Offer; /** another heading than the mail's (the letter) */ title?: string }
 export interface Ask { title: string; message: string; yes: string; no: string; resolve: (yes: boolean) => void }
 
 const st = () => useOfferStore.getState();
@@ -72,7 +72,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
 
-  return { busy, send: async (bitrixOnly: boolean) => {
+  return { busy, send: async () => {
     if (lock.current) return; // locked before the first wait: a second tap starts nothing
     lock.current = true; setBusy(true);
     try {
@@ -82,7 +82,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       const deal = String(first.auftragId ?? mail.auftragId ?? "").trim();
       if (!deal) { st().remember("dealMissing", true); status({ type: "error", text: TEXT.noDeal }); document.getElementById("zf-mail-deal")?.focus(); return; }
       const to = String(mail.to ?? "").trim();
-      if (!to && !bitrixOnly) { status({ type: "error", text: TEXT.noRecipient }); return; }
+      if (!to) { status({ type: "error", text: TEXT.noRecipient }); return; }
       const missing = missingMain(first, price.data as never);
       if (missing.length && !(await askMain(missing))) { status({ type: "info", text: TEXT.cancelled }); return; }
       // an offer that was never given a number gets it now — subject, text and PDF name the same one
@@ -93,7 +93,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       const number = String(offer.offerNumber || "");
       const payload = { ...offer, activeOffer: type, offerNumber: number };
       status({ log: [] });
-      push("info", started(bitrixOnly));
+      push("info", started);
       const edited = (scratch.editedDocx as File | null | undefined) ?? null;
       if (edited) push("info", `Geänderte DOCX wird verwendet: ${edited.name}`);
       // the documents for Bitrix first: none missing, or nothing goes out
@@ -108,13 +108,12 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
           throw new Error(`${job.label} konnte nicht erzeugt werden: ${messageOf(err)}`);
         }
       }
-      push("info", sending(bitrixOnly, !!edited));
+      push("info", sending(!!edited));
 
       const touched = (scratch.mailTouched as Touched | undefined) ?? touchedOf(offer);
       const cc = (touched.cc ? String(scratch.mailCc ?? "") : ccDefault(offer)).trim();
       const form = new FormData();
       form.append("to", to);
-      if (bitrixOnly) form.append("bitrixOnly", "1");
       form.append("internalNote", String(scratch.internalNote ?? ""));
       if (cc) form.append("cc", cc);
       const text = (offer.mail ?? {}) as Offer; // read again: a number given just now is in subject and text
@@ -125,13 +124,12 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       form.append("payload", JSON.stringify(payload));
       form.append("excludePreset", JSON.stringify(excluded(offer, (scratch.mailRemoved as string[] | undefined) ?? [])));
       form.append("excludeBitrixPresets", "");
-      for (const [k, v] of Object.entries(pictureFields(picturesNow()))) form.append(k, String(v));
+      form.append("includeProductImages", ""); // no product-picture PDF (removed, U-024)
       form.append("dealId", deal);
       form.append("contactId", String((offer.Kundendaten ?? {}).bitrixContactId ?? "").trim());
       form.append("sendId", crypto.randomUUID());
       for (const f of (scratch.mailUploads as File[] | undefined) ?? []) form.append("attachments", f, f.name);
       for (const d of docs) form.append("bitrixDocs", d, d.name);
-      for (const f of (scratch.bitrixUploads as File[] | undefined) ?? []) form.append("bitrixDocs", f, f.name);
       if (edited) form.append("editedDocx", edited, edited.name);
 
       let res = await post(form);
@@ -151,15 +149,15 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       historyChanged();
       const filing = result.bitrixComment;
       if (filing?.ok === false) {
-        const text = filingFailed(bitrixOnly, String(filing.error ?? "").trim());
+        const text = filingFailed(String(filing.error ?? "").trim());
         push("error", text);
         toast.warning("Bitrix-Ablage fehlgeschlagen", { description: text });
-      } else push("success", done(bitrixOnly, result.attachmentNames ?? []));
+      } else push("success", done(result.attachmentNames ?? []));
       st().remember("editedDocx", null); // never applies to the next send by accident
       if (result.signingLink === "off-hand-edited") toast.info(TEXT.handEdited);
-      if (!bitrixOnly) st().patch("zusammenfassung" as never, { versand: { art: "mail", versendetAm: new Date().toISOString() } } as never);
+      st().patch("zusammenfassung" as never, { versand: { art: "mail", versendetAm: new Date().toISOString() } } as never);
       const sentOffer = offerNow();
-      onSent({ bitrixOnly, dealId: deal, result, offerNumber: number, offer: { ...sentOffer, offerNumber: number } });
+      onSent({ dealId: deal, result, offerNumber: number, offer: { ...sentOffer, offerNumber: number } });
       void call("logDialogEvent", { params: { id: deal }, body: { event: "move_dialog_shown", offerNumber: number, offerType: type } }).catch(() => undefined);
       try { // the offer is kept under its number, as after a PDF
         await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: { ...sentOffer, offerNumber: number }, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
@@ -250,7 +248,7 @@ export function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onCl
   const names = s.result.attachmentNames ?? [];
   return (
     <Modal id="zf-sent" labelledBy="zf-sent-title" onCancel={close}>
-      <h3 id="zf-sent-title" className="m-0 flex items-center gap-2 text-lg font-semibold"><CircleCheck aria-hidden className="size-6 text-[#1e8449]" />{s.title ?? sentTitle(s.bitrixOnly)}</h3>
+      <h3 id="zf-sent-title" className="m-0 flex items-center gap-2 text-lg font-semibold"><CircleCheck aria-hidden className="size-6 text-[#1e8449]" />{s.title ?? sentTitle}</h3>
       <p className="m-0 text-muted-foreground" data-part="text">Anhänge: {names.length ? names.join(", ") : "-"}</p>
       {line ? <p role="status" data-part="body" className={cn("m-0 font-semibold", line.ok ? "text-[#1e8449]" : "text-destructive")}>{line.text}{line.then ? <><br />{line.then}</> : null}</p> : null}
       {filingFailed ? (
@@ -272,7 +270,6 @@ const ICONS = { info: Info, success: CircleCheck, error: CircleX, warning: Trian
 const TONE = { info: "text-foreground", success: "text-[#1e8449]", error: "text-destructive", warning: "text-[#b45309]" } as const;
 
 export function Senden() {
-  const bitrixFiles = (useOfferStore((s) => s.scratch.bitrixUploads) as File[] | undefined) ?? [];
   const edited = useOfferStore((s) => s.scratch.editedDocx) as File | null | undefined;
   const shown = useOfferStore((s) => s.scratch.sendStatus) as Status | null | undefined;
   const [question, setQuestion] = useState<Ask | null>(null);
@@ -286,26 +283,15 @@ export function Senden() {
 
   return (
     <section className="grid gap-3 border-t border-border pt-4" aria-labelledby="zf-send-title" data-testid="zf-send">
-      <h3 id="zf-send-title" className="m-0 text-[1.05rem] font-semibold">Senden</h3>
-      <div className="grid gap-2" data-testid="zf-bitrix-files">
-        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Nur für Bitrix</strong><span className="text-muted-foreground" data-part="count">{countText(bitrixFiles.length)}</span>
-          <AddFiles id="zf-bitrix-add" onAdd={(added) => st().remember("bitrixUploads", addFiles(bitrixFiles, added))} /></p>
-        <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
-          {bitrixFiles.map((f, i) => <FileRow key={i} name={f.name} meta={`Nur Bitrix · ${fileSize(f.size)}`} onRemove={() => st().remember("bitrixUploads", bitrixFiles.filter((_, j) => j !== i))} />)}
-        </ul>
-        <PlanPhotos />
-        <p className="m-0 text-[0.9rem] text-muted-foreground">Diese Dateien gehen nicht an den Kunden — sie landen beim Senden nur in der Bitrix-Timeline.</p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button data-action="send" disabled={busy} className={cn(edited && "bg-[#b45309]")} onClick={() => void send(false)}>
+      <h3 id="zf-send-title" className="sr-only">Senden</h3>
+      {/* the send and the signing on site side by side; the sign status goes below both */}
+      <div className="flex flex-wrap items-start gap-2">
+        <Button data-action="send" size="lg" disabled={busy} className={cn(edited && "bg-[#b45309]")} onClick={() => void send()}>
           {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Send aria-hidden className="size-4" />}<span data-part="label">{busy ? "Wird gesendet …" : edited ? "Geänderte DOCX senden" : "An Kunden senden"}</span>
         </Button>
-        <Button data-action="bitrix" variant="outline" disabled={busy} onClick={() => void send(true)}>
-          {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Paperclip aria-hidden className="size-4" />}<span data-part="label">{busy ? "Wird gesendet …" : "Nur in Bitrix ablegen"}</span>
-        </Button>
+        <SignOnSite via="mail" />
       </div>
-      <p className="m-0 text-[0.9rem] text-muted-foreground">„Nur in Bitrix ablegen“ erzeugt dieselben Dokumente und hängt sie an die Deal-Timeline — ohne E-Mail an den Kunden und ohne Unterschrift-Link.</p>
+      <p className="m-0 text-muted-foreground" data-part="sign-hint">Der Link zur Online-Unterschrift geht mit der E-Mail automatisch mit.</p>
       {edited ? <p className="m-0 font-semibold text-[#b45309]" data-testid="zf-docx-note">PDF wird aus Ihrer bearbeiteten Datei erzeugt</p> : null}
 
       {shown ? (
@@ -315,8 +301,6 @@ export function Senden() {
           ); })}
         </div>
       ) : null}
-
-      <SignOnSite via="mail" />
 
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${key}/${typeParam}/${page}`); }} /> : null}
       {question ? <Question q={question} /> : null}

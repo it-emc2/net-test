@@ -77,14 +77,15 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
   };
 
   return (
-    <div className="grid gap-2" data-testid={`zf-sign-${via}`}>
+    // "contents": the button sits beside the send button of its tab, the status goes below both
+    <div className="contents" data-testid={`zf-sign-${via}`}>
       <div>
-        <Button variant="outline" data-action="sign" disabled={busy} onClick={() => void start()}>
+        <Button variant="outline" size="lg" data-action="sign" disabled={busy} onClick={() => void start()}>
           {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <PenLine aria-hidden className="size-4" />}<span data-part="label">Vor Ort unterschreiben (iPad)</span>
         </Button>
       </div>
       {status ? (
-        <p role="status" aria-live="polite" data-part="status" data-type={status.type} className={cn("m-0 rounded-lg border border-border bg-card px-3 py-2", status.type === "error" ? "text-destructive" : status.type === "success" ? "text-[#1e8449]" : "text-foreground")}>
+        <p role="status" aria-live="polite" data-part="status" data-type={status.type} className={cn("m-0 w-full basis-full rounded-lg border border-border bg-card px-3 py-2", status.type === "error" ? "text-destructive" : status.type === "success" ? "text-[#1e8449]" : "text-foreground")}>
           <span data-part="text">{status.text}</span>
           {status.link ? <a href={status.link} target="_blank" rel="noreferrer" data-part="link" className="ml-2 inline-flex min-h-12 items-center font-semibold text-primary underline">Unterschriften-Ansicht öffnen</a> : null}
         </p>
