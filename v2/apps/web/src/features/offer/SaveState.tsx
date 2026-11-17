@@ -22,7 +22,7 @@ export function SaveState() {
     : status.state === "failed" ? ["Nicht gespeichert", "Nicht gespeichert"]
     : status.state === "saving" ? ["Speichert …", "Speichert …"]
     : dirty ? (auto ? ["Speichert …", "Änderungen werden gleich gespeichert"] : ["Ungespeichert", "Nicht gespeicherte Änderungen"])
-    : status.state === "saved" ? ["Gespeichert", `${auto ? "Automatisch gespeichert" : "Gespeichert"} · ${hhmm(status.at)}`] : ["", ""];
+    : status.state === "saved" ? ["Gespeichert", `${auto ? "Automatisch gespeichert" : "Gespeichert"} · ${hhmm(status.at)}`] : ["Alles gespeichert", "Alles gespeichert"]; // nothing changed since opening
   const bad = open && (status.state === "conflict" || status.state === "failed");
   const Icon = bad ? CircleAlert : status.state === "saving" ? LoaderCircle : CircleCheck;
   return (
