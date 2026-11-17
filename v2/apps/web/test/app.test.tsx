@@ -189,11 +189,8 @@ describe("header and sidebar", () => {
     expect([state("Kundendaten"), state("Arbeitszeit"), state("Arbeiten"), state("Duschwanne"), state("Fußboden"), state("Kosten")]).toEqual(["done", "done", "done", "active", "idle", "idle"]);
     expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
     expect(nav).toHaveTextContent("II · Material für Badumbau");
-    // narrow screens: the list folds behind a button that names the open step
-    const toggle = screen.getByRole("button", { name: /Schritt 4 von 16 ·\s*Duschwanne/ });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // narrow screens: the bar names the open step (the list is the drawer, see header.test)
+    expect(screen.getByRole("group", { name: "Schrittleiste" })).toHaveTextContent("Schritt 4/16 · Duschwanne");
   });
 
   it("Weiter and Zurück lead through the steps in order; none before the first, none after the last", async () => {

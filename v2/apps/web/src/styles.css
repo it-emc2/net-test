@@ -118,3 +118,7 @@
 .vhc-badge-t { fill: #1c1917; font-size: 13px; font-weight: 600; text-anchor: middle; }
 .vhc-svg--empty .vhc-badge-t { fill: #9ca3af; }
 .vhc-has-focus [data-leg]:not(.vhc-on) { opacity: 0.28; }
+
+/* step drawer (< lg): slides in from the left; no motion if the device asks for none */
+@keyframes drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: no-preference) { dialog.drawer[open] { animation: drawer-in 0.2s ease-out; } }

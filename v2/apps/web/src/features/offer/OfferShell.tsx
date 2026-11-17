@@ -4,13 +4,15 @@ import { isDraftKey } from "@oc/api-contract";
 import { isNewOfferType, type NewOfferType } from "@oc/domain";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { euro } from "../../shared/lib/format.js";
-import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePrefs } from "../../shared/lib/prefs.js";
 import { Alert, Button, ButtonLink, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOpenOffer, useSaveStatus } from "./model/draft.js";
+import { useNav, useWide } from "./model/nav.js";
 import { useOfferStore } from "./model/store.js";
+import { StepDrawer } from "./StepDrawer.js";
 import { usePrice } from "./model/usePrice.js";
 import { OFFER_TITLES, STEPS, checkStep, firstStep, groupStartingAt, isStepOf, stepLabel } from "./steps.js";
 
@@ -122,6 +124,8 @@ export function OfferShell() {
   return <OpenOffer dealId={dealId} type={typeParam} />;
 }
 
+const barBtn = "grid size-11 shrink-0 place-items-center rounded-lg border border-border bg-card text-foreground";
+
 function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const navigate = useNavigate();
   const step = useLocation().pathname.split("/")[4]; // /deal/<id>/<type>/<step>
@@ -137,8 +141,10 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     else if (saving.state === "failed") toast.error(`Nicht gespeichert: ${saving.message}`, { duration: Infinity, id: "save" });
     else if (saving.state === "saved") toast.dismiss("save");
   }, [saving]);
-  const [stepsOpen, setStepsOpen] = useState(false);
-  useEffect(() => { setStepsOpen(false); }, [step]); // a step was chosen → fold the list away again (narrow screens)
+  const { sidebar, setDrawer } = useNav();
+  const wide = useWide();
+  useEffect(() => { setDrawer(false); }, [step, setDrawer]); // a step was chosen → the drawer folds away
+  useEffect(() => () => setDrawer(false), [setDrawer]); // leaving the offer
   const base = `/deal/${dealId}/${type}`;
 
   if (open.status === "loading") return <Page title="Einen Moment …" lead="Das Angebot wird geöffnet." />;
@@ -150,38 +156,28 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const steps = STEPS[type];
   const at = steps.indexOf(step);
   const prev = steps[at - 1], next = steps[at + 1];
+  const goHome = () => { void flushDraft().then(() => navigate("/")); };
   const title = `${OFFER_TITLES[type]}${temp ? " · noch ohne Auftragsnummer" : ` · Auftrag ${dealId}`}`;
   return (
-    // Wide screens (iPad landscape, desktop): the step list is a sidebar that stays in view.
-    // Narrower (iPad portrait, 834 px): the sidebar is CLOSED so the form has the full width; a
-    // slim bar under the header names the step, shows the total and opens the list on demand.
-    <div className="mx-auto grid max-w-6xl gap-4 px-4 pb-16 lg:grid-cols-[minmax(240px,300px)_1fr] lg:gap-6 lg:pt-6">
-      <nav
-        aria-label="Schritte"
-        className={cn(
-          "sticky top-16 z-30 -mx-4 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 border-b border-border bg-background px-4 py-2",
-          "[grid-template-areas:'toggle_total''title_title''steps_steps''home_home']",
-          "lg:top-20 lg:z-auto lg:mx-0 lg:max-h-[calc(100dvh-6rem)] lg:grid-cols-1 lg:content-start lg:gap-4 lg:self-start lg:overflow-y-auto lg:border-0 lg:bg-transparent lg:p-0 lg:pr-1",
-          "lg:[grid-template-areas:'title''steps''total''home']",
-        )}
-      >
-        <p className={cn(stepsOpen ? "block" : "hidden", "m-0 font-bold [grid-area:title] lg:block")}>{title}</p>
-        <button
-          type="button" aria-expanded={stepsOpen} aria-controls="offer-steps" onClick={() => setStepsOpen((o) => !o)}
-          className="flex min-h-12 min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border-2 border-input bg-card px-4 text-left font-semibold text-foreground [grid-area:toggle] lg:hidden"
-        >
-          <span className="truncate"><span className="font-normal text-muted-foreground">{`Schritt ${at + 1} von ${steps.length} · `}</span>{stepLabel(step)}</span>
-          <ChevronDown aria-hidden className={cn("size-5 shrink-0 transition-transform", stepsOpen && "rotate-180")} />
-        </button>
-        <div className="[grid-area:total]"><Total /></div>
-        <div id="offer-steps" className={cn(stepsOpen ? "block" : "hidden", "max-h-[60dvh] overflow-y-auto [grid-area:steps] lg:block lg:max-h-none lg:overflow-visible")}>
-          <StepList type={type} base={base} current={step} />
-        </div>
+    // Wide screens (iPad landscape, desktop): the step list is a sidebar that stays in view (the
+    // burger in the header hides/shows it). Narrower (iPad portrait, 834 px): no sidebar, the form
+    // has the full width; a slim bar under the header names the step (‹ ›), shows the total, and
+    // the burger opens the list as a drawer.
+    <div className={cn("mx-auto grid max-w-6xl gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
+      {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
+      {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
+        {prev ? <Link to={`${base}/${prev}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
+        <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold"><span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span>{stepLabel(step)}</p>
+        {next ? <Link to={`${base}/${next}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
+        <Total />
+      </div> : null}
+      <StepDrawer onHome={goHome} total={<Total />}><StepList type={type} base={base} current={step} /></StepDrawer>
+      <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
+        <p className="m-0 font-bold">{title}</p>
+        <StepList type={type} base={base} current={step} />
+        {wide && sidebar ? <Total /> : null}
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
-        {/* the wrapper carries the show/hide: the button's own display class must not be overridden (see cn) */}
-        <div className={cn(stepsOpen ? "grid" : "hidden", "[grid-area:home] lg:grid")}>
-          <Button variant="secondary" onClick={() => { void flushDraft().then(() => navigate("/")); }}>Zum Hauptmenü</Button>
-        </div>
+        <Button variant="secondary" onClick={goHome}>Zum Hauptmenü</Button>
       </nav>
       <main className="grid content-start gap-4 pt-2 lg:pt-0">
         <Outlet />
