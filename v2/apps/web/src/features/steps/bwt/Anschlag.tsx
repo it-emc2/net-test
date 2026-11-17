@@ -1,17 +1,18 @@
 // Türanschlag: [← Links] [drawing] [Rechts →]. The two choices are today's (`bwtAnschlag`, "Links" / "Rechts");
 // the drawing is top-down: the tub, the door in its front side, the hinge dot on the chosen side and the dashed
-// swing outward into the bathroom. The door is drawn in the chosen colour of the picked door. UX-CHANGES U-035.
+// arc inside the tub from the hinge point. The door is drawn in the chosen colour of the picked door. UX-CHANGES U-035.
 import { cn } from "../../../shared/ui/index.js";
 import { doorFill } from "./rules.js";
 import { set, str, useBwt, type Fields } from "./store.js";
 
 const SIDES = [{ value: "Links", label: "← Links" }, { value: "Rechts", label: "Rechts →" }] as const;
-// the door is 80 wide in the front side (y = 90) from x = 80 to x = 160; it swings outward (down) on the hinge side
-const HINGE = { Links: { x: 80, tip: 160, arc: "M160 90 A80 80 0 0 1 80 170", open: "90deg" }, Rechts: { x: 160, tip: 80, arc: "M80 90 A80 80 0 0 0 160 170", open: "-90deg" } } as const;
+// the door is 80 wide in the front side (y = 90) from x = 80 to x = 160; it swings outward (down) on the hinge side;
+// the dashed arc stays inside the tub and starts at the hinge point
+const HINGE = { Links: { x: 80, tip: 160, arc: "M80 90 A60 60 0 0 0 140 30", open: "90deg" }, Rechts: { x: 160, tip: 80, arc: "M160 90 A60 60 0 0 1 100 30", open: "-90deg" } } as const;
 
 export function AnschlagDrawing({ b }: { b: Fields }) {
   const side = str(b.bwtAnschlag) as "Links" | "Rechts" | "", fill = doorFill(b), h = side ? HINGE[side] : null;
-  const desc = side ? `Draufsicht: die Tür sitzt in der Vorderseite der Wanne, der Drehpunkt ist auf der ${side === "Links" ? "linken" : "rechten"} Seite, die Tür schwingt nach außen in den Raum.` : "Draufsicht: die Tür sitzt in der Vorderseite der Wanne. Wählen Sie den Anschlag, um den Drehpunkt zu sehen.";
+  const desc = side ? `Draufsicht: die Tür sitzt in der Vorderseite der Wanne, der Drehpunkt ist auf der ${side === "Links" ? "linken" : "rechten"} Seite, die Tür schwingt nach außen, der gestrichelte Bogen beginnt am Drehpunkt.` : "Draufsicht: die Tür sitzt in der Vorderseite der Wanne. Wählen Sie den Anschlag, um den Drehpunkt zu sehen.";
   return (
     <svg role="img" aria-labelledby="anschlag-t anschlag-d" viewBox="0 0 240 190" className="mx-auto h-auto w-full max-w-xs text-foreground" data-testid="anschlag-drawing" data-side={side} data-fill={fill}>
       <title id="anschlag-t">Türanschlag{side ? ` ${side.toLowerCase()}` : ""}</title>

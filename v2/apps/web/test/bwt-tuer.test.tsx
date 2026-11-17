@@ -144,12 +144,17 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     await user.click(screen.getByRole("radio", { name: "← Links" }));
     expect(svg().getAttribute("data-side")).toBe("Links");
     expect(svg().querySelector('[data-part="hinge"]')!.getAttribute("cx")).toBe("80");
-    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M160 90 A80 80 0 0 1 80 170"); // from the closed end down (outward) to the open door
+    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M80 90 A60 60 0 0 0 140 30"); // inside the tub, starting at the hinge
     expect((svg().querySelector('[data-part="door"]') as SVGGElement).style.getPropertyValue("--bwt-open")).toBe("90deg");
     await user.click(screen.getByRole("radio", { name: "Rechts →" }));
     expect(svg().querySelector('[data-part="hinge"]')!.getAttribute("cx")).toBe("160");
-    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M80 90 A80 80 0 0 0 160 170");
+    expect(svg().querySelector('[data-part="arc"]')!.getAttribute("d")).toBe("M160 90 A60 60 0 0 1 100 30");
     expect((svg().querySelector('[data-part="door"]') as SVGGElement).style.getPropertyValue("--bwt-open")).toBe("-90deg");
+    for (const side of ["Links", "Rechts"]) { // the arc starts at the hinge, inside the tub (above the front side)
+      await user.click(screen.getByRole("radio", { name: side === "Links" ? "← Links" : "Rechts →" }));
+      const start = svg().querySelector('[data-part="arc"]')!.getAttribute("d")!.match(/^M(\d+) (\d+)/)!;
+      expect([start[1], Number(start[2]) <= 90]).toEqual([svg().querySelector('[data-part="hinge"]')!.getAttribute("cx"), true]);
+    }
     expect(offer().bwt.bwtAnschlag).toBe("Rechts");
     expect(svg().getAttribute("data-fill")).toBe("#fffdfa"); // Standard door, Weiß
     await user.click(within(screen.getByTestId("bwt-door-panel")).getByRole("radio", { name: "Manhattan" }));
