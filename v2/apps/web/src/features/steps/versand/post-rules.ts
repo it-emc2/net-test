@@ -1,9 +1,12 @@
 // "Angebot per Post senden" — the rules of today's UI (src/public/script.js initPostalSending and
 // the send guard of v2, modules/web/addons/send-guard.js; reference: test/fixtures/versand-post.json,
 // v2/scripts/capture-versand-post.cjs):
-//  - the address: first name, last name, street, PLZ, town, country — an empty field is filled
-//    from Kundendaten (country: "Deutschland"), a filled one is never overwritten. The printer
-//    reads the address out of the PDF, so an incomplete one is warned about and stops the send
+//  - the address: the printer reads it out of the offer PDF, and the PDF takes it from
+//    Kundendaten — so the address shown here IS Kundendaten (first name, last name, street, PLZ,
+//    town; country "Deutschland" unless Kundendaten says otherwise), changed there and nowhere
+//    else. An incomplete one is warned about and stops the send. (Today's UI has its own address
+//    fields here, filled from Kundendaten: changing them does not change where the letter goes,
+//    which is why they are not rebuilt — UX-CHANGES U-018.)
 //  - the letter: the offer PDF is the letter itself; Abtretung and Vollmacht go with it as the
 //    ticks under "Mitgesendete Unterlagen" say (the flyer never goes by post); own PDFs can be
 //    added. Taking Abtretung or Vollmacht out here unticks it for mail and signing too
@@ -29,18 +32,14 @@ export const ADDRESS = ["firstName", "lastName", "street", "zipCode", "city", "c
 export type AddressField = (typeof ADDRESS)[number];
 export type Recipient = Record<AddressField, string>;
 export const LABEL: Record<AddressField, string> = { firstName: "Vorname", lastName: "Nachname", street: "Straße", zipCode: "PLZ", city: "Ort", country: "Land" };
-export const PLACEHOLDER: Record<AddressField, string> = { firstName: "Max", lastName: "Mustermann", street: "Musterstraße 1", zipCode: "95032", city: "Hof", country: "DE" };
-/** where Kundendaten keeps what an empty field is filled from */
+/** where Kundendaten keeps it */
 const SOURCE: Record<AddressField, string> = { firstName: "firstName", lastName: "lastName", street: "street", zipCode: "postalCode", city: "city", country: "country" };
 
-export const recipientOf = (offer: Fields): Recipient => { const r = obj(obj(offer.postal).recipient); return Object.fromEntries(ADDRESS.map((f) => [f, String(r[f] ?? "")])) as Recipient; };
-/** the address with its empty fields filled from Kundendaten */
-export function filled(offer: Fields): Recipient {
-  const r = recipientOf(offer), kd = obj(offer.Kundendaten);
-  return Object.fromEntries(ADDRESS.map((f) => [f, r[f].trim() ? r[f] : str(kd[SOURCE[f]]) || (f === "country" ? "Deutschland" : "")])) as Recipient;
+/** the address of the letter: what Kundendaten says */
+export function addressOf(offer: Fields): Recipient {
+  const kd = obj(offer.Kundendaten);
+  return Object.fromEntries(ADDRESS.map((f) => [f, str(kd[SOURCE[f]]) || (f === "country" ? "Deutschland" : "")])) as Recipient;
 }
-/** what Kundendaten says about the address — when it changes, empty fields are filled again */
-export const sourceKey = (offer: Fields): string => { const kd = obj(offer.Kundendaten); return ADDRESS.map((f) => str(kd[SOURCE[f]])).join("\u0001"); };
 /** the fields the letter cannot do without, by their label (the country is not named in the warning) */
 export const missing = (r: Recipient): string[] => ADDRESS.filter((f) => f !== "country" && !r[f].trim()).map((f) => LABEL[f]);
 export const warning = (r: Recipient): string => { const m = missing(r); return m.length ? `Es fehlt: ${m.join(", ")}.` : ""; };

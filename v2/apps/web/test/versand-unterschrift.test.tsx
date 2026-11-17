@@ -107,7 +107,9 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 // ---- what the page shows ----
 const part = (el: Element | null | undefined, name: string) => flat(el?.querySelector(`[data-part="${name}"]`)?.textContent);
 const tiles = (sec: Element): Tile[] => Array.from(sec.querySelectorAll('[data-testid="zf-mail-file"]')).map((t) => ({ name: part(t, "name"), meta: part(t, "meta"), fixed: !!t.querySelector('[data-part="fixed"]') }));
-const FIELD: Record<string, string> = { deal: "zf-post-deal", ...Object.fromEntries(ADDRESS.map((f) => [f, `zf-post-${f}`])) };
+const dealField = () => document.getElementById("zf-post-deal") as HTMLInputElement;
+/** where Kundendaten keeps a part of the address */
+const KD: Record<string, string> = { FirstName: "firstName", LastName: "lastName", Street: "street", Zip: "postalCode", City: "city", Country: "country" };
 const buttons = (el: Element) => Array.from(el.querySelectorAll<HTMLButtonElement>(":scope > div:last-child button"));
 function signOf(via: "mail" | "post"): SignView {
   const box = screen.getByTestId(`zf-sign-${via}`), b = box.querySelector<HTMLButtonElement>('[data-action="sign"]')!, st = box.querySelector<HTMLElement>('[data-part="status"]');
@@ -126,7 +128,8 @@ function shown(router: { state: { location: { pathname: string } } }) {
     mailShown: !document.getElementById("zf-panel-mail")!.hidden,
     post: {
       shown: !panel.hidden, warning: panel.hidden ? "" : flat(screen.queryByTestId("zf-post-warning")?.textContent), // today's warning is only drawn on the open tab
-      fields: Object.fromEntries(Object.entries(FIELD).map(([k, id]) => { const el = document.getElementById(id) as HTMLInputElement; return [k, { value: el.value, invalid: el.getAttribute("aria-invalid") === "true" }]; })),
+      fields: { deal: { value: dealField().value, invalid: dealField().getAttribute("aria-invalid") === "true" },
+        ...Object.fromEntries(ADDRESS.map((f) => [f, { value: flat(screen.getByTestId("zf-post-address").querySelector(`[data-field="${f}"]`)?.textContent), invalid: false }])) },
       files: tiles(files), send: { label: part(send, "label"), disabled: send.disabled },
       status: st ? { type: st.dataset.type === "warning" ? "warn" : st.dataset.type!, text: part(st, "text") } : null,
     },
@@ -152,7 +155,8 @@ function expected(v: View) {
     post: {
       // today's warning is not drawn again when Kundendaten fills a field: it then names a field that is filled (not copied)
       shown: p.shown, warning: ADDRESS.every((f) => p.fields[f]!.value.trim()) ? "" : p.warning,
-      fields: Object.fromEntries(Object.entries(p.fields).map(([k, f]) => [k, { value: f.value, invalid: f.invalid && !f.value.trim() }])), // a mark goes once the field is filled
+      // the address is read from Kundendaten (no fields of its own, so no marks); the deal number keeps its mark while it is missing
+      fields: Object.fromEntries(Object.entries(p.fields).map(([k, f]) => [k, { value: f.value.trim(), invalid: k === "deal" && f.invalid && !f.value.trim() }])),
       files: p.files, send: p.send, status: p.status,
     },
     mailFiles: v.attachments.map((t) => t.name),
@@ -172,7 +176,10 @@ async function act(a: unknown[], user: ReturnType<typeof userEvent.setup>) {
   else if (kind === "psigned") await user.click(screen.getByTestId("zf-post").querySelector<HTMLElement>('[data-action="post-signed"]')!);
   else if (kind === "tab") await user.click(document.getElementById(`zf-tab-${x}`)!);
   else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: x } });
-  else if (kind === "pfield") fireEvent.change(field(x === "AuftragId" ? "zf-post-deal" : FIELD[{ FirstName: "firstName", LastName: "lastName", Street: "street", Zip: "zipCode", City: "city", Country: "country" }[x!]!]!), { target: { value: y } });
+  else if (kind === "pfield") { // the deal number is typed here; the address is typed on Kundendaten (today: in fields of the Post tab)
+    if (x === "AuftragId") fireEvent.change(dealField(), { target: { value: y } });
+    else useOfferStore.getState().patch("Kundendaten" as never, { [KD[x!]!]: y } as never);
+  }
   else if (kind === "kfield") useOfferStore.getState().patch("Kundendaten" as never, { [x!]: y } as never); // typed on the Kundendaten step
   else if (kind === "pfile") await user.upload(field("zf-post-add"), fileOf(x!));
   else if (kind === "premove") await user.click(within(screen.getByTestId("zf-post-files")).getByRole("button", { name: `${x} entfernen` }));
@@ -268,6 +275,16 @@ describe("signing — rules and what goes beyond the recordings", () => {
     const link = await waitFor(() => { const l = screen.getByTestId("zf-sign-mail").querySelector<HTMLAnchorElement>('[data-part="link"]'); expect(l).toBeTruthy(); return l!; });
     expect(link.getAttribute("href")).toBe("/sign/TESTTOKEN");
     expect(link.target).toBe("_blank");
+  });
+
+  it("the save before signing is refused because the sent offer was changed: says to make a new version, not \"could not be saved\"", async () => {
+    const { user } = await open();
+    answers["/api/offers"] = [[409, { error: "Dieses Angebot wurde bereits versendet und seitdem geändert.", code: "OFFER_CHANGED" }]];
+    await act(["sign"], user);
+    await waitFor(() => expect(signOf("mail").status).toEqual({ type: "error", text: TEXT.offerChanged }));
+    expect(seen.map((r) => r.path)).toEqual(["/api/offers"]); // the signing view is not asked for
+    expect(vi.mocked(toast.error)).not.toHaveBeenCalled();
+    expect(opened).toEqual([]);
   });
 
   it("an offer changed after it was sent (the server's own answer): says to make a new version, nothing opens", async () => {

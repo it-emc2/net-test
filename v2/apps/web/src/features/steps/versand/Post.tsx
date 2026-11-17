@@ -4,7 +4,7 @@
 // The rules are post-rules.ts; the dialogs after and around a send are shared with Senden.tsx.
 import { CircleCheck, CircleX, Info, LoaderCircle, Mailbox, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, Field, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
@@ -12,8 +12,8 @@ import { flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
 import { FileRow } from "./Mail.js";
 import { giveNumber } from "./number.js";
 import {
-  ADDRESS, LABEL, PLACEHOLDER, TEXT, alreadySent, changedQuestion, filingFailed, filled, ignored, invalid, isPdf, letter, liveQuestion, postalOf, priorQuestion, priorSend,
-  recipientOf, sentText, sourceKey, statics, uploadSize, warning, withBalance, type AddressField, type Enclosed, type Posted, type Recipient,
+  TEXT, addressOf, alreadySent, changedQuestion, filingFailed, ignored, invalid, isPdf, letter, liveQuestion, postalOf, priorQuestion, priorSend,
+  sentText, statics, uploadSize, warning, withBalance, type Enclosed, type Posted, type Recipient,
 } from "./post-rules.js";
 import { MainItems, Modal, Question, SentDialog, follow, type Ask, type Sent } from "./Senden.js";
 import { SignOnSite } from "./Unterschrift.js";
@@ -26,6 +26,7 @@ type Kind = "info" | "success" | "error" | "warning";
 interface Upload { id: string; file: File }
 interface Live { recipient: Recipient; documents: string[]; offerNumber: string; resolve: (yes: boolean) => void }
 
+const ADDRESS_KEYS = ["firstName", "lastName", "street", "zipCode", "city", "country"] as const;
 const st = () => useOfferStore.getState();
 const offerNow = () => (st().offer ?? {}) as Offer;
 const uploadsNow = () => (st().scratch.postUploads as Upload[] | undefined) ?? [];
@@ -34,9 +35,9 @@ const say = (type: Kind, text: string) => st().remember("postStatus", { type, te
 const messageOf = (err: unknown) => (err instanceof Error && err.message ? err.message : String(err));
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const enclosedNow = (offer: Offer): Enclosed[] => [...statics(offer, removedNow()), ...uploadsNow().map((u) => ({ id: u.id, type: "upload" as const, filename: u.file.name, label: "Upload", size: u.file.size }))];
-/** the offer keeps the address and the list of the letter; with `fill` empty fields come from Kundendaten */
-function keep(fill: boolean, recipient?: Recipient) {
-  const o = offerNow(), next = postalOf(o, recipient ?? (fill ? filled(o) : recipientOf(o)), enclosedNow(o));
+/** the offer keeps the address (as Kundendaten has it) and the list of the letter */
+function keep() {
+  const o = offerNow(), next = postalOf(o, addressOf(o), enclosedNow(o));
   if (!same(o.postal, next)) st().setTop({ postal: next });
 }
 /** a file as the request carries it */
@@ -50,10 +51,9 @@ const dealOf = (o: Offer) => String(o.auftragId ?? (o.mail ?? {}).auftragId ?? "
 
 /** before any letter: the address complete, and a deal number or the release by password. null: stopped (said in the status) */
 async function addressAndDeal(release: () => Promise<{ confirmedBy: string } | null>) {
-  keep(true);
-  const first = offerNow(), recipient = recipientOf(first), bad = invalid(recipient);
-  st().remember("postInvalid", bad);
-  if (bad.length) { document.getElementById(`zf-post-${bad[0]}`)?.focus(); throw new Error(TEXT.addressIncomplete); }
+  keep();
+  const first = offerNow(), recipient = addressOf(first);
+  if (invalid(recipient).length) throw new Error(TEXT.addressIncomplete);
   const deal = dealOf(first);
   let released: { confirmedBy: string } | null = null;
   st().remember("postDealMissing", !deal);
@@ -224,7 +224,6 @@ export function Post() {
   const removed = (useOfferStore((s) => s.scratch.mailRemoved) as string[] | undefined) ?? [];
   const status = useOfferStore((s) => s.scratch.postStatus) as { type: Kind; text: string } | null | undefined;
   const sentOnce = useOfferStore((s) => s.scratch.postSent) === true;
-  const bad = (useOfferStore((s) => s.scratch.postInvalid) as AddressField[] | undefined) ?? [];
   const dealMissing = useOfferStore((s) => s.scratch.postDealMissing) === true;
   const price = usePrice();
   const navigate = useNavigate();
@@ -237,12 +236,9 @@ export function Post() {
   const [live, setLive] = useState<Live | null>(null);
   const [sent, setSent] = useState<Sent | null>(null);
 
-  const recipient = recipientOf(offer), deal = dealOf(offer), fixed = statics(offer, removed);
-  const source = sourceKey(offer), listKey = `${deal}|${fixed.map((f) => f.id).join(",")}|${uploads.map((u) => u.id).join(",")}`;
-  useEffect(() => { keep(true); }, [source]); // empty fields are filled from Kundendaten — on opening and when it changes there
-  useEffect(() => { keep(false); }, [listKey]);
-
-  const type = (field: AddressField, value: string) => keep(false, { ...recipientOf(offerNow()), [field]: value });
+  const recipient = addressOf(offer), deal = dealOf(offer), fixed = statics(offer, removed);
+  const stored = `${ADDRESS_KEYS.map((f) => recipient[f]).join("\u0001")}|${deal}|${fixed.map((f) => f.id).join(",")}|${uploads.map((u) => u.id).join(",")}`;
+  useEffect(() => { keep(); }, [stored]); // the offer keeps what the letter is made of
   const setDeal = (value: string) => { const v = value.trim(), o = offerNow(); st().setTop({ auftragId: v || undefined, mail: { ...(o.mail ?? {}), auftragId: v }, postal: { ...(o.postal ?? {}), auftragId: v } }); };
   const add = (files: File[]) => {
     const pdfs = files.filter((f) => { const ok = isPdf(f); if (!ok) say("warning", ignored(f.name)); return ok; });
@@ -284,19 +280,20 @@ export function Post() {
     return () => { on = false; };
   }, [onTab, number]);
   const warn = warning(recipient);
-  const wide: Partial<Record<AddressField, string>> = { street: "sm:col-span-2" };
 
   return (
     <section className="grid gap-3" aria-labelledby="zf-post-title" data-testid="zf-post">
       <h3 id="zf-post-title" className="m-0 text-[1.05rem] font-semibold">Angebot per Post senden</h3>
       {warn ? <p role="alert" data-testid="zf-post-warning" className="m-0 rounded-lg border border-[#f0c36d] bg-[#fff7e6] px-3 py-3 text-[#7a4b00]"><strong>Unvollständige Postadresse.</strong> {warn} Ohne vollständige Anschrift kann der Brief nicht zugestellt werden.</p> : null}
       <Field label="Lead ID / Auftrag ID" id="zf-post-deal" value={deal} inputMode="numeric" placeholder="z.B. 12345" aria-invalid={dealMissing && !deal ? true : undefined} onChange={(e) => setDeal(e.target.value)} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        {ADDRESS.map((f) => (
-          <div key={f} className={wide[f]}>
-            <Field label={LABEL[f]} id={`zf-post-${f}`} value={recipient[f]} placeholder={PLACEHOLDER[f]} aria-invalid={bad.includes(f) && !recipient[f].trim() ? true : undefined} onChange={(e) => type(f, e.target.value)} />
-          </div>
-        ))}
+      <div className="grid gap-1 rounded-lg border border-border bg-card px-3 py-3" data-testid="zf-post-address">
+        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anschrift (aus Kundendaten)</strong>
+          <Link to={`/deal/${key}/${typeParam}/Kundendaten`} className="ml-auto inline-flex min-h-12 items-center font-semibold text-primary underline">In Kundendaten ändern</Link></p>
+        <p className="m-0"><span data-field="firstName">{recipient.firstName}</span> <span data-field="lastName">{recipient.lastName}</span></p>
+        <p className="m-0" data-field="street">{recipient.street}</p>
+        <p className="m-0"><span data-field="zipCode">{recipient.zipCode}</span> <span data-field="city">{recipient.city}</span></p>
+        <p className="m-0" data-field="country">{recipient.country}</p>
+        <p className="m-0 text-[0.9rem] text-muted-foreground">Die Druckerei liest die Anschrift aus dem Angebot — sie steht dort so, wie sie in den Kundendaten eingetragen ist.</p>
       </div>
 
       <div className="grid gap-2" data-testid="zf-post-files">
