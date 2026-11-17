@@ -1,46 +1,32 @@
-// „Heutige Termine Planung“ + the offer picker + „Kunde nicht erreicht“, as today's Hauptmenü.
-// Starting an offer from an appointment: the customer data goes into Kundendaten (planning-rules.ts).
+// „Heutige Termine Planung“ + the offer picker + „Kunde nicht erreicht“, as today's Hauptmenü, on the lean
+// planning API. Starting an offer from an appointment: the customer data goes into Kundendaten (planning-rules.ts).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Car, Coffee, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X } from "lucide-react";
+import { Ban, Car, Coffee, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
-import { cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayEntries, typeTone, type PlanningEntry, type PlanningPayload } from "./planning-rules.js";
+import { cancelled, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 
-export const PLANNING_KEY = ["planning-current"];
+export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
 
-/** the week from the planning service; the times of today's Bitrix calendar entries replace the planned ones */
-async function loadPlanning(): Promise<PlanningPayload> {
-  const payload = (await call("planningCurrent")) as PlanningPayload;
-  const times = await call("bitrixActivitiesToday").then((r) => (r.byDealId ?? {}) as Record<string, { startMinutes?: number | null; endMinutes?: number | null }>, () => ({}) as Record<string, never>);
-  const fix = (c: PlanningEntry): PlanningEntry => {
-    const t = times[String(c?.importDealId ?? "")];
-    if (!t) return c;
-    const out = { ...c };
-    if (t.startMinutes != null) out.manualStartMinutes = t.startMinutes;
-    if (t.endMinutes != null && t.startMinutes != null) out.duration = Math.max(0, t.endMinutes - t.startMinutes);
-    return out;
-  };
-  const p = payload.planning;
-  return p ? { ...payload, planning: { ...p, ...(p.futurePlanned ? { futurePlanned: p.futurePlanned.map(fix) } : {}), ...(p.days ? { days: p.days.map((d) => ({ ...d, customers: (d.customers ?? []).map(fix) })) } : {}) } } : payload;
-}
-
-/** the planning week, live: one query, pushed updates of the planning service replace it */
-export function usePlanning() {
+/** today's plan from the lean API; pushed updates (event „today“) replace it. `live`: the stream is connected. */
+export function useToday() {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: PLANNING_KEY, queryFn: loadPlanning, staleTime: 60_000, retry: false });
+  const q = useQuery({ queryKey: TODAY_KEY, queryFn: () => call("planningToday") as Promise<TodayPayload>, staleTime: 60_000, retry: false });
+  const [live, setLive] = useState(true);
   useEffect(() => {
     if (typeof EventSource !== "function" || navigator.onLine === false) return;
-    const es = new EventSource("/api/planning/stream");
-    const on = (ev: MessageEvent) => { try { const p = JSON.parse(ev.data as string) as PlanningPayload; if (p?.planning) qc.setQueryData(PLANNING_KEY, p); } catch { /* not a planning update */ } };
-    es.addEventListener("planning", on as EventListener); es.addEventListener("message", on as EventListener);
+    const es = new EventSource("/api/planning/v2/today/stream");
+    es.onopen = () => setLive(true);
+    es.onerror = () => setLive(false);
+    es.addEventListener("today", ((ev: MessageEvent) => { try { const p = JSON.parse(ev.data as string) as TodayPayload; if (p?.plan) { qc.setQueryData(TODAY_KEY, p); setLive(true); } } catch { /* not a plan */ } }) as EventListener);
     return () => es.close();
   }, [qc]);
-  return q;
+  return { q, live };
 }
 
 /** Starts a new offer of `type` from an appointment (the picker's answer). */
@@ -146,23 +132,29 @@ function NoContact({ dealId, onClose, onMoved }: { dealId: string; onClose: () =
 const TONE: Record<string, string> = { bu: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200", bwt: "bg-cyan-100 text-cyan-900 dark:bg-cyan-950 dark:text-cyan-200", hl: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200", ah: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200", hms: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200", manual: "bg-muted text-foreground" };
 export const Chip = ({ children, tone = "manual", className }: { children: ReactNode; tone?: string; className?: string }) => <span className={cn("inline-flex min-h-7 items-center rounded-full px-3 text-[0.95rem] font-semibold", TONE[tone], className)}>{children}</span>;
 
-/** the way to and from the company, from /api/routing/suggest-distance (cached per address): minutes and km one way */
-function useTravel(e: PlanningEntry | undefined) {
-  const street = e?.street || "", plz = e?.postalCode || "", city = e?.city || "";
-  const a = e?.address ? { street: street || e.address.split(",")[0]?.trim() || "", postalCode: plz || /(\d{5})/.exec(e.address)?.[1] || "", city: city || /\d{5}\s+([^,]+)/.exec(e.address)?.[1] || "" } : { street, postalCode: plz, city };
-  const on = !!(a.street || a.postalCode || a.city);
-  return useQuery({ queryKey: ["company-travel", a.street, a.postalCode, a.city], enabled: on, staleTime: Infinity, retry: false,
-    queryFn: () => call("suggestDistance", { body: { Kundendaten: a } }).then((r) => (r.ok && Number.isFinite(Number(r.oneWaySeconds)) ? { min: Math.round(Number(r.oneWaySeconds) / 60), km: r.oneWayKm != null ? Number(r.oneWayKm) : null } : null), () => null) }).data ?? null;
-}
 const Row = ({ children, className, ...p }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) => <div {...p} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-2.5", className)}>{children}</div>;
+const kmOf = (km?: number) => (km != null && km > 0 ? ` · ${Math.round(km)} km` : "");
+
+/** address note + customer note: muted, two lines, the whole text on tap (and as tooltip) */
+function Notes({ e }: { e: PlanningEntry }) {
+  const [open, setOpen] = useState(false);
+  const text = [e.adresshinweise, e.hinweise].filter(Boolean).join("\n");
+  if (!text) return null;
+  return (
+    <button type="button" title={text} aria-expanded={open} data-testid="notes" onClick={(ev) => { ev.stopPropagation(); setOpen(!open); }}
+      className="flex min-h-11 cursor-pointer items-start gap-2 rounded-lg bg-muted px-3 py-2 text-left text-muted-foreground">
+      <TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" /><span className={cn("whitespace-pre-line", !open && "line-clamp-2")}>{text}</span>
+    </button>
+  );
+}
 
 export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }) {
-  const q = usePlanning();
+  const { q, live } = useToday();
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<string | null>(null);
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [noShow, setNoShow] = useState<string | null>(null);
-  const { entries, dateLabel } = useMemo(() => todayEntries(q.data), [q.data]);
+  const { plan, entries, dateLabel, home } = useMemo(() => todayModel(q.data), [q.data]);
   const shown = useMemo(() => searchEntries(entries, search), [entries, search]);
   const mark = (id: string) => setDone((d) => new Set(d).add(id));
   // a saved draft or offer of the deal hides „Termin hat nicht statt gefunden.“ (own database, once per deal)
@@ -176,25 +168,25 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
     }
   }, [entries]);
   const first = shown[0], last = [...shown].reverse().find((e) => !cancelled(e)); // the day ends with the last appointment that takes place
-  const startT = useTravel(first), endT = useTravel(last !== first ? last : undefined) ?? startT;
-  const route = fullRouteHref(entries), p = pause(q.data?.planning?.todayPause, shown);
-  const home = entries.find((e) => e.companyAddress)?.companyAddress || "Firma";
+  const route = fullRouteHref(entries, home?.address ?? ""), p = pause(plan?.pause, shown);
   const open = (e: PlanningEntry) => { void call("logAction", { body: { event: "termin_opened", dealId: e.importDealId || "" } }).catch(() => undefined); setActive(e.entryId); onPick(e); };
-  const meta = q.isPending ? "Lade Termine…" : q.isError ? "Planungsdaten konnten nicht geladen werden" : `${entries.length} Termin(e) für ${dateLabel}`;
+  const updated = plan?.generatedAt ? new Date(plan.generatedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+  const meta = q.isPending ? "Lade Termine…" : q.isError ? "Planungsdaten konnten nicht geladen werden" : `${entries.length} Termin(e) für ${dateLabel}${updated ? ` · aktualisiert ${updated}` : ""}`;
   const asked = async (e: PlanningEntry) => {
     const id = String(e.importDealId);
     const saved = await call("offersByDeal", { params: { dealId: id } }).then((l) => l.length > 0, () => false);
     if (saved) mark(id); else setNoShow(id);
   };
-  const dep = first ? departure(first.manualStartMinutes, startT?.min) : null;
-  const lastEnd = last && Number.isFinite(Number(last.manualStartMinutes)) && Number.isFinite(Number(last.duration)) ? Number(last.manualStartMinutes) + Number(last.duration) : null;
+  const dep = departure(plan?.departure), homeName = home?.name || "Firma";
+  const lastEnd = last && last.manualStartMinutes != null && last.duration ? last.manualStartMinutes + last.duration : null;
+  const retMin = last?.driveAfter?.min;
   return (
     <Card data-testid="home-appointments" aria-labelledby="planning-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <CardTitle id="planning-title">Heutige Termine Planung</CardTitle>
           <p className="m-0 flex items-center gap-2" aria-live="polite" data-testid="planning-meta">
-            <span aria-hidden className={cn("size-3 rounded-full", q.isError ? "bg-destructive" : q.isPending ? "bg-muted-foreground" : "bg-step-done")} />{meta}
+            <span aria-hidden className={cn("size-3 rounded-full", q.isError ? "bg-destructive" : q.isPending ? "bg-muted-foreground" : live ? "bg-step-done" : "bg-amber-500")} />{meta}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -211,8 +203,13 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
         {q.isPending ? <p className="m-0">Lade Termine…</p> : q.isError ? (
           <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-destructive p-4">
             <TriangleAlert aria-hidden className="size-6 shrink-0 text-destructive" />
-            <div className="grid gap-2"><strong>Planungstermine konnten nicht geladen werden</strong><p className="m-0">Die Verbindung zum Server ist fehlgeschlagen.</p>
-              <Button variant="secondary" className="justify-self-start" onClick={() => void q.refetch()}><RefreshCw aria-hidden />Erneut versuchen</Button></div>
+            <div className="grid gap-2"><strong>Planungstermine konnten nicht geladen werden</strong>
+              <p className="m-0">{q.error instanceof ApiFailure && q.error.status !== 0 ? q.error.message : "Die Verbindung zum Server ist fehlgeschlagen."}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => void q.refetch()}><RefreshCw aria-hidden />Erneut versuchen</Button>
+                <Button asChild variant="outline"><a href="/">Planung in der bisherigen Ansicht</a></Button>
+              </div>
+            </div>
           </div>
         ) : !shown.length ? <p className="m-0">Keine Planungstermine für heute gefunden</p> : <>
           {first ? (
@@ -220,15 +217,15 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
               <Car aria-hidden className="size-6 shrink-0 text-primary" />
               {dep ? <>
                 <strong className="text-lg">Abfahrt {dep}</strong>
-                <span className="text-foreground/80">ab {home} · {startT!.min} Min{startT!.km != null ? ` · ${Math.round(startT!.km)} km` : ""} bis zum 1. Termin</span>
+                <span className="text-foreground/80">ab {homeName}{first.driveBefore?.min != null ? ` · ${first.driveBefore.min} Min` : ""}{kmOf(first.driveBefore?.km)} bis zum 1. Termin</span>
               </> : <span className="text-muted-foreground">Abfahrt: Fahrzeit unbekannt</span>}
               {route ? <Button asChild variant="secondary" className="ml-auto"><a href={route} target="_blank" rel="noopener"><Route aria-hidden />Route</a></Button> : null}
             </Row>
           ) : null}
           {shown.map((e, i) => {
             const off = cancelled(e), deal = e.importDealId ? String(e.importDealId) : "", tel = phoneHref(e.phone);
-            const travel = Number(e.travelMinutesAfter), s = Number(e.manualStartMinutes), d = Number(e.duration);
-            const hasStart = Number.isFinite(s) && s >= 0, hasDur = d > 0;
+            const travel = e.driveAfter?.min ?? 0, s = e.manualStartMinutes, d = e.duration ?? 0;
+            const hasStart = s != null && s >= 0, hasDur = d > 0;
             return (
               <div key={e.entryId} className="grid gap-2">
                 <article data-testid="appointment" data-id={e.entryId} className={cn("grid cursor-pointer grid-cols-[140px_1fr] gap-[14px] rounded-lg border-2 border-border p-4", active === e.entryId && "border-primary", off && "cursor-default opacity-70")} onClick={() => { if (!off) open(e); }}>
@@ -244,7 +241,8 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
                     <span className="flex items-center gap-2"><MapPin aria-hidden className="size-5 shrink-0" />{e.address || "Ort unbekannt"}</span>
                     <span className="flex items-center gap-2"><Phone aria-hidden className="size-5 shrink-0" />{e.phone || "Keine Telefonnummer"}</span>
                     <span className={cn("flex items-center gap-2", !e.email && "text-muted-foreground")}><Mail aria-hidden className="size-5 shrink-0" />{e.email || "Keine E-Mail"}</span>
-                    {e.hinweise ? <p className="m-0 flex items-start gap-2 rounded-lg bg-amber-100 p-2 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />{e.hinweise}</p> : null}
+                    <Notes e={e} />
+                    {e.tightBy || e.stageAlert ? <p data-testid="warning" className="m-0 flex items-start gap-2 rounded-lg bg-amber-100 p-2 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />{[e.tightBy ? `Knapp geplant: ${e.tightBy} Min zu wenig Zeit` : "", e.stageAlert].filter(Boolean).join(" · ")}</p> : null}
                     <div className="flex flex-wrap gap-2 pt-1.5">
                       <Button disabled={off} onClick={(ev) => { ev.stopPropagation(); open(e); }}>{off ? <><Ban aria-hidden />Nicht verfügbar</> : "In Konfigurator öffnen"}</Button>
                       {tel ? <Button asChild variant="secondary"><a href={`tel:${tel}`} aria-label={`Kunde anrufen: ${e.phone}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button> : null}
@@ -254,16 +252,19 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
                   </div>
                 </article>
                 {i < shown.length - 1 && travel > 0 ? (
-                  <Row data-testid="travel" className="border border-dashed border-border text-muted-foreground"><Car aria-hidden className="size-5" /><span className="font-medium text-foreground">{travel} Min Fahrt / Puffer</span>{Number.isFinite(s) && d > 0 ? <span>Ankunft ca. {clock(s + d + travel)}</span> : null}</Row>
+                  <Row data-testid="travel" className="border border-dashed border-border text-muted-foreground"><Car aria-hidden className="size-5" /><span className="font-medium text-foreground">{travel} Min Fahrt / Puffer{kmOf(e.driveAfter?.km)}</span>{s != null && d > 0 ? <span>Ankunft ca. {clock(s + d + travel)}</span> : null}</Row>
                 ) : null}
                 {p && p.index === i ? (
-                  <Row data-testid="pause" className="bg-amber-100 py-3.5 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><Coffee aria-hidden className="size-6" /><span className="text-base font-medium">{p.text.replace(/^(Pause \d{2}:\d{2})–(\d{2}:\d{2}) · (\d+ Min)$/, "$1 – $2")}</span>{p.text.match(/(\d+ Min)$/) ? <span>{p.text.match(/(\d+ Min)$/)![1]}</span> : null}</Row>
+                  <Row data-testid="pause" className="bg-amber-100 py-3.5 text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+                    <Coffee aria-hidden className="size-6" /><span className="text-base font-medium">{p.text}</span><span>{p.min} Min</span>
+                    {plan?.charge?.name ? <span className="flex items-center gap-1.5" data-testid="charge"><Zap aria-hidden className="size-4" />Laden: {plan.charge.name}{plan.charge.power ? `, ${plan.charge.power}` : ""}</span> : null}
+                  </Row>
                 ) : null}
               </div>
             );
           })}
-          {endT && lastEnd != null ? (
-            <Row data-testid="return" className="bg-green-100 text-green-950 dark:bg-green-950 dark:text-green-100"><House aria-hidden className="size-5" /><span className="font-medium">Rückfahrt ab {clock(lastEnd)} · Ankunft ca. {clock(lastEnd + endT.min)}</span><span>nach {home} · {endT.min} Min</span></Row>
+          {plan?.returnAt ? (
+            <Row data-testid="return" className="bg-green-100 text-green-950 dark:bg-green-950 dark:text-green-100"><House aria-hidden className="size-5" /><span className="font-medium">Rückfahrt{lastEnd != null ? ` ab ${clock(lastEnd)}` : ""} · Ankunft ca. {departure(plan.returnAt)}</span><span>nach {homeName}{retMin != null ? ` · ${retMin} Min` : ""}{kmOf(last?.driveAfter?.km)}</span></Row>
           ) : null}
         </>}
       </div>

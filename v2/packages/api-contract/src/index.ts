@@ -123,6 +123,10 @@ export const endpoints = {
   offersByDeal: { method: "GET", path: "/api/offers/by-deal/:dealId", response: z.array(z.unknown()) },
   /** „Termin hat nicht stattgefunden“: the deal goes back to „Besichtigungstermin vereinbaren“; body: comment, reason */
   moveBesichtigung: { method: "POST", path: "/api/bitrix/deal/:id/move-besichtigung", response: z.looseObject({ commentFailed: z.boolean().nullish(), plannerSynced: z.boolean().nullish() }) },
+  /** the lean planning API (route-plannung #35) through our server, which holds the key: one day, ~3 KB; query: date=YYYY-MM-DD (default today) → { ok, updatedAt, plan } */
+  planningToday: { method: "GET", path: "/api/planning/v2/today", response: z.looseObject({ ok: z.boolean().nullish(), plan: z.looseObject({}).nullish() }) },
+  /** the lean week, 7 days of short entries; query: from=YYYY-MM-DD → { ok, from, days } */
+  planningWeek: { method: "GET", path: "/api/planning/v2/week", response: z.looseObject({ ok: z.boolean().nullish(), days: z.array(z.looseObject({})).nullish() }) },
   users: { method: "GET", path: "/api/users", response: z.array(z.looseObject({ email: z.string(), name: z.string() })) },
   /** a finished offer is kept under its number (after a PDF was made); body: offerNumber, offerType, payload, pricing, savedAt, clientSaveId */
   saveOffer: { method: "POST", path: "/api/offers", response: z.looseObject({}) },

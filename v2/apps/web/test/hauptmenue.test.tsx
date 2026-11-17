@@ -36,7 +36,7 @@ describe("Hauptmenü", () => {
     const day = new Date().toLocaleDateString("sv-SE");
     const srv = fakeServer({
       ...BASE,
-      "GET /api/planning/current": { body: { planning: { futurePlanned: [{ id: "a", name: "Früh", plannedDate: day, manualStartMinutes: 540, importDealId: 65462 }] } } },
+      "GET /api/planning/v2/today": { body: { ok: true, plan: { date: day, termine: [{ order: 1, id: "a", status: "planned", name: "Früh", start: "09:00", end: "10:00", durationMinutes: 60, dealId: "65462" }] } } },
       "GET /api/deals/65462/draft": { body: { dealId: "65462", offerType: "bwt", payload: { activeOffer: "bwt" }, revision: 1, updatedAt: "2026-11-16T08:00:00Z" } },
     });
     const router = renderApp("/");
@@ -50,7 +50,7 @@ describe("Hauptmenü", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/deal/65462/bwt"));
   });
   it("deal without a draft: message, tiles start its offer; text goes to today's UI", async () => {
-    fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
+    fakeServer({ ...BASE, "GET /api/planning/v2/today": { body: { ok: true, plan: null } } });
     renderApp("/");
     await screen.findByText("Keine Planungstermine für heute gefunden");
     await userEvent.type(screen.getByLabelText("Öffnen"), "777{Enter}");
