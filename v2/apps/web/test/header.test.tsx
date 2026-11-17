@@ -65,7 +65,7 @@ describe("step drawer and step bar", () => {
     const drawer = await screen.findByRole("dialog", { name: "Schritte" });
     expect(screen.getByRole("button", { name: "Schritte öffnen" })).toHaveAttribute("aria-expanded", "true");
     expect(within(drawer).getByRole("button", { name: "Hauptmenü" })).toBeInTheDocument();
-    expect(within(drawer).getByRole("link", { name: /^Kundendaten/ })).toHaveAttribute("data-state", "active");
+    expect(within(drawer).getByRole("link", { name: /^Kundendaten/ })).toHaveAttribute("aria-current", "page");
     await userEvent.click(within(drawer).getByRole("link", { name: /^Arbeitszeit/ }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Schritte" })).toBeNull());
     expect(router.state.location.pathname).toBe("/deal/65462/bu/Arbeitszeit");
