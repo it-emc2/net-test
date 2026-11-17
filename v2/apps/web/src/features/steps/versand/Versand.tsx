@@ -3,7 +3,8 @@
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
 // internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
 // sending by mail and "Nur in Bitrix ablegen" (Senden.tsx); part 2: product pictures and plan
-// photos (Bilder.tsx). Post and signing are still done in today's view.
+// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Signing is
+// still done in today's view.
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck } from "lucide-react";
 import { useEffect } from "react";
@@ -14,9 +15,11 @@ import { LegacyLink, useOfferStore, useOfferType } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
 import { Mail } from "./Mail.js";
+import { Post } from "./Post.js";
 import { Senden } from "./Senden.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
+const TABS = [{ id: "mail", label: "Angebot per E-Mail" }, { id: "post", label: "Angebot per Post" }] as const;
 const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | null)?.Kundendaten ?? {}) as Record<string, unknown>;
 const setKd = (fields: Record<string, unknown>) => useOfferStore.getState().patch("Kundendaten" as never, fields as never);
 
@@ -35,6 +38,7 @@ export function Versand() {
     if (change) setKd(change);
   }, [people.data]);
 
+  const tab = useOfferStore((s) => s.scratch.sendTab) === "post" ? "post" : "mail";
   const two = twoPersons(offer), status = sendStatus(offer), docs = documents(offer);
   return (
     <Card aria-labelledby="versand-title">
@@ -68,13 +72,24 @@ export function Versand() {
 
       <Anpassungen />
 
-      <Mail />
-
-      <Senden />
+      {/* both ways are always there; the ticks above feed mail, post and signing alike */}
+      <div role="tablist" aria-label="Versandart" className="grid grid-cols-2 gap-2 border-t border-border pt-4" data-testid="zf-tabs">
+        {TABS.map((t) => (
+          <button key={t.id} type="button" role="tab" id={`zf-tab-${t.id}`} aria-controls={`zf-panel-${t.id}`} aria-selected={tab === t.id} onClick={() => useOfferStore.getState().remember("sendTab", t.id)}
+            className={cn("min-h-12 cursor-pointer rounded-lg border-2 px-3 font-semibold", tab === t.id ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground")}>{t.label}</button>
+        ))}
+      </div>
+      <div role="tabpanel" id="zf-panel-mail" aria-labelledby="zf-tab-mail" hidden={tab !== "mail"} className="grid gap-4">
+        <Mail />
+        <Senden />
+      </div>
+      <div role="tabpanel" id="zf-panel-post" aria-labelledby="zf-tab-post" hidden={tab !== "post"} className="grid gap-4">
+        <Post />
+      </div>
 
       <section className="grid gap-2 border-t border-border pt-4" data-testid="zf-legacy">
         <h3 className="m-0 text-[1.05rem] font-semibold">Weitere Versandwege</h3>
-        <p className="m-0 text-muted-foreground">Postversand und Unterschrift vor Ort gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
+        <p className="m-0 text-muted-foreground">Unterschrift vor Ort, per Link und der Postversand unterschriebener Unterlagen gibt es noch in der bisherigen Ansicht. Ihre Eingaben werden mitgenommen.</p>
         <LegacyLink dealId={dealId} step="Zusammenfassung">In der bisherigen Ansicht öffnen</LegacyLink>
       </section>
     </Card>

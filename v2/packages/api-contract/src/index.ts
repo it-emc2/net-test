@@ -136,6 +136,14 @@ export const endpoints = {
   moveSent: { method: "POST", path: "/api/bitrix/deal/:id/move-ang-verschickt", response: z.looseObject({}) },
   /** audit: the dialog after sending was shown / closed without moving the deal; body: event, offerNumber, offerType */
   logDialogEvent: { method: "POST", path: "/api/bitrix/deal/:id/log-dialog-event", response: z.looseObject({}) },
+  /** the printer's mode: "test" (the letter only lands in the basket) or "live" */
+  postConfig: { method: "GET", path: "/api/post/config", response: z.looseObject({ mode: z.string().nullish() }) },
+  /** the credit at the printer (shown in the binding question, never blocks) */
+  postBalance: { method: "GET", path: "/api/post/balance", response: z.looseObject({ ok: z.boolean().nullish(), balance: z.union([z.number(), z.string()]).nullish(), currency: z.string().nullish() }) },
+  /** the signed-in user's own password once more (release of a letter without deal number); body: password */
+  confirmPassword: { method: "POST", path: "/api/auth/confirm-password", response: z.looseObject({ email: z.string().nullish() }) },
+  /** how an offer was sent before (newest first) */
+  offerSends: { method: "GET", path: "/api/offers/:offerNumber/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },
   /** the offer's products for the product-picture PDF; body: payload (the offer) */
   productImageList: { method: "POST", path: "/api/email/product-image-list", response: z.looseObject({ products: z.array(z.looseObject({ productId: z.string(), name: z.string() })).nullish() }) },
 } as const;

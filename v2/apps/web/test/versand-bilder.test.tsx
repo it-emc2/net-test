@@ -50,7 +50,7 @@ function server(s: Scenario, payload: Obj) {
     if (url === "/api/auth/me") return json({ user: { email: "capture@local.test", name: "Capture", role: "user" } });
     if (url === "/api/users") return json(reference.users);
     if (url === `/api/deals/${KEY}/draft` && method === "GET") return json({ dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" });
-    if (url === `/api/deals/${KEY}/draft` && method === "PUT") return json({ dealId: KEY, revision: 4, updatedAt: "2026-11-16T10:00:00Z" });
+    if (url === `/api/deals/${KEY}/draft` && method === "PUT") return json({ dealId: KEY, revision: 4, changed: true });
     if (url === "/api/price") return json({ total: 10, selfPayAmount: 0 });
     if (url === "/api/price/inputs") return json({});
     if (url === "/api/offers" && method === "POST") { seen.push({ path: url, offerNumber: mask(body.offerNumber), offerType: body.offerType, payload: Object.keys(changed(before, body.payload ?? {})) }); return json({ ok: true }); }
@@ -128,7 +128,7 @@ async function act(a: string[], user: ReturnType<typeof userEvent.setup>) {
   else if (kind === "prodpreview") await user.click(within(pics()).getByRole("button", { name: "PDF Vorschau" }));
   else if (kind === "plan") await user.upload(screen.getByTestId("zf-plan-input"), a.slice(1).map(picture));
   else if (kind === "untile") await user.click(within(screen.getByTestId("zf-mail-files")).getByRole("button", { name: new RegExp(`^${x}.* entfernen$`) }));
-  else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID"), { target: { value: x } });
+  else if (kind === "deal") fireEvent.change(screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }), { target: { value: x } });
   else if (kind === "send") await user.click(screen.getByTestId("zf-send").querySelector<HTMLElement>('[data-action="send"]')!);
   else if (kind === "hp") { const main = await screen.findByTestId("zf-main"); for (const b of within(main).getAllByRole("checkbox")) await user.click(b); await user.click(within(main).getByRole("button", { name: "Bestätigt – senden" })); }
   else if (kind === "close") await user.click(within(await screen.findByTestId("zf-sent")).getByRole("button", { name: "Schließen" }));
