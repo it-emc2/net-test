@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
 import { newQueryClient, Providers } from "../src/app/providers.js";
@@ -36,4 +36,10 @@ export function renderApp(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(<Providers client={newQueryClient()}><RouterProvider router={router} /></Providers>);
   return router;
+}
+
+/** Versand (U-023): the Dokumentenstudio and "Angebot anpassen" sit in "Mehr Optionen", closed by default — open it */
+export function openMore() {
+  const b = document.getElementById("zf-more-trigger");
+  if (b && b.getAttribute("aria-expanded") !== "true") fireEvent.click(b);
 }

@@ -7,8 +7,10 @@ import { Alert } from "./alert.js";
 import { Button, buttonVariants } from "./button.js";
 import { Card, CardTitle } from "./card.js";
 import { Input, Label } from "./input.js";
+import { DropZone } from "./drop-zone.js";
+import { Collapsible, TabsList, TabsPanel } from "./tabs.js";
 
-export { Alert, Button, Card, CardTitle, Input, Label, buttonVariants };
+export { Alert, Button, Card, CardTitle, Collapsible, DropZone, Input, Label, TabsList, TabsPanel, buttonVariants };
 // toasts live in ./toaster.js and are imported from there directly: the toast library is loaded
 // with the first screen that needs it, not with the start script
 export { cn };

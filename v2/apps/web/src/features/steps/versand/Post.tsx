@@ -6,7 +6,7 @@ import { CircleCheck, CircleX, Info, LoaderCircle, Mailbox, TriangleAlert } from
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
-import { Button, Field, cn } from "../../../shared/ui/index.js";
+import { Button, DropZone, Field, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
 import { FileRow } from "./Mail.js";
@@ -165,7 +165,7 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
     toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
   } catch { /* the send record on the server is the proof; the offer is saved with the next save */ }
   st().patch("zusammenfassung" as never, { versand: { art: "post", versendetAm: new Date().toISOString() } } as never); // after the save, as today
-  io.onSent({ bitrixOnly: false, dealId: deal, offerNumber: number, offer: sentOffer, title: TEXT.sentTitle,
+  io.onSent({ dealId: deal, offerNumber: number, offer: sentOffer, title: TEXT.sentTitle,
     result: { attachmentNames: [...(result.attachmentNames ?? []), ...bitrixDocs.map((d) => d.filename)], bitrixComment: result.bitrix ?? null, offerTotal: Number(io.price?.total) || 0, selfPayAmount: Number(io.price?.selfPayAmount) || 0, ...(result.sendId ? { sendId: result.sendId } : {}) } });
   if (deal) void call("logDialogEvent", { params: { id: deal }, body: { event: "move_dialog_shown", offerNumber: number, offerType: type } }).catch(() => undefined);
 }
@@ -297,21 +297,22 @@ export function Post() {
       </div>
 
       <div className="grid gap-2" data-testid="zf-post-files">
-        <p className="m-0 flex flex-wrap items-center gap-3"><strong data-part="title">Im Postversand enthalten</strong>
-          <label htmlFor="zf-post-add" className="ml-auto inline-flex min-h-12 cursor-pointer items-center rounded-lg border-2 border-primary px-4 font-semibold text-primary">+ PDF hinzufügen</label>
-          <input id="zf-post-add" type="file" accept="application/pdf,.pdf" multiple hidden onChange={(e) => { add(Array.from(e.target.files ?? [])); e.target.value = ""; }} /></p>
+        <p className="m-0"><strong data-part="title">Im Postversand enthalten</strong></p>
         <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
           <FileRow name={`${String(offer.offerNumber || "") || "Angebot"}.pdf`} meta="Angebots-PDF" fixed onRemove={() => undefined} />
           {fixed.map((f) => <FileRow key={f.id} name={f.filename} meta={f.label} onRemove={() => st().patch("docSelection" as never, { [f.id]: false } as never)} />)}
           {uploads.map((u) => <FileRow key={u.id} name={u.file.name} meta={`Upload · ${uploadSize(u.file.size)}`} onRemove={() => st().remember("postUploads", uploadsNow().filter((x) => x.id !== u.id))} />)}
         </ul>
-        <p className="m-0 text-[0.9rem] text-muted-foreground" data-part="hint">{TEXT.hint}</p>
+        {/* U-023: own PDFs are added in a drop zone below the list (only PDFs, as before) */}
+        <DropZone id="zf-post-add" data-testid="zf-post-drop" accept="application/pdf,.pdf" title="PDF hier ablegen, einfügen (⌘V) oder auswählen" onFiles={add} />
+        <p className="m-0 text-[0.95rem] text-muted-foreground" data-part="hint">{TEXT.hint}</p>
       </div>
 
-      <div>
-        <Button data-action="post" disabled={busy || sentOnce} onClick={() => void tap()}>
+      <div className="flex flex-wrap items-start gap-2">
+        <Button data-action="post" size="lg" disabled={busy || sentOnce} onClick={() => void tap()}>
           {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <Mailbox aria-hidden className="size-4" />}<span data-part="label">Per Post senden</span>
         </Button>
+        <SignOnSite via="post" />
       </div>
       {status ? (() => { const Icon = ICONS[status.type]; return (
         <p role="status" aria-live="polite" data-testid="zf-post-status" data-type={status.type} className={cn("m-0 flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2", TONE[status.type])}><Icon aria-hidden className="mt-0.5 size-4 shrink-0" /><span data-part="text">{status.text}</span></p>
@@ -320,7 +321,6 @@ export function Post() {
       {signedReady ? (
         <div><Button variant="outline" data-action="post-signed" disabled={busySigned} onClick={() => void tapSigned()}><Mailbox aria-hidden className="size-4" /><span data-part="label">Unterschriebene Unterlagen per Post senden</span></Button></div>
       ) : null}
-      <SignOnSite via="post" />
 
       {release ? <Release onDone={release.resolve} /> : null}
       {main ? <MainItems items={main.items} onDone={(yes, page) => { const r = main.resolve; setMain(null); r(yes); if (page) navigate(`/deal/${key}/${typeParam}/${page}`); }} /> : null}

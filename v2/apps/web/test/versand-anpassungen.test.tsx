@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { badge, grossHint, rowsOf, stored } from "../src/features/steps/versand/overrides.js";
 import reference from "./fixtures/versand-anpassungen.json" with { type: "json" };
-import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { BASE, fakeServer, openMore, renderApp } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 type Obj = Record<string, any>;
@@ -27,6 +27,7 @@ async function open(s: Scenario, payload = offerOf(s), price: Obj = { total: 10,
   fakeServer({ ...BASE, "GET /api/users": { body: reference.users }, "POST /api/price": { body: price }, [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
   renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
   const card = await screen.findByTestId("oo-card");
+  openMore(); // U-023: "Angebot anpassen" is in "Mehr Optionen"
   (card as HTMLDetailsElement).open = true;
   return card;
 }

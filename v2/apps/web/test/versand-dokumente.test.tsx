@@ -10,7 +10,7 @@ import { ACTIONS, cardsOf, csvName, newOfferNumber } from "../src/features/steps
 import { filenameOf } from "../src/shared/api/index.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import reference from "./fixtures/versand-dokumente.json" with { type: "json" };
-import { renderApp } from "./helpers.js";
+import { openMore, renderApp } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 type Obj = Record<string, any>;
@@ -71,7 +71,7 @@ afterEach(() => vi.restoreAllMocks());
 async function open(s: Scenario, payload = offerOf(s)) {
   server(s, payload);
   const router = renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
-  await screen.findByTestId("zf-studio");
+  await screen.findByTestId("zf-studio"); openMore(); // U-023: the studio is in "Mehr Optionen"
   return router;
 }
 const part = (el: Element, name: string) => flat(el.querySelector(`[data-part="${name}"]`)?.textContent);
@@ -100,7 +100,7 @@ describe("the Dokumentenstudio does what today's UI does", () => {
     let fails = false;
     for (const a of s.acts) {
       const [kind, what] = a.act;
-      if (router.state.location.pathname.split("/").pop() !== "Zusammenfassung") { await router.navigate(`/deal/${KEY}/${s.type}/Zusammenfassung`); await screen.findByTestId("zf-studio"); }
+      if (router.state.location.pathname.split("/").pop() !== "Zusammenfassung") { await router.navigate(`/deal/${KEY}/${s.type}/Zusammenfassung`); await screen.findByTestId("zf-studio"); openMore(); } // U-023: the studio is in "Mehr Optionen"
       // a request that failed in the recording fails here too
       for (const r of a.requests) if (r.path !== "/api/offers" && !a.handed.length && !a.view.preview?.download.ready && a.act[0] === "click" && (a.alerts.length || !a.toasts.length) && a.view.step === "Zusammenfassung") { failing[r.path] = 500; fails = true; }
       seen = []; handed = []; vi.mocked(toast.error).mockClear(); vi.mocked(toast.success).mockClear();

@@ -1,4 +1,6 @@
-// "Versandverlauf" (ADR 026, phase 4; UX-CHANGES U-015): what really went out for this offer.
+// "Versandverlauf" (ADR 026, phase 4; UX-CHANGES U-015): what really went out for this deal
+// (U-023: all offer numbers of the deal; without a deal number the sends of the open offer).
+// Drawn only when something was sent.
 // The rules are history-rules.ts. Asked again after every send or hand-over on this page, and
 // when the window comes back to the front (a signature happens in another window).
 import { useQuery } from "@tanstack/react-query";
@@ -15,13 +17,15 @@ export const historyChanged = () => useOfferStore.getState().remember("sendsStam
 const TONE = { plain: "text-foreground", ok: "text-[#15803d]", bad: "font-semibold text-[#b45309]" } as const;
 
 export function Verlauf() {
-  const number = String(useOfferStore((s) => (s.offer as Fields | null)?.offerNumber) ?? "").trim();
+  const offer = useOfferStore((s) => s.offer) as Fields | null;
+  const number = String(offer?.offerNumber ?? "").trim();
+  const deal = String(offer?.auftragId ?? (offer?.mail as Fields | undefined)?.auftragId ?? "").trim();
   const stamp = useOfferStore((s) => s.scratch.sendsStamp) as number | undefined;
   const [busy, setBusy] = useState("");
-  const sends = useQuery<Fields[]>({ queryKey: ["offer-sends", number, stamp ?? 0], enabled: !!number, retry: false, refetchOnWindowFocus: true, refetchOnReconnect: true, placeholderData: (was) => was, // offline: keep what is shown
-    queryFn: ({ signal }) => call("offerSends", { params: { offerNumber: number }, signal }).then((r) => (r.sends ?? []) as Fields[]) });
-  if (!number || !sends.data) return null; // nothing to tell before the offer has a number
-  const lines = linesOf(sends.data);
+  const sends = useQuery<Fields[]>({ queryKey: ["sends", deal, deal ? "" : number, stamp ?? 0], enabled: !!(deal || number), retry: false, refetchOnWindowFocus: true, refetchOnReconnect: true, placeholderData: (was) => was, // offline: keep what is shown
+    queryFn: ({ signal }) => (deal ? call("dealSends", { params: { dealId: deal }, signal }) : call("offerSends", { params: { offerNumber: number }, signal })).then((r) => (r.sends ?? []) as Fields[]) });
+  const lines = linesOf(sends.data, number);
+  if (!lines.length) return null; // nothing sent for this deal: no list
   const refile = async (id: string) => {
     setBusy(id);
     try { await call("retryBitrix", { params: { sendId: id }, body: {} }); toast.success(TEXT.refiled); }
@@ -29,13 +33,11 @@ export function Verlauf() {
     finally { setBusy(""); historyChanged(); }
   };
   return (
-    <section className="grid gap-2 rounded-xl border border-border bg-card p-4" aria-labelledby="zf-history-title" aria-live="polite" data-testid="zf-history" data-count={sends.data.filter((s) => s.status === "done").length}>
+    <section className="grid gap-2 rounded-xl border border-border bg-card p-4" aria-labelledby="zf-history-title" aria-live="polite" data-testid="zf-history" data-count={(sends.data ?? []).filter((s) => s.status === "done").length}>
       <h3 id="zf-history-title" className="m-0 text-[1.05rem] font-semibold">Versandverlauf</h3>
-      {lines.length ? (
-        <ul className="m-0 grid list-none p-0">
-          {lines.map((l) => <Row key={l.id} line={l} busy={busy === l.id} onRefile={() => void refile(l.id)} />)}
-        </ul>
-      ) : <p className="m-0 text-muted-foreground" data-part="empty">{TEXT.empty}</p>}
+      <ul className="m-0 grid list-none p-0">
+        {lines.map((l) => <Row key={l.id} line={l} busy={busy === l.id} onRefile={() => void refile(l.id)} />)}
+      </ul>
     </section>
   );
 }
@@ -44,6 +46,7 @@ function Row({ line, busy, onRefile }: { line: Line; busy: boolean; onRefile: ()
   return (
     <li data-testid="zf-history-row" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border py-2 first:border-t-0">
       <span className="font-bold whitespace-nowrap" data-part="when">{line.when}</span>
+      {line.offer ? <span data-part="offer" className="rounded-full border border-border px-2.5 py-0.5 text-[0.95rem] text-muted-foreground">Angebot {line.offer}</span> : null}
       <span data-part="how">{line.how}</span>
       {line.notes.map((n) => <span key={n.text} data-part="note" data-tone={n.tone} className={TONE[n.tone]}>{n.text}</span>)}
       {line.retry ? <button type="button" disabled={busy} onClick={onRefile} className="inline-flex min-h-12 cursor-pointer items-center border-0 bg-transparent p-0 font-semibold text-primary underline disabled:opacity-60">{busy ? "Wird abgelegt …" : "Ablage wiederholen"}</button> : null}

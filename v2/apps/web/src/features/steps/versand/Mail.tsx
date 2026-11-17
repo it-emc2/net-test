@@ -2,13 +2,13 @@
 // deal number, recipient, CC, subject, text, the preview of the mail and the list of
 // attachments. The rules are mail-rules.ts. Slice 4b, part 1: own files for the mail and the
 // offer edited in Word (kept while the offer is open — files are not part of the offer).
+// U-023 (owner-approved mock 2026-11-17): files are added in a drop zone right below the list
+// (drag and drop, paste, "Datei auswählen"); the product-picture PDF is gone.
 import { FileCheck, FilePen, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
-import { Check, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Check, DropZone, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { attachments, ccDefault, countText, mailChanges, previewHtml, touchedOf, type MailField, type Touched } from "./mail-rules.js";
-import { ProductPictures } from "./Bilder.js";
-import { NO_PICTURES, picturesFile, type PictureState } from "./pictures.js";
 import { TEXT, addFiles, fileSize, isDocx } from "./send-rules.js";
 
 type Offer = Record<string, unknown>;
@@ -42,8 +42,6 @@ export function Mail() {
   const body = String(mail.body ?? "");
   const files = attachments(offer, removed);
   const html = useMemo(() => previewHtml(body, offer), [body, offer]);
-  const pictureState = (useOfferStore((s) => s.scratch.productPictures) as PictureState | undefined) ?? NO_PICTURES;
-  const pictures = picturesFile(pictureState, offer.offerNumber);
 
   return (
     <section className="grid gap-3" aria-labelledby="zf-mail-title" data-testid="zf-mail">
@@ -60,20 +58,17 @@ export function Mail() {
         <iframe title="E-Mail Vorschau" sandbox="" srcDoc={html} className="h-[420px] w-full rounded-lg border border-border bg-white" data-testid="zf-mail-preview" />
       </div>
 
-      <EditedDocx />
-
       <div className="grid gap-2" data-testid="zf-mail-files">
-        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length + uploads.length + (pictures ? 1 : 0))}</span>
-          <AddFiles id="zf-mail-add" onAdd={(added) => st().remember("mailUploads", addFiles(uploads, added))} /></p>
+        <p className="m-0 flex flex-wrap items-center gap-3"><strong>Anhänge</strong><span className="text-muted-foreground" data-part="count">{countText(files.length + uploads.length)}</span></p>
         <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
-          {files.map((f, i) => [
-            <FileRow key={f.id} name={f.name} meta={f.meta} fixed={f.fixed} onRemove={() => st().remember("mailRemoved", [...removed, f.id])} />,
-            i === 0 && pictures ? <FileRow key="pictures" name={pictures.name} meta={pictures.meta} onRemove={() => st().remember("productPictures", { ...pictureState, on: false })} /> : null, // right after the offer itself
-          ])}
+          {files.map((f) => <FileRow key={f.id} name={f.name} meta={f.meta} fixed={f.fixed} onRemove={() => st().remember("mailRemoved", [...removed, f.id])} />)}
           {uploads.map((f, i) => <FileRow key={`u${i}`} name={f.name} meta={`Hinzugefügt · ${fileSize(f.size)}`} onRemove={() => st().remember("mailUploads", uploads.filter((_, j) => j !== i))} />)}
         </ul>
-        <ProductPictures />
+        <DropZone id="zf-mail-add" data-testid="zf-mail-drop" title="Dateien hier ablegen, einfügen (⌘V) oder auswählen" hint="Gehen als Anhang mit der E-Mail an den Kunden."
+          onFiles={(added) => st().remember("mailUploads", addFiles((st().scratch.mailUploads as File[] | undefined) ?? [], added))} />
       </div>
+
+      <EditedDocx />
     </section>
   );
 }
@@ -87,16 +82,6 @@ export function FileRow({ name, meta, fixed = false, onRemove }: { name: string;
         ? <span data-part="fixed" className="rounded-full border border-border px-2.5 py-0.5 text-[0.85rem] text-muted-foreground">Pflicht</span>
         : <button type="button" title={`${name} entfernen`} aria-label={`${name} entfernen`} onClick={onRemove} className="grid size-12 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-input bg-card text-foreground"><X aria-hidden className="size-5" /></button>}
     </li>
-  );
-}
-
-/** "+ Datei hinzufügen": a hidden file input behind a label that looks like a button */
-export function AddFiles({ id, onAdd }: { id: string; onAdd: (files: File[]) => void }) {
-  return (
-    <>
-      <label htmlFor={id} className="ml-auto inline-flex min-h-12 cursor-pointer items-center rounded-lg border-2 border-primary px-4 font-semibold text-primary">+ Datei hinzufügen</label>
-      <input id={id} type="file" multiple hidden onChange={(e) => { onAdd(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-    </>
   );
 }
 

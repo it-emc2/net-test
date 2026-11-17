@@ -33,7 +33,11 @@ interface View {
 }
 interface Act { act: string[]; requests: Obj[]; toasts: string[][]; alerts: string[]; stored: Obj; view: View }
 interface Scenario { name: string; type: string; offer: Obj; pre: unknown[][]; answers: [string, number, Obj][]; view: View; acts: Act[] }
-const SCENARIOS = reference.scenarios as unknown as Scenario[];
+// U-023 (owner 2026-11-17): "Nur in Bitrix ablegen" and the files for Bitrix only are gone from
+// the page — the scenarios that use them are not replayed (the recording stays as it was). The
+// own files for the customer are covered below ("files added in the drop zone …").
+const REMOVED = new Set(["only in Bitrix", "only in Bitrix without recipient", "own files for the customer and for Bitrix"]);
+const SCENARIOS = (reference.scenarios as unknown as Scenario[]).filter((s) => !REMOVED.has(s.name));
 const BASES = reference.bases as unknown as Record<string, Obj>;
 const FILES = reference.files as unknown as Record<string, [string, string, string] | null>;
 const NUM = /ANG\d{4}-\d{4}-\d{6}/g, NUMBER = "ANG2026-1116-093000";
@@ -114,16 +118,16 @@ function shown(router: { state: { location: { pathname: string } } }): Partial<V
     ask: ask ? { title: flat(ask.querySelector("h3")?.textContent), message: part(ask, "message"), ok: flat(ask.querySelectorAll("button")[1]?.textContent), cancel: flat(ask.querySelectorAll("button")[0]?.textContent) } : null,
   };
   if (step !== "Zusammenfassung") return { step, ...dialogs };
-  const send = screen.getByTestId("zf-send"), mail = screen.getByTestId("zf-mail-files"), bx = screen.getByTestId("zf-bitrix-files"), docx = screen.getByTestId("zf-docx");
+  const send = screen.getByTestId("zf-send"), mail = screen.getByTestId("zf-mail-files"), docx = screen.getByTestId("zf-docx");
   const btn = (a: string) => send.querySelector<HTMLButtonElement>(`[data-action="${a}"]`)!;
   const st = screen.queryByTestId("zf-send-status"), lines = st ? Array.from(st.querySelectorAll("p")).map((p) => [p.dataset.type!, part(p, "text")] as Line) : [];
   const status = useOfferStore.getState().scratch.sendStatus as Obj | null | undefined;
   const deal = screen.getByLabelText("Lead ID / Auftrag ID", { selector: "#zf-mail-deal" }) as HTMLInputElement;
   return mask({
     step, ...dialogs,
-    send: { label: part(btn("send"), "label"), disabled: btn("send").disabled }, bitrix: { label: part(btn("bitrix"), "label"), disabled: btn("bitrix").disabled },
+    send: { label: part(btn("send"), "label"), disabled: btn("send").disabled },
     docx: { title: part(docx, "title"), text: part(docx, "text"), remove: !!within(docx).queryByRole("button", { name: "Datei entfernen" }), note: flat(screen.queryByTestId("zf-docx-note")?.textContent) },
-    attachments: tiles(mail), count: part(mail, "count"), bitrixFiles: tiles(bx), bitrixCount: part(bx, "count"),
+    attachments: tiles(mail), count: part(mail, "count"),
     deal: { value: deal.value, invalid: deal.getAttribute("aria-invalid") === "true" },
     note: (screen.getByLabelText(/Interne Notiz/) as HTMLTextAreaElement).value,
     status: !st ? null : status && "log" in status ? { log: lines } : { type: lines[0]![0], text: lines[0]![1] },
@@ -135,15 +139,15 @@ function expected(v: View): Partial<View> {
   const status = !v.status ? null : "log" in v.status ? { log: v.status.log.map(([k, t]) => [k, ours(t)] as Line) } : { type: v.status.type, text: ours(v.status.text) };
   const out: Partial<View> = { step: v.step, hp: v.hp, ask: v.ask, stage: v.stage ? { ...v.stage, title: unicon(v.stage.title), body: unicon(v.stage.body) } : null };
   if (v.step !== "Zusammenfassung") return out;
-  return { ...out, send: { ...v.send, label: v.docx.remove ? v.send.label : v.send.label.replace("Geänderte DOCX senden", "An Kunden senden") } as View["send"], bitrix: v.bitrix, docx: v.docx,
-    attachments: v.attachments, count: v.count, bitrixFiles: v.bitrixFiles, bitrixCount: v.bitrixCount, deal: v.deal, note: v.note, status, versand: unicon(v.versand) };
+  return { ...out, send: { ...v.send, label: v.docx.remove ? v.send.label : v.send.label.replace("Geänderte DOCX senden", "An Kunden senden") } as View["send"], docx: v.docx,
+    // U-023: the button "Nur in Bitrix ablegen" and the list "Nur für Bitrix" are gone — not compared
+    attachments: v.attachments, count: v.count, deal: v.deal, note: v.note, status, versand: unicon(v.versand) };
 }
 const comparable = (v: Partial<View>) => ({ ...v, ...(v.versand ? { versand: clock(v.versand) } : {}), ...(v.send ? { send: { label: v.send.label, disabled: v.send.disabled } } : {}) });
 
 async function act(kind: string, a: string | undefined, user: ReturnType<typeof userEvent.setup>) {
   const send = () => screen.getByTestId("zf-send");
   if (kind === "send") await user.click(send().querySelector<HTMLElement>('[data-action="send"]')!);
-  else if (kind === "bitrix") await user.click(send().querySelector<HTMLElement>('[data-action="bitrix"]')!);
   else if (kind === "hp") {
     const main = screen.getByTestId("zf-main");
     if (a === "all") { for (const box of within(main).getAllByRole("checkbox")) await user.click(box); await user.click(within(main).getByRole("button", { name: "Bestätigt – senden" })); }
@@ -156,12 +160,11 @@ async function act(kind: string, a: string | undefined, user: ReturnType<typeof 
   else if (kind === "note") fireEvent.change(screen.getByLabelText(/Interne Notiz/), { target: { value: a } });
   else if (kind === "doc") await user.click(screen.getByTestId("zf-docs").querySelector<HTMLElement>(`#zf-doc-${a}`)!);
   else if (kind === "tile" || kind === "untile") await user.click(within(screen.getByTestId("zf-mail-files")).getByRole("button", { name: `${a} entfernen` }));
-  else if (kind === "unbitrix") await user.click(within(screen.getByTestId("zf-bitrix-files")).getByRole("button", { name: `${a} entfernen` }));
   else if (kind === "undocx") await user.click(within(screen.getByTestId("zf-docx")).getByRole("button", { name: "Datei entfernen" }));
   else throw new Error(`act not handled: ${kind}`);
 }
 async function choose(where: string, name: string, user: ReturnType<typeof userEvent.setup>) {
-  const input = where === "attachments" ? document.getElementById("zf-mail-add") : where === "bitrix" ? document.getElementById("zf-bitrix-add") : screen.getByTestId("zf-docx-input");
+  const input = where === "attachments" ? document.getElementById("zf-mail-add") : screen.getByTestId("zf-docx-input");
   await user.upload(input as HTMLInputElement, fileOf(name));
 }
 
@@ -283,6 +286,24 @@ describe("sending — rules and what goes beyond the recordings", () => {
       await waitFor(() => expect(flat(screen.getByTestId("zf-send-status").textContent)).toContain("Senden fehlgeschlagen: Keine Verbindung zum Server."));
       expect(screen.queryByTestId("zf-sent")).toBeNull();
     } finally { Object.assign(POLL_MS, was); }
+  });
+
+  it("files added in the drop zone (chosen, dropped, pasted) go to the customer as attachments; nothing for Bitrix only, no product pictures (U-023)", async () => {
+    const user = await ready();
+    expect(screen.queryByTestId("zf-bitrix-files")).toBeNull();
+    expect(screen.getByTestId("zf-send").querySelector('[data-action="bitrix"]')).toBeNull();
+    const zone = screen.getByTestId("zf-mail-drop");
+    await userEvent.setup({ applyAccept: false }).upload(document.getElementById("zf-mail-add") as HTMLInputElement, fileOf("Grundriss.pdf"));
+    fireEvent.drop(zone, { dataTransfer: { files: [fileOf("Aufmass.pdf")] } });
+    fireEvent.paste(zone, { clipboardData: { files: [fileOf("Foto.jpg")] } });
+    await waitFor(() => expect(tiles(screen.getByTestId("zf-mail-files")).slice(-3).map((t) => t.name)).toEqual(["Grundriss.pdf", "Aufmass.pdf", "Foto.jpg"]));
+    await user.click(within(screen.getByTestId("zf-mail-files")).getByRole("button", { name: "Aufmass.pdf entfernen" }));
+    await sendAll(user);
+    await screen.findByTestId("zf-sent");
+    const r = seen.find((x) => x.path === "/api/email/send-offer")!;
+    expect(r.files.attachments).toEqual(["Grundriss.pdf", "Foto.jpg"]);
+    expect(r.files.bitrixDocs).toEqual(["ANGEBOT_TEST.docx", "Hassmann_TEST.csv", "Kalkulation_TEST.pdf"]);
+    expect([r.fields.includeProductImages, "bitrixOnly" in r.fields, "excludeProductImageIds" in r.fields]).toEqual(["", false, false]);
   });
 
   it("two taps on send start one send", async () => {

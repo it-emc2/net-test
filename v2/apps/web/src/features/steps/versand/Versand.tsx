@@ -2,15 +2,17 @@
 // person, name and greeting of a two-person offer, how the offer was sent, enclosed documents.
 // Slice 2: the Dokumentenstudio (Dokumente.tsx). Slice 3: adjustments to the offer and the
 // internal note (Anpassungen.tsx). Slice 4, part 1: the mail form (Mail.tsx). Slice 4b, part 1:
-// sending by mail and "Nur in Bitrix ablegen" (Senden.tsx); part 2: product pictures and plan
-// photos (Bilder.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Slice 6:
+// sending by mail (Senden.tsx). Slice 5: the letter (Post.tsx) behind the tab "Angebot per Post". Slice 6:
 // signing on site on both tabs (Unterschrift.tsx) and the signed documents by post (Post.tsx).
 // The history of sends: Verlauf.tsx (U-015).
+// U-023 (owner-approved mock 2026-11-17), top to bottom: contact person and send status, the
+// enclosed documents, the history (only when something was sent), the choice "Per E-Mail" /
+// "Per Post", and "Mehr Optionen" (closed) with the Dokumentenstudio and "Angebot anpassen".
 import { useQuery } from "@tanstack/react-query";
-import { CircleCheck } from "lucide-react";
+import { CircleCheck, Mail as MailIcon, Mailbox } from "lucide-react";
 import { useEffect } from "react";
 import { call } from "../../../shared/api/index.js";
-import { Card, CardTitle, Check, Field, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Card, CardTitle, Check, Collapsible, Field, SelectField, TabsList, TabsPanel, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { useOfferStore, useOfferType } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
@@ -20,7 +22,7 @@ import { Verlauf } from "./Verlauf.js";
 import { Senden } from "./Senden.js";
 import { chooseContact, contactDefault, contactOf, documents, sendStatus, titleOf, twoPersons, type User } from "./rules.js";
 
-const TABS = [{ id: "mail", label: "Angebot per E-Mail" }, { id: "post", label: "Angebot per Post" }] as const;
+const TABS = [{ id: "mail", label: <><MailIcon aria-hidden />Per E-Mail</> }, { id: "post", label: <><Mailbox aria-hidden />Per Post</> }] as const;
 const kdNow = () => ((useOfferStore.getState().offer as Record<string, any> | null)?.Kundendaten ?? {}) as Record<string, unknown>;
 const setKd = (fields: Record<string, unknown>) => useOfferStore.getState().patch("Kundendaten" as never, fields as never);
 
@@ -39,6 +41,7 @@ export function Versand() {
   }, [people.data]);
 
   const tab = useOfferStore((s) => s.scratch.sendTab) === "post" ? "post" : "mail";
+  const more = useOfferStore((s) => s.scratch.moreOptions) === true;
   const two = twoPersons(offer), status = sendStatus(offer), docs = documents(offer);
   return (
     <Card aria-labelledby="versand-title">
@@ -56,38 +59,38 @@ export function Versand() {
         </section>
       ) : null}
 
-        <p role="status" data-testid="zf-status" data-sent={status.sent ? "true" : "false"} className={cn("m-0 flex items-center gap-2 rounded-lg border px-3 py-3", status.sent ? "border-[#bfe3cf] bg-[#e8f5ee] font-semibold text-[#1e8449]" : "border-border bg-card text-muted-foreground")}>
-          {status.sent ? <CircleCheck aria-hidden className="size-5 shrink-0" /> : null}<span data-part="text">{status.text}</span>
-        </p>
-
-      <Verlauf />
-
-      <Dokumente />
+      <p role="status" data-testid="zf-status" data-sent={status.sent ? "true" : "false"} className={cn("m-0 flex items-center gap-2 rounded-lg border px-3 py-3", status.sent ? "border-[#bfe3cf] bg-[#e8f5ee] font-semibold text-[#1e8449]" : "border-border bg-card text-muted-foreground")}>
+        {status.sent ? <CircleCheck aria-hidden className="size-5 shrink-0" /> : null}<span data-part="text">{status.text}</span>
+      </p>
 
       {docs ? (
         <section className="grid gap-2" aria-labelledby="zf-docs-title" data-testid="zf-docs">
           <h3 id="zf-docs-title" className="m-0 text-[1.05rem] font-semibold">Mitgesendete Unterlagen</h3>
           <p className="m-0 text-muted-foreground">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.</p>
-          {docs.map((d) => <Check key={d.id} id={`zf-doc-${d.id}`} checked={d.checked} onChange={(on) => { const st = useOfferStore.getState(); if (on) st.remember("mailRemoved", ((st.scratch.mailRemoved as string[] | undefined) ?? []).filter((x) => x !== d.id)); st.patch("docSelection" as never, { [d.id]: on } as never); }}>{d.label}</Check>)}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {docs.map((d) => <Check key={d.id} id={`zf-doc-${d.id}`} checked={d.checked} onChange={(on) => { const st = useOfferStore.getState(); if (on) st.remember("mailRemoved", ((st.scratch.mailRemoved as string[] | undefined) ?? []).filter((x) => x !== d.id)); st.patch("docSelection" as never, { [d.id]: on } as never); }}>{d.label}</Check>)}
+          </div>
         </section>
       ) : null}
 
-      <Anpassungen />
+      <Verlauf />
 
-      {/* both ways are always there; the ticks above feed mail, post and signing alike */}
-      <div role="tablist" aria-label="Versandart" className="grid grid-cols-2 gap-2 border-t border-border pt-4" data-testid="zf-tabs">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" id={`zf-tab-${t.id}`} aria-controls={`zf-panel-${t.id}`} aria-selected={tab === t.id} onClick={() => useOfferStore.getState().remember("sendTab", t.id)}
-            className={cn("min-h-12 cursor-pointer rounded-lg border-2 px-3 font-semibold", tab === t.id ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground")}>{t.label}</button>
-        ))}
-      </div>
-      <div role="tabpanel" id="zf-panel-mail" aria-labelledby="zf-tab-mail" hidden={tab !== "mail"} className="grid gap-4">
-        <Mail />
-        <Senden />
-      </div>
-      <div role="tabpanel" id="zf-panel-post" aria-labelledby="zf-tab-post" hidden={tab !== "post"} className="grid gap-4">
-        <Post />
-      </div>
+      {/* the first choice: mail or post; the ticks above feed mail, post and signing alike */}
+      <section className="grid gap-4" aria-label="Versandart">
+        <TabsList label="Versandart" idPrefix="zf" data-testid="zf-tabs" tabs={TABS} value={tab} onChange={(id) => useOfferStore.getState().remember("sendTab", id)} />
+        <TabsPanel idPrefix="zf" id="mail" value={tab} className="grid gap-4">
+          <Mail />
+          <Senden />
+        </TabsPanel>
+        <TabsPanel idPrefix="zf" id="post" value={tab} className="grid gap-4">
+          <Post />
+        </TabsPanel>
+      </section>
+
+      <Collapsible id="zf-more" title="Mehr Optionen" hint="Dokumentenstudio, Angebot anpassen, interne Notiz" open={more} onOpenChange={(open) => useOfferStore.getState().remember("moreOptions", open)}>
+        <Dokumente />
+        <Anpassungen />
+      </Collapsible>
     </Card>
   );
 }
