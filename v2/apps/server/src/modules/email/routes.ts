@@ -291,7 +291,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       // went out (audit 2026-11-17, F8) — the send record and the stored offer agree.
       if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({
         offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload,
-        pricing: offerComputed, onlyIfMissing: !!resendOf,
+        pricing: offerComputed, onlyIfMissing: !!resendOf, client: fields.client,
       });
 
       const event = bitrixOnly ? "offer_bitrix_only" : "offer_sent";

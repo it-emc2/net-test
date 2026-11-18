@@ -83,6 +83,8 @@ const PNG = "data:image/png;base64," + Buffer.concat([Buffer.from([0x89, 0x50, 0
 
 const BY_NO = (nr: string) => offers.find((o) => o.offerNumber === nr).payload;
 const ONE_DOC = BY_NO("ANG2026-1103-134214"); // signing: only the offer itself to sign
+/** POST /api/offers as the React app does it (the marker that tells it from today's UI) */
+const reactSave = (nr: string, payload: any) => call("POST", "/api/offers", { offerNumber: nr, offerType: "bu", payload, client: "react" });
 const totalOf = async (payload: any, unusedNumber: string) => (await call("POST", "/api/price", { ...payload, offerNumber: unusedNumber })).body.total as number;
 const stored = (nr: string) => db().collection("offers").findOne({ offerNumber: nr }) as Promise<any>;
 const sign = (token: string, key = "angebot") => v2.inject({ method: "POST", url: `/api/signing/${token}/documents/${key}`, headers: { "content-type": "application/json" }, payload: { signatureImage: PNG, extraFields: { paymentTermIdx: 1 }, place: "Hof" } });
@@ -90,23 +92,23 @@ const letterFor = (nr: string, dealId: string, base64: string) => ({ auftragId: 
 async function pdfTitled(title: string) { const { PDFDocument } = await import("pdf-lib"); const doc = await PDFDocument.create(); doc.addPage([595.28, 841.89]); doc.setTitle(title); return Buffer.from(await doc.save({ useObjectStreams: false })).toString("base64"); }
 const openRequests = (nr: string) => db().collection("signingrequests").find({ offerNumber: nr, status: { $nin: ["completed", "expired"] } }).toArray();
 
-describe("F1 — the price is pinned only for an offer that was sent", () => {
-  it("saved (PDF download), never sent, then changed: priced fresh in the UI, on save, in the mail and on the record", async () => {
+describe("F1 — which stored offer keeps its price", () => {
+  it("saved by the React app (PDF download), never sent, then changed: priced fresh in the UI, on save, in the mail and on the record", async () => {
     const A = { ...BU, offerNumber: "F1-A" }, B = changedPrice(A);
     const oldTotal = await totalOf(A, "F1-FRESH"), freshTotal = await totalOf(B, "F1-FRESH");
     expect(freshTotal).toBeGreaterThan(oldTotal);
-    const saved = await call("POST", "/api/offers", { offerNumber: "F1-A", offerType: "bu", payload: A });
+    const saved = await reactSave("F1-A", A);
     expect(saved.body.offer.pricing.total).toBe(oldTotal);
 
     const ui = await call("POST", "/api/price", B);
     expect(ui.body.total).toBe(freshTotal);
     expect(ui.body._locked).toBeUndefined();
-    const resave = await call("POST", "/api/offers", { offerNumber: "F1-A", offerType: "bu", payload: B });
+    const resave = await reactSave("F1-A", B);
     expect(resave.status).toBe(200);
     expect(resave.body.offer.pricing.total).toBe(freshTotal);
 
     // saved again as A, then B is mailed without a save in between (the send page does that)
-    await call("POST", "/api/offers", { offerNumber: "F1-A", offerType: "bu", payload: A });
+    await reactSave("F1-A", A);
     const sent = await mail(mailFields("F1-A", B, "audit-f1-0001"));
     expect(sent.status, JSON.stringify(sent.body).slice(0, 300)).toBe(200);
     expect(sent.body.offerTotal).toBe(freshTotal);
@@ -115,8 +117,9 @@ describe("F1 — the price is pinned only for an offer that was sent", () => {
     expect((await stored("F1-A")).pricing.total).toBe(freshTotal);
   }, 120000);
 
-  it("a sent offer keeps its pinned price, whatever is asked under its number", async () => {
+  it("saved by the React app and sent: the price is pinned, whatever is asked under its number", async () => {
     const A = { ...BU, offerNumber: "F1-S" }, B = changedPrice(A);
+    await reactSave("F1-S", A);
     const sent = await mail(mailFields("F1-S", A, "audit-f1-0002"));
     expect(sent.status).toBe(200);
     // the pinned price is the stored one, not a recomputation: make it recognisable
@@ -126,45 +129,71 @@ describe("F1 — the price is pinned only for an offer that was sent", () => {
       expect(r.body.total).toBe(1234.56);
       expect(r.body._locked).toBe(true);
     }
-    expect((await call("POST", "/api/offers", { offerNumber: "F1-S", offerType: "bu", payload: B })).status).toBe(409);
+    expect((await reactSave("F1-S", B)).status).toBe(409);
     expect((await mail(mailFields("F1-S", B, "audit-f1-0003", { forceResend: "1" }))).status).toBe(409);
   }, 120000);
 
-  it("offers already stored as locked: never sent → fresh when changed, pinned while unchanged; sent by the old app → pinned and refused", async () => {
+  it("an offer the old app stored never changes its price — no send log needed (owner 2026-11-18)", async () => {
     const A = { ...BU, offerNumber: "F1-OLD-U" }, B = changedPrice(A);
-    const freshTotal = await totalOf(B, "F1-FRESH");
-    for (const nr of ["F1-OLD-U", "F1-OLD-S"]) {
-      await db().collection("offers").insertOne({ offerNumber: nr, offerType: "bu", payload: { ...A, offerNumber: nr }, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
+    // stored as the old app (and today's UI) stores it: no marker; no mail log, no letter, no signature
+    await db().collection("offers").insertOne({ offerNumber: "F1-OLD-U", offerType: "bu", payload: A, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
+
+    for (const p of [{ zusammenfassung: { versand: { art: "pdf" } }, ...A }, B, { ...B, forceRecompute: true }]) {
+      const r = await call("POST", "/api/price", p);
+      expect(r.body.total).toBe(999.99);
+      expect(r.body._locked).toBe(true);
     }
+    // saved changed — by today's UI, and by the React app (it did not create this offer)
+    for (const save of [() => call("POST", "/api/offers", { offerNumber: "F1-OLD-U", offerType: "bu", payload: B }), () => reactSave("F1-OLD-U", B)]) {
+      const r = await save();
+      expect(r.status).toBe(200);
+      expect(r.body.offer.pricing.total).toBe(999.99);
+    }
+    const mailed = await mail(mailFields("F1-OLD-U", B, "audit-f1-0004", { client: "react" }));
+    expect(mailed.status, JSON.stringify(mailed.body).slice(0, 300)).toBe(200);
+    expect(mailed.body.offerTotal).toBe(999.99);
+    expect((await stored("F1-OLD-U")).pricing.total).toBe(999.99);
+    // a save through today's UI under a NEW number is an old-app offer too
+    const nowOld = await call("POST", "/api/offers", { offerNumber: "F1-OLD-N", offerType: "bu", payload: { ...A, offerNumber: "F1-OLD-N" } });
+    const changed = await call("POST", "/api/price", { ...B, offerNumber: "F1-OLD-N" });
+    expect(changed.body.total).toBe(nowOld.body.offer.pricing.total);
+    expect(changed.body._locked).toBe(true);
+  }, 120000);
+
+  it("an offer the old app SENT (its mail log): pinned, and the changed offer cannot go out under that number", async () => {
+    const A = { ...BU, offerNumber: "F1-OLD-S" }, B = changedPrice(A);
+    await db().collection("offers").insertOne({ offerNumber: "F1-OLD-S", offerType: "bu", payload: A, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
     await db().collection("emaillogs").insertOne({ offerNumber: "F1-OLD-S", to: "k@example.invalid", subject: "x", createdAt: new Date("2026-06-02") });
-
-    // never sent, unchanged (reopened: workflow sections and key order differ) → the stored price
-    const reopened = await call("POST", "/api/price", { zusammenfassung: { versand: { art: "pdf" } }, ...A });
-    expect(reopened.body.total).toBe(999.99);
-    // never sent, changed → fresh
-    const changed = await call("POST", "/api/price", B);
-    expect(changed.body.total).toBe(freshTotal);
-    expect(changed.body._locked).toBeUndefined();
-    const mailed = await mail(mailFields("F1-OLD-U", B, "audit-f1-0004"));
-    expect(mailed.body.offerTotal).toBe(freshTotal);
-
-    // sent by the old app (its mail log) → pinned; the changed offer cannot go out under that number
-    const oldSent = await call("POST", "/api/price", { ...B, offerNumber: "F1-OLD-S" });
+    const oldSent = await call("POST", "/api/price", B);
     expect(oldSent.body.total).toBe(999.99);
     expect(oldSent.body._locked).toBe(true);
-    const refused = await mail(mailFields("F1-OLD-S", { ...B, offerNumber: "F1-OLD-S" }, "audit-f1-0005"));
+    const refused = await mail(mailFields("F1-OLD-S", B, "audit-f1-0005"));
     expect(refused.status).toBe(409);
     expect(refused.body.error.code).toBe("OFFER_CHANGED");
-    const same = await mail(mailFields("F1-OLD-S", { ...A, offerNumber: "F1-OLD-S" }, "audit-f1-0006"));
+    const same = await mail(mailFields("F1-OLD-S", A, "audit-f1-0006"));
     expect(same.status, JSON.stringify(same.body).slice(0, 300)).toBe(200);
     expect(same.body.offerTotal).toBe(999.99);
+  }, 120000);
+
+  it("the React app hands an offer over for signature without having saved it: the server stores it as a React offer", async () => {
+    const A = { ...BU, offerNumber: "F1-HAND" }, B = changedPrice(A);
+    const freshTotal = await totalOf(B, "F1-FRESH");
+    const s = await call("POST", "/api/signing", { payload: A, offerNumber: "F1-HAND", offerType: "bu", sendEmail: false, sendId: "audit-f1-0009", client: "react" });
+    expect(s.status).toBe(201);
+    expect((await call("POST", "/api/price", B)).body.total).toBe(freshTotal); // not signed yet → still changeable
+    // the same hand-over from today's UI: an old-app offer, pinned
+    const A2 = { ...BU, offerNumber: "F1-HAND-OLD" };
+    await call("POST", "/api/signing", { payload: A2, offerNumber: "F1-HAND-OLD", offerType: "bu", sendEmail: false, sendId: "audit-f1-0010" });
+    const r = await call("POST", "/api/price", changedPrice(A2));
+    expect(r.body._locked).toBe(true);
+    expect(r.body.total).toBe((await stored("F1-HAND-OLD")).pricing.total);
   }, 120000);
 
   it("sign on site, go back, change, sign on site again: the signing view shows the new total", async () => {
     const A = { ...BU, offerNumber: "F1-SIGN" }, B = changedPrice(A);
     const freshTotal = await totalOf(B, "F1-FRESH");
     const de = (n: number) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    await call("POST", "/api/offers", { offerNumber: "F1-SIGN", offerType: "bu", payload: A });
+    await reactSave("F1-SIGN", A);
     const s1 = await call("POST", "/api/signing", { payload: A, offerNumber: "F1-SIGN", offerType: "bu", sendEmail: false, sendId: "audit-f1-0007" });
     const s2 = await call("POST", "/api/signing", { payload: B, offerNumber: "F1-SIGN", offerType: "bu", sendEmail: false, sendId: "audit-f1-0008" });
     expect([s1.status, s2.status]).toEqual([201, 201]);
@@ -216,7 +245,7 @@ describe("F3 — \"Original per Post senden\" never posts another document", () 
 describe("F8 — after a send the stored offer is the sent content", () => {
   it("an older stored state is replaced by what was sent, with the price as sent", async () => {
     const A = { ...BU, offerNumber: "F8-A" }, B = changedPrice({ ...A, Kundendaten: { ...A.Kundendaten, lastName: "Anders" } });
-    await call("POST", "/api/offers", { offerNumber: "F8-A", offerType: "bu", payload: A });
+    await reactSave("F8-A", A);
     const sent = await mail(mailFields("F8-A", B, "audit-f8-0001"));
     expect(sent.status).toBe(200);
     const offer = await stored("F8-A");

@@ -346,7 +346,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
               payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, startedAt: new Date(), finishedAt: new Date(),
             });
           }
-          if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent, onlyIfMissing: sentBefore });
+          if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent, onlyIfMissing: sentBefore, client: b.client });
         } catch (e) { req.log.warn({ err: e }, "send record for signing failed"); }
       }
 

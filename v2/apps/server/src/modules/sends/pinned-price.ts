@@ -5,10 +5,16 @@
 // download, before an on-site signature, after a send. So an offer that was only saved kept its
 // old total when its positions changed, and went out with it.
 //
-// Rule now: the stored price is pinned
-//   - for an offer that was SENT (send record with an identity, or the old app's logs) — always;
-//   - for an offer that was only saved, as long as its content is unchanged.
-// A saved, never-sent offer whose content changed is priced fresh.
+// Rule now (owner, 2026-11-18):
+//   - stored by the OLD app (every stored offer the React app did not create — origin.ts): the
+//     stored price, ALWAYS, with or without a provable send. In the old app a stored offer never
+//     changed its price; an old offer opened in the new app must show the total of the PDF the
+//     customer has.
+//   - created by the React app and SENT (send record with an identity; the old app's logs count
+//     too): the stored price, always.
+//   - created by the React app, never sent (PDF download, a signing that was not completed): the
+//     stored price while its content is unchanged, priced FRESH when it changes.
+//   - drafts: as before.
 //
 // The engine itself is not touched: for the one case that must be priced fresh it is given an
 // offer model that reports the stored offer as not locked.
@@ -16,6 +22,7 @@ import { createPricingEngine, type PricingDeps, type PricingEngine, type Pricing
 import { Offer } from "../../platform/models.js";
 import { offerIdentity } from "./identity.js";
 import { wasSentBeforeRecords } from "./offer-record.js";
+import { isReactOffer } from "./origin.js";
 import { lastSentOffer } from "./store.js";
 
 /** Did this offer number reach a customer? Send records first, then the old app's logs. */
@@ -25,11 +32,12 @@ export async function isOfferSent(offerNumber: string): Promise<boolean> {
   return !!(await lastSentOffer(nr)) || (await wasSentBeforeRecords(nr));
 }
 
-/** False only for a stored, never-sent offer whose content differs from `payload`. */
+/** False only for an offer the React app created, that was never sent, and whose content differs from `payload`. */
 export async function isPricePinned(payload: any): Promise<boolean> {
   const nr = String(payload?.offerNumber || "").trim();
   if (!nr) return true;
   if (!(await Offer.exists({ offerNumber: nr, locked: true }))) return true; // nothing stored that could pin
+  if (!(await isReactOffer(nr))) return true; // stored by the old app: never repriced
   if (await isOfferSent(nr)) return true;
   const stored: any = await Offer.findOne({ offerNumber: nr }, { payload: 1 }).lean();
   // tolerant comparison (key order, empty values, workflow sections) — a reopened offer is

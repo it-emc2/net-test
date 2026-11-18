@@ -8,7 +8,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
 import { Draft, Offer, User } from "../../platform/models.js";
 import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../sends/index.js";
-import { offerIdentity } from "../sends/index.js";
+import { isReactClient, markReactOffer, offerIdentity } from "../sends/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -59,7 +59,7 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
   });
 
   app.post("/api/offers", async (req, reply) => {
-    const { offerNumber, offerType, payload, status } = (req.body ?? {}) as Record<string, any>;
+    const { offerNumber, offerType, payload, status, client } = (req.body ?? {}) as Record<string, any>;
     if (!offerNumber) return fail(req, reply, 400, "BAD_REQUEST", "offerNumber ist erforderlich");
     if (!payload) return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
     // Decision C (ADR 023): an offer that was sent is immutable. Saving it again unchanged is
@@ -71,11 +71,15 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
       if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
       req.log.warn({ err: e, offerNumber }, "sent-offer check failed — saving anyway");
     }
-    // Never sent and changed since the last save → priced FRESH by the engine (sends/pinned-price.ts);
-    // forceRecompute on top, so that a switched-off auto-recompute does not serve the old total either.
+    // Created by the React app, never sent and changed since the last save → priced FRESH by the
+    // engine (sends/pinned-price.ts); forceRecompute on top, so that a switched-off auto-recompute
+    // does not serve the old total either. An offer the old app stored keeps its price — the
+    // engine ignores forceRecompute for it.
     let pricingPayload: Record<string, any> = { ...payload, offerNumber, offerType };
+    let isNew = false;
     try {
       const stored: any = await Offer.findOne({ offerNumber }, { payload: 1 }).lean();
+      isNew = !stored;
       if (stored?.payload && offerIdentity(stored.payload, offerNumber).contentHash !== offerIdentity(payload, offerNumber).contentHash) {
         pricingPayload = { ...pricingPayload, forceRecompute: true };
       }
@@ -97,6 +101,8 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
         { $set: offerDoc, $setOnInsert: { createdAt: new Date() } },
         { upsert: true, new: true, runValidators: true },
       );
+      // the React app says who it is (`client: "react"`); an offer it creates is a React offer (sends/origin.ts)
+      if (isNew && isReactClient(client)) await markReactOffer(String(offerNumber)).catch((e) => req.log.warn({ err: e, offerNumber }, "marking the offer as created by the React app failed"));
       req.log.info({ offerNumber }, "offer saved");
       return { ok: true, offer: result, message: `Angebot ${offerNumber} erfolgreich gespeichert` };
     } catch (err: any) {

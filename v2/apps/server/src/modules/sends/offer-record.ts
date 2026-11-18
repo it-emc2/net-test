@@ -7,6 +7,7 @@
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
 import { EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
 import { offerIdentity } from "./identity.js";
+import { isReactClient, markReactOffer } from "./origin.js";
 
 /**
  * After a send (or a hand-over for signature): the offer stored under the number IS that content.
@@ -17,11 +18,13 @@ export type EnsureSentOffer = (a: {
   offerNumber: string; offerType: string; payload: unknown; pricing?: unknown;
   /** a repeated send of an offer that is out already: only make sure an offer is stored, replace nothing */
   onlyIfMissing?: boolean;
+  /** the request's `client` field: "react" = the React app; an offer CREATED here for it is a React offer (origin.ts) */
+  client?: unknown;
 }) => Promise<"created" | "replaced" | "exists" | "skipped">;
 
 /** `unpinned`: the engine that never serves a stored price as pinned (pinned-price.ts). */
 export function sentOfferRecorder(unpinned: PricingEngine, log: { warn(o: object, m: string): void }): EnsureSentOffer {
-  return async ({ offerNumber, offerType, payload, pricing: asSent, onlyIfMissing }) => {
+  return async ({ offerNumber, offerType, payload, pricing: asSent, onlyIfMissing, client }) => {
     const nr = String(offerNumber || "").trim();
     if (!nr || !payload || typeof payload !== "object") return "skipped";
     try {
@@ -47,6 +50,7 @@ export function sentOfferRecorder(unpinned: PricingEngine, log: { warn(o: object
         { $set: { offerType: offerType || "bu", payload: copy, pricing: computed, pricingFingerprint: computeFingerprint(pricingPayload), locked: true, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
         { upsert: true },
       );
+      if (!stored && isReactClient(client)) await markReactOffer(nr);
       return stored ? "replaced" : "created";
     } catch (e) {
       if ((e as { code?: number })?.code === 11000) return "exists";

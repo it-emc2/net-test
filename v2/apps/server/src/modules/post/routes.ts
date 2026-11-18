@@ -228,7 +228,7 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       }
       // the letter is with the printer: the locked offer (pinned price) must exist (see sends/offer-record.ts)
       if (clientSendId && offerLetter && b.payload && !resendOf && d.ensureSentOffer) {
-        await d.ensureSentOffer({ offerNumber, offerType: String(meta?.offerType || b.payload?.activeOffer || "bu"), payload: b.payload });
+        await d.ensureSentOffer({ offerNumber, offerType: String(meta?.offerType || b.payload?.activeOffer || "bu"), payload: b.payload, client: b.client });
       }
       if (recordOpen) {
         await step("provider", "ok");
