@@ -13768,6 +13768,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
         <div class="wvs-plate__size">${w} × ${h} cm</div>
         <div class="wvs-plate__meta">${f === "17" ? "Großplatte" : ""}</div>
         <div class="wvs-step-ctl"><button type="button" data-f="${f}" data-d="-1" aria-label="Weniger ${w} × ${h} cm">−</button><output>${q}</output><button type="button" data-f="${f}" data-d="1" aria-label="Mehr ${w} × ${h} cm">+</button></div>
+        <div class="wvs-step-label">Menge</div>
       </div>`;
     }).join("");
     let n = 0, m2 = 0;
