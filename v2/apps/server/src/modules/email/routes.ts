@@ -25,7 +25,7 @@ import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "./send
 import type { OfferDocuments, SigningPort } from "./ports.js";
 import type { EnsureSentOffer } from "../sends/index.js";
 import {
-  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, offerChangedBody, patchSend, recordStep, storeSendFile,
+  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, handEditedOf, handEditedSentBody, offerChangedBody, patchSend, recordStep, storeSendFile,
   type SendFile, type StepName, type StepStatus,
 } from "../sends/index.js";
 import { offerIdentity } from "../sends/index.js";
@@ -120,12 +120,20 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       // identity of the offer as the client sent it — taken BEFORE the server resolves the
       // Ansprechpartner and the pricing/rendering code touches the payload, so that the same
       // offer sent or saved again compares equal
-      const identity = offerIdentity(payload, offerNumber);
+      // a hand-edited DOCX is part of what went out: its hash belongs to the identity (audit F4)
+      const docxHash = files.editedDocx[0] && !bitrixOnly ? sha256(files.editedDocx[0].content) : "";
+      const identity = { ...offerIdentity(payload, offerNumber), ...(docxHash ? { handEdited: docxHash } : {}) };
       const sentPayload = clientSendId ? structuredClone(payload) : null; // as the client sent it
       let resendOf = "";
       try {
         const prior = await assertUnchangedSinceSent(String(payload?.offerNumber || offerNumber), payload);
         if (prior) resendOf = prior.sendId;
+        // Same form data, but another document than the customer has (audit F4): sent hand-edited
+        // → only that very DOCX may go out again; sent as the standard document → no edited one.
+        if (prior && !bitrixOnly && handEditedOf(prior) !== docxHash) {
+          if (handEditedOf(prior)) { sendError = "von Hand bearbeitet versendet"; return reply.status(409).send(handEditedSentBody(prior, req.id)); }
+          throw new OfferChangedError(["Dokument (von Hand bearbeitet)"], { sendId: prior.sendId, channel: prior.channel, at: prior.finishedAt ?? prior.startedAt, to: prior.to || "", by: prior.by || "" });
+        }
       } catch (e) {
         if (e instanceof OfferChangedError) { sendError = e.message; return reply.status(409).send(offerChangedBody(e, req.id)); }
         req.log.warn({ err: e, sendId }, "sent-offer check failed — continuing");
@@ -277,9 +285,14 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
         }
       } else if (recordOpen) await step("mail", "skipped", "nur Bitrix");
 
-      // the offer is out: the locked offer (pinned price) must exist — no longer left to the browser.
+      // the offer is out: the stored offer (pinned price) must exist — no longer left to the browser.
       // Only for clients that send a sendId, so the answer and side effects without one stay as before.
-      if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload });
+      // An older state stored under the number is replaced by what went out, with the price that
+      // went out (audit 2026-11-17, F8) — the send record and the stored offer agree.
+      if (clientSendId && d.ensureSentOffer) await d.ensureSentOffer({
+        offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), payload: sentPayload,
+        pricing: offerComputed, onlyIfMissing: !!resendOf, client: fields.client,
+      });
 
       const event = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
       void UserActionLog.create({ event, dealId: String(dealId || ""), offerNumber: payload?.offerNumber || offerNumber, offerType: payload?.activeOffer || offerType })
