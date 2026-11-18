@@ -134,8 +134,18 @@ function write(p: Page, names: Names): Fields {
   const alias = ALIASES.filter((t) => p.on.has(t)).map((t) => nameOf(names, t));
   if (canon.length) out[LIST] = canon; else delete out[LIST];
   if (alias.length) out[ALIAS_LIST] = alias; else delete out[ALIAS_LIST];
-  for (const [t, q] of Object.entries(p.qty)) out[qtyKey(t)] = q;
-  return out;
+  // the quantities in page order (today's form order): the price lists the products in the order
+  // of these fields — in place of the first stored one, the other fields keep their place
+  const block = order.filter((t) => t in p.qty).map((t) => [qtyKey(t), p.qty[t]] as const);
+  const mine = new Set(block.map(([k]) => k));
+  const sorted: Fields = {};
+  let placed = false;
+  for (const [k, v] of Object.entries(out)) {
+    if (!mine.has(k)) { sorted[k] = v; continue; }
+    if (!placed) { for (const [bk, bv] of block) sorted[bk] = bv; placed = true; }
+  }
+  if (!placed) for (const [bk, bv] of block) sorted[bk] = bv;
+  return sorted;
 }
 /** a ticked tile has at least 1, an unticked one 0 (today's applyGeneratedTileQty) */
 function applyQty(p: Page, t: TileId) {

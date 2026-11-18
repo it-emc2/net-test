@@ -170,6 +170,16 @@ describe("Optionale Produkte — Wanne and WC rules", () => {
     expect(renamed(opt, { CVIS3WCT112: "VIS neu" })!["optWcWall[]"]).toContain("VIS neu"); // names from the price list replace the page's own
   });
 
+  it("WC quantities are stored in page order — the price lists the products in that order (compare-optional-wanne-wc-prices.cjs)", () => {
+    const names = {};
+    const order = (opt: Record<string, unknown>) => Object.keys(opt).filter((k) => k.startsWith("qty_") && Number(opt[k]) > 0).map((k) => k.slice(4));
+    const wall = toggleTile(setSeat(setMontage({ cat_WC: "on", qty_CLPESG60: "0" }, names, "Wandmontage", null), names, "normal"), names, "DERWWCOSVP");
+    expect(order(wall)).toEqual(["CVIS3WCT112", "SCHALL", "V1DON", "0601010003", "WWCAG90", "DERWWCOSVP", "DERSIAS"]); // today: the WC before its seat
+    const floor = toggleTile(toggleTile(setMontage({}, names, "Bodenmontage", null), names, "CLPWCF10"), names, "CLPSSI");
+    expect(order(floor)).toEqual(["CLPWCF10", "CLPSSI", "WWCAG90"]); // the Anschlussgarnitur stands at the end of the Boden group
+    expect(Object.keys(wall).indexOf("qty_CLPESG60")).toBe(1); // the other fields keep their place
+  });
+
   it("the cards: WC is stored as ticked while open; chips of the tub are removable", () => {
     let s = openCard(fresh(), "WC");
     expect(s.opt.cat_WC).toBe("on");
