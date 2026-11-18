@@ -2622,7 +2622,11 @@ function resetAllForms() {
   try { syncWwCustomDecor(); } catch {} // form.reset() left the tile on WS 203
   const wvUiEl = document.getElementById("wvUi"); // same hidden-input rule: new offers start simple
   if (wvUiEl) wvUiEl.value = "simple";
-  window.pullWwRows?.(); // rows of the previous offer would otherwise stay in the editor
+  // Same rule for the rows: without this the previous offer's plates come back.
+  const wwRowsEl = document.getElementById("wvWwRowsData");
+  if (wwRowsEl) wwRowsEl.value = "";
+  window.pullWwRows?.();
+  window.resetWvSimple?.();
   if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
@@ -13844,6 +13848,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     if (simple) { load(); render(); }
   }
   window.syncWvSimple = sync;
+  window.resetWvSimple = () => { groups = []; active = 0; otherEl.value = ""; setHint(); };
   document.addEventListener("wv:supplier", sync);
   document.getElementById("wvLineToggle")?.addEventListener("change", sync);
   window.addEventListener("hashchange", () => { if (location.hash === "#Wandverkleidung") sync(); });
