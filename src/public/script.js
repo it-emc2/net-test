@@ -12975,14 +12975,23 @@ window.applyWwPanelQty = (qty) => {
 };
 /* winwall decor: a tile, or "Anderes Dekor" with a typed WS/NW number.
    Saved before 2026-10-30 as digits only ("203" = WS 203). */
+// pricing-core arrives async (and is stubbed in tests): only trust results of the right type.
 function wwDecorCode(v) {
-  if (window.__pricingCore?.winwallDecorCode) return window.__pricingCore.winwallDecorCode(v);
+  const r = typeof window.__pricingCore?.winwallDecorCode === "function" ? window.__pricingCore.winwallDecorCode(v) : undefined;
+  if (r === null || typeof r === "string") return r;
   const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
   if (/^\d{3}$/.test(s)) return "WS" + s;
   return /^(WS|NW)\d{3}$/.test(s) ? s : null;
 }
 // The decor + plate counts the leftover/price card work with: the first row (rows mode),
 // else the single decor of older offers.
+/** Format code inside a typed article no. ("23013" → "13"); else null. */
+function wwArticleFormat(v) {
+  const f = typeof window.__pricingCore?.winwallArticleFormat === "function" ? window.__pricingCore.winwallArticleFormat(v) : null;
+  return typeof f === "string" ? f : null;
+}
+const wwCatalog = () => { const c = window.__pricingCore?.WINWALL_CATALOG; return c && typeof c === "object" ? c : {}; };
+const wwTileCodes = () => { const d = window.__pricingCore?.WINWALL_DECORS; return Array.isArray(d) ? d.map((x) => x.code) : []; };
 function wwPrimary() {
   const rows = window.__wwRowsState?.() || [];
   if (rows.length) {
@@ -13013,7 +13022,7 @@ function syncWwCustomDecor() {
   const tile = custom.closest("label");
   const img = document.getElementById("wvWwCustomImg");
   hint.classList.remove("is-ok", "is-warn");
-  const fmt = window.__pricingCore?.winwallArticleFormat?.(raw);
+  const fmt = wwArticleFormat(raw);
   const fmtText = fmt ? { 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" }[fmt] : "";
   if (!custom.checked || !raw) hint.textContent = "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).";
   else if (!code) { hint.textContent = "Nicht erkannt. Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015)."; hint.classList.add("is-warn"); }
@@ -13662,7 +13671,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       r.text = document.getElementById("wvWwDecorCustom")?.value || "";
       r.code = wwDecorCode(r.text);
       // Article no. from the Muster ("23013") also names the format.
-      const fmt = window.__pricingCore?.winwallArticleFormat?.(r.text);
+      const fmt = wwArticleFormat(r.text);
       if (fmt && fmt !== r.fmt) {
         r.fmt = fmt;
         const sel = listEl.querySelector(`.wv-row[data-i="${activeIdx}"] .wv-ww-fmtsel`);
@@ -13714,15 +13723,14 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const FMTS = [["13", 100, 205], ["15", 100, 250], ["16", 125, 250], ["17", 150, 250]];
   // Swatches we have in assets/winwall; other decors show their number on a plain tile.
   const IMGS = new Set(["NW215", "NW216", "NW218", "NW220", "NW221", "NW222", "NW230", "WS000", "WS002", "WS004", "WS005", "WS023", "WS046", "WS047", "WS081", "WS101", "WS110", "WS120", "WS121", "WS130", "WS132", "WS140", "WS151", "WS160", "WS170", "WS202", "WS203", "WS204", "WS210", "WS212", "WS213", "WS214", "WS219", "WS225", "WS226", "WS227", "WS228", "WS229", "WS232", "WS233", "WS234", "WS240", "WS241", "WS242", "WS243", "WS247", "WS248", "WS251", "WS254", "WS257", "WS258", "WS260", "WS261", "WS270", "WS271", "WS280", "WS281", "WS282", "WS289", "WS290", "WS291", "WS292", "WS293", "WS294", "WS296", "WS297", "WS298", "WS299", "WS301", "WS302", "WS309", "WS330", "WS332", "WS350", "WS351", "WS401", "WS402", "WS403", "WS405", "WS406", "WS407", "WS408", "WS409", "WS410", "WS411", "WS501", "WS502", "WS503", "WS504"]);
-  const core = () => window.__pricingCore || {};
   // The tiles + NW230 (Marble Copper Vein, picked from the Muster, ANG2026-1117-115333).
   const palette = () => {
-    const list = (core().WINWALL_DECORS || []).map((d) => d.code);
+    const list = wwTileCodes();
     if (list.length && !list.includes("NW230")) list.splice(list.indexOf("NW216") + 1, 0, "NW230");
     return list;
   };
   const nice = (c) => `${c.slice(0, 2)} ${c.slice(2)}`;
-  const nameOf = (c) => core().WINWALL_CATALOG?.[c] || nice(c);
+  const nameOf = (c) => wwCatalog()[c] || nice(c);
   const sw = (c) => (IMGS.has(c) ? `background-image:url(./assets/winwall/${c}.jpg)` : "");
   const esc = (v) => escapeHtml(String(v ?? ""));
   const zero = () => ({ 13: 0, 15: 0, 16: 0, 17: 0 });
@@ -13746,7 +13754,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   }
   // Groups → rows. A typed row without a valid decor (classic editor) is kept, never dropped.
   function save() {
-    const tiles = new Set((core().WINWALL_DECORS || []).map((d) => d.code));
+    const tiles = new Set(wwTileCodes());
     const rows = groups.flatMap((g) =>
       FMTS.filter(([f]) => g.qty[f] > 0).map(([f]) =>
         tiles.has(g.code) ? { code: g.code, fmt: f, qty: g.qty[f], custom: false, text: "" } : { code: g.code, fmt: f, qty: g.qty[f], custom: true, text: nice(g.code) }));
@@ -13817,10 +13825,10 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   otherEl.addEventListener("input", () => {
     const v = otherEl.value.trim();
     if (!v) return setHint();
-    const code = core().winwallDecorCode?.(v);
-    const fmt = core().winwallArticleFormat?.(v);
+    const code = wwDecorCode(v);
+    const fmt = wwArticleFormat(v);
     if (!code) return setHint("is-warn", "Nicht erkannt – Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015).");
-    const known = !!core().WINWALL_CATALOG?.[code];
+    const known = !!wwCatalog()[code];
     const f = FMTS.find(([c]) => c === fmt);
     setHint(known ? "is-ok" : "is-warn", known ? `✓ ${nameOf(code)} (${nice(code)})${f ? ` · Format ${f[1]} × ${f[2]} cm` : ""}` : `${nice(code)} ist nicht im winwall-Katalog – Nummer bitte prüfen.`);
     if (!known) return;
