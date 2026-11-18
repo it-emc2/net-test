@@ -13713,7 +13713,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const hintText = hintEl.textContent;
   const FMTS = [["13", 100, 205], ["15", 100, 250], ["16", 125, 250], ["17", 150, 250]];
   // Swatches we have in assets/winwall; other decors show their number on a plain tile.
-  const IMGS = new Set(["NW215", "NW216", "NW220", "NW222", "WS000", "WS203", "WS204", "WS210", "WS219", "WS225", "WS226", "WS227", "WS228", "WS229", "WS233", "WS243", "WS248", "WS290", "WS503"]);
+  const IMGS = new Set(["NW215", "NW216", "NW220", "NW222", "WS000", "WS202", "WS203", "WS204", "WS210", "WS213", "WS219", "WS225", "WS226", "WS227", "WS228", "WS229", "WS232", "WS233", "WS234", "WS240", "WS243", "WS247", "WS248", "WS254", "WS260", "WS261", "WS270", "WS281", "WS282", "WS289", "WS290", "WS291", "WS292", "WS293", "WS294", "WS296", "WS297", "WS298", "WS299", "WS302", "WS309", "WS330", "WS332", "WS350", "WS406", "WS407", "WS408", "WS409", "WS410", "WS501", "WS502", "WS503", "WS504"]);
   const core = () => window.__pricingCore || {};
   // The tiles + NW230 (Marble Copper Vein, picked from the Muster, ANG2026-1117-115333).
   const palette = () => {
