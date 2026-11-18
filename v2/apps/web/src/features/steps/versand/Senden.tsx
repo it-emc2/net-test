@@ -167,7 +167,7 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       onSent({ dealId: deal, result, offerNumber: number, offer: { ...sentOffer, offerNumber: number } });
       void call("logDialogEvent", { params: { id: deal }, body: { event: "move_dialog_shown", offerNumber: number, offerType: type } }).catch(() => undefined);
       try { // the offer is kept under its number, as after a PDF
-        await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: { ...sentOffer, offerNumber: number }, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
+        await call("saveOffer", { body: { client: "react", offerNumber: number, offerType: type, payload: { ...sentOffer, offerNumber: number }, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
         toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
       } catch { /* the send record on the server is the proof; the offer is saved with the next save */ }
     } catch (err) {

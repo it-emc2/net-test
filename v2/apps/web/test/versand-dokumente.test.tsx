@@ -115,7 +115,7 @@ describe("the Dokumentenstudio does what today's UI does", () => {
       else if (kind === "switch") await user.click(within(screen.getByTestId("zf-preview")).getAllByRole("tab").find((t) => t.dataset.preview === what)!);
       else await user.click(within(screen.getByTestId("zf-preview")).getByRole("button", { name: "Schließen" }));
       // Alltagshilfe is priced in the browser today; that price is not built here yet, so the offer is saved without one (the server prices it)
-      const want = a.requests.map((r) => (r.path === "/api/offers" ? { path: r.path, offerNumber: r.offerNumber, offerType: r.offerType, pricing: s.type === "ah" ? false : r.pricing, keys: r.keys, payloadIsOffer: true } : r));
+      const want = a.requests.map((r) => (r.path === "/api/offers" ? { path: r.path, offerNumber: r.offerNumber, offerType: r.offerType, pricing: s.type === "ah" ? false : r.pricing, keys: [...r.keys, "client"].sort(), payloadIsOffer: true } : r)); // "client": the React app says who saves (server: sends/origin.ts)
       await waitFor(() => expect(seen.map((r) => (r.sent ? { ...r, sent: sameSecond(r.sent) } : r))).toEqual(want.map((r) => (r.sent ? { ...r, sent: sameSecond(r.sent) } : r))));
       await waitFor(() => expect(handed).toEqual(a.handed.map((f) => f.replace(NUM, "<new number>"))));
       await waitFor(() => expect(router.state.location.pathname.split("/").pop()).toBe(a.view.step));

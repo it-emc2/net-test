@@ -99,7 +99,7 @@ export function Dokumente() {
       const file = await postForFile(a.path, offer);
       if (a.save) { // a PDF went out: the offer is kept under its number
         try {
-          await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: offer, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
+          await call("saveOffer", { body: { client: "react", offerNumber: number, offerType: type, payload: offer, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
           toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
         } catch (err) {
           // sent and changed since: no second document under the sent number

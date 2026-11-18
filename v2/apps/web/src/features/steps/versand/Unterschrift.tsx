@@ -58,7 +58,7 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
       const payload = { ...offer, activeOffer: type, offerNumber: number };
       // the signing view has no way back to an offer that was not stored
       try {
-        await call("saveOffer", { body: { offerNumber: number, offerType: type, payload, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
+        await call("saveOffer", { body: { client: "react", offerNumber: number, offerType: type, payload, pricing: price.data ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
         toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
       } catch (err) {
         // an offer that was sent and changed since is refused here already: say what to do, not "could not be saved"

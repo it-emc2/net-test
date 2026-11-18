@@ -166,7 +166,7 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   st().remember("internalNote", "");
   const sentOffer = { ...offerNow(), offerNumber: number };
   try { // the offer is kept under its number, as after a PDF
-    await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: sentOffer, pricing: io.price ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
+    await call("saveOffer", { body: { client: "react", offerNumber: number, offerType: type, payload: sentOffer, pricing: io.price ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
     toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
   } catch { /* the send record on the server is the proof; the offer is saved with the next save */ }
   st().patch("zusammenfassung" as never, { versand: { art: "post", versendetAm: new Date().toISOString() } } as never); // after the save, as today
