@@ -101,6 +101,8 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallDecorCode("23014")).toBe(null); // no format 14
     expect(winwallArticleFormat("23013")).toBe("13");
     expect(winwallArticleFormat("230")).toBe(null);
+    // plain colours added 2026-11-18
+    expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "17015" })).toEqual({ code: "WS170", name: "lachs" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "ws 233" })).toEqual({ code: "WS233", name: "Beton" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "WS999" })).toEqual({ code: "WS999", name: null });
     expect(WINWALL_DECORS.map((d) => d.code)).toEqual(["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203",
