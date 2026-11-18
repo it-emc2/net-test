@@ -9,6 +9,18 @@
 // Not stored: which cards are ticked. A card is ticked while it has picks or was opened; leaving
 // its dialog without a pick unticks it and empties it (also the answer about the tap).
 import { CATEGORIES, type Product } from "./catalog.js";
+import { clearPick } from "./wanne-rules.js";
+import { clearWc, toggleTile, wcItem, wcName, wcPicks } from "./wc-rules.js";
+
+/** names and prices of the WC products from the price list (null: not found) */
+export type WcProducts = Record<string, { name: string | null; price: number | null } | null | undefined>;
+export const namesOf = (wc: WcProducts) => Object.fromEntries(Object.entries(wc).map(([id, p]) => [id, p?.name ?? undefined]));
+const euro = (n: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(n);
+/** the text of a WC pick in the bar: today's caption — name, article and price written together */
+function wcChipText(t: string, wc: WcProducts): string {
+  const id = wcItem(t).id, p = wc[id];
+  return `${wcName(namesOf(wc), t)}${p ? id : ""}${p && p.price != null && Number.isFinite(Number(p.price)) ? euro(Number(p.price)) : ""}`;
+}
 
 type Fields = Record<string, unknown>;
 export interface Row { name: string; price: string; qty: string; id: string }
@@ -199,25 +211,30 @@ export function count(s: State, cat: string): number {
   return (categoryOf(cat)?.products ?? []).filter((p) => isOn(s.opt, p.id)).length;
 }
 export const cardOn = (s: State, cat: string): boolean => s.ui.open.includes(cat) || count(s, cat) > 0;
-export const openCard = (s: State, cat: string): State => (s.ui.open.includes(cat) ? s : { ...s, ui: { ...s.ui, open: [...s.ui.open, cat] } });
+/** Opening a card ticks it; the WC card is a field of today's form (`cat_WC: "on"`) and is stored. */
+export function openCard(s: State, cat: string): State {
+  const opened = s.ui.open.includes(cat) ? s : { ...s, ui: { ...s.ui, open: [...s.ui.open, cat] } };
+  return cat === "WC" && opened.opt.cat_WC !== "on" ? { ...opened, opt: { ...opened.opt, cat_WC: "on" } } : opened;
+}
 /** Leaving a dialog: a card without a pick is unticked and emptied. */
-export function closeCard(s: State, cat: string): State {
+export function closeCard(s: State, cat: string, wc: WcProducts = {}): State {
   if (count(s, cat) > 0) return s;
-  const opt: Fields = { ...s.opt };
+  let opt: Fields = { ...s.opt };
   if (cat === "SHOWER") delete opt.showerMount;
+  if (cat === "WC") { opt = clearWc(opt, namesOf(wc)); delete opt.cat_WC; } // Montageart and Sitzhöhe go, every product is unticked
   return done({ opt, ui: { ...s.ui, open: s.ui.open.filter((c) => c !== cat), ...(cat === "SONDER" ? { rows: [] } : {}) } });
 }
 
-export interface Chip { cat: string; text: string; title: string; product?: string; row?: number; fixed?: boolean }
+export interface Chip { cat: string; text: string; title: string; product?: string; row?: number; fixed?: boolean; pick?: "tub" | "screen"; tile?: string }
 /** the bar "Ausgewählte Optionen": every pick of every ticked card, in page order */
-export function chips(s: State): Chip[] {
+export function chips(s: State, wc: WcProducts = {}): Chip[] {
   const out: Chip[] = [];
   for (const c of CATEGORIES) {
     if (!cardOn(s, c.id)) continue;
     const chip = (text: string, more: Partial<Chip>) => out.push({ cat: c.id, text, title: `${c.name}: ${text}`, ...more });
     if (c.id === "SONDER") rowsOf(s).forEach((r, row) => { if (r.name.trim()) chip(r.name.trim(), { row }); });
-    else if (c.id === "WANNE") for (const f of BATHTUB_FIELDS) { const art = String(s.opt[f] ?? "").trim(); if (art) chip(art, { fixed: true }); }
-    else if (c.id === "WC") for (const f of WC_LISTS) for (const v of list(s.opt[f])) chip(v, { fixed: true });
+    else if (c.id === "WANNE") BATHTUB_FIELDS.forEach((f, i) => { const art = String(s.opt[f] ?? "").trim(); if (art) chip(art, { pick: i ? "screen" : "tub" }); });
+    else if (c.id === "WC") for (const t of wcPicks(s.opt, namesOf(wc))) chip(wcChipText(t, wc), { tile: t });
     else for (const p of c.products) if (isOn(s.opt, p.id)) chip(p.name, { product: p.id });
   }
   return out;
@@ -262,7 +279,8 @@ export const removeRow = (s: State, i: number): State => { const rows = rowsOf(s
 export const editBasin = (s: State, field: keyof FreeBasin, text: string): State => done({ ...s, ui: { ...s.ui, basin: { ...basinOf(s), [field]: text } } });
 
 /** a pick removed in the bar */
-export const removeChip = (s: State, chip: Chip): State => (chip.product ? (isOn(s.opt, chip.product) ? toggleProduct(s, chip.product) : s) : chip.row != null ? removeRow(s, chip.row) : s);
+export const removeChip = (s: State, chip: Chip, wc: WcProducts = {}): State =>
+  chip.tile ? done({ ...s, opt: toggleTile(s.opt, namesOf(wc), chip.tile) }) : chip.pick ? done({ ...s, opt: clearPick(s.opt, chip.pick) }) : chip.product ? (isOn(s.opt, chip.product) ? toggleProduct(s, chip.product) : s) : chip.row != null ? removeRow(s, chip.row) : s;
 
 /** the fields of `optional` that differ (`undefined`: removed) — one change of the offer */
 export function changedFields(before: Fields, now: Fields): Fields {

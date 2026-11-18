@@ -34,6 +34,10 @@ const productWants = (task: string, dw: Fields): boolean =>
  *  shower system is one group for two tasks — where the tap sits says which one; a sibling the
  *  user ticked by hand covers the product. */
 const picked = (opt: Fields, group: string): boolean => Array.isArray(opt[group]) && (opt[group] as unknown[]).length > 0;
+const WC_PRICED = ["DERWWCOSVP", "DEDWWC", "CLPWWCOS5", "CLPWCF10"]; // today's WC_WALL + WC_FLOOR (angebotscheck.js)
+const qtyOf = (opt: Fields, id: string) => parseInt(String(opt[`qty_${id}`] ?? ""), 10) || 0;
+const wcTicked = (opt: Fields) => picked(opt, "optWcWall[]") || picked(opt, "optWcWall_alias[]") || WC_PRICED.some((id) => qtyOf(opt, id) > 0);
+const showerWc = (opt: Fields) => qtyOf(opt, "DEDWWC") > 0;
 const OPTIONAL_WANTS: readonly { task: string; has: (opt: Fields) => boolean; sibling?: string }[] = [
   { task: "replace_thermostat", has: (o) => picked(o, "optThermo[]") },
   { task: "replace_shower_no_thermo", has: (o) => picked(o, "optShower[]") && o.showerMount === "versetzt", sibling: "replace_shower_with_thermo" },
@@ -42,6 +46,12 @@ const OPTIONAL_WANTS: readonly { task: string; has: (opt: Fields) => boolean; si
   { task: "install_sink", has: (o) => picked(o, "optBasin[]") },
   { task: "install_shower_basket", has: (o) => picked(o, "optDuschzub[]") },
   { task: "install_lifting_unit", has: (o) => picked(o, "optHebe[]") },
+  // the Wanne picker: the screen has its own task (the tub's is install_bathtub, read from duschwanne)
+  { task: "install_bathtub_screen", has: (o) => !!String(o.chosenScreenProductId ?? "").trim() },
+  // WC: any ticked product of the WC dialog (the required ones come with the Montageart); the Dusch-WC
+  // DEDWWC — priced when it has a quantity — wants its own task instead of the toilet's
+  { task: "install_toilet", has: (o) => wcTicked(o) && !showerWc(o), sibling: "install_shower_wc" },
+  { task: "install_shower_wc", has: (o) => wcTicked(o) && showerWc(o), sibling: "install_toilet" },
 ];
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? v.split(",").filter(Boolean) : []);
@@ -198,12 +208,13 @@ export function wvChanges(offer: Record<string, any>, wvFields: Fields): Record<
 
 /** One change of the offer for a change of the optional products: their fields (`undefined`
  *  removes one), the tasks their products want, and the rows of the work-time suggestion. */
-export function optChanges(offer: Record<string, any>, optFields: Fields): Record<string, Fields> {
+export function optChanges(offer: Record<string, any>, optFields: Fields, dwFields: Fields = {}): Record<string, Fields> {
   const opt: Fields = { ...(offer.optional ?? {}), ...optFields };
   for (const k of Object.keys(optFields)) if (optFields[k] === undefined) delete opt[k];
-  const before = offer.duschwanne ?? {};
+  const before = { ...(offer.duschwanne ?? {}), ...dwFields }; // the bathtub of the Wanne picker lives on the duschwanne path
   const tasks = syncTasks(before, opt);
-  const same = !("workTasks" in tasks) || JSON.stringify(tasks.workTasks ?? null) === JSON.stringify((before as Fields).workTasks ?? null);
+  const same = !("workTasks" in tasks) || JSON.stringify(tasks.workTasks ?? null) === JSON.stringify((offer.duschwanne ?? {}).workTasks ?? null);
   const dw = { ...before, ...tasks };
-  return { optional: optFields, ...(same ? {} : { duschwanne: tasks }), Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}, opt) } };
+  const dwOut = { ...dwFields, ...(same ? {} : tasks) };
+  return { optional: optFields, ...(Object.keys(dwOut).length ? { duschwanne: dwOut } : {}), Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(dw, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, offer.wandverkleidung ?? {}, opt) } };
 }

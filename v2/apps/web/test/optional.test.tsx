@@ -111,7 +111,7 @@ describe("Optionale Produkte stores and shows what today's UI does", () => {
 });
 
 describe("Optionale Produkte — beyond today's page", () => {
-  it("REHA has a search; the two categories that are not rebuilt lead to today's view", async () => {
+  it("REHA has a search; Wanne and WC are edited here (slice 2, test/optional-wanne-wc.test.tsx)", async () => {
     await open();
     await play([["cat", "REHA"]]);
     const search = screen.getByRole("searchbox", { name: "Produkte filtern" }) as HTMLInputElement;
@@ -128,7 +128,7 @@ describe("Optionale Produkte — beyond today's page", () => {
     expect((offer().optional["optReha[]"] as string[]).length).toBe(1); // the pick made while searching stays
     for (const cat of ["WANNE", "WC"]) {
       await play([["cat", cat]]);
-      expect(within(screen.getByRole("dialog")).getByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeInTheDocument();
+      expect([within(screen.getByRole("dialog")).getByTestId("opt-panel").dataset.cat, within(screen.getByRole("dialog")).queryByRole("link", { name: "In der bisherigen Ansicht öffnen" })]).toEqual([cat, null]);
       await play([["done"]]);
       expect(byId("opt-card", cat).getAttribute("aria-pressed")).toBe("false"); // left empty: not ticked
     }
@@ -225,13 +225,13 @@ describe("Optionale Produkte — rules", () => {
 
   it("an opened offer: rows, free wash basin, cards and bar come from what is stored", () => {
     const s: State = { ui: NO_UI, opt: {
-      "optGrab[]": [productOf("CLPESG60")!.value], qty_CLPESG60: "2", chosenBathtubProductId: "BW170", "optWcWall[]": ["VIS WC-Element"], "optBasin[]": [productOf("BASIN_SONDER")!.value], qty_BASIN_SONDER: "1",
+      "optGrab[]": [productOf("CLPESG60")!.value], qty_CLPESG60: "2", chosenBathtubProductId: "BW170", "optWcWall[]": ["VIS WC-Element E3 für Trockenbau"], qty_CVIS3WCT112: "1", "optBasin[]": [productOf("BASIN_SONDER")!.value], qty_BASIN_SONDER: "1",
       quickAdd: [{ productId: "OPT-2", label: "Ablage", price: 35.5, qty: 2 }, { label: "Becken", price: 249.5, qty: 1, productId: "WS-1", source: "BASIN_SONDER" }],
     } };
     expect(rowsOf(s)).toEqual([{ name: "Ablage", price: "35,5", qty: "2", id: "OPT-2" }]);
     expect(basinOf(s)).toEqual({ name: "Becken", artikel: "WS-1", price: "249,5" });
     expect(CATEGORIES.filter((c) => cardOn(s, c.id)).map((c) => [c.id, count(s, c.id)])).toEqual([["GRAB", 1], ["BASIN", 1], ["WANNE", 1], ["WC", 1], ["SONDER", 1]]);
-    expect(chips(s).map((c) => [c.cat, c.text, !!c.fixed])).toEqual([["GRAB", productOf("CLPESG60")!.name, false], ["BASIN", "Sonderprodukt (freier Posten)", false], ["WANNE", "BW170", true], ["WC", "VIS WC-Element", true], ["SONDER", "Ablage", false]]);
+    expect(chips(s).map((c) => [c.cat, c.text, !!c.fixed])).toEqual([["GRAB", productOf("CLPESG60")!.name, false], ["BASIN", "Sonderprodukt (freier Posten)", false], ["WANNE", "BW170", false], ["WC", "VIS WC-Element E3 für Trockenbau", false], ["SONDER", "Ablage", false]]); // slice 2: tub and WC picks are removable in the bar
     expect(changedFields(s.opt, editRow(s, 0, "name", "Ablage").opt)).toEqual({}); // typing the same again changes nothing in the offer
     expect(changedFields({ a: 1, b: [1] }, { b: [1], c: 2 })).toEqual({ a: undefined, c: 2 });
   });

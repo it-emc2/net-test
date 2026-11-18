@@ -135,6 +135,8 @@ export const endpoints = {
   /** the shower-enclosure model of a supplier (vigour: from the catalogue database, about 10 MB; badolux: a fixed list) */
   daModel: { method: "GET", path: "/api/da-config/model/:supplier", response: z.looseObject({ params: z.array(z.unknown()), leaves: z.array(z.unknown()) }) },
   product: { method: "GET", path: "/api/products/:productId", response: ProductSchema },
+  /** the bathtubs and Wannenaufsätze of the Wanne picker (Optionale Produkte), sorted by type and net price */
+  bathtubCatalog: { method: "GET", path: "/api/bathtubs/catalog", response: z.looseObject({ count: z.number().nullish(), items: z.array(z.looseObject({ articleNumber: z.string(), type: z.string() })) }) },
   /** query: e.g. prefix=BP&source=badolux&limit=200 */
   products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
   /** query: w, l (cm) and either series=SLA (Premium) or source=badolux (Standard) */
