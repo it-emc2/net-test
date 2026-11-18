@@ -160,17 +160,18 @@ describe("F1 — which stored offer keeps its price", () => {
     expect(changed.body._locked).toBe(true);
   }, 120000);
 
-  it("an offer the old app SENT (its mail log): pinned, and the changed offer cannot go out under that number", async () => {
+  it("an offer the old app SENT (its mail log): pinned; the React app cannot send it changed under that number", async () => {
     const A = { ...BU, offerNumber: "F1-OLD-S" }, B = changedPrice(A);
     await db().collection("offers").insertOne({ offerNumber: "F1-OLD-S", offerType: "bu", payload: A, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
     await db().collection("emaillogs").insertOne({ offerNumber: "F1-OLD-S", to: "k@example.invalid", subject: "x", createdAt: new Date("2026-06-02") });
     const oldSent = await call("POST", "/api/price", B);
     expect(oldSent.body.total).toBe(999.99);
     expect(oldSent.body._locked).toBe(true);
-    const refused = await mail(mailFields("F1-OLD-S", B, "audit-f1-0005"));
+    const refused = await mail(mailFields("F1-OLD-S", B, "audit-f1-0005", { client: "react" }));
     expect(refused.status).toBe(409);
     expect(refused.body.error.code).toBe("OFFER_CHANGED");
-    const same = await mail(mailFields("F1-OLD-S", A, "audit-f1-0006"));
+    expect((await reactSave("F1-OLD-S", B)).status).toBe(409);
+    const same = await mail(mailFields("F1-OLD-S", A, "audit-f1-0006", { client: "react" }));
     expect(same.status, JSON.stringify(same.body).slice(0, 300)).toBe(200);
     expect(same.body.offerTotal).toBe(999.99);
   }, 120000);
@@ -348,5 +349,81 @@ describe("F4 — an offer that went out hand-edited (server part)", () => {
     // a record from before this field existed counts as not hand-edited: signing stays possible
     const signing = await call("POST", "/api/signing", { payload: A, offerNumber: "F4-B", offerType: "bu", sendEmail: false, sendId: "audit-f4-0008" });
     expect(signing.status).toBe(201);
+  }, 120000);
+});
+
+// Measured on a copy of the real data (v2/scripts/audit-reopen-sent-offers.cjs): today's UI rebuilds
+// an opened offer from its form, and 39 of 39 sent offers saved WITHOUT a change were refused as
+// "changed". Owner 2026-11-18: for an offer the old app sent, the stored offer is the offer.
+describe("an offer the old app sent, opened again in today's UI: the stored offer is used", () => {
+  // what the form makes of it: defaults for fields the old offer did not have, values calculated again, a section dropped
+  const rebuilt = (p: any) => { const { Finanzierung: _gone, ...rest } = p; return { ...rest, duschwanne: { ...(p.duschwanne || {}), wallCladdingSupplier: "hm", wallCladdingWwDecor: "WS203" }, wandverkleidung: { ...(p.wandverkleidung || {}), wvKSituation: "wand" }, Arbeitszeit: { ...(p.Arbeitszeit || {}), ahTravelZone: 7 } }; };
+  const oldSentOffer = async (nr: string, base: any = BU) => {
+    const A = { ...base, offerNumber: nr, Finanzierung: { art: "bar" } };
+    await db().collection("offers").insertOne({ offerNumber: nr, offerType: "bu", payload: A, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
+    await db().collection("emaillogs").insertOne({ offerNumber: nr, to: "k@example.invalid", subject: "x", createdAt: new Date("2026-06-02") });
+    return A;
+  };
+  const content = (p: any) => { const { mail: _m, zusammenfassung: _z, bitrixDealId: _d, bitrixContactId: _c, ...rest } = p; return rest; };
+
+  it("saved from today's UI: accepted, and the stored offer stays exactly as it was", async () => {
+    const A = await oldSentOffer("OLD-R-SAVE");
+    const before = await stored("OLD-R-SAVE");
+    for (const p of [rebuilt(A), changedPrice(rebuilt(A))]) {
+      const r = await call("POST", "/api/offers", { offerNumber: "OLD-R-SAVE", offerType: "bu", payload: p });
+      expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200);
+      expect(r.body.offer.pricing.total).toBe(999.99);
+    }
+    expect(await stored("OLD-R-SAVE")).toEqual(before);
+  }, 120000);
+
+  it("mailed from today's UI: goes out, recorded as the stored offer with today's mail section — again and again", async () => {
+    const A = await oldSentOffer("OLD-R-MAIL");
+    for (const [i, sendId] of ["audit-old-0001", "audit-old-0002"].entries()) {
+      const sent = await mail(mailFields("OLD-R-MAIL", { ...rebuilt(A), mail: { to: "neu@example.invalid" } }, sendId, { forceResend: "1" }));
+      expect(sent.status, `send ${i + 1}: ` + JSON.stringify(sent.body).slice(0, 300)).toBe(200);
+      expect(sent.body.offerTotal).toBe(999.99);
+      const rec: any = await db().collection("offer_sends").findOne({ sendId });
+      expect(content(rec.payload).Finanzierung).toEqual({ art: "bar" });
+      expect(rec.payload.duschwanne?.wallCladdingSupplier).toBe(A.duschwanne?.wallCladdingSupplier);
+      expect(rec.payload.mail).toEqual({ to: "neu@example.invalid" });
+    }
+    expect(content((await stored("OLD-R-MAIL")).payload)).toEqual(content(A));
+    expect((await stored("OLD-R-MAIL")).pricing.total).toBe(999.99);
+    // still an old-app offer after the sends from here: the next save is accepted too
+    expect((await call("POST", "/api/offers", { offerNumber: "OLD-R-MAIL", offerType: "bu", payload: rebuilt(A) })).status).toBe(200);
+  }, 120000);
+
+  it("handed over for signature from today's UI: the stored offer is what is signed", async () => {
+    const A = await oldSentOffer("OLD-R-SIGN", ONE_DOC);
+    const r = await call("POST", "/api/signing", { offerNumber: "OLD-R-SIGN", offerType: "bu", payload: rebuilt(A), sendId: "audit-old-0003" });
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(201);
+    const sr: any = await db().collection("signingrequests").findOne({ offerNumber: "OLD-R-SIGN" });
+    expect(sr.payloadSnapshot.Finanzierung).toEqual({ art: "bar" });
+    expect(sr.payloadSnapshot.wandverkleidung?.wvKSituation).toBe(A.wandverkleidung?.wvKSituation);
+  }, 120000);
+
+  it("posted from today's UI: not refused", async () => {
+    const A = await oldSentOffer("OLD-R-POST");
+    realPdfs = true;
+    try {
+      const r = await call("POST", "/api/post/send", { ...letterFor("OLD-R-POST", "4711", await pdfTitled("letter")), payload: rebuilt(A), sendId: "audit-old-0004" });
+      expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200);
+    } finally { realPdfs = false; }
+  }, 120000);
+
+  it("does not apply to the React app, to an offer never sent, or to an offer this server sent", async () => {
+    const A = await oldSentOffer("OLD-R-REACT");
+    expect((await reactSave("OLD-R-REACT", rebuilt(A))).status).toBe(409);
+    // never sent: an ordinary saved offer, overwritten as always
+    const N = { ...BU, offerNumber: "OLD-R-NEVER" };
+    await db().collection("offers").insertOne({ offerNumber: "OLD-R-NEVER", offerType: "bu", payload: N, pricing: { total: 999.99, selfPayAmount: 0 }, pricingFingerprint: "stale", locked: true, createdAt: new Date("2026-06-01"), updatedAt: new Date("2026-06-01") });
+    expect((await call("POST", "/api/offers", { offerNumber: "OLD-R-NEVER", offerType: "bu", payload: rebuilt(N) })).status).toBe(200);
+    expect((await stored("OLD-R-NEVER")).payload.wandverkleidung.wvKSituation).toBe("wand");
+    // sent by this server from today's UI, then changed in the form: a real change, refused as before
+    const S = { ...BU, offerNumber: "OLD-R-HERE" };
+    expect((await mail(mailFields("OLD-R-HERE", S, "audit-old-0005"))).status).toBe(200);
+    expect((await call("POST", "/api/offers", { offerNumber: "OLD-R-HERE", offerType: "bu", payload: changedPrice(S) })).status).toBe(409);
+    expect((await mail(mailFields("OLD-R-HERE", changedPrice(S), "audit-old-0006", { forceResend: "1" }))).status).toBe(409);
   }, 120000);
 });

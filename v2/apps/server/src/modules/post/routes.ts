@@ -16,7 +16,7 @@ import { PostalSend } from "../../platform/models.js";
 import { claimSendLock } from "../email/index.js";
 import { randomUUID } from "node:crypto";
 import {
-  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, lastSentOffer, offerChangedBody, patchSend, readSendFile, recordStep,
+  OfferChangedError, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, beginSend, finishSend, lastSentOffer, offerChangedBody, patchSend, readSendFile, recordStep,
   storeSendFile, type SendFile, type StepName, type StepStatus,
 } from "../sends/index.js";
 import { offerIdentity } from "../sends/index.js";
@@ -172,6 +172,9 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
         }
         mainBase64 = stored.toString("base64"); resendOf = prior;
       } else if (offerLetter && b.payload) {
+        // an offer the old app sent, opened again in today's UI: compared and recorded as the stored
+        // offer (sends/sent-original.ts). The letter itself is the PDF the browser made, as in the old app.
+        b.payload = (await sentOriginalFor(offerNumber, b.payload, b.client)) ?? b.payload;
         try {
           const prior = await assertUnchangedSinceSent(offerNumber, b.payload);
           const original = (prior?.files as SendFile[] | undefined)?.find((f) => f.role === "offer" || f.role === "letter");

@@ -25,7 +25,7 @@ import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "./send
 import type { OfferDocuments, SigningPort } from "./ports.js";
 import type { EnsureSentOffer } from "../sends/index.js";
 import {
-  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, finishSend, handEditedOf, handEditedSentBody, offerChangedBody, patchSend, recordStep, storeSendFile,
+  OfferChangedError, SEND_ID, assertUnchangedSinceSent, beginSend, sentOriginalFor, finishSend, handEditedOf, handEditedSentBody, offerChangedBody, patchSend, recordStep, storeSendFile,
   type SendFile, type StepName, type StepStatus,
 } from "../sends/index.js";
 import { offerIdentity } from "../sends/index.js";
@@ -101,6 +101,8 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       const contactId = String(fields.contactId || "").trim();
       if (dealId) payload.bitrixDealId = dealId;
       if (contactId) payload.bitrixContactId = contactId;
+      // an offer the old app sent, opened again in today's UI: the stored offer goes out (sends/sent-original.ts)
+      payload = (await sentOriginalFor(payload?.offerNumber || offerNumber, payload, fields.client)) ?? payload;
 
       try {
         const begun = await beginSend(sendId, {

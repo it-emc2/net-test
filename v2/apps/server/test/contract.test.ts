@@ -1551,7 +1551,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       expect(again2.body.error.code).toBe("OFFER_CHANGED");
     }, 120000);
 
-    it("an offer the OLD app sent (no send record, but its mail log): changed content is refused; a never-sent saved offer is priced fresh", async () => {
+    it("an offer the OLD app sent (no send record, but its mail log): the React app cannot change it, today's UI keeps the stored offer; a never-sent saved offer is priced fresh", async () => {
       const db = mongoose.connection.db!;
       const P = { ...byNo("ANG2026-1103-134214"), offerNumber: "T-OLD-1" };
       const changed = { ...P, Kundendaten: { ...P.Kundendaten, lastName: "Anders" } };
@@ -1581,13 +1581,18 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       expect(oldChanged.body.offer.pricing.total).toBe(old.body.offer.pricing.total);
       await db.collection("offers").deleteMany({ offerNumber: "T-OLD-4" });
       await db.collection("offers").deleteMany({ offerNumber: "T-OLD-3" });
-      // sent by the old app → refused
+      // sent by the old app → the React app is refused a changed offer under that number …
       expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: P })).status).toBe(200);
       await db.collection("emaillogs").insertOne({ offerNumber: "T-OLD-1", to: "k@example.invalid", subject: "x", createdAt: new Date() });
       expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: P })).status).toBe(200); // unchanged
-      const no = await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: changed });
+      const no = await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: changed, client: "react" });
       expect(no.status).toBe(409);
       expect(no.body.error.code).toBe("OFFER_CHANGED");
+      // … and today's UI, whose form never rebuilds the stored offer exactly, keeps the stored one (sends/sent-original.ts)
+      const kept = await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: changed });
+      expect(kept.status).toBe(200);
+      expect(kept.body.offer.payload.Kundendaten.lastName).toBe(P.Kundendaten.lastName);
+      await db.collection("offer_origins").deleteMany({});
     }, 60000);
   });
 });
