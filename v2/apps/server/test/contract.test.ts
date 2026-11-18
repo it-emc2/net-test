@@ -209,6 +209,8 @@ describe("contract: legacy vs v2 (same DB, same requests)", () => {
 
   it("POST /api/price — identical for 40 real (anonymised) payloads", async () => {
     const cases = fx("pricing/cases.json").filter((_: unknown, i: number) => i % 3 === 0).slice(0, 40);
+    // also where a case carries the number of a stored offer with other content: an offer the old
+    // app stored keeps its price in v2 too (owner 2026-11-18, ADR 023)
     for (const c of cases) {
       const r = await both("POST", "/api/price", c.payload);
       expect(r.v2.status, c.id).toBe(200);
@@ -1332,7 +1334,8 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       .map((d) => JSON.parse(normText(JSON.stringify(stripIds({ ...d, createdAt: undefined, updatedAt: undefined, openedAt: !!d.openedAt, completedAt: !!d.completedAt, expiresAt: !!d.expiresAt, documents: d.documents.map((x: any) => ({ ...x, signedAt: !!x.signedAt })) })))));
 
   /** Runs `steps` against legacy, then (clean DB) against v2; every step's response, Bitrix calls and mails must match. */
-  const scenario = async (offerNumber: string, steps: (app: "legacy" | "v2", ctx: { tok: string }) => Promise<Res>[] | Promise<void>, per: (app: "legacy" | "v2", ctx: { tok: string; log: any[] }) => Promise<void>) => {
+  /** `differs`: where v2 stores something else than the old app ON PURPOSE — applied to the old app's rows before comparing. */
+  const scenario = async (offerNumber: string, steps: (app: "legacy" | "v2", ctx: { tok: string }) => Promise<Res>[] | Promise<void>, per: (app: "legacy" | "v2", ctx: { tok: string; log: any[] }) => Promise<void>, differs: (legacyRows: any[]) => any[] = (r) => r) => {
     const out: Record<string, { log: any[]; db: any[] }> = {};
     for (const app of ["legacy", "v2"] as const) {
       await db().collection("signingrequests").deleteMany({});
@@ -1344,7 +1347,7 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
     }
     void steps;
     for (let i = 0; i < Math.max(out.legacy!.log.length, out.v2!.log.length); i++) expect(out.v2!.log[i], `step ${i}: ${JSON.stringify(out.legacy!.log[i]?.step)}`).toEqual(out.legacy!.log[i]);
-    expect(out.v2!.db).toEqual(out.legacy!.db);
+    expect(out.v2!.db).toEqual(differs(out.legacy!.db));
     return out.v2!;
   };
   /** one step: response + outgoing Bitrix calls + mails */
@@ -1418,20 +1421,23 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       await step(app, ctx, "unchanged → reused", create(app, { payload: JSON.parse(JSON.stringify(KASSE)), offerNumber: "T-RE-1", dealId: "9001", via: "post" }));
       await step(app, ctx, "sign vollmacht", send(app, "POST", `/api/signing/${tok}/documents/vollmacht`, { signatureImage: PNG, editedFields: { phone: "0170 2" } }, { auth: false }));
       await step(app, ctx, "admin send-bitrix (partial)", send(app, "POST", `/admin/api/signing/${tok}/send-bitrix`, {}));
+      // main PR #321: a link that is still valid cannot ask for a new one
+      await step(app, ctx, "valid link → 400", send(app, "POST", `/api/signing/${tok}/request-new-link`, {}, { auth: false }));
       const changed = JSON.parse(JSON.stringify(KASSE)); changed.Kundendaten.city = "Rehau";
       await step(app, ctx, "changed → 409", create(app, { payload: changed, offerNumber: "T-RE-1", dealId: "9001" }));
       const n = await step(app, ctx, "force → new", create(app, { payload: changed, offerNumber: "T-RE-1", dealId: "9001", force: true }));
       await db().collection("signingrequests").updateOne({ token: n.body.token }, { $set: { expiresAt: new Date(Date.now() - 1000) } });
       await step(app, ctx, "expired → 410", send(app, "GET", `/api/signing/${n.body.token}`, undefined, { auth: false }));
+      // audit 2026-11-17, F10 (v2 only): the request for the older state is closed by the new one
+      if (app === "v2") expect((await send(app, "GET", `/api/signing/${tok}`, undefined, { auth: false })).status).toBe(410);
       // main PR #321: the customer asks for a new link — one Bitrix task + note, repeated clicks do nothing
-      await step(app, ctx, "valid link → 400", send(app, "POST", `/api/signing/${tok}/request-new-link`, {}, { auth: false }));
       await step(app, ctx, "request new link", send(app, "POST", `/api/signing/${n.body.token}/request-new-link`, {}, { auth: false }));
       await step(app, ctx, "request again → already", send(app, "POST", `/api/signing/${n.body.token}/request-new-link`, {}, { auth: false }));
       await step(app, ctx, "expired → 410, requested", send(app, "GET", `/api/signing/${n.body.token}`, undefined, { auth: false }));
       await step(app, ctx, "unknown token → 404", send(app, "GET", "/api/signing/doesnotexist", undefined, { auth: false }));
       await step(app, ctx, "no payload → 400", create(app, {}));
       await step(app, ctx, "status needs login", send(app, "GET", "/api/signing/status/T-RE-1", undefined, { auth: false }));
-    });
+    }, (rows) => rows.map((r, i) => (i === 0 ? { ...r, status: "expired" } : r))); // F10: the old app leaves the first request open
   }, 120000);
 
   it("two persons: partner documents, labels, completion files each person's PDFs on their own contact", async () => {
@@ -1550,12 +1556,30 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
       const P = { ...byNo("ANG2026-1103-134214"), offerNumber: "T-OLD-1" };
       const changed = { ...P, Kundendaten: { ...P.Kundendaten, lastName: "Anders" } };
       for (const n of ["T-OLD-1", "T-OLD-2"]) { await db.collection("offers").deleteMany({ offerNumber: n }); await db.collection("emaillogs").deleteMany({ offerNumber: n }); }
-      // saved, never sent → changing it is allowed and the price is computed fresh
-      expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-2", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-2" } })).status).toBe(200);
-      const fresh = await call("POST", "/api/offers", { offerNumber: "T-OLD-2", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-2", rabatt: { ...(P.rabatt || {}), sonderaufschlagValue: "80" } } });
+      // saved by the React app (`client: "react"`), never sent → changing it is allowed and the price is computed fresh.
+      // The change must MOVE the price — with one that does not (as here until 2026-11-17: a
+      // Sonderaufschlag value without its type) the test also passed while the old total stayed pinned.
+      const dearer = { offerOverrides: { priceAdjustments: [{ target: "services", amountNet: 1000 }] } };
+      await db.collection("offer_origins").deleteMany({});
+      const react = (n: string, payload: any) => call("POST", "/api/offers", { offerNumber: n, offerType: "bu", payload: { ...payload, offerNumber: n }, client: "react" });
+      const first = await react("T-OLD-2", P);
+      expect(first.status).toBe(200);
+      const before = first.body.offer.pricing.total;
+      const fresh = await react("T-OLD-2", { ...P, ...dearer });
       expect(fresh.status).toBe(200);
-      const recomputed = await call("POST", "/api/offers", { offerNumber: "T-OLD-3", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-3", rabatt: { ...(P.rabatt || {}), sonderaufschlagValue: "80" } } });
+      const recomputed = await react("T-OLD-3", { ...P, ...dearer });
+      expect(recomputed.body.offer.pricing.total).toBeGreaterThan(before);
       expect(fresh.body.offer.pricing.total).toBe(recomputed.body.offer.pricing.total); // not the old pinned total
+      // the same for the price the screen asks for
+      const shown = await call("POST", "/api/price", { ...P, offerNumber: "T-OLD-2", ...dearer });
+      expect(shown.body.total).toBe(recomputed.body.offer.pricing.total);
+      // saved by today's UI (no marker) = an old-app offer: its price never changes (owner 2026-11-18)
+      await db.collection("offers").deleteMany({ offerNumber: "T-OLD-4" });
+      const old = await call("POST", "/api/offers", { offerNumber: "T-OLD-4", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-4" } });
+      const oldChanged = await call("POST", "/api/offers", { offerNumber: "T-OLD-4", offerType: "bu", payload: { ...P, offerNumber: "T-OLD-4", ...dearer } });
+      expect(oldChanged.status).toBe(200);
+      expect(oldChanged.body.offer.pricing.total).toBe(old.body.offer.pricing.total);
+      await db.collection("offers").deleteMany({ offerNumber: "T-OLD-4" });
       await db.collection("offers").deleteMany({ offerNumber: "T-OLD-3" });
       // sent by the old app → refused
       expect((await call("POST", "/api/offers", { offerNumber: "T-OLD-1", offerType: "bu", payload: P })).status).toBe(200);

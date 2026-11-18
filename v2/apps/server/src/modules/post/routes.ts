@@ -149,9 +149,31 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       // post). Unchanged → the letter is the EXACT PDF the customer already has. Changed →
       // refused ("Neue Version"), unless the user chose to post the original as it was sent.
       let resendOf: any = null;
-      if (offerLetter && (b.payload || b.useSentOriginal === true)) {
+      if (offerLetter && b.useSentOriginal === true) {
+        // "Original per Post senden": the letter is the stored document of the last send, or
+        // nothing. Before, a send without a stored offer PDF (signed on site, or storing the
+        // file had failed) fell through and the PDF rendered from the CHANGED offer was posted
+        // (audit 2026-11-17, F3). An offer signed on site: the signed offer is the original.
+        let stored: Buffer | null = null, prior: any = null;
         try {
-          const prior = b.useSentOriginal === true ? await lastSentOffer(offerNumber) : await assertUnchangedSinceSent(offerNumber, b.payload);
+          prior = await lastSentOffer(offerNumber);
+          const files = (prior?.files as SendFile[] | undefined) ?? [];
+          const original = files.find((f) => f.role === "offer" || f.role === "letter")
+            ?? files.find((f) => f.role === "signed" && f.filename === `angebot_${offerNumber}.pdf`);
+          stored = original ? await readSendFile(original.fileId) : null;
+        } catch (e) { req.log.warn({ err: e, sendId }, "reading the sent original failed"); }
+        if (!prior || !stored) {
+          // closed before the answer leaves, so the record never shows a refused letter as running
+          if (recordOpen) { await rec("finish", () => finishSend(sendId, "failed", { error: "Original nicht gespeichert" })); recordOpen = false; }
+          return failSend(req, reply, 409, prior
+            ? "Das Original dieses Angebots ist nicht gespeichert und kann deshalb nicht per Post versendet werden. Es wurde nichts versendet. Bitte erstellen Sie eine neue Version des Angebots."
+            : "Dieses Angebot wurde noch nicht versendet – es gibt kein Original, das per Post versendet werden könnte. Es wurde nichts versendet.",
+          { code: "ORIGINAL_NOT_STORED", sendId });
+        }
+        mainBase64 = stored.toString("base64"); resendOf = prior;
+      } else if (offerLetter && b.payload) {
+        try {
+          const prior = await assertUnchangedSinceSent(offerNumber, b.payload);
           const original = (prior?.files as SendFile[] | undefined)?.find((f) => f.role === "offer" || f.role === "letter");
           const stored = original ? await readSendFile(original.fileId) : null;
           if (prior && stored) { mainBase64 = stored.toString("base64"); resendOf = prior; }
@@ -206,7 +228,7 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       }
       // the letter is with the printer: the locked offer (pinned price) must exist (see sends/offer-record.ts)
       if (clientSendId && offerLetter && b.payload && !resendOf && d.ensureSentOffer) {
-        await d.ensureSentOffer({ offerNumber, offerType: String(meta?.offerType || b.payload?.activeOffer || "bu"), payload: b.payload });
+        await d.ensureSentOffer({ offerNumber, offerType: String(meta?.offerType || b.payload?.activeOffer || "bu"), payload: b.payload, client: b.client });
       }
       if (recordOpen) {
         await step("provider", "ok");

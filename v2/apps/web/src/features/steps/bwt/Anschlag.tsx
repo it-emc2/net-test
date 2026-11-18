@@ -2,7 +2,7 @@
 // The animation is a Lottie file (door-animation.json: left hinge, the door swings inward) played once when a side
 // is chosen; "Rechts" is the same animation mirrored. The door is tinted with the chosen colour of the picked door
 // (layer `tub_door` only). The player (lottie-web, light build) and the animation are loaded when this step is
-// opened — never in the start bundle. With "reduce motion" nothing plays: the door is shown open. UX-CHANGES U-035.
+// opened — never in the start bundle. With "reduce motion" nothing plays: the door is shown open. UX-CHANGES U-036.
 import { useEffect, useRef, useState } from "react";
 import { cn } from "../../../shared/ui/index.js";
 import { doorTint, tintedDoor } from "./rules.js";

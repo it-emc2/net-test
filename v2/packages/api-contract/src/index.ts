@@ -156,6 +156,8 @@ export const endpoints = {
   /** the signed-in user's own password once more (release of a letter without deal number); body: password */
   confirmPassword: { method: "POST", path: "/api/auth/confirm-password", response: z.looseObject({ email: z.string().nullish() }) },
   /** how an offer was sent before (newest first) */
+  /** registers an offer number for this device; `changed`: it was taken, `offerNumber` is the one to use (audit F12) */
+  claimOfferNumber: { method: "POST", path: "/api/offer-numbers/claim", response: z.looseObject({ offerNumber: z.string().nullish(), changed: z.boolean().nullish() }) },
   offerSends: { method: "GET", path: "/api/offers/:offerNumber/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },
   /** the sends of a deal across its offer numbers (newest first) */
   dealSends: { method: "GET", path: "/api/deals/:dealId/sends", response: z.looseObject({ sends: z.array(z.looseObject({ status: z.string().nullish(), channel: z.string().nullish() })).nullish() }) },

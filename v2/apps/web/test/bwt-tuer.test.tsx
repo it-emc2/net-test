@@ -139,7 +139,7 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     expect(wien.getByRole("radiogroup", { name: "Farbe" })).toBeTruthy();
   });
 
-  it("Türanschlag animation: plays once per choice, mirrored for Rechts, tinted with the door's colour (UX-CHANGES U-035)", async () => {
+  it("Türanschlag animation: plays once per choice, mirrored for Rechts, tinted with the door's colour (UX-CHANGES U-036)", async () => {
     await open();
     const user = userEvent.setup(), box = () => screen.getByTestId("anschlag-animation");
     expect(box().getAttribute("role")).toBe("img");

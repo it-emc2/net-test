@@ -2,13 +2,13 @@
 // src/routes/offers.js + src/routes/drafts.js + src/lib/ansprechpartner.js.
 // Legacy quirks kept on purpose (parity): computePrices mutates the payload it is given
 // (shallow copies share nested sections, so the stored payload carries those changes);
-// saving an offer always sets locked:true; `status` is not in the schema and is dropped.
+// saving an offer always sets locked:true (the stored flag means "saved"; whether the price is
+// pinned is decided by "sent" — sends/pinned-price.ts); `status` is not in the schema and is dropped.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
 import { Draft, Offer, User } from "../../platform/models.js";
 import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../sends/index.js";
-import { wasSentBeforeRecords } from "../sends/index.js";
-import { offerIdentity } from "../sends/index.js";
+import { isReactClient, markReactOffer, offerIdentity } from "../sends/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -59,37 +59,31 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
   });
 
   app.post("/api/offers", async (req, reply) => {
-    const { offerNumber, offerType, payload, status } = (req.body ?? {}) as Record<string, any>;
+    const { offerNumber, offerType, payload, status, client } = (req.body ?? {}) as Record<string, any>;
     if (!offerNumber) return fail(req, reply, 400, "BAD_REQUEST", "offerNumber ist erforderlich");
     if (!payload) return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
     // Decision C (ADR 023): an offer that was sent is immutable. Saving it again unchanged is
     // fine (downloads, post after e-mail); changed content under the sent number is refused —
     // before, it overwrote the sent offer while the old price stayed pinned (audit create F01).
-    let knownSend: unknown = null;
-    try { knownSend = await assertUnchangedSinceSent(String(offerNumber), payload); }
+    // An offer the old app sent (no send record, its logs say so) is refused the same way.
+    try { await assertUnchangedSinceSent(String(offerNumber), payload); }
     catch (e) {
       if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
       req.log.warn({ err: e, offerNumber }, "sent-offer check failed — saving anyway");
     }
+    // Created by the React app, never sent and changed since the last save → priced FRESH by the
+    // engine (sends/pinned-price.ts); forceRecompute on top, so that a switched-off auto-recompute
+    // does not serve the old total either. An offer the old app stored keeps its price — the
+    // engine ignores forceRecompute for it.
     let pricingPayload: Record<string, any> = { ...payload, offerNumber, offerType };
-    // No send record: the stored offer under this number is either one the OLD app sent, or it
-    // was only saved/downloaded. Content changed since then →
-    //  - sent by the old app (its mail/post/signing logs say so): refused like above;
-    //  - never sent: priced FRESH. Before, the old total stayed pinned to the new positions.
-    if (!knownSend) {
-      try {
-        // tolerant comparison (key order, empty values, workflow sections ignored) — a reopened
-        // offer is rebuilt from the form and must not count as changed
-        const stored: any = await Offer.findOne({ offerNumber }, { payload: 1, locked: 1 }).lean();
-        if (stored?.locked && stored.payload && offerIdentity(stored.payload, offerNumber).contentHash !== offerIdentity(payload, offerNumber).contentHash) {
-          if (await wasSentBeforeRecords(String(offerNumber))) {
-            const e = new OfferChangedError(["Inhalt (Positionen, Preise oder Kundendaten)"], { sendId: "", channel: "", at: new Date(0), to: "", by: "" });
-            return reply.status(409).send(offerChangedBody(e, req.id));
-          }
-          pricingPayload = { ...pricingPayload, forceRecompute: true };
-        }
-      } catch (e) { req.log.warn({ err: e, offerNumber }, "stored-offer comparison failed — saving as before"); }
-    }
+    let isNew = false;
+    try {
+      const stored: any = await Offer.findOne({ offerNumber }, { payload: 1 }).lean();
+      isNew = !stored;
+      if (stored?.payload && offerIdentity(stored.payload, offerNumber).contentHash !== offerIdentity(payload, offerNumber).contentHash) {
+        pricingPayload = { ...pricingPayload, forceRecompute: true };
+      }
+    } catch (e) { req.log.warn({ err: e, offerNumber }, "stored-offer comparison failed — saving as before"); }
     const computedPricing = await pricing.computePrices(pricingPayload);
     const offerDoc = {
       offerNumber,
@@ -107,6 +101,8 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
         { $set: offerDoc, $setOnInsert: { createdAt: new Date() } },
         { upsert: true, new: true, runValidators: true },
       );
+      // the React app says who it is (`client: "react"`); an offer it creates is a React offer (sends/origin.ts)
+      if (isNew && isReactClient(client)) await markReactOffer(String(offerNumber)).catch((e) => req.log.warn({ err: e, offerNumber }, "marking the offer as created by the React app failed"));
       req.log.info({ offerNumber }, "offer saved");
       return { ok: true, offer: result, message: `Angebot ${offerNumber} erfolgreich gespeichert` };
     } catch (err: any) {
