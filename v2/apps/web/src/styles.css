@@ -122,9 +122,3 @@
 /* step drawer (< lg): slides in from the left; no motion if the device asks for none */
 @keyframes drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
 @media (prefers-reduced-motion: no-preference) { dialog.drawer[open] { animation: drawer-in 0.2s ease-out; } }
-
-/* BWT Türanschlag drawing: the door opens slowly (1.2 s), holds (0.8 s), closes (1.2 s) when a side is
-   chosen; with "reduce motion" nothing moves and the door is drawn open */
-.bwt-door-swing { transform-box: view-box; transform: rotate(var(--bwt-open)); }
-@keyframes bwt-door-swing { 0% { transform: rotate(0); } 37.5%, 62.5% { transform: rotate(var(--bwt-open)); } 100% { transform: rotate(0); } }
-@media (prefers-reduced-motion: no-preference) { .bwt-door-swing { transform: none; animation: bwt-door-swing 3.2s ease-in-out 1; } }
