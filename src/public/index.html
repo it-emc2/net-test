@@ -5017,6 +5017,11 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Einfache Ansicht winwall: Platten je Format + Dekor (initWvSimple). Schreibt
                dieselben wvWwRows wie die Zeilen – Preis, PDF und Laden bleiben gleich. -->
+          <!-- Classic winwall view (old drafts/offers, or after "Alter Konfigurator"): back to the
+               simple view. Same wvWwRows, so nothing is converted or lost. -->
+          <div id="wvToSimpleRow" class="full">
+            <button type="button" id="wvToSimple" class="wvs-to-simple">Zur neuen Ansicht wechseln (Platten + Dekor)</button>
+          </div>
           <div id="wvSimple" class="full">
             <div class="sec-settings">
               <div class="sec-settings__label"><span class="wvs-step">1</span> Platten – Menge je Größe</div>
@@ -5024,6 +5029,8 @@ button.dm-btn-danger:focus-visible {
               <div class="sec-settings__group">
                 <div class="wvs-plates"></div>
                 <div class="wvs-total"></div>
+                <!-- Rows without a valid decor (older offers, e.g. "23013"): not priced, shown in red. -->
+                <div class="wvs-bad" role="alert" hidden></div>
                 <!-- Additiv (2026-11-18): Höhe → Reste je Dekor (Streifen über der Höhe), für den Fußboden. -->
                 <label class="sec-settings__row wvs-height" for="wvWwHeight">
                   <span class="sec-settings__text"><strong>Höhe der Verkleidung</strong><small class="wvs-height-hint">Was über dieser Höhe abgeschnitten wird, kann als Fußboden verwendet werden.</small></span>

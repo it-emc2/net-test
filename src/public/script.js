@@ -13998,6 +13998,7 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const tabsEl = box.querySelector(".wvs-tabs");
   const platesEl = box.querySelector(".wvs-plates");
   const totalEl = box.querySelector(".wvs-total");
+  const badEl = box.querySelector(".wvs-bad");
   const colorsEl = box.querySelector(".wvs-colors");
   const otherEl = box.querySelector(".wvs-other-input");
   const hintEl = box.querySelector(".wvs-hint");
@@ -14068,6 +14069,16 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     for (const x of groups) for (const [f, w, h] of FMTS) { n += x.qty[f] || 0; m2 += ((x.qty[f] || 0) * w * h) / 1e4; }
     totalEl.textContent = `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²${groups.length > 1 ? ` · ${groups.length} Dekore` : ""}`;
     colorsEl.innerHTML = window.wvsPaletteHtml(g.code); // a typed decor shows as its own tile
+    // Typed rows without a valid decor (classic editor / older offers) are kept but not priced.
+    const bad = (window.__wwRowsState?.() || []).filter((r) => !r.code);
+    if (badEl) {
+      badEl.hidden = !bad.length;
+      if (bad.length) {
+        const n = bad.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+        const txt = [...new Set(bad.map((r) => String(r.text || "").trim()).filter(Boolean))].join(", ");
+        badEl.innerHTML = `<span>${n} ${n === 1 ? "Platte" : "Platten"} mit ungültiger Dekor-Nr.${txt ? ` (${esc(txt)})` : ""} – fehlen im Preis.</span><button type="button" class="wvs-bad__fix">Im alten Konfigurator korrigieren</button>`;
+      }
+    }
   }
 
   // Height → what is left over per decor (getWvLeftover), shown under the field.
@@ -14166,12 +14177,17 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     const open = form.classList.toggle("wv-line-open");
     lineBtn.setAttribute("aria-expanded", String(open));
   });
-  box.querySelector(".wvs-classic").addEventListener("click", () => { ui.value = ""; sync(); });
+  // Both ways: same wvWwRows underneath, so switching never changes the order or the price.
+  const setUi = (v) => { ui.value = v; ui.dispatchEvent(new Event("change", { bubbles: true })); sync(); };
+  box.querySelector(".wvs-classic").addEventListener("click", () => setUi(""));
+  badEl?.addEventListener("click", (e) => { if (e.target.closest(".wvs-bad__fix")) setUi(""); });
+  document.getElementById("wvToSimple")?.addEventListener("click", () => { window.pullWwRows?.(); groups = []; setUi("simple"); });
 
   function sync() {
     const simple = ui.value === "simple";
     form.classList.toggle("wv-simple", simple);
     form.classList.toggle("wv-simple-ww", simple && !!window.isWvWinwall?.());
+    form.classList.toggle("wv-ww", !!window.isWvWinwall?.());
     const t = document.getElementById("wvLineText");
     if (t) t.textContent = lineLabel();
     if (simple) { load(); render(); syncHeightHint(); }

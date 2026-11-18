@@ -12841,7 +12841,7 @@ body.ui-classic #page-Wandverkleidung .dw-acc .wv-seal-reset { color: var(--cl-a
 
 /* Höhe (Reste je Dekor) + winwall-Platten im Fußboden-Tab (2026-11-18) */
 .wvs-height { border-top: 1px solid var(--input-border, #e5e7eb); }
-.wvs-height .dw-dim-input input { width: 90px; }
+.wvs-height .dw-dim-input input { width: 120px; }
 .wvs-height-hint.is-ok { color: #248a3d; }
 [data-mode="dark"] .wvs-height-hint.is-ok { color: #4ade80; }
 .wvs-plate__best { margin-top: -6px; min-height: 1.1em; color: #248a3d; font-size: .75rem; font-weight: 600; }
@@ -12854,3 +12854,12 @@ body.ui-classic #page-Wandverkleidung .dw-acc .wv-seal-reset { color: var(--cl-a
 #wcWwDecors[hidden] { display: none !important; }
 #form-fussboden #wcWwCustomRow { flex-wrap: nowrap; }
 #form-fussboden #wcWwCustomRow input { flex: none; width: 170px; max-width: 45%; margin: 0; }
+/* Classic winwall → back to the simple view */
+#wvToSimpleRow { display: none; }
+#form-wandverkleidung.wv-ww:not(.wv-simple) #wvToSimpleRow { display: block; }
+.wvs-to-simple { width: 100%; margin: 0 0 4px; padding: 12px 16px; border: 1px dashed #0a84ff; border-radius: 12px; background: rgba(10,132,255,.06); color: #0a84ff; font: inherit; font-weight: 600; cursor: pointer; }
+[data-mode="dark"] .wvs-to-simple { color: #6cb4ff; border-color: #6cb4ff; background: rgba(108,180,255,.08); }
+.wvs-bad { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 18px; border-top: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; font-size: .88rem; font-weight: 600; }
+.wvs-bad[hidden] { display: none; }
+.wvs-bad__fix { padding: 6px 12px; border: 1px solid currentColor; border-radius: 999px; background: none; color: inherit; font: inherit; font-size: .82rem; cursor: pointer; }
+[data-mode="dark"] .wvs-bad { background: rgba(220,38,38,.12); border-top-color: rgba(248,113,113,.35); color: #fca5a5; }
