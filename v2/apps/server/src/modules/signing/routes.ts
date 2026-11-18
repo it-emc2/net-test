@@ -22,7 +22,7 @@ import {
 } from "./fields.js";
 import { documentHtml, documentPdf, signedPdf, type SigningRenderer } from "./documents.js";
 import {
-  OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, handEditedOf, handEditedSentBody, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
+  OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, handEditedOf, handEditedSentBody, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
   sendForSigning, storeSendFile, type SendFile,
 } from "../sends/index.js";
 import { offerIdentity } from "../sends/index.js";
@@ -306,8 +306,10 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
   app.post("/api/signing", async (req, reply) => {
     try {
       const b = (req.body ?? {}) as any;
-      const payload = b.payload;
+      let payload = b.payload;
       if (!payload || typeof payload !== "object") return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
+      // an offer the old app sent, opened again in today's UI: the stored offer is signed (sends/sent-original.ts)
+      payload = (await sentOriginalFor(b.offerNumber || payload?.offerNumber, payload, b.client)) ?? payload;
       // Decision C: an offer that was sent cannot be handed over for signature with changed content
       const offerNo = String(b.offerNumber || payload?.offerNumber || "");
       const identity = offerIdentity(payload, offerNo);

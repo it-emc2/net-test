@@ -28,6 +28,18 @@ export async function markReactOffer(offerNumber: string): Promise<void> {
   await OfferOrigin.updateOne({ _id: nr }, { $setOnInsert: { app: REACT_CLIENT, at: new Date() } }, { upsert: true });
 }
 
+/** An offer the old app sent (sent-original.ts): remembered, because the next send from today's UI writes a send record. */
+export const OLD_SENT = "old-sent";
+export async function markOldSentOffer(offerNumber: string): Promise<void> {
+  const nr = String(offerNumber || "").trim();
+  if (!nr) return;
+  await OfferOrigin.updateOne({ _id: nr }, { $setOnInsert: { app: OLD_SENT, at: new Date() } }, { upsert: true });
+}
+export async function isOldSentOffer(offerNumber: string): Promise<boolean> {
+  const nr = String(offerNumber || "").trim();
+  return !!nr && !!(await OfferOrigin.exists({ _id: nr, app: OLD_SENT }));
+}
+
 export async function isReactOffer(offerNumber: string): Promise<boolean> {
   const nr = String(offerNumber || "").trim();
   return !!nr && !!(await OfferOrigin.exists({ _id: nr, app: REACT_CLIENT }));

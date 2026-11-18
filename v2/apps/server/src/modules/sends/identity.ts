@@ -67,6 +67,19 @@ function sameContent(sent: OfferIdentity, now: OfferIdentity, offers: Offers): b
   return offers.now !== undefined && hashOf(offers.now, WORKFLOW_KEYS_V1) === sent.contentHash;
 }
 
+/**
+ * The stored offer with the workflow sections of the request (mail text, recipient, deal): the
+ * content is the stored one, how it is sent is today's. The price snapshot of the request is not
+ * taken over — it belongs to the offer the form rebuilt.
+ */
+export function storedContentWith(stored: unknown, request: unknown): Record<string, unknown> {
+  const out = structuredClone((stored ?? {}) as Record<string, unknown>);
+  const req = (request && typeof request === "object" ? request : {}) as Record<string, unknown>;
+  for (const k of WORKFLOW_KEYS) if (k !== "pricing" && k !== "forceRecompute" && k in req) out[k] = structuredClone(req[k]);
+  delete out.forceRecompute;
+  return out;
+}
+
 /** German labels of what differs between the sent offer and the current one ([] = same offer). */
 export function identityDifferences(sent: OfferIdentity | null | undefined, now: OfferIdentity, offers: Offers = {}): string[] {
   if (!sent) return [];

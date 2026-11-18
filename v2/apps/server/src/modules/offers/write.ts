@@ -8,7 +8,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { computeFingerprint, type PricingEngine } from "@oc/pricing";
 import { Draft, Offer, User } from "../../platform/models.js";
 import { OfferChangedError, assertUnchangedSinceSent, offerChangedBody } from "../sends/index.js";
-import { isReactClient, markReactOffer, offerIdentity } from "../sends/index.js";
+import { isReactClient, markReactOffer, offerIdentity, sentOriginalFor } from "../sends/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -62,6 +62,13 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
     const { offerNumber, offerType, payload, status, client } = (req.body ?? {}) as Record<string, any>;
     if (!offerNumber) return fail(req, reply, 400, "BAD_REQUEST", "offerNumber ist erforderlich");
     if (!payload) return fail(req, reply, 400, "BAD_REQUEST", "payload ist erforderlich");
+    // An offer the OLD app sent, saved from today's UI: the stored offer stays as it is — the
+    // form's rebuild of it is not the offer (sends/sent-original.ts). Nothing is written.
+    if (await sentOriginalFor(offerNumber, payload, client)) {
+      const kept = await Offer.findOne({ offerNumber }).lean();
+      req.log.info({ offerNumber }, "offer sent by the old app — stored offer kept");
+      return { ok: true, offer: kept, message: `Angebot ${offerNumber} erfolgreich gespeichert` };
+    }
     // Decision C (ADR 023): an offer that was sent is immutable. Saving it again unchanged is
     // fine (downloads, post after e-mail); changed content under the sent number is refused —
     // before, it overwrote the sent offer while the old price stayed pinned (audit create F01).
@@ -84,7 +91,9 @@ export async function registerOffersWrite(app: FastifyInstance, pricing: Pricing
         pricingPayload = { ...pricingPayload, forceRecompute: true };
       }
     } catch (e) { req.log.warn({ err: e, offerNumber }, "stored-offer comparison failed — saving as before"); }
-    const computedPricing = await pricing.computePrices(pricingPayload);
+    // `_locked` tells the UI why the price does not move — a flag of the answer, never stored
+    // (a saved-again old offer kept it in its price otherwise: seen on the copy of the real data)
+    const { _locked: _flag, ...computedPricing } = (await pricing.computePrices(pricingPayload)) as Record<string, unknown>;
     const offerDoc = {
       offerNumber,
       offerType: offerType || "bu",
