@@ -1,6 +1,7 @@
 // The steps that exist as React screens.
 export { Angebotscheck } from "./angebotscheck/Angebotscheck.js";
 export { Arbeiten } from "./arbeiten/Arbeiten.js";
+export { BwtArbeiten } from "./bwt/BwtArbeiten.js";
 export { Badewannentuer } from "./bwt/Badewannentuer.js";
 export { Checkliste } from "./checkliste/Checkliste.js";
 export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
@@ -20,11 +21,13 @@ import { setStepCheck, setStepStatuses } from "../offer/index.js";
 import { statuses } from "./status.js";
 import { useOfferStore } from "../offer/index.js";
 import { arbeitszeitProblem } from "./arbeitszeit/rules.js";
+import { bwtProblem } from "./bwt/rules.js";
 import { fussbodenProblem } from "./fussboden/rules.js";
 import { checkKundendaten } from "./kundendaten/required.js";
 import { markupProblem } from "./markup/rules.js";
 setStepCheck("Kundendaten", checkKundendaten);
 setStepCheck("Rabatt", markupProblem);
+setStepCheck("bwt", () => { const o = useOfferStore.getState().offer as Record<string, any> | null; return o ? bwtProblem(o.bwt ?? {}) : null; });
 setStepCheck("Arbeitszeit", () => { const o = useOfferStore.getState().offer as Record<string, any> | null; return o ? arbeitszeitProblem(o.activeOffer, o.Arbeitszeit ?? {}) : null; });
 setStepCheck("Fussboden", () => { const o = useOfferStore.getState().offer as Record<string, any> | null; return o ? fussbodenProblem(o.duschwanne ?? {}) : null; });
 // "Optional" has no check, as today: the question of the shower system is asked for on "Weiter"

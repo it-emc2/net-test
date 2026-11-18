@@ -65,17 +65,17 @@ export function Tile({ to, title, text }: { to: string; title: string; text?: st
 }
 
 /** One question with a few answers, as large tappable pills (native radio buttons). */
-export function Choices({ legend, name, options, value, onChange, required }: {
-  legend: string; name: string; value: string | undefined; required?: boolean | undefined;
+export function Choices({ legend, name, options, value, onChange, required, invalid }: {
+  legend: string; name: string; value: string | undefined; required?: boolean | undefined; invalid?: boolean | undefined;
   options: readonly { value: string; label: string }[]; onChange: (value: string) => void;
 }) {
   return (
-    <fieldset className="m-0 grid min-w-0 gap-1.5 border-0 p-0">
+    <fieldset className={cn("m-0 grid min-w-0 gap-1.5 border-0 p-0", invalid && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>
       <legend className="mb-1.5 p-0 font-semibold">{legend}</legend>
       <div className="flex flex-wrap gap-2">
         {options.map((o) => (
           <label key={o.value} className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-lg border-2 border-input bg-card px-4 has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
-            <input type="radio" className="size-5 accent-[var(--primary)]" name={name} value={o.value} checked={value === o.value} required={required} onChange={() => onChange(o.value)} />
+            <input type="radio" className="size-5 accent-[var(--primary)]" name={name} value={o.value} checked={value === o.value} required={required} aria-invalid={invalid || undefined} onChange={() => onChange(o.value)} />
             {o.label}
           </label>
         ))}

@@ -1,13 +1,14 @@
 // Kosten (Kosten-Details; ADR 026, phase 4): the internal overview of every position of the
 // offer with quantity, unit price and total, and the ladder of the sums — for checking the
 // calculation. Everything comes from the price (rules.ts); the page stores nothing.
-// Built for Badumbau; the other offer types still use today's view for this step.
+// Built for Badumbau and Badewannentür; the other offer types still use today's view for this step.
 import { useQueryClient } from "@tanstack/react-query";
+import { Wrench } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { Button, Card, CardTitle, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { LegacyLink, useOfferType, usePrice } from "../../offer/index.js";
+import { LegacyLink, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { sections, sums, type Price, type Row, type Section } from "./rules.js";
 
 const NUM = "grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[0.8rem] font-bold";
@@ -25,6 +26,10 @@ function Lines({ rows }: { rows: Row[] }) {
         </div>
         {rows.map((r, i) => ("subtitle" in r ? (
           <div key={`s${i}`} className="col-span-4 mt-2 font-bold" data-part="subtitle">{r.subtitle}</div>
+        ) : r.task ? (
+          <div key={`t${i}`} className="col-span-4 flex items-start gap-2 text-muted-foreground" data-testid="kosten-task">
+            <Wrench aria-hidden className="mt-1 size-4 shrink-0" /><span><span data-part="label">{r.label}</span> · in Arbeitszeit enthalten</span>
+          </div>
         ) : (
           <div key={`${r.id}-${i}`} className="contents" role="row" data-testid="kosten-line" data-line-id={r.id}>
             <span role="cell" className="whitespace-pre-line">
@@ -58,7 +63,9 @@ export function Kosten() {
   const price = usePrice();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
-  if (type !== "bu") {
+  const offer = useOfferStore((s) => s.offer) as Record<string, any> | null;
+  const ctx = { type, offer };
+  if (type !== "bu" && type !== "bwt") {
     return (
       <Card>
         <CardTitle>Kosten</CardTitle>
@@ -81,11 +88,11 @@ export function Kosten() {
       <p className="m-0 text-muted-foreground">Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und Gesamtpreisen. Dient zum Prüfen der Abrechnung.</p>
       {!data ? <p className="m-0 text-muted-foreground" role="status">{price.error ? "Keine Daten" : "Berechne …"}</p> : (
         <>
-          {sections(data).map((s) => <Block key={s.title} section={s} />)}
+          {sections(data, ctx).map((s) => <Block key={s.title} section={s} />)}
           <section className="grid gap-2" data-testid="kosten-sums">
             <h3 className="m-0 border-b-2 border-primary pb-1 text-[1.1rem] font-semibold">Summen</h3>
             <dl className="m-0 grid gap-2">
-              {sums(data).map((r, i) => ("note" in r && r.note !== undefined ? (
+              {sums(data, ctx).map((r, i) => ("note" in r && r.note !== undefined ? (
                 <p key={i} className="m-0 text-[0.9rem] text-muted-foreground" data-part="note">{r.note}</p>
               ) : (
                 <div key={r.label} data-part="row" data-rule={r.rule ? "true" : undefined} data-total={r.total ? "true" : undefined} className={cn("flex items-baseline justify-between gap-4", r.rule && "border-t border-border pt-2", r.total && "text-[1.15rem] font-bold")}>
