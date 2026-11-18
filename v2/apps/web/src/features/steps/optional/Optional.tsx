@@ -1,35 +1,26 @@
 // Optionale Produkte (Badumbau; ADR 026, phase 4): the category cards with their counts, one
 // dialog per category (products with quantities, the question of the shower system, accessories
-// that come by themselves, free items) and the bar "Ausgewählte Optionen". The stored fields are
-// exactly today's (test/optional.test.tsx compares with what today's UI stores and shows for the
-// same inputs). The rules are rules.ts; the products are catalog.ts. Not rebuilt yet: the
-// categories "Wanne" and "WC" — their cards lead to today's view.
+// that come by themselves, free items, the Wanne picker, the WC) and the bar "Ausgewählte
+// Optionen". The stored fields are exactly today's (test/optional.test.tsx and
+// test/optional-wanne-wc.test.tsx compare with what today's UI stores and shows for the same
+// inputs). The rules are rules.ts, wanne-rules.ts and wc-rules.ts; the products are catalog.ts.
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { useParams } from "react-router";
 import { Button, Card, CardTitle, Choices, Input, Label, cn, IMG } from "../../../shared/ui/index.js";
-import { LegacyLink, useOfferStore } from "../../offer/index.js";
-import { optChanges } from "../arbeiten/rules.js";
+import { useOfferStore } from "../../offer/index.js";
 import { CATEGORIES, type Category, type Product } from "./catalog.js";
 import {
-  BASINS, FREE_BASIN, NO_UI, addRow, basinOf, cardOn, changedFields, chips, closeCard, count, editBasin, editRow, fitsMount, hasQuantity, isLocked, isOn, leaveQty,
+  BASINS, FREE_BASIN, NO_UI, addRow, basinOf, cardOn, chips, closeCard, count, editBasin, editRow, fitsMount, hasQuantity, isLocked, isOn, leaveQty,
   openCard, qtyLabel, qtyOf, removeChip, removeRow, rowsOf, searchProducts, setMount, setQty, toggleProduct, type FreeBasin, type Mount, type Row, type State, type Ui,
 } from "./rules.js";
+import { act } from "./store.js";
+import { WannePanel } from "./Wanne.js";
+import { LAST as WC_LAST, WcPanel, useWcProducts } from "./Wc.js";
 
 type Fields = Record<string, unknown>;
 const NONE: Fields = {};
-const offerNow = () => (useOfferStore.getState().offer ?? {}) as Record<string, any>;
-/** the stored section and what the page remembers beside it */
-export const optionalState = (): State => ({ opt: offerNow().optional ?? NONE, ui: (useOfferStore.getState().scratch.optional as Ui | undefined) ?? NO_UI });
-/** one change of the offer (with the tasks and the work time that follow) and of what is remembered */
-function act(change: (s: State) => State): void {
-  const before = optionalState(), next = change(before);
-  const fields = changedFields(before.opt, next.opt);
-  if (Object.keys(fields).length) useOfferStore.getState().patchAll(optChanges(offerNow(), fields));
-  if (next.ui !== before.ui) useOfferStore.getState().remember("optional", next.ui);
-}
-/** categories that are still edited in today's view */
-const NOT_BUILT: ReadonlySet<string> = new Set(["WANNE", "WC"]);
+import { optionalState } from "./store.js";
+export { optionalState };
 const MOUNTS = [{ value: "versetzt", label: "Versetzt (seitlich/tiefer) – flexibler Schlauch nötig" }, { value: "direkt", label: "Direkt darunter – feste Verbindung" }] as const;
 const SEARCH_FROM = 8; // products, as today's search
 const H4 = "m-0 text-base font-bold";
@@ -118,15 +109,11 @@ function FreeItems({ rows }: { rows: Row[] }) {
 }
 
 /** What the dialog of one category shows. */
-function Panel({ cat, s, dealId }: { cat: Category; s: State; dealId: string }) {
+function Panel({ cat, s }: { cat: Category; s: State }) {
   const { opt } = s;
   const main = cat.products.filter((p) => !p.block), parts = cat.products.filter((p) => p.block);
-  if (NOT_BUILT.has(cat.id)) return (
-    <div className="grid gap-3">
-      <p className="m-0">Diese Kategorie wird noch in der bisherigen Ansicht bearbeitet. Ihre Eingaben werden mitgenommen.</p>
-      <LegacyLink dealId={dealId} step="Optional">In der bisherigen Ansicht öffnen</LegacyLink>
-    </div>
-  );
+  if (cat.id === "WANNE") return <WannePanel opt={opt} />;
+  if (cat.id === "WC") return <WcPanel opt={opt} />;
   if (cat.id === "SONDER") return <><div className="font-bold">Sonderprodukte (Freie Zusatzpositionen)</div><FreeItems rows={rowsOf(s)} /></>;
   if (cat.id === "SHOWER") return (
     <>
@@ -172,7 +159,7 @@ function Panel({ cat, s, dealId }: { cat: Category; s: State; dealId: string }) 
 }
 
 /** The dialog of a category. Esc, the cross, "Fertig" and a tap beside it close it. */
-function Dialog({ cat, s, dealId, onClose }: { cat: Category; s: State; dealId: string; onClose: () => void }) {
+function Dialog({ cat, s, onClose }: { cat: Category; s: State; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => { box.current?.focus(); }, []); // the keys go to the dialog while it is open
   const onKey = (e: ReactKeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -183,7 +170,7 @@ function Dialog({ cat, s, dealId, onClose }: { cat: Category; s: State; dealId: 
           <strong id="opt-dialog-title" className="text-lg">{cat.name}</strong>
           <Button variant="ghost" size="icon" aria-label="Schließen" onClick={onClose}><X aria-hidden /></Button>
         </div>
-        <div className="grid min-w-0 grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain p-4" data-testid="opt-panel" data-cat={cat.id}><Panel cat={cat} s={s} dealId={dealId} /></div>
+        <div className="grid min-w-0 grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain p-4" data-testid="opt-panel" data-cat={cat.id}><Panel cat={cat} s={s} /></div>
         <div className="flex justify-end border-t border-border px-4 py-2"><Button onClick={onClose}>Fertig</Button></div>
       </div>
     </div>
@@ -191,17 +178,18 @@ function Dialog({ cat, s, dealId, onClose }: { cat: Category; s: State; dealId: 
 }
 
 export function Optional() {
-  const { dealId = "" } = useParams();
   const opt = useOfferStore((x) => (x.offer as Record<string, any> | null)?.optional as Fields | undefined) ?? NONE;
   const ui = useOfferStore((x) => x.scratch.optional as Ui | undefined) ?? NO_UI;
   const [open, setOpen] = useState<string | null>(null);
   const cards = useRef<HTMLDivElement>(null);
   const s: State = { opt, ui };
-  const picks = chips(s);
+  const wc = useWcProducts(); // names and prices of the WC products (the bar shows them)
+  const picks = chips(s, wc);
   const show = (cat: string) => { act((x) => openCard(x, cat)); setOpen(cat); }; // tapping a card that has picks edits it
   const close = () => {
     if (!open) return;
-    act((x) => closeCard(x, open));
+    if (open === "WC" && count(optionalState(), "WC") === 0) useOfferStore.getState().remember(WC_LAST, null); // left empty: the next Montageart ticks the required products again
+    act((x) => closeCard(x, open, wc));
     setOpen(null);
     cards.current?.querySelector<HTMLElement>(`[data-id="${open}"]`)?.focus(); // back to the card the dialog came from
   };
@@ -216,7 +204,7 @@ export function Optional() {
             {picks.map((c, i) => (
               <span key={`${c.cat}-${c.product ?? c.row ?? c.text}-${i}`} data-testid="opt-chip" title={c.title} className="inline-flex min-h-12 max-w-full items-center gap-1 rounded-3xl border-2 border-input bg-card pl-4 pr-1">
                 <span data-part="text" className="min-w-0 break-words py-1">{c.text}</span>
-                {c.fixed ? <span className="w-3" /> : <button type="button" aria-label={`${c.text} entfernen`} onClick={() => act((x) => removeChip(x, c))} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-xl text-foreground">×</button>}
+                {c.fixed ? <span className="w-3" /> : <button type="button" aria-label={`${c.text} entfernen`} onClick={() => act((x) => removeChip(x, c, wc))} className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-xl text-foreground">×</button>}
               </span>
             ))}
           </div>
@@ -238,7 +226,7 @@ export function Optional() {
           })}
         </div>
       </fieldset>
-      {shown ? <Dialog cat={shown} s={s} dealId={dealId} onClose={close} /> : null}
+      {shown ? <Dialog cat={shown} s={s} onClose={close} /> : null}
     </Card>
   );
 }
