@@ -13,6 +13,75 @@ export const ApiErrorSchema = z.looseObject({
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 export const isApiError = (v: unknown): v is ApiError => ApiErrorSchema.safeParse(v).success;
 
+/**
+ * Stable, machine-readable codes of the failures that are recorded for the error log (server:
+ * platform/error-events.ts writes them; web: each feature maps them to a German message). Never
+ * rename a code — a later error-log view and stored records rely on them.
+ */
+export const ERROR_CODES = {
+  /** Bitrix answered "too many requests" (QUERY_LIMIT_EXCEEDED / HTTP 503) even after the retries */
+  BITRIX_RATE_LIMITED: "BITRIX_RATE_LIMITED",
+  /** Bitrix did not answer in time */
+  BITRIX_TIMEOUT: "BITRIX_TIMEOUT",
+  /** Bitrix could not be reached, is not configured, or refused the call */
+  BITRIX_UNAVAILABLE: "BITRIX_UNAVAILABLE",
+  /** a command inside a Bitrix batch failed (the single calls were used instead) */
+  BITRIX_BATCH_PARTIAL: "BITRIX_BATCH_PARTIAL",
+  /** the batch answer did not have the documented shape, or batch was refused (the single calls were used instead) */
+  BITRIX_BATCH_MALFORMED: "BITRIX_BATCH_MALFORMED",
+  /** the deal does not exist in Bitrix */
+  DEAL_NOT_FOUND: "DEAL_NOT_FOUND",
+  /** the deal number is not a number */
+  INVALID_DEAL_ID: "INVALID_DEAL_ID",
+  /** „Kunde suchen“: the search in the local customer list failed */
+  CUSTOMER_SEARCH_FAILED: "CUSTOMER_SEARCH_FAILED",
+  /** „Kunde suchen“: the picked customer could not be read */
+  CUSTOMER_LOAD_FAILED: "CUSTOMER_LOAD_FAILED",
+} as const;
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
+/** the areas a recorded failure belongs to (where in the app it happened) */
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search" } as const;
+export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
+
+// ---------- the customer of a Bitrix deal (Kundendaten) ----------
+/** the contact as Kundendaten fields — today's mapping (script.js, IntegrationsManager.js) */
+export const DealCustomerSchema = z.object({
+  bitrixContactId: z.string(), customerNumber: z.string(), salutation: z.string(), firstName: z.string(), lastName: z.string(),
+  company: z.string(), email: z.string(), phone: z.string(), street: z.string(), city: z.string(), postalCode: z.string(),
+  state: z.string(), country: z.string(),
+});
+export type DealCustomer = z.infer<typeof DealCustomerSchema>;
+/** today's mapping of a Bitrix contact (crm.contact.get) to Kundendaten fields — script.js loadDeal,
+ *  loadBitrixContact and IntegrationsManager.js do exactly this */
+export function customerOfContact(contact: Record<string, any>): DealCustomer {
+  const first = (list: unknown) => (Array.isArray(list) && list[0] ? String((list[0] as { VALUE?: unknown }).VALUE ?? "") : "");
+  const honorific = String(contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "").trim();
+  const s = (v: unknown) => (v == null || v === false ? "" : String(v));
+  return {
+    bitrixContactId: s(contact.ID), customerNumber: s(contact.ID),
+    salutation: ({ HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" } as Record<string, string>)[honorific] || "",
+    firstName: s(contact.NAME), lastName: s(contact.LAST_NAME), company: s(contact.COMPANY_TITLE),
+    email: first(contact.EMAIL), phone: first(contact.PHONE),
+    street: s(contact.ADDRESS), city: s(contact.ADDRESS_CITY), postalCode: s(contact.ADDRESS_POSTAL_CODE),
+    state: s(contact.ADDRESS_REGION || contact.ADDRESS_PROVINCE), country: s(contact.ADDRESS_COUNTRY),
+  };
+}
+export const DealCustomerResponseSchema = z.object({
+  dealId: z.string(),
+  dealTitle: z.string(),
+  /** null: the deal has no contact (a normal answer, not an error) */
+  customer: DealCustomerSchema.nullable(),
+  /** the landlord fields of the deal, as GET /api/bitrix/deal/:id gives them */
+  vermieter: z.object({ erforderlich: z.boolean().nullable(), liegtVor: z.boolean().nullable() }),
+  /** how the answer was made: one batch request, or the single calls after a failed batch */
+  source: z.enum(["batch", "fallback"]),
+  /** when Bitrix was asked (ISO); the server keeps the answer about a minute */
+  loadedAt: z.string(),
+});
+export type DealCustomerResponse = z.infer<typeof DealCustomerResponseSchema>;
+/** how long the server keeps a deal's customer, and the web app treats it as fresh */
+export const DEAL_CUSTOMER_TTL_MS = 60_000;
+
 // ---------- auth ----------
 export const PublicUserSchema = z.object({
   email: z.string(),
@@ -105,6 +174,12 @@ export const endpoints = {
   price: { method: "POST", path: "/api/price", response: PriceResponseSchema },
   priceInputs: { method: "GET", path: "/api/price/inputs", response: PriceInputsResponseSchema },
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
+  /** the deal's contact as Kundendaten fields, with the landlord fields: ONE Bitrix request (batch), kept ~60 s on the server; query fresh=1 asks Bitrix again */
+  dealCustomer: { method: "GET", path: "/api/deals/:dealId/customer", response: DealCustomerResponseSchema },
+  /** „Kunde suchen“ in the local customer list (no Bitrix); query: q, limit */
+  customerSearch: { method: "GET", path: "/api/customers/search", response: z.looseObject({ items: z.array(z.looseObject({})).nullish() }) },
+  /** one saved customer with the whole saved Kundendaten page */
+  customer: { method: "GET", path: "/api/customers/:id", response: z.looseObject({ customer: z.looseObject({}).nullish() }) },
   /** the business settings every signed-in user may read (free limits, bonus values, task minutes) */
   publicConfig: { method: "GET", path: "/admin/api/config/public", response: z.record(z.string(), z.unknown()) },
   /** query: ids=<article>,<article> → net purchase price per article */
@@ -119,6 +194,8 @@ export const endpoints = {
   /** planning panel: the deal with its contact (Anrede, e-mail, phone, address) — fills a new offer from an appointment */
   bitrixDeal: { method: "GET", path: "/api/bitrix/deal/:id", response: z.looseObject({ contact: z.looseObject({}).nullish() }) },
   bitrixContact: { method: "GET", path: "/api/bitrix/contact/:id", response: z.looseObject({ result: z.looseObject({}).nullish() }) },
+  /** the deals of a Bitrix contact: { deals: [{ id, title }] } */
+  bitrixContactDeals: { method: "GET", path: "/api/bitrix/contact/:id/deals", response: z.looseObject({ deals: z.array(z.looseObject({ id: z.string() })).nullish() }) },
   /** a saved offer exists for this deal? (the list is empty if not) */
   offersByDeal: { method: "GET", path: "/api/offers/by-deal/:dealId", response: z.array(z.unknown()) },
   /** „Termin hat nicht stattgefunden“: the deal goes back to „Besichtigungstermin vereinbaren“; body: comment, reason */

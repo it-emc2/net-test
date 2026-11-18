@@ -20,7 +20,7 @@ const isEmpty = (v: unknown) => v === null || v === undefined || String(v).trim(
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>
   reply.status(status).send({ error: { code, message, requestId: req.id } });
 
-function vermieterFromDeal(deal: any) {
+export function vermieterFromDeal(deal: any) {
   const result: { erforderlich: boolean | null; liegtVor: boolean | null } = { erforderlich: null, liegtVor: null };
   const fromField = VERMIETER_VALUES[String(deal[VERMIETER_FIELD] || "")];
   if (fromField) Object.assign(result, fromField);
@@ -59,6 +59,30 @@ export function bitrixHelpers(bx: BitrixClient) {
   };
   return { getRequisiteIdForContact, getAddressForRequisite, patchContactAddressFromReq };
 }
+
+/**
+ * The deal and its contact with SINGLE calls, one after the other (legacy GET /api/bitrix/deal/:id):
+ * crm.deal.get; crm.contact.get when the deal has a contact; when that contact has no address at
+ * all, crm.requisite.list and crm.address.list for the address of its first requisite.
+ * `deal` null: Bitrix knows no such deal.
+ */
+export async function dealWithContact(bx: BitrixClient, dealId: string): Promise<{ deal: any | null; contact: any | null }> {
+  const { getRequisiteIdForContact, getAddressForRequisite, patchContactAddressFromReq } = bitrixHelpers(bx);
+  const dealResp = await bx.get("crm.deal.get", { id: dealId });
+  const deal = dealResp?.result;
+  if (!deal) return { deal: null, contact: null };
+  let contact: any = null;
+  if (deal.CONTACT_ID) {
+    const contactResp = await bx.get("crm.contact.get", { id: deal.CONTACT_ID });
+    contact = contactResp?.result || null;
+    if (contact && !hasAnyAddress(contact)) {
+      const reqId = await getRequisiteIdForContact(contact.ID || deal.CONTACT_ID);
+      if (reqId) { const reqAddr = await getAddressForRequisite(reqId); if (reqAddr) patchContactAddressFromReq(contact, reqAddr); }
+    }
+  }
+  return { deal, contact };
+}
+export const hasAnyAddress = (contact: any) => !isEmpty(contact?.ADDRESS) || !isEmpty(contact?.ADDRESS_CITY) || !isEmpty(contact?.ADDRESS_POSTAL_CODE);
 
 /** Activity → minutes since local midnight (legacy uses the server's local time zone). */
 const minutesOf = (d: Date) => d.getHours() * 60 + d.getMinutes();
@@ -104,21 +128,8 @@ export async function registerBitrixRead(app: FastifyInstance, bx: BitrixClient)
     const dealId = String((req.params as { id: string }).id || "").trim();
     if (!dealId) return fail(req, reply, 400, "BAD_REQUEST", "id is required");
     try {
-      const dealResp = await bx.get("crm.deal.get", { id: dealId });
-      const deal = dealResp?.result;
+      const { deal, contact } = await dealWithContact(bx, dealId);
       if (!deal) return fail(req, reply, 404, "NOT_FOUND", "Deal not found");
-      let contact: any = null;
-      if (deal.CONTACT_ID) {
-        const contactResp = await bx.get("crm.contact.get", { id: deal.CONTACT_ID });
-        contact = contactResp?.result || null;
-        if (contact) {
-          const hasAnyAddress = !isEmpty(contact.ADDRESS) || !isEmpty(contact.ADDRESS_CITY) || !isEmpty(contact.ADDRESS_POSTAL_CODE);
-          if (!hasAnyAddress) {
-            const reqId = await getRequisiteIdForContact(contact.ID || deal.CONTACT_ID);
-            if (reqId) { const reqAddr = await getAddressForRequisite(reqId); if (reqAddr) patchContactAddressFromReq(contact, reqAddr); }
-          }
-        }
-      }
       return {
         deal: { id: Number(dealId), title: deal.TITLE || "", stageId: deal.STAGE_ID || "" },
         contact,

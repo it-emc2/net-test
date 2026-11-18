@@ -70,6 +70,37 @@ describe("BitrixClient", () => {
     expect(none.logs[0]).toMatchObject({ method: "m3", httpMethod: "POST" });
   });
 
+  it("the rate limit is also recognised by its code alone and by HTTP 503 without a readable body", async () => {
+    const c = client([{ error: "QUERY_LIMIT_EXCEEDED", error_description: "" }, { result: 1 }], { minGapMs: 0 });
+    await expect(c.bx.get("m")).resolves.toEqual({ result: 1 });
+    expect(c.sleeps).toEqual([700]);
+    let n = 0;
+    const c503 = client([], { minGapMs: 0, fetchImpl: (async () => (n++ < 2 ? ({ status: 503, json: async () => { throw new SyntaxError("x"); } }) : ({ status: 200, json: async () => ({ result: 2 }) }))) as any });
+    await expect(c503.bx.get("m")).resolves.toEqual({ result: 2 });
+    expect(c503.sleeps).toEqual([700, 1400]);
+  });
+
+  it("a failure says what kind it was (status, Bitrix code, attempts) with the message unchanged", async () => {
+    const c = client([{ error: "ACCESS_DENIED", error_description: "Access denied" }], { minGapMs: 0 });
+    await expect(c.bx.get("m")).rejects.toMatchObject({ message: "Access denied", kind: "refused", bitrixCode: "ACCESS_DENIED", attempts: 1 });
+    const limited = { error: "QUERY_LIMIT_EXCEEDED", error_description: "Too many requests" };
+    const l = client([limited, limited, limited, limited, limited], { minGapMs: 0 });
+    await expect(l.bx.get("m")).rejects.toMatchObject({ kind: "rate-limit", attempts: 5 });
+  });
+
+  it("batch: one POST with halt=0 and cmd[key]; empty parts come as []; a rate limit inside is retried; a bad shape is an error", async () => {
+    const ok = { result: { result: { a: { ID: "1" } }, result_error: [], result_total: [], result_next: [], result_time: [] }, time: {} };
+    const inside = { result: { result: [], result_error: { a: { error: "QUERY_LIMIT_EXCEEDED", error_description: "Too many requests" } } } };
+    const c = client([inside, ok, { result: "x" }], { minGapMs: 0 });
+    await expect(c.bx.batch({ a: "crm.deal.get?id=1" })).resolves.toEqual({ result: { a: { ID: "1" } }, result_error: {} });
+    expect(c.inits[0]).toMatchObject({ method: "POST", body: "halt=0&cmd%5Ba%5D=crm.deal.get%3Fid%3D1" });
+    expect(c.urls[0]).toBe("http://127.0.0.1:1/rest/1/tok/batch.json");
+    expect(c.sleeps).toEqual([700]);
+    await expect(c.bx.batch({ a: "x" })).rejects.toMatchObject({ kind: "malformed" });
+    await expect(c.bx.batch({})).rejects.toThrow(/1–50/);
+    await expect(c.bx.batch(Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`k${i}`, "m"])))).rejects.toThrow(/1–50/);
+  });
+
   it("a failing failure-log never masks the Bitrix error", async () => {
     const c = client([{ error: "boom" }], { minGapMs: 0, logFailure: async () => { throw new Error("db down"); } });
     await expect(c.bx.get("m")).rejects.toThrow("boom");

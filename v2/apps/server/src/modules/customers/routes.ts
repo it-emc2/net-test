@@ -1,7 +1,9 @@
 // Customers: store, search, read (legacy src/routes/customers.js; contract test).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
+import { ERROR_AREAS, ERROR_CODES } from "@oc/api-contract";
 import { Customer } from "../../platform/models.js";
+import { reportError } from "../../platform/error-events.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>
   reply.status(status).send({ error: { code, message, requestId: req.id } });
@@ -61,22 +63,34 @@ export async function registerCustomers(app: FastifyInstance) {
     return { ok: true, customer };
   });
 
-  app.get("/api/customers/search", async (req) => {
+  app.get("/api/customers/search", async (req, reply) => {
     const query = req.query as Record<string, string | undefined>;
     const q = String(query.q || "").trim();
     const limit = Math.min(Math.max(Number.parseInt(query.limit || "10", 10) || 10, 1), 50);
     if (!q) return { ok: true, items: [] };
-    const items = await Customer.find(buildSearchFilter(q))
-      .sort({ updatedAt: -1, createdAt: -1 }).limit(limit)
-      .select("customerNumber bitrixContactId salutation firstName lastName company email phone street city postalCode state country emc2_contact payer customerType deployment kassenkundeName cp_name cp_phone cp_city kundendaten sourceOfferType updatedAt createdAt")
-      .lean();
-    return { ok: true, items };
+    const started = Date.now();
+    try {
+      const items = await Customer.find(buildSearchFilter(q))
+        .sort({ updatedAt: -1, createdAt: -1 }).limit(limit)
+        .select("customerNumber bitrixContactId salutation firstName lastName company email phone street city postalCode state country emc2_contact payer customerType deployment kassenkundeName cp_name cp_phone cp_city kundendaten sourceOfferType updatedAt createdAt")
+        .lean();
+      return { ok: true, items };
+    } catch (err) {
+      // the search words are customer data: only the kind of the database error is recorded
+      reportError(req, { area: ERROR_AREAS.kundendatenCustomerSearch, code: ERROR_CODES.CUSTOMER_SEARCH_FAILED, message: `customer search failed (${(err as Error)?.name || "Error"})`, durationMs: Date.now() - started });
+      return fail(req, reply, 500, ERROR_CODES.CUSTOMER_SEARCH_FAILED, "Die Kundensuche ist gerade nicht möglich.");
+    }
   });
 
   app.get("/api/customers/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
     if (!mongoose.isValidObjectId(id)) return fail(req, reply, 404, "NOT_FOUND", "Kundendaten nicht gefunden.");
-    const customer = await Customer.findById(id).lean();
+    let customer;
+    try { customer = await Customer.findById(id).lean(); }
+    catch (err) {
+      reportError(req, { area: ERROR_AREAS.kundendatenCustomerSearch, code: ERROR_CODES.CUSTOMER_LOAD_FAILED, message: `customer read failed (${(err as Error)?.name || "Error"})` });
+      return fail(req, reply, 500, ERROR_CODES.CUSTOMER_LOAD_FAILED, "Die Kundendaten konnten nicht gelesen werden.");
+    }
     if (!customer) return fail(req, reply, 404, "NOT_FOUND", "Kundendaten nicht gefunden.");
     return { ok: true, customer };
   });

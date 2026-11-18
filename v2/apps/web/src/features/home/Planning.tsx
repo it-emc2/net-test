@@ -4,11 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Car, Coffee, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { call, ApiFailure } from "../../shared/api/index.js";
+import { call, ApiFailure, dealCustomerQuery } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
-import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
+import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -32,13 +32,16 @@ export function useToday() {
 /** Starts a new offer of `type` from an appointment (the picker's answer). */
 export function useStartFromAppointment() {
   const nav = useNavigate();
+  const qc = useQueryClient();
   return (e: PlanningEntry, type: string) => {
     const { kunde, auftragId } = prefill(e);
     const key = e.importDealId ? String(e.importDealId) : newTempKey();
     // the Bitrix contact: Anrede + empty fields, in the background (the offer opens without waiting)
     const contact = (async () => {
-      const deal = e.importDealId ? await call("bitrixDeal", { params: { id: String(e.importDealId) } }).then((r) => r.contact ?? null, () => null) : null;
-      const c = deal ?? (e.contactId ? await call("bitrixContact", { params: { id: String(e.contactId) } }).then((r) => r.result ?? null, () => null) : null);
+      // the deal: ONE Bitrix request on the server, and Kundendaten gets the same answer without asking again
+      const deal = e.importDealId ? await qc.fetchQuery(dealCustomerQuery(String(e.importDealId))).then((r) => r.customer, () => null) : null;
+      if (deal) return enrichmentOfCustomer(deal);
+      const c = e.contactId ? await call("bitrixContact", { params: { id: String(e.contactId) } }).then((r) => r.result ?? null, () => null) : null;
       return c ? enrichmentOf(c) : null;
     })();
     prefillNextOffer(key, () => {
