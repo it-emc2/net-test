@@ -205,3 +205,22 @@ describe("supplier codes (Kürzel)", () => {
     expect(r.supplierCodes).toEqual({ wv: "WV-WW", dw: null });
   });
 });
+
+describe("winwall plate names: Wand like VIGOUR, Fußboden Aluverbundplatte", () => {
+  test("same plate, two names (never the DB's Duschrückwand)", async () => {
+    const r = await computePrices({
+      activeOffer: "bu",
+      Kundendaten: { payer: "Selbstzahler" },
+      duschwanne: { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingWwQty: '{"16":1}', wallCladdingArea: "3" },
+      wandverkleidung: { wvEnabled: true, wvSupplier: "ww", wvWwRows: JSON.stringify([{ code: "WS203", fmt: "16", qty: 2 }]) },
+      optional: {}, rabatt: {}, Arbeitszeit: {},
+    });
+    const wall = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Wandverkleidung");
+    const floor = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Fußboden");
+    expect(wall.label).toBe("- 2 Stk Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(wall.name).toBe("Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.label).toBe("- 1 Stk Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.name).toBe("Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(JSON.stringify(r.materials.lines)).not.toMatch(/Duschrückwand/);
+  });
+});
