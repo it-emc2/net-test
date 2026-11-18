@@ -31,9 +31,9 @@ function ReloadButton({ place }: { place: Place }) {
   const tap = async () => {
     if (busy) return;
     setBusy(true);
-    const ok = await reloadDraft(); // the scratch of the page goes with the old state
+    const ok = await reloadDraft(); // the scratch of the page goes with the old state; the shell's standing notice ("Seite neu laden") is answered
     setBusy(false);
-    if (ok) toast.success(TEXT.reloaded); else { toast.error(TEXT.reloadFailed); setStop(place, "conflict"); }
+    if (ok) { toast.dismiss("save"); toast.success(TEXT.reloaded); } else { toast.error(TEXT.reloadFailed); setStop(place, "conflict"); }
   };
   return (
     <Button variant="outline" data-action="reload-draft" data-place={place} disabled={busy} onClick={() => void tap()}>

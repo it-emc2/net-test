@@ -69,7 +69,7 @@ function server(payload: Obj, sends: Obj[] = []) {
     return json({ error: { code: "NOT_FOUND", message: `kein Handler: ${method} ${url}`, requestId: "t" } }, 404);
   }));
 }
-beforeEach(() => { for (const k of ["error", "success", "warning", "info"] as const) vi.spyOn(toast, k); vi.spyOn(window, "open").mockImplementation(() => null); });
+beforeEach(() => { for (const k of ["error", "success", "warning", "info", "dismiss"] as const) vi.spyOn(toast, k); vi.spyOn(window, "open").mockImplementation(() => null); });
 afterEach(() => vi.restoreAllMocks());
 
 async function open(payload: Obj, sends: Obj[] = []) {
@@ -229,6 +229,7 @@ describe("F7 — the deal's draft could not be saved: nothing is sent", () => {
     expect(offer().Kundendaten.notes).not.toBe("geändert auf diesem Gerät");
     expect(useOfferStore.getState().revision).toBe(9);
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith(TEXT.reloaded);
+    expect(vi.mocked(toast.dismiss)).toHaveBeenCalledWith("save"); // the shell's "bitte Seite neu laden" is answered
     await waitFor(() => expect(stopAt("mail")).toBeNull());
     // and now the send goes through, from the state the deal has
     await tapSend();
