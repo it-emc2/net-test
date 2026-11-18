@@ -8,7 +8,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, DropZone, Field, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { flushDraft, useOfferStore, usePrice } from "../../offer/index.js";
+import { useOfferStore, usePrice } from "../../offer/index.js";
 import { FileRow } from "./Mail.js";
 import { giveNumber } from "./number.js";
 import {
@@ -18,6 +18,8 @@ import {
 import { MainItems, Modal, Question, SentDialog, follow, type Ask, type Sent } from "./Senden.js";
 import { SignOnSite } from "./Unterschrift.js";
 import { historyChanged } from "./Verlauf.js";
+import { StopActions } from "./NeueVersion.js";
+import { NOTHING, NeedsNewVersion, refusal, saveBeforeSend, setStop } from "./version.js";
 import { TEXT as SIGN, canPostSigned, signedLetter, signedParts, signedSent, type SignedDoc } from "./sign-rules.js";
 import { TEXT as SEND_TEXT, bitrixJobs, errorOf, materialCodes, missingMain, type MainItem } from "./send-rules.js";
 
@@ -97,8 +99,10 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   const { first, recipient, deal, released } = start;
   const main = missingMain(first, io.price as never);
   if (main.length && !(await io.askMain(main))) { say("info", TEXT.cancelled); return; }
-  if (!String(offerNow().offerNumber || "").trim()) giveNumber();
-  await flushDraft().catch(() => undefined);
+  if (!String(offerNow().offerNumber || "").trim()) await giveNumber();
+  // the deal's draft must hold what goes out: a refused or failed save stops the letter (audit F7)
+  const unsaved = await saveBeforeSend(NOTHING.post);
+  if (unsaved) { say("error", unsaved.text); setStop("post", unsaved.stop); return; }
 
   const offer = offerNow(), type = String(offer.activeOffer || "bu").toLowerCase(), number = String(offer.offerNumber || "");
   const payload = { ...offer, activeOffer: type, offerNumber: number }, pdfName = `${number}.pdf`, enclosed = enclosedNow(offer);
@@ -142,13 +146,14 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
       if (!(await io.ask(alreadySent(conflict)))) { say("info", TEXT.notAgain); return; }
       body.forceResend = true;
     } else if (e.code === "OFFER_CHANGED") {
-      if (!(await io.ask(changedQuestion(conflict)))) throw new Error(SEND_TEXT.offerChanged);
+      if (!(await io.ask(changedQuestion(conflict)))) throw new NeedsNewVersion(SEND_TEXT.offerChanged);
       body.useSentOriginal = true; delete body.payload;
-    } else throw new Error(e.message || `Postversand fehlgeschlagen (${res.status}).`);
+    } else throw refusal(e.code, SEND_TEXT.offerChanged) ?? new Error(e.message || `Postversand fehlgeschlagen (${res.status}).`);
     res = await post();
   }
   const result = (await res.json().catch(() => ({}))) as Posted & Offer;
-  if (!res.ok || result.ok === false) throw new Error(errorOf(result).message || `Postversand fehlgeschlagen (${res.status}).`);
+  // also the second answer may refuse: no stored original to post (server, audit F3), or sent hand-edited (F4)
+  if (!res.ok || result.ok === false) throw refusal(errorOf(result).code, SEND_TEXT.offerChanged) ?? new Error(errorOf(result).message || `Postversand fehlgeschlagen (${res.status}).`);
 
   const text = sentText(result);
   historyChanged();
@@ -161,7 +166,7 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   st().remember("internalNote", "");
   const sentOffer = { ...offerNow(), offerNumber: number };
   try { // the offer is kept under its number, as after a PDF
-    await call("saveOffer", { body: { offerNumber: number, offerType: type, payload: sentOffer, pricing: io.price ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
+    await call("saveOffer", { body: { client: "react", offerNumber: number, offerType: type, payload: sentOffer, pricing: io.price ?? null, savedAt: new Date().toISOString(), clientSaveId: crypto.randomUUID() } });
     toast.success("Gespeichert", { description: `Angebot ${number} wurde gespeichert.` });
   } catch { /* the send record on the server is the proof; the offer is saved with the next save */ }
   st().patch("zusammenfassung" as never, { versand: { art: "post", versendetAm: new Date().toISOString() } } as never); // after the save, as today
@@ -247,6 +252,7 @@ export function Post() {
   const tap = async () => {
     if (lock.current || sentOnce) return;
     lock.current = true; setBusy(true);
+    setStop("post", null);
     try {
       await send({
         price: (price.data ?? null) as Offer | null, onSent: setSent,
@@ -255,7 +261,7 @@ export function Post() {
         release: () => new Promise((resolve) => setRelease({ resolve: (r) => { setRelease(null); resolve(r); } })),
         live: (l) => new Promise<boolean>((resolve) => setLive({ ...l, resolve: (yes) => { setLive(null); resolve(yes); } })),
       });
-    } catch (err) { say("error", messageOf(err) || "Postversand fehlgeschlagen."); }
+    } catch (err) { say("error", messageOf(err) || "Postversand fehlgeschlagen."); if (err instanceof NeedsNewVersion) setStop("post", "new-version"); }
     finally { lock.current = false; setBusy(false); }
   };
   const tapSigned = async () => {
@@ -317,6 +323,7 @@ export function Post() {
       {status ? (() => { const Icon = ICONS[status.type]; return (
         <p role="status" aria-live="polite" data-testid="zf-post-status" data-type={status.type} className={cn("m-0 flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2", TONE[status.type])}><Icon aria-hidden className="mt-0.5 size-4 shrink-0" /><span data-part="text">{status.text}</span></p>
       ); })() : null}
+      <StopActions place="post" />
 
       {signedReady ? (
         <div><Button variant="outline" data-action="post-signed" disabled={busySigned} onClick={() => void tapSigned()}><Mailbox aria-hidden className="size-4" /><span data-part="label">Unterschriebene Unterlagen per Post senden</span></Button></div>

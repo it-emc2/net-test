@@ -16,14 +16,20 @@ type Fields = Record<string, unknown>;
 export const historyChanged = () => useOfferStore.getState().remember("sendsStamp", Date.now());
 const TONE = { plain: "text-foreground", ok: "text-[#15803d]", bad: "font-semibold text-[#b45309]" } as const;
 
-export function Verlauf() {
+/** the sends of the deal (without a deal number: of the open offer) — one query for the page */
+export function useSends() {
   const offer = useOfferStore((s) => s.offer) as Fields | null;
   const number = String(offer?.offerNumber ?? "").trim();
   const deal = String(offer?.auftragId ?? (offer?.mail as Fields | undefined)?.auftragId ?? "").trim();
   const stamp = useOfferStore((s) => s.scratch.sendsStamp) as number | undefined;
-  const [busy, setBusy] = useState("");
   const sends = useQuery<Fields[]>({ queryKey: ["sends", deal, deal ? "" : number, stamp ?? 0], enabled: !!(deal || number), retry: false, refetchOnWindowFocus: true, refetchOnReconnect: true, placeholderData: (was) => was, // offline: keep what is shown
     queryFn: ({ signal }) => (deal ? call("dealSends", { params: { dealId: deal }, signal }) : call("offerSends", { params: { offerNumber: number }, signal })).then((r) => (r.sends ?? []) as Fields[]) });
+  return { sends, number };
+}
+
+export function Verlauf() {
+  const { sends, number } = useSends();
+  const [busy, setBusy] = useState("");
   const lines = linesOf(sends.data, number);
   if (!lines.length) return null; // nothing sent for this deal: no list
   const refile = async (id: string) => {

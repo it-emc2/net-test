@@ -38,7 +38,8 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 async function open(s: Scenario, payload = offerOf(s)) {
-  fakeServer({ ...BASE, "GET /api/auth/me": { body: { user: { email: "capture@local.test", name: "Capture", role: "user" } } }, "GET /api/users": { body: reference.users }, "POST /docx-template": { body: {} },
+  // the sends of the offer are known and empty (as on the real server): a download renumbers only a number that was not sent (audit F5)
+  fakeServer({ ...BASE, "GET /api/offers/*/sends": { body: { ok: true, sends: [] } }, "GET /api/deals/*/sends": { body: { ok: true, sends: [] } }, "GET /api/auth/me": { body: { user: { email: "capture@local.test", name: "Capture", role: "user" } } }, "GET /api/users": { body: reference.users }, "POST /docx-template": { body: {} },
     [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
   renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
   return screen.findByTestId("zf-mail");

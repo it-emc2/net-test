@@ -3,7 +3,7 @@
 // v2/scripts/capture-versand-anpassungen.cjs.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { badge, grossHint, rowsOf, stored } from "../src/features/steps/versand/overrides.js";
 import reference from "./fixtures/versand-anpassungen.json" with { type: "json" };
@@ -23,8 +23,8 @@ const offerOf = (s: Scenario): Obj => { const o: Obj = structuredClone(BASES[s.t
 const offer = () => useOfferStore.getState().offer as unknown as Obj;
 const storedNow = (before: Obj) => (JSON.stringify(before.offerOverrides ?? null) === JSON.stringify(offer().offerOverrides ?? null) ? {} : { offerOverrides: offer().offerOverrides ?? "<removed>" });
 
-async function open(s: Scenario, payload = offerOf(s), price: Obj = { total: 10, selfPayAmount: 0 }) {
-  fakeServer({ ...BASE, "GET /api/users": { body: reference.users }, "POST /api/price": { body: price }, [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
+async function open(s: Scenario, payload = offerOf(s), price: Obj = { total: 10, selfPayAmount: 0 }, sends: Obj[] = []) {
+  fakeServer({ ...BASE, "GET /api/offers/*/sends": { body: { ok: true, sends } }, "GET /api/deals/*/sends": { body: { ok: true, sends } }, "GET /api/users": { body: reference.users }, "POST /api/price": { body: price }, [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
   renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
   const card = await screen.findByTestId("oo-card");
   openMore(); // U-024: "Angebot anpassen" is in "Mehr Optionen"
@@ -100,11 +100,24 @@ describe("\"Angebot anpassen\" — rules and what goes beyond the recordings", (
     expect(offer().offerOverrides).toEqual({ textReplacements: [{ from: "Gleittür", to: "Schiebetür" }], priceAdjustments: [{ target: "material", amountNet: -20 }], lineEdits: [line] });
   });
 
-  it("a frozen price (the number of a sent offer) is said on the card, with the way to a new version", async () => {
+  it("a frozen price (the number of a sent offer) is said on the card, with the action for a new version", async () => {
     const o = offerOf(first); o.offerNumber = "ANG2026-1116-093000";
-    const card = await open(first, o, { total: 10, selfPayAmount: 0, _locked: true });
+    const card = await open(first, o, { total: 10, selfPayAmount: 0, _locked: true }, [{ sendId: "s1", offerNumber: "ANG2026-1116-093000", status: "done", channel: "email" }]);
     await waitFor(() => expect(card.querySelector('[data-part="locked"]')).not.toBeNull());
-    expect(within(card).getByRole("link", { name: "Neue Version in der bisherigen Ansicht erstellen" })).toBeTruthy();
+    expect(card.querySelector('[data-part="locked-note"]')?.textContent).toContain("Diese Angebotsnummer wurde bereits versendet");
+    // audit F6: the action itself, no longer a link to today's UI
+    expect(within(card).getByRole("button", { name: "Neue Version erstellen" })).toBeTruthy();
+    expect(within(card).queryByRole("link", { name: /bisherigen Ansicht/ })).toBeNull();
+  });
+
+  it("audit F11: an offer that was only saved (never sent) is not called \"bereits versendet\"", async () => {
+    const o = offerOf(first); o.offerNumber = "ANG2026-1116-093000";
+    // the price says "locked" (before the server fix every saved offer did), but nothing was sent under this number
+    const card = await open(first, o, { total: 10, selfPayAmount: 0, _locked: true }, [{ sendId: "s0", offerNumber: "ANG2026-1116-093000", status: "done", channel: "bitrix" }, { sendId: "s1", offerNumber: "ANG2026-0101-000000", status: "done", channel: "email" }]);
+    await waitFor(() => expect(vi.mocked(globalThis.fetch).mock.calls.some(([u]) => String(u).endsWith("/sends"))).toBe(true));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(card.querySelector('[data-part="locked"]')).toBeNull();
+    expect(card.textContent).not.toContain("bereits versendet");
   });
 
   it("the rules: what is stored, the badge, the gross hint", () => {
