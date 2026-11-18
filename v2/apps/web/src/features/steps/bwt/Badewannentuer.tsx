@@ -2,8 +2,9 @@
 // cards, the hinge and the four grab bars. The stored fields are exactly today's
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
-import { Card, CardTitle, Check, Choices, Input, Label, cn } from "../../../shared/ui/index.js";
+import { Card, CardTitle, Check, Choices, IMG, Input, Label, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
+import { Anschlag } from "./Anschlag.js";
 import { Doors } from "./Doors.js";
 import { Extras } from "./Extras.js";
 import { set, str, useBwt, write, type Fields } from "./store.js";
@@ -31,7 +32,7 @@ export function Badewannentuer() {
       <Doors b={b} invalid={missing.door} />
       <Card aria-labelledby="bwt-konfig">
         <CardTitle id="bwt-konfig">Türanschlag</CardTitle>
-        <Choices legend="Anschlag der Tür" name="bwtAnschlag" options={[{ value: "Links", label: "← Links" }, { value: "Rechts", label: "Rechts →" }]} value={str(b.bwtAnschlag)} onChange={(v) => set("bwtAnschlag", v)} />
+        <Anschlag />
         <p className="m-0 text-muted-foreground">Hinweis: Zusätzlicher Verschluss 49 € EK-Preis wird grundsätzlich automatisch mitkalkuliert. Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.</p>
       </Card>
       <Card aria-labelledby="bwt-zubehoer">
@@ -41,7 +42,10 @@ export function Badewannentuer() {
             const on = gripOn(b, g.n);
             return (
               <div key={g.n} data-testid="bwt-grip" data-n={g.n} className="grid content-start gap-2 rounded-lg border-2 border-input bg-card p-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
-                <Check id={`bwt-grip-${g.n}`} checked={on} onChange={() => write((x) => toggleGrip(x, g.n))}>{g.label}</Check>
+                <div className="grid justify-items-center gap-2">
+                  <img src="/assets/5b817c33100c0121ede70f11e341601c.jpg" alt="" loading="lazy" data-part="grip-image" className={cn(IMG.row, "rounded-md object-cover")} />
+                  <Check id={`bwt-grip-${g.n}`} checked={on} onChange={() => write((x) => toggleGrip(x, g.n))}>{g.label}</Check>
+                </div>
                 {on ? <div className="grid gap-1"><Label>Menge {g.label}</Label><Num label={`Menge ${g.label}`} field={g.qty} b={b} min={1} /></div> : null}
               </div>
             );

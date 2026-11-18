@@ -2,11 +2,17 @@
 // Reference: fixtures/bwt-tuer.json, recorded from today's UI by v2/scripts/capture-bwt-tuer.cjs.
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { DOORS, GRIPS, dimField, doorInfo } from "../src/features/steps/bwt/rules.js";
+import { readFileSync, readdirSync } from "node:fs";
+import { DOORS, GRIPS, dimField, doorInfo, doorTint, tintedDoor } from "../src/features/steps/bwt/rules.js";
 import reference from "./fixtures/bwt-tuer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
+
+// the player is a stand-in: what is checked is what the step asks of it
+const player = vi.hoisted(() => { const anim = { goToAndPlay: vi.fn(), goToAndStop: vi.fn(), destroy: vi.fn() }; return { anim, loadAnimation: vi.fn((_options: Record<string, any>) => anim) }; });
+vi.mock("lottie-web/build/player/lottie_light", () => ({ default: { loadAnimation: player.loadAnimation } }));
+beforeEach(() => { player.loadAnimation.mockClear(); for (const f of Object.values(player.anim)) f.mockClear(); });
 
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -131,5 +137,63 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     await user.click(wien.getByRole("button", { name: "45,5 cm" }));
     expect(offer().bwt.bwtDoorIndWienStdWidth).toBe("");
     expect(wien.getByRole("radiogroup", { name: "Farbe" })).toBeTruthy();
+  });
+
+  it("Türanschlag animation: plays once per choice, mirrored for Rechts, tinted with the door's colour (UX-CHANGES U-036)", async () => {
+    await open();
+    const user = userEvent.setup(), box = () => screen.getByTestId("anschlag-animation");
+    expect(box().getAttribute("role")).toBe("img");
+    expect(box().getAttribute("aria-label")).toBe("Badewannentür, Anschlag nicht gewählt");
+    await waitFor(() => expect(player.loadAnimation).toHaveBeenCalledTimes(1));
+    const first = player.loadAnimation.mock.calls[0]![0];
+    expect([first.loop, first.autoplay, first.renderer]).toEqual([false, false, "svg"]);
+    expect(player.anim.goToAndStop).toHaveBeenLastCalledWith(0, true); // closed
+    await user.click(screen.getByRole("radio", { name: "← Links" }));
+    expect(player.anim.goToAndPlay).toHaveBeenCalledWith(0, true);
+    expect([box().getAttribute("aria-label"), box().style.transform]).toEqual(["Badewannentür, Anschlag links", ""]);
+    await user.click(screen.getByRole("radio", { name: "Rechts →" }));
+    expect([box().getAttribute("aria-label"), box().style.transform]).toEqual(["Badewannentür, Anschlag rechts", "scaleX(-1)"]);
+    expect(player.anim.goToAndPlay).toHaveBeenCalledTimes(2);
+    expect(offer().bwt.bwtAnschlag).toBe("Rechts");
+    // another colour: the animation is built again, tinted
+    await user.click(within(screen.getByTestId("bwt-door-panel")).getByRole("radio", { name: "Manhattan" }));
+    await waitFor(() => expect(player.loadAnimation).toHaveBeenCalledTimes(2));
+    expect(player.anim.destroy).toHaveBeenCalled();
+  });
+
+  it("the tint multiplies the static fills of the layer tub_door only", () => {
+    const fl = (k: number[]) => ({ ty: "fl", c: { a: 0, k } });
+    const anim: any = { layers: [{ nm: "tub_door", shapes: [{ ty: "gr", it: [fl([1, 0.5, 0.2, 1]), { ty: "fl", c: { a: 1, k: [{ s: [1, 1, 1] }] } }] }] }, { nm: "door_frame", shapes: [fl([1, 1, 1, 1])] }] };
+    const out: any = tintedDoor(anim, "#808080");
+    expect(out.layers[0].shapes[0].it[0].c.k.map((v: number) => Math.round(v * 100) / 100)).toEqual([0.5, 0.25, 0.1, 1]);
+    expect(out.layers[0].shapes[0].it[1]).toEqual(anim.layers[0].shapes[0].it[1]); // animated fills stay
+    expect(out.layers[1]).toEqual(anim.layers[1]); // other layers stay
+    expect(anim.layers[0].shapes[0].it[0].c.k[0]).toBe(1); // the original is not changed
+    expect(tintedDoor(anim, null)).toBe(anim);
+    expect([doorTint({ bwtDoorType: "Individual Tür - Wien", bwtDoorIndWienColor: "silber" }), doorTint({ bwtDoorType: "Individual Tür - Wien Glas", bwtDoorIndWienGlasFrameColor: "RAL 1234" }), doorTint({})]).toEqual(["#c0c4c8", null, null]);
+  });
+
+  it("reduced motion: nothing plays, the open door (frame 60) is shown", async () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false }));
+    await open();
+    await waitFor(() => expect(player.loadAnimation).toHaveBeenCalled());
+    await userEvent.setup().click(screen.getByRole("radio", { name: "← Links" }));
+    expect(player.anim.goToAndStop).toHaveBeenLastCalledWith(60, true);
+    expect(player.anim.goToAndPlay).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("the player is loaded on demand: no static import of lottie-web anywhere in the app", () => {
+    const hits: string[] = [];
+    const walk = (dir: string) => { for (const f of readdirSync(dir, { withFileTypes: true })) { const p = `${dir}/${f.name}`; if (f.isDirectory()) walk(p); else if (/\.tsx?$/.test(f.name) && /^\s*import[^(\n]*from ["']lottie-web/m.test(readFileSync(p, "utf8"))) hits.push(p); } };
+    walk(`${process.cwd().replace(/\/apps\/web$/, "")}/apps/web/src`);
+    expect(hits).toEqual([]);
+  });
+
+  it("each grab bar option has its picture", async () => {
+    await open();
+    const imgs = screen.getAllByTestId("bwt-grip").map((g) => g.querySelector('img[data-part="grip-image"]') as HTMLImageElement);
+    expect(imgs).toHaveLength(4);
+    expect(imgs.every((i) => i.getAttribute("src") === "/assets/5b817c33100c0121ede70f11e341601c.jpg")).toBe(true);
   });
 });

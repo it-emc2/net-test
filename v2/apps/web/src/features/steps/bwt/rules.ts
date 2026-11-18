@@ -114,3 +114,24 @@ export function bwtProblem(b: Fields): { message: string; focus: string } | null
   const m = bwtMissing(b), names = [m.shape ? "Wannenform" : "", m.door ? "Tür" : ""].filter(Boolean);
   return names.length ? { message: `Bitte wählen Sie noch: ${names.join(", ")}`, focus: m.shape ? '[name="bwtShape"]' : '[name="bwtDoorType"]' } : null;
 }
+
+/** The colour the door of the Türanschlag animation is tinted with: the chosen colour of the picked door. Known names get
+ *  their colour; free text (Wien Glas frame colour), no door: null = the animation's own white. */
+const NAMED: [RegExp, string][] = [[/wei(ß|ss)|white/i, "#fffdfa"], [/beige/i, "#f3e9d2"], [/manhattan/i, "#c9c7c0"], [/silber|silver/i, "#c0c4c8"], [/schwarz|black/i, "#1f2937"], [/anthrazit/i, "#374151"], [/grau|grey|gray/i, "#9ca3af"]];
+export function doorTint(b: Fields): string | null {
+  const d = DOORS.find((x) => doorOn(b, x));
+  return d ? NAMED.find(([re]) => re.test(str(b[d.color])))?.[1] ?? null : null;
+}
+
+/** The animation with the door's static fills multiplied by the colour (only layer `tub_door`; the rest is untouched). */
+export function tintedDoor<T extends { layers: { nm?: string }[] }>(animation: T, hex: string | null): T {
+  if (!hex) return animation;
+  const rgb = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+  const copy = structuredClone(animation) as { layers: { nm?: string; shapes?: unknown[] }[] };
+  const walk = (items: unknown[]) => { for (const it of items as { ty?: string; c?: { a?: number; k?: number[] }; it?: unknown[] }[]) {
+    if (it.ty === "fl" && it.c?.a === 0 && Array.isArray(it.c.k)) it.c.k = [it.c.k[0]! * rgb[0]!, it.c.k[1]! * rgb[1]!, it.c.k[2]! * rgb[2]!, it.c.k[3] ?? 1];
+    if (it.it) walk(it.it);
+  } };
+  for (const l of copy.layers) if (l.nm === "tub_door" && l.shapes) walk(l.shapes);
+  return copy as unknown as T;
+}
