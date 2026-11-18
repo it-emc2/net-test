@@ -2620,6 +2620,9 @@ function resetAllForms() {
   const wwManualEl = document.getElementById("wvWwAccManual"); // same hidden-input rule
   if (wwManualEl) wwManualEl.value = "";
   try { syncWwCustomDecor(); } catch {} // form.reset() left the tile on WS 203
+  const wvUiEl = document.getElementById("wvUi"); // same hidden-input rule: new offers start simple
+  if (wvUiEl) wvUiEl.value = "simple";
+  window.pullWwRows?.(); // rows of the previous offer would otherwise stay in the editor
   if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
@@ -12888,6 +12891,7 @@ function syncWvSupplierGroups() {
   // VIGOUR-only groups: the line logic has already set them for Premium/Standard.
   if (ww) for (const id of ["wvColorSection", "wvRowsSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
   updateWwSuggestions({ write: false });
+  window.syncWvSimple?.();
 }
 
 function setWvSupplier(v) {
@@ -12968,6 +12972,7 @@ window.applyWwPanelQty = (qty) => {
 /* winwall decor: a tile, or "Anderes Dekor" with a typed WS/NW number.
    Saved before 2026-10-30 as digits only ("203" = WS 203). */
 function wwDecorCode(v) {
+  if (window.__pricingCore?.winwallDecorCode) return window.__pricingCore.winwallDecorCode(v);
   const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
   if (/^\d{3}$/.test(s)) return "WS" + s;
   return /^(WS|NW)\d{3}$/.test(s) ? s : null;
@@ -13004,9 +13009,11 @@ function syncWwCustomDecor() {
   const tile = custom.closest("label");
   const img = document.getElementById("wvWwCustomImg");
   hint.classList.remove("is-ok", "is-warn");
-  if (!custom.checked || !raw) hint.textContent = "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.";
-  else if (!code) { hint.textContent = "Bitte WS oder NW und 3 Ziffern eingeben, z. B. NW 230."; hint.classList.add("is-warn"); }
-  else if (name) { hint.textContent = `✓ ${name}`; hint.classList.add("is-ok"); }
+  const fmt = window.__pricingCore?.winwallArticleFormat?.(raw);
+  const fmtText = fmt ? { 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" }[fmt] : "";
+  if (!custom.checked || !raw) hint.textContent = "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).";
+  else if (!code) { hint.textContent = "Nicht erkannt. Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015)."; hint.classList.add("is-warn"); }
+  else if (name) { hint.textContent = `✓ ${name}${fmtText ? ` · Format ${fmtText}` : ""}`; hint.classList.add("is-ok"); }
   else { hint.textContent = "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt."; hint.classList.add("is-warn"); }
   const cap = tile?.querySelector(".caption");
   if (cap) cap.textContent = custom.checked && code ? `${code.slice(0, 2)} ${code.slice(2)}` : "Anderes Dekor";
@@ -13650,6 +13657,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       r.custom = true;
       r.text = document.getElementById("wvWwDecorCustom")?.value || "";
       r.code = wwDecorCode(r.text);
+      // Article no. from the Muster ("23013") also names the format.
+      const fmt = window.__pricingCore?.winwallArticleFormat?.(r.text);
+      if (fmt && fmt !== r.fmt) {
+        r.fmt = fmt;
+        const sel = listEl.querySelector(`.wv-row[data-i="${activeIdx}"] .wv-ww-fmtsel`);
+        if (sel) sel.value = fmt;
+      }
     } else { r.custom = false; r.text = ""; r.code = wwDecorCode(v); }
     const head = listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`);
     const b = head?.querySelector(".wv-row__name b");
@@ -13672,6 +13686,170 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   window.__wwRowsRefresh = render;
   window.setWwRowsList = (list) => { rows = list; activeIdx = rows.length ? 0 : -1; collapsed = true; render(); push(); };
   render();
+})();
+
+/* ========== WANDVERKLEIDUNG einfach (2026-11-18) ==========
+   New offers: the four winwall plates (drawn in the chosen decor) with a count each,
+   and the decor palette below — instead of the wall plan and the rows editor. Writes
+   the same wvWwRows (window.setWwRowsList), so price, PDF and restore are unchanged.
+   wvUi="simple" is saved with the offer; offers without it (all older offers and
+   drafts) open in the classic editor. VIGOUR / Badolux keep their classic sections. */
+(function initWvSimple() {
+  const form = document.getElementById("form-wandverkleidung");
+  const box = document.getElementById("wvSimple");
+  const ui = document.getElementById("wvUi");
+  const lineBtn = document.getElementById("wvLineBtn");
+  if (!form || !box || !ui || !lineBtn) return;
+  const tabsEl = box.querySelector(".wvs-tabs");
+  const platesEl = box.querySelector(".wvs-plates");
+  const totalEl = box.querySelector(".wvs-total");
+  const colorsEl = box.querySelector(".wvs-colors");
+  const otherEl = box.querySelector(".wvs-other-input");
+  const hintEl = box.querySelector(".wvs-hint");
+  const hintText = hintEl.textContent;
+  const FMTS = [["13", 100, 205], ["15", 100, 250], ["16", 125, 250], ["17", 150, 250]];
+  // Swatches we have in assets/winwall; other decors show their number on a plain tile.
+  const IMGS = new Set(["NW215", "NW216", "NW220", "NW222", "WS000", "WS203", "WS204", "WS210", "WS219", "WS225", "WS226", "WS227", "WS228", "WS229", "WS233", "WS243", "WS248", "WS290", "WS503"]);
+  const core = () => window.__pricingCore || {};
+  // The tiles + NW230 (Marble Copper Vein, picked from the Muster, ANG2026-1117-115333).
+  const palette = () => {
+    const list = (core().WINWALL_DECORS || []).map((d) => d.code);
+    if (list.length && !list.includes("NW230")) list.splice(list.indexOf("NW216") + 1, 0, "NW230");
+    return list;
+  };
+  const nice = (c) => `${c.slice(0, 2)} ${c.slice(2)}`;
+  const nameOf = (c) => core().WINWALL_CATALOG?.[c] || nice(c);
+  const sw = (c) => (IMGS.has(c) ? `background-image:url(./assets/winwall/${c}.jpg)` : "");
+  const esc = (v) => escapeHtml(String(v ?? ""));
+  const zero = () => ({ 13: 0, 15: 0, 16: 0, 17: 0 });
+  let groups = []; // [{ code, qty: {13,15,16,17} }] — one per decor
+  let active = 0;
+
+  // Rows → one group per decor.
+  function load() {
+    const map = new Map();
+    for (const r of window.__wwRowsState?.() || []) {
+      if (!r.code) continue;
+      const g = map.get(r.code) || { code: r.code, qty: zero() };
+      g.qty[r.fmt] = (g.qty[r.fmt] || 0) + (Number(r.qty) || 0);
+      map.set(r.code, g);
+    }
+    // keep a decor that was just added and has no plates yet
+    for (const g of groups) if (!map.has(g.code) && !Object.values(g.qty).some(Boolean)) map.set(g.code, g);
+    groups = [...map.values()];
+    if (!groups.length) groups = [{ code: "WS203", qty: zero() }];
+    active = Math.min(Math.max(active, 0), groups.length - 1);
+  }
+  // Groups → rows. A typed row without a valid decor (classic editor) is kept, never dropped.
+  function save() {
+    const tiles = new Set((core().WINWALL_DECORS || []).map((d) => d.code));
+    const rows = groups.flatMap((g) =>
+      FMTS.filter(([f]) => g.qty[f] > 0).map(([f]) =>
+        tiles.has(g.code) ? { code: g.code, fmt: f, qty: g.qty[f], custom: false, text: "" } : { code: g.code, fmt: f, qty: g.qty[f], custom: true, text: nice(g.code) }));
+    const keep = (window.__wwRowsState?.() || []).filter((r) => !r.code);
+    window.setWwRowsList?.([...rows, ...keep]);
+  }
+
+  function render() {
+    const g = groups[active];
+    if (!g) return;
+    const count = (x) => Object.values(x.qty).reduce((a, b) => a + b, 0);
+    tabsEl.innerHTML = groups.map((x, i) =>
+      `<button type="button" class="wvs-tab" data-i="${i}" aria-pressed="${i === active}"><i style="${sw(x.code)}"></i>${esc(nameOf(x.code))} · ${count(x)} Stk${groups.length > 1 ? `<span class="wvs-tab__del" data-del="${i}" aria-label="Dekor entfernen">×</span>` : ""}</button>`
+    ).join("") + `<button type="button" class="wvs-tab wvs-tab--add" data-add="1">+ weiteres Dekor</button>`;
+    platesEl.innerHTML = FMTS.map(([f, w, h]) => {
+      const q = g.qty[f] || 0;
+      return `<div class="wvs-plate${q ? " has" : ""}">
+        <div class="wvs-plate__img" style="--w:${w};--h:${h};${sw(g.code)}"><span class="wvs-plate__qty">${q}</span></div>
+        <div class="wvs-plate__size">${w} × ${h} cm</div>
+        <div class="wvs-plate__meta">${f === "17" ? "Großplatte" : ""}</div>
+        <div class="wvs-step-ctl"><button type="button" data-f="${f}" data-d="-1" aria-label="Weniger ${w} × ${h} cm">−</button><output>${q}</output><button type="button" data-f="${f}" data-d="1" aria-label="Mehr ${w} × ${h} cm">+</button></div>
+      </div>`;
+    }).join("");
+    let n = 0, m2 = 0;
+    for (const x of groups) for (const [f, w, h] of FMTS) { n += x.qty[f] || 0; m2 += ((x.qty[f] || 0) * w * h) / 1e4; }
+    totalEl.textContent = `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²${groups.length > 1 ? ` · ${groups.length} Dekore` : ""}`;
+    const pal = palette();
+    if (!pal.includes(g.code)) pal.push(g.code); // a typed decor shows as its own tile
+    colorsEl.innerHTML = pal.map((c) =>
+      `<button type="button" class="wvs-color" role="radio" data-c="${c}" aria-checked="${c === g.code}"><i style="${sw(c)}">${IMGS.has(c) ? "" : esc(nice(c))}</i><span>${esc(nameOf(c))}</span><small>${nice(c)}</small></button>`
+    ).join("");
+  }
+
+  function setHint(cls, text) {
+    hintEl.classList.remove("is-ok", "is-warn");
+    if (cls) hintEl.classList.add(cls);
+    hintEl.textContent = text || hintText;
+  }
+
+  platesEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]");
+    if (!b) return;
+    const g = groups[active];
+    g.qty[b.dataset.f] = Math.max(0, (g.qty[b.dataset.f] || 0) + Number(b.dataset.d));
+    save(); render();
+  });
+  colorsEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]");
+    if (!b) return;
+    const other = groups.findIndex((x, i) => i !== active && x.code === b.dataset.c);
+    if (other >= 0) { active = other; render(); return; } // that decor has its own chip already
+    groups[active].code = b.dataset.c;
+    otherEl.value = ""; setHint();
+    save(); render();
+  });
+  tabsEl.addEventListener("click", (e) => {
+    const del = e.target.closest("[data-del]");
+    if (del) { groups.splice(Number(del.dataset.del), 1); active = Math.min(active, groups.length - 1); save(); render(); return; }
+    if (e.target.closest("[data-add]")) {
+      const used = new Set(groups.map((x) => x.code));
+      groups.push({ code: palette().find((c) => !used.has(c)) || "WS000", qty: zero() });
+      active = groups.length - 1; render(); return;
+    }
+    const b = e.target.closest("[data-i]");
+    if (b) { active = Number(b.dataset.i); otherEl.value = ""; setHint(); render(); }
+  });
+  otherEl.addEventListener("input", () => {
+    const v = otherEl.value.trim();
+    if (!v) return setHint();
+    const code = core().winwallDecorCode?.(v);
+    const fmt = core().winwallArticleFormat?.(v);
+    if (!code) return setHint("is-warn", "Nicht erkannt – Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015).");
+    const known = !!core().WINWALL_CATALOG?.[code];
+    const f = FMTS.find(([c]) => c === fmt);
+    setHint(known ? "is-ok" : "is-warn", known ? `✓ ${nameOf(code)} (${nice(code)})${f ? ` · Format ${f[1]} × ${f[2]} cm` : ""}` : `${nice(code)} ist nicht im winwall-Katalog – Nummer bitte prüfen.`);
+    if (!known) return;
+    const g = groups[active];
+    g.code = code;
+    if (f && !g.qty[fmt]) g.qty[fmt] = 1; // the article no. names the format
+    save(); render();
+  });
+
+  function lineLabel() {
+    const b = document.querySelector('#wvSettingsBlock .tier-seg__btn[aria-pressed="true"]');
+    return b ? [...b.children].map((x) => x.textContent.trim()).join(" · ") : "";
+  }
+  lineBtn.addEventListener("click", () => {
+    const open = form.classList.toggle("wv-line-open");
+    lineBtn.setAttribute("aria-expanded", String(open));
+  });
+  box.querySelector(".wvs-classic").addEventListener("click", () => { ui.value = ""; sync(); });
+
+  function sync() {
+    const simple = ui.value === "simple";
+    form.classList.toggle("wv-simple", simple);
+    form.classList.toggle("wv-simple-ww", simple && !!window.isWvWinwall?.());
+    const t = document.getElementById("wvLineText");
+    if (t) t.textContent = lineLabel();
+    if (simple) { load(); render(); }
+  }
+  window.syncWvSimple = sync;
+  document.addEventListener("wv:supplier", sync);
+  document.getElementById("wvLineToggle")?.addEventListener("change", sync);
+  window.addEventListener("hashchange", () => { if (location.hash === "#Wandverkleidung") sync(); });
+  // pricing-core (catalog, palette) arrives async
+  import("/logic/pricing-core.js").then(() => setTimeout(sync, 0)).catch(() => {});
+  sync();
 })();
 
 // Badolux-Zubehör (Keramico): closed by default, nothing in it is ever pre-selected.
@@ -18638,6 +18816,8 @@ function restoreWV(wv) {
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
+  // Simple view (2026-11-18): saved with the offer; older offers/drafts open classic.
+  setInputByNameOrId("wvUi", wv.wvUi === "simple" ? "simple" : "");
   // winwall (additive since 2026-10): a missing wvSupplier is VIGOUR.
   setInputByNameOrId("wvSupplier", wv.wvSupplier === "ww" ? "ww" : "hm");
   if (wv.wvSupplier === "ww") {

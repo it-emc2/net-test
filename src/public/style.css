@@ -12782,3 +12782,56 @@ body.ui-classic #page-Wandverkleidung .dw-acc .wv-seal-reset { color: var(--cl-a
 [data-mode="dark"] #form-wandverkleidung .kc-wall-sub { color: #fdba74; }
 #page-Wandverkleidung .wv-row__name small { color: #4b5563; }
 [data-mode="dark"] #page-Wandverkleidung .wv-row__name small { color: #b4bac4; }
+
+/* ---------- Wandverkleidung einfach (wvUi=simple, initWvSimple, 2026-11-18) ----------
+   Classic sections are only hidden (CSS, not [hidden]/disabled) so their fields keep
+   submitting: #wvWwRowsData and the wvWwQty_* fields are what the offer is priced from. */
+#wvLineRow, #wvSimple { display: none; }
+.wv-simple #wvLineRow { display: block; }
+.wv-simple #wvSettingsBlock { display: none; }
+.wv-simple.wv-line-open #wvSettingsBlock { display: block; }
+.wv-simple-ww #wvSimple { display: block; }
+.wv-simple-ww #wvWallsBlock, .wv-simple-ww #wvWwRowsSection,
+.wv-simple-ww #wvWwPanelsSection, .wv-simple-ww #wvWwDecorSection { display: none !important; }
+
+.wvs-disclosure { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.wvs-chev { color: #c7c7cc; font-size: 1.3rem; transition: transform .2s; }
+.wv-line-open .wvs-chev { transform: rotate(90deg); }
+.wvs-step { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 4px; border-radius: 50%; background: #0a84ff; color: #fff; font-size: .72rem; }
+
+.wvs-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 4px 10px; }
+.wvs-tab { display: flex; align-items: center; gap: 8px; border: 1px solid var(--input-border, #d0d5dd); background: var(--panel, #fff); color: inherit; border-radius: 999px; padding: 4px 12px 4px 4px; font: inherit; font-size: .88rem; cursor: pointer; }
+.wvs-tab i { width: 26px; height: 26px; border-radius: 50%; background: #d9d4cc center / cover; border: 1px solid rgba(0,0,0,.1); }
+.wvs-tab[aria-pressed="true"] { border-color: #0a84ff; box-shadow: 0 0 0 2px rgba(10,132,255,.25); font-weight: 600; }
+.wvs-tab--add { padding: 6px 14px; color: #0a84ff; border-style: dashed; }
+.wvs-tab__del { margin-left: 2px; color: var(--muted, #6b7280); font-weight: 400; }
+
+.wvs-plates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px 16px 16px; align-items: end; }
+.wvs-plate { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wvs-plate__img { position: relative; width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); border-radius: 6px; background: #d9d4cc center / cover;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.10), inset 0 0 0 1px rgba(0,0,0,.08); }
+.wvs-plate.has .wvs-plate__img { box-shadow: 0 0 0 3px #0a84ff, 0 6px 16px rgba(0,0,0,.12); }
+.wvs-plate__qty { position: absolute; top: 8px; right: 8px; display: none; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; background: #0a84ff; color: #fff; font-weight: 700; }
+.wvs-plate.has .wvs-plate__qty { display: grid; }
+.wvs-plate__size { font-weight: 600; }
+.wvs-plate__meta { margin-top: -6px; min-height: 1.1em; color: var(--muted, #6b7280); font-size: .78rem; }
+.wvs-step-ctl { display: flex; align-items: center; border-radius: 10px; background: rgba(118,118,128,.12); }
+.wvs-step-ctl button { width: 44px; height: 38px; border: 0; background: none; color: #0a84ff; font-size: 1.3rem; cursor: pointer; }
+.wvs-step-ctl output { min-width: 28px; text-align: center; font-weight: 600; }
+.wvs-total { padding: 12px 18px; border-top: 1px solid var(--input-border, #e5e7eb); font-weight: 600; }
+
+/* Each tile spans 3 rows of the grid (subgrid): pictures, names and codes share rows,
+   so 1-, 2- or 3-line names stay aligned. */
+.wvs-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); column-gap: 12px; padding: 16px 16px 0; }
+.wvs-color { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; padding: 0 0 16px; border: 0; background: none; color: inherit; font: inherit; text-align: center; cursor: pointer; }
+.wvs-color i { display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 10px; background: #d9d4cc center / cover; border: 1px solid rgba(0,0,0,.08); color: #6b7280; font-size: .7rem; font-style: normal; }
+.wvs-color span { margin-top: 6px; font-size: .78rem; line-height: 1.2; }
+.wvs-color small { color: var(--muted, #6b7280); font-size: .7rem; }
+.wvs-color[aria-checked="true"] i { box-shadow: 0 0 0 3px #0a84ff; }
+.wvs-color[aria-checked="true"] span { font-weight: 600; }
+.wvs-other { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wvs-other input { width: 170px; padding: 8px 10px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 8px; font: inherit; text-transform: uppercase; }
+.wvs-hint.is-ok { color: #248a3d; font-weight: 600; }
+.wvs-hint.is-warn { color: #dc2626; font-weight: 600; }
+.wvs-classic { margin: 10px 4px 0; padding: 6px 0; border: 0; background: none; color: #0a84ff; font: inherit; font-size: .85rem; cursor: pointer; }
+@media (max-width: 720px) { .wvs-plates { grid-template-columns: repeat(2, 1fr); } }

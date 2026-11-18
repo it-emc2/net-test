@@ -300,11 +300,19 @@ export const WINWALL_CATALOG = {
 export const WINWALL_DECORS = ["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203", "WS219",
   "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"].map((code) => ({ code, name: WINWALL_CATALOG[code] }));
 
-/** "ws 233" / "NW220" / "233" (saved before 2026-10-30: digits only = WS) → "WS233"; else null. */
+// "ws 233" / "NW220" / digits only ("230": NW when the catalog has NW230, else WS —
+// saved before 2026-10-30 as digits = WS) / article no. from the Muster ("23013" or
+// "NW 23013" = decor 230 + format 13, ANG2026-1117-115333) → "NW230"; else null.
+const WW_TYPED = /^(WS|NW)?(\d{3})(\d{2})?$/;
 export function winwallDecorCode(v) {
-  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
-  if (/^\d{3}$/.test(s)) return "WS" + s;
-  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  if (!m || (m[3] && !WINWALL_SINGLE_FORMATS.includes(m[3]))) return null;
+  return m[1] ? m[1] + m[2] : WINWALL_CATALOG["NW" + m[2]] ? "NW" + m[2] : "WS" + m[2];
+}
+/** Format code inside a typed article no. ("23013" → "13"); else null. */
+export function winwallArticleFormat(v) {
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  return m?.[3] && WINWALL_SINGLE_FORMATS.includes(m[3]) ? m[3] : null;
 }
 /** Decor of a Wandverkleidung payload: the tile, or the typed number for "Anderes Dekor". */
 export function winwallDecor(wv) {

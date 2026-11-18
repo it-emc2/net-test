@@ -4942,8 +4942,20 @@ button.dm-btn-danger:focus-visible {
                 class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
 
+          <!-- Einfache Ansicht (wvUi=simple, neue Angebote): Produktlinie nur als Zeile,
+               öffnet die Einstellungen darunter. Ältere Angebote/Entwürfe: klassisch. -->
+          <input type="hidden" id="wvUi" name="wvUi" value="simple" />
+          <div id="wvLineRow" class="full sec-settings">
+            <div class="sec-settings__group">
+              <button type="button" id="wvLineBtn" class="sec-settings__row wvs-disclosure" aria-expanded="false" aria-controls="wvSettingsBlock">
+                <span class="sec-settings__text"><strong>Produktlinie</strong><small id="wvLineText">winwall</small></span>
+                <span class="wvs-chev" aria-hidden="true">›</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Einstellungen: Produktlinie (eigene Linie, additiv) + Ausführung. -->
-          <div class="full sec-settings">
+          <div id="wvSettingsBlock" class="full sec-settings">
             <div class="sec-settings__label">Einstellungen</div>
             <div class="sec-settings__group">
               <div class="sec-settings__row">
@@ -4986,6 +4998,30 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <!-- Einfache Ansicht winwall: Platten je Format + Dekor (initWvSimple). Schreibt
+               dieselben wvWwRows wie die Zeilen – Preis, PDF und Laden bleiben gleich. -->
+          <div id="wvSimple" class="full">
+            <div class="sec-settings">
+              <div class="sec-settings__label"><span class="wvs-step">1</span> Platten – Menge je Größe</div>
+              <div class="wvs-tabs" role="group" aria-label="Dekore"></div>
+              <div class="sec-settings__group">
+                <div class="wvs-plates"></div>
+                <div class="wvs-total"></div>
+              </div>
+            </div>
+            <div class="sec-settings">
+              <div class="sec-settings__label"><span class="wvs-step">2</span> Dekor – gilt für die Platten oben</div>
+              <div class="sec-settings__group">
+                <div class="wvs-colors" role="radiogroup" aria-label="Dekor"></div>
+                <label class="sec-settings__row wvs-other">
+                  <span class="sec-settings__text"><strong>Anderes Dekor</strong><small class="wvs-hint">Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).</small></span>
+                  <input type="text" class="wvs-other-input" placeholder="NW 230 / 23015" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="10" form="wvsNoForm" />
+                </label>
+              </div>
+              <button type="button" class="wvs-classic">Alter Konfigurator (Wandplan, Zeilen)</button>
+            </div>
+          </div>
+
           <div id="wvPanelsSection" class="full">
             <!-- Wandfläche + Flächenrechner (makeFloorCalc). Nur Premium: schlägt 997/1497 vor.
                  wvArea ist additiv — fehlt in jedem Altangebot. -->
@@ -5017,7 +5053,7 @@ button.dm-btn-danger:focus-visible {
 
             <!-- Bedarf nach Wandbreiten (Keramico / Vigour, initKeramicoCalc) — unverändert,
                  nur im iOS-Stil gezeichnet. -->
-            <div class="sec-settings">
+            <div id="wvWallsBlock" class="sec-settings">
               <div class="sec-settings__label">Wände und Dekor</div>
               <div id="wvKeramicoCalc" class="kc">
               <div class="kc-head">
@@ -5191,7 +5227,7 @@ button.dm-btn-danger:focus-visible {
               <div id="wvWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
                 <label class="sec-settings__row" for="wvWwDecorCustom">
                   <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wvWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
-                  <input type="text" id="wvWwDecorCustom" name="wvWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
+                  <input type="text" id="wvWwDecorCustom" name="wvWwDecorCustom" placeholder="NW 230 / 23015" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="10" />
                 </label>
               </div>
             </div>

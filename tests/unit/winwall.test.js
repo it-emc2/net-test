@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallArticleFormat, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -94,6 +94,13 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallDecorCode("203")).toBe("WS203");
     expect(winwallDecorCode("nw 220")).toBe("NW220");
     expect(winwallDecorCode("WS2O3")).toBe(null);
+    // ANG2026-1117-115333: digits only find NW230, article no. from the Muster resolve
+    expect(winwallDecorCode("230")).toBe("NW230");
+    expect(winwallDecorCode("23013")).toBe("NW230");
+    expect(winwallDecorCode("NW 230 15")).toBe("NW230");
+    expect(winwallDecorCode("23014")).toBe(null); // no format 14
+    expect(winwallArticleFormat("23013")).toBe("13");
+    expect(winwallArticleFormat("230")).toBe(null);
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "ws 233" })).toEqual({ code: "WS233", name: "Beton" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "WS999" })).toEqual({ code: "WS999", name: null });
     expect(WINWALL_DECORS.map((d) => d.code)).toEqual(["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203",
