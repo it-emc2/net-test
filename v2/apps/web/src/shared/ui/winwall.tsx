@@ -10,15 +10,15 @@ const PLATE_CM: Record<string, [number, number]> = { 13: [100, 205], 15: [100, 2
 export interface PlateCard { code: string; size: string; qty: number; img: string; note: string }
 
 /** The four plates: a picture of the plate in the decor, its size, a note, − / + and "Menge".
- *  `testId` names each card, `notePart` the note's data-part (tests read both). */
-export function PlateCards({ plates, onStep, testId, notePart }: { plates: readonly PlateCard[]; onStep: (fmt: string, d: number) => void; testId: string; notePart: string }) {
+ *  `testId` names each card, `notePart` the note's data-part (tests read both); `scale`: px per cm of the picture. */
+export function PlateCards({ plates, onStep, testId, notePart, scale = 0.4 }: { plates: readonly PlateCard[]; onStep: (fmt: string, d: number) => void; testId: string; notePart: string; scale?: number }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {plates.map((x) => {
         const [cw, ch] = PLATE_CM[x.code] ?? [100, 250];
         return (
           <div key={x.code} data-testid={testId} data-code={x.code} data-img={x.img} className={cn("grid justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center", x.qty ? "border-primary" : "border-input")}>
-            <span aria-hidden className="relative grid place-items-end rounded bg-muted bg-cover bg-center" style={{ width: cw * 0.4, height: ch * 0.4, backgroundImage: x.img ? `url(/assets/winwall/${x.img}.jpg)` : undefined }}>
+            <span aria-hidden className="relative grid place-items-end rounded bg-muted bg-cover bg-center" style={{ width: cw * scale, height: ch * scale, backgroundImage: x.img ? `url(/assets/winwall/${x.img}.jpg)` : undefined }}>
               <span className="m-1 rounded-full bg-card px-2 text-sm font-semibold">{x.qty}</span>
             </span>
             <span data-part="size">{x.size}</span>

@@ -561,7 +561,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
   const settings = useWallSettings();
   const rows = rowsOf(wv);
   const kept = useOfferStore((s) => s.scratch.wvSimple) as sv.Simple | undefined;
-  const st = kept ?? sv.load(rows, null);
+  const st = kept?.groups.length ? kept : sv.load(rows, kept);
   // the step is opened: the groups are read from the rows again (today's sync), a decor without plates stays
   useEffect(() => { remember("wvSimple", sv.load(rowsOf(wvNow()), useOfferStore.getState().scratch.wvSimple as sv.Simple | undefined)); }, []);
   const other = String(useOfferStore((s) => s.scratch.wvsOther) ?? "");
@@ -624,7 +624,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
           ))}
           <button type="button" onClick={() => remember("wvSimple", sv.addGroup(st))} className={cn(chip, "border-dashed border-input text-primary")}>+ weiteres Dekor</button>
         </div>
-        <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "" }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" />
+        <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "" }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" scale={0.8} />
         <p className="m-0 font-semibold" data-testid="wvs-total">{sv.totalOf(st)}</p>
         {bad ? (
           <div role="alert" data-testid="wvs-bad" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 font-semibold text-destructive">
@@ -654,7 +654,8 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
 /** the classic editor (wall plan, rows) — same rows underneath */
 const toClassic = () => write({ wvUi: "" });
 /** back to the simple view: the groups are read from the rows anew */
-const toSimple = () => { remember("wvSimple", undefined); remember("wvsOther", ""); write({ wvUi: "simple" }); };
+// (as today the open chip's number stays: with two decors before, the second one is open again)
+const toSimple = () => { const prev = useOfferStore.getState().scratch.wvSimple as sv.Simple | undefined; remember("wvSimple", { groups: [], active: prev?.active ?? 0 }); remember("wvsOther", ""); write({ wvUi: "simple" }); };
 
 /** a question the wall asks about the floor (today's appConfirm), in the page */
 function WallQuestion({ ask, onClose }: { ask: WallAsk; onClose: () => void }) {
