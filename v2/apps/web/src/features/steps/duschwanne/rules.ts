@@ -51,9 +51,10 @@ export function switchTray(dw: Fields, on: boolean, parked: Fields | null): { ch
 
 // ---- product line ----
 export const lineOf = (dw: Fields): Line => (dw.budgetMode ? "standard" : "premium");
+/** the line below the name: today's UI adds "guenstig" / "· Markenqualitaet" — left out on purpose (UX-CHANGES U-042) */
 export const LINE_TEXT: Record<Line, { name: string; brand: string; sub: string }> = {
-  standard: { name: "Badolux", brand: "Badolux", sub: "günstig" },
-  premium: { name: "Hassmann", brand: "Vigour / Hassmann", sub: "Vigour · Markenqualität" },
+  standard: { name: "Badolux", brand: "Badolux", sub: "" },
+  premium: { name: "Hassmann", brand: "Vigour / Hassmann", sub: "Vigour" },
 };
 /** scratch flag (not part of the offer): the first-switch-on default was used up. The store sets it when an offer is
  *  opened (today's restore sets `__dwLineDefaulted`); a new offer starts without it. */

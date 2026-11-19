@@ -59,9 +59,9 @@ const sorted = (v: unknown): unknown => (Array.isArray(v) ? v.map(sorted) : v &&
 const same = (a: unknown, b: unknown) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 const changed = (base: Record<string, unknown>, now: Record<string, unknown>) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])]
   .filter((k) => k !== "computed" && !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
-/** the recording is today's HTML, which spells the two sub lines "guenstig" / "Markenqualitaet" (no umlauts); React spells them
- *  with umlauts (UX-CHANGES U-042). The button text is the name and the line below it, without a space. */
-const umlauts = (t: string) => t.replace(/ /, "").replace("guenstig", "günstig").replace("Markenqualitaet", "Markenqualität");
+/** the recording is today's HTML: "Badolux guenstig" / "Hassmann Vigour · Markenqualitaet". React leaves the two words out
+ *  (UX-CHANGES U-042, owner 2026-11-19). The button text is the name and the line below it, without a space. */
+const withoutClaims = (t: string) => t.replace(/ ?guenstig/, "").replace(/ · Markenqualitaet/, "").replace(/ /, "");
 const squeeze = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "");
 const part = (el: Element, name: string) => squeeze(el.querySelector(`[data-part="${name}"]`)?.textContent);
 
@@ -81,7 +81,7 @@ describe("Duschwanne stores and shows what today's UI does", () => {
       return;
     }
     expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Badolux/ : /^Hassmann/);
-    expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getAllByRole("button").map((b) => b.textContent)).toEqual(v.tierButtons.map(umlauts)); // as the recording has it: the name, then the line below
+    expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getAllByRole("button").map((b) => b.textContent)).toEqual(v.tierButtons.map(withoutClaims)); // as the recording has it: the name, then the line below
     expect(screen.getByTestId("tier-line").textContent).toBe(v.tierLine);
     expect((screen.getByRole("switch", { name: "Hinweis zu möglichen Zusatzkosten einblenden" }) as HTMLInputElement).checked).toBe(v.hint);
     expect([(screen.getByLabelText("Breite in cm") as HTMLInputElement).value, (screen.getByLabelText("Länge in cm") as HTMLInputElement).value]).toEqual(v.dims);
