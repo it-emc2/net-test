@@ -49,10 +49,22 @@ export const ERROR_CODES = {
   VARIANT_TYPE_MISMATCH: "VARIANT_TYPE_MISMATCH",
   /** variants: creating a variant failed (e.g. migration 005 has not run: the old one-draft-per-deal index is still there) */
   VARIANT_CREATE_FAILED: "VARIANT_CREATE_FAILED",
+  /** variants (step 3): a send (mail, post, signing hand-over) of a variant marked "not chosen" is refused */
+  VARIANT_NOT_CHOSEN: "VARIANT_NOT_CHOSEN",
+  /** signing: a variant was signed after another variant of the deal had been signed — Bitrix keeps the first (warn) */
+  VARIANT_SECOND_SIGNATURE: "VARIANT_SECOND_SIGNATURE",
+  /** signing: the open link of another variant had documents signed already and was closed by the signature (warn) */
+  VARIANT_PARTIAL_SIGNING_CLOSED: "VARIANT_PARTIAL_SIGNING_CLOSED",
+  /** signing: the signed offer number belongs to no variant of the deal — nothing was marked or closed (warn) */
+  VARIANT_OF_SIGNATURE_UNKNOWN: "VARIANT_OF_SIGNATURE_UNKNOWN",
+  /** signing: no sent total was found for the signed offer — the deal's amount was left as it was (warn) */
+  SIGNING_AMOUNT_MISSING: "SIGNING_AMOUNT_MISSING",
+  /** signing: the Bitrix deal update after a completed signature failed (the signature is kept) */
+  SIGNING_DEAL_UPDATE_FAILED: "SIGNING_DEAL_UPDATE_FAILED",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
-export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants" } as const;
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion" } as const;
 export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
 
 // ---------- the customer of a Bitrix deal (Kundendaten) ----------

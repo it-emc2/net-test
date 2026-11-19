@@ -2,6 +2,7 @@
 // when its connection dropped mid-send), the sends of an offer or of a deal, and the stored files.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildInternalNoteComment, type DealWrites } from "../../integrations/bitrix-deal.js";
+import { signedElsewhere } from "../deal-drafts/index.js";
 import { OfferSend, SEND_ID, readSendFile, recordStep, sendView, type SendFile } from "./store.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>
@@ -30,7 +31,8 @@ export async function registerSends(app: FastifyInstance, d: { deals: DealWrites
         if (content) attachments.push({ filename: f.filename, base64: content.toString("base64") });
       }
       const { target, comment, internalNote } = s.bitrixCall;
-      if (target.entityType === "deal" && s.offerNumber) await d.deals.setDealOfferLink(target.entityId, s.offerNumber);
+      // signed wins (ADR 027 A): a repeated filing does not move the link away from the signed variant
+      if (target.entityType === "deal" && s.offerNumber && !(await signedElsewhere(String(s.dealId || target.entityId), s.variantId))) await d.deals.setDealOfferLink(target.entityId, s.offerNumber);
       const r: any = await d.deals.addTimelineComment({ ...target, comment, attachments });
       if (r?.ok === false) throw new Error(String(r.error || "Bitrix hat die Ablage abgelehnt"));
       const note = buildInternalNoteComment(internalNote);

@@ -188,7 +188,15 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     return bx.post("crm.item.update", { entityTypeId: DEAL_ENTITY_TYPE_ID, id: numericId, fields, useOriginalUfNames: "Y" });
   }
 
-  async function updateDealAfterSigning(a: { dealId: unknown; customerType?: unknown; categoryId?: number; stageId?: string; selfPayAmount?: unknown }) {
+  /**
+   * Stage move after a completed signature (legacy fields unchanged). `signedOffer` (ADR 027 A,
+   * step 3; the caller passes it for non-AH deals only): the signed offer's sent total, its number
+   * and its link go into the SAME update — the deal shows the signed offer, also an older variant.
+   */
+  async function updateDealAfterSigning(a: {
+    dealId: unknown; customerType?: unknown; categoryId?: number; stageId?: string; selfPayAmount?: unknown;
+    signedOffer?: { total?: number | null; offerNumber?: string; currencyId?: string } | undefined;
+  }) {
     const numericId = Number(a.dealId);
     if (!Number.isFinite(numericId) || numericId <= 0) throw new Error("dealId must be a positive number");
     const isKasse = String(a.customerType || "").toUpperCase() === "KASSE";
@@ -199,7 +207,26 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     if (isKasse && a.categoryId === undefined) Object.assign(fields, SIGNING_KASSE_FIELDS);
     const selfPay = Number(a.selfPayAmount);
     if (isKasse && Number.isFinite(selfPay) && selfPay >= 0) fields.UF_CRM_1757490052931 = selfPay;
+    if (a.signedOffer) Object.assign(fields, signedOfferFields(a.signedOffer));
     return bx.post("crm.item.update", { entityTypeId: DEAL_ENTITY_TYPE_ID, id: numericId, fields, useOriginalUfNames: "Y" });
+  }
+
+  /** amount (as „ANG verschickt“ writes it), final total, offer number and offer link of one offer */
+  function signedOfferFields(o: { total?: number | null; offerNumber?: string; currencyId?: string }): Record<string, unknown> {
+    const f: Record<string, unknown> = {};
+    const total = Number(o.total);
+    if (Number.isFinite(total) && total > 0) {
+      f.opportunity = total;
+      f.isManualOpportunity = "Y";
+      f.currencyId = String(o.currencyId || "EUR").trim() || "EUR";
+      f.UF_CRM_1768391021079 = total;
+    }
+    const n = String(o.offerNumber || "").trim();
+    if (n) {
+      f.UF_CRM_1776156870205 = n;
+      f[OFFER_LINK_FIELD] = `${opts.offerLinkBase}/?offer=${encodeURIComponent(n)}`;
+    }
+    return f;
   }
 
   async function addTimelineComment(a: { entityType: string; entityId: unknown; comment: unknown; attachments?: unknown }) {

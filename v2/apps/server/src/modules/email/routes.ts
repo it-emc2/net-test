@@ -21,7 +21,8 @@ import {
   DEFAULT_CONTACT_NAME, buildBitrixEmailComment, buildEmailTextBody, describeOfferChanges, getBitrixTargetFromPayload,
   getPresetAttachments, safeOfferFilename, sha256,
 } from "./builders.js";
-import { resolveSendVariant } from "../deal-drafts/index.js";
+import { NOT_CHOSEN_MESSAGE, isNotChosen, resolveSendVariant, signedElsewhere } from "../deal-drafts/index.js";
+import { ERROR_CODES } from "@oc/api-contract";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "./send-lock.js";
 import type { OfferDocuments, SigningPort } from "./ports.js";
 import type { EnsureSentOffer } from "../sends/index.js";
@@ -109,6 +110,10 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       if (dealId) {
         try { sendVariant = await resolveSendVariant(dealId, { variantId: fields.variantId, offerNumber: payload?.offerNumber || offerNumber }); }
         catch (e) { req.log.warn({ err: e, sendId }, "variant of the send not resolved — deal lock used"); }
+        // ADR 027 A, step 3: a variant that was not chosen (another one is signed) is not sent
+        let refused = false;
+        try { refused = await isNotChosen(dealId, sendVariant.variantId); } catch (e) { req.log.warn({ err: e, sendId }, "not-chosen check failed — continuing"); }
+        if (refused) return fail(req, reply, 409, ERROR_CODES.VARIANT_NOT_CHOSEN, NOT_CHOSEN_MESSAGE);
       }
 
       try {
@@ -314,7 +319,8 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
           const comment = buildBitrixEmailComment({ offerNumber: payload?.offerNumber || offerNumber, to, subject, body, attachmentNames, bitrixOnly, changes: offerChanges });
           // kept on the record so a failed filing can be repeated from the stored files
           if (recordOpen) await rec("bitrixCall", () => patchSend(sendId, { bitrixCall: { target, comment, internalNote: String(fields.internalNote || "") } }));
-          if (target.entityType === "deal") await d.deals.setDealOfferLink(target.entityId, payload?.offerNumber || offerNumber);
+          // signed wins (ADR 027 A): the deal's offer link stays with the signed variant
+          if (target.entityType === "deal" && !(await signedElsewhere(dealId, sendVariant.variantId))) await d.deals.setDealOfferLink(target.entityId, payload?.offerNumber || offerNumber);
           bitrixComment = await d.deals.addTimelineComment({ ...target, comment, attachments: bitrixAttachments });
           const note = buildInternalNoteComment(fields.internalNote);
           if (note) await d.deals.addTimelineComment({ ...target, comment: note });

@@ -8,13 +8,18 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { SigningRequest } from "../../platform/models.js";
+import { ERROR_AREAS, ERROR_CODES, type ErrorCode } from "@oc/api-contract";
+import { Offer, SigningRequest } from "../../platform/models.js";
+import { reportError } from "../../platform/error-events.js";
 import type { DealWrites } from "../../integrations/bitrix-deal.js";
 import { STAGES } from "../../integrations/bitrix-deal.js";
 import type { Mailer } from "../../integrations/mail.js";
 import { buildEmailHtml } from "../email/index.js";
 import { resolveAnsprechpartner } from "../offers/index.js";
-import { resolveSendVariant } from "../deal-drafts/index.js";
+import {
+  NOT_CHOSEN_MESSAGE, claimVariantChoice, closedByChoice, isNotChosen, markOthersNotChosen, recordClosedLinks, resolveSendVariant, variantNumbers, variantOfNumber,
+  type VariantNumbers,
+} from "../deal-drafts/index.js";
 import { tokenFromHeaders, verifyToken } from "../../platform/auth.js";
 import { injectHead } from "../web/index.js";
 import {
@@ -219,6 +224,100 @@ export function signingService(d: SigningDeps) {
     await d.deals.addTimelineComment({ entityType: "contact", entityId: partnerContactId, comment: note("(Person 2)"), attachments: toAttachments(pdfs.filter(isP2)) });
   }
 
+  const report = (code: ErrorCode, severity: "error" | "warn", message: string, dealId?: string) =>
+    reportError({ log: d.log as any }, { area: ERROR_AREAS.signingCompletion, code, severity, message, ...(dealId ? { dealId } : {}) });
+
+  /**
+   * ADR 027 A, step 3 — which variant the completed request signs, and what follows:
+   *   single  no variants known (no draft, contact request): as before, plus the amount fields
+   *   first   this variant decides the deal (first completion, or again the chosen variant):
+   *           the others are marked "not chosen", their open signing links are closed
+   *   second  another variant decided the deal before: nothing is marked, Bitrix stays with it
+   *   unknown several variants, the number belongs to none: nothing marked, stage only
+   * Never throws: a failure here falls back to "unknown" (the signature itself is never at risk).
+   */
+  type Closed = { token: string; offerNumber: string; variantId: string; signedDocs: number; docCount: number };
+  type Decision =
+    | { kind: "single" | "unknown"; all: VariantNumbers[] }
+    | { kind: "first"; all: VariantNumbers[]; variant: VariantNumbers; marked: string[]; closed: Closed[] }
+    | { kind: "second"; all: VariantNumbers[]; variant: VariantNumbers; chosen: { variantId: string; offerNumber: string } };
+  async function decideVariant(sr: any): Promise<Decision> {
+    const dealId = sr.bitrixEntityType === "deal" ? String(sr.bitrixEntityId || "") : "";
+    if (!dealId) return { kind: "single", all: [] };
+    let all: VariantNumbers[] = [];
+    try {
+      all = await variantNumbers(dealId);
+      if (!all.length) return { kind: "single", all };
+      const rec = await sendForSigning(sr.token);
+      const variant = variantOfNumber(all, { variantId: rec?.variantId, offerNumber: sr.offerNumber });
+      if (!variant) {
+        report(ERROR_CODES.VARIANT_OF_SIGNATURE_UNKNOWN, "warn", "signed offer number belongs to no variant of the deal", dealId);
+        return { kind: "unknown", all };
+      }
+      const claim = await claimVariantChoice(dealId, { variantId: variant.variantId, offerNumber: String(sr.offerNumber || ""), token: sr.token });
+      if (!claim.first) return { kind: "second", all, variant, chosen: claim.choice };
+      const marked = all.length > 1 ? await markOthersNotChosen(dealId, variant.variantId) : [];
+      // close the open signing links of every other variant (never a number of the signed one)
+      const own = new Set(variant.numbers);
+      const numbers = all.filter((v) => v.variantId !== variant.variantId).flatMap((v) => v.numbers).filter((n) => !own.has(n));
+      const closed: Closed[] = [];
+      if (numbers.length) {
+        const open: any[] = await SigningRequest.find({ offerNumber: { $in: numbers }, status: { $in: ["sent", "opened", "partially_signed"] } }, { token: 1, offerNumber: 1, documents: 1 }).lean();
+        if (open.length) {
+          await SigningRequest.updateMany({ _id: { $in: open.map((o) => o._id) }, status: { $in: ["sent", "opened", "partially_signed"] } }, { $set: { status: "expired", expiresAt: new Date() } });
+          for (const o of open) {
+            closed.push({
+              token: o.token, offerNumber: o.offerNumber, variantId: all.find((v) => v.numbers.includes(o.offerNumber))?.variantId ?? "",
+              signedDocs: (o.documents || []).filter((x: any) => x.status === "signed").length, docCount: (o.documents || []).length,
+            });
+          }
+          await recordClosedLinks(dealId, closed.map(({ docCount: _d, ...c }) => c));
+        }
+      }
+      return { kind: "first", all, variant, marked, closed };
+    } catch (err) {
+      d.log.error({ err: msg(err) }, "signing: variant decision failed");
+      report(ERROR_CODES.VARIANT_OF_SIGNATURE_UNKNOWN, "warn", `variant decision failed: ${msg(err)}`.slice(0, 300), dealId);
+      return { kind: "unknown", all };
+    }
+  }
+
+  /** the total of the signed offer AS SENT — never priced fresh: its send record, another done
+   *  send of the same number (a sent offer is immutable), else the price stored with the offer */
+  async function sentTotal(sr: any): Promise<number | null> {
+    const ok = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+    const rec = await sendForSigning(sr.token);
+    if (ok(rec?.total)) return rec.total;
+    const nr = String(sr.offerNumber || "").trim();
+    if (!nr) return null;
+    const other: any = await OfferSend.findOne({ offerNumber: nr, status: "done", total: { $gt: 0 } }, { total: 1 }).sort({ startedAt: -1 }).lean();
+    if (ok(other?.total)) return other.total;
+    const stored: any = await Offer.findOne({ offerNumber: nr }, { "pricing.total": 1 }).lean();
+    const t = Number(stored?.pricing?.total);
+    return ok(t) ? t : null;
+  }
+
+  /** the lines the completion note gets for a deal with several variants (internal timeline only) */
+  function variantLines(dec: Decision): string[] {
+    if (dec.kind === "single" || dec.kind === "unknown") return [];
+    const nameOf = (id: string) => `Variante „${dec.all.find((v) => v.variantId === id)?.name ?? id}“`;
+    if (dec.kind === "second") {
+      return [`⚠️ Zweite Unterschrift: ${nameOf(dec.variant.variantId)} wurde unterschrieben, obwohl bereits ${nameOf(dec.chosen.variantId)}` +
+        (dec.chosen.offerNumber ? ` (${dec.chosen.offerNumber})` : "") + ` unterschrieben ist. Betrag, Angebotsnummer und Angebotslink im Deal bleiben bei ${nameOf(dec.chosen.variantId)}. Bitte mit dem Kunden klären.`];
+    }
+    const first = dec as Extract<Decision, { kind: "first" }>;
+    if (first.all.length < 2) return []; // one variant: the note stays exactly as before
+    const others = first.all.filter((v) => v.variantId !== first.variant.variantId);
+    const lines = [`${nameOf(first.variant.variantId)} unterschrieben.`];
+    if (others.length) lines.push(`Nicht gewählt: ${others.map((v) => nameOf(v.variantId)).join(", ")}`);
+    for (const c of first.closed) {
+      lines.push(c.signedDocs > 0
+        ? `⚠️ Signatur-Link von ${nameOf(c.variantId)} (${c.offerNumber}) geschlossen – dort waren bereits ${c.signedDocs} von ${c.docCount} Dokument(en) unterschrieben. Bitte prüfen.`
+        : `Signatur-Link von ${nameOf(c.variantId)} (${c.offerNumber}) geschlossen.`);
+    }
+    return lines;
+  }
+
   async function complete(sr: any) {
     const result: Record<string, unknown> = { ok: true, email: "skipped", bitrix: "skipped", partnerFiling: "skipped", dealMove: "skipped" };
     const pdfs = await signedPdfs(sr, sr.documents, { fresh: true });
@@ -251,13 +350,26 @@ export function signingService(d: SigningDeps) {
         result.email = "failed"; result.emailError = msg(err);
       }
     }
-    const filed: any = await postTimeline(sr, `✅ Alle Dokumente unterschrieben` + (sr.offerNumber ? ` (${sr.offerNumber})` : "") + `\nSignierte PDFs sind angehängt.`, toAttachments(pdfs));
+    // ADR 027 A, step 3: which variant this is; the others are marked and their links closed
+    const dec = await decideVariant(sr);
+    const dealId = sr.bitrixEntityType === "deal" ? String(sr.bitrixEntityId || "") : "";
+    result.variant = dec.kind;
+    if (dec.kind === "first" && dec.closed.some((c) => c.signedDocs > 0)) {
+      report(ERROR_CODES.VARIANT_PARTIAL_SIGNING_CLOSED, "warn", `closed ${dec.closed.filter((c) => c.signedDocs > 0).length} partially signed request(s) of other variants`, dealId);
+    }
+    if (dec.kind === "second") report(ERROR_CODES.VARIANT_SECOND_SIGNATURE, "warn", `variant ${dec.variant.variantId} signed after ${dec.chosen.variantId}; deal kept`, dealId);
+    const extra = variantLines(dec);
+    const filed: any = await postTimeline(sr, `✅ Alle Dokumente unterschrieben` + (sr.offerNumber ? ` (${sr.offerNumber})` : "") + `\nSignierte PDFs sind angehängt.` +
+      (extra.length ? `\n${extra.join("\n")}` : ""), toAttachments(pdfs));
     if (sr.documents.some((x: any) => isPartnerKey(x.key))) {
       try { await filePerPersonDocs(sr, pdfs); result.partnerFiling = "ok"; }
       catch (err) { d.log.warn({ err: msg(err) }, "signing: per-contact filing failed"); result.partnerFiling = "failed"; }
     }
     result.bitrix = filed?.skipped ? "skipped" : filed?.ok === false ? "failed" : "ok";
-    if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
+    if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId && dec.kind === "second") {
+      // signed wins: the deal keeps the stage, amount, number and link of the variant signed first
+      result.dealMove = "kept-first";
+    } else if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
       try {
         // "Antrag an Kasse stellen" requires the Eigenanteil on Bitrix's side (not for AH).
         let selfPayAmount: number | undefined;
@@ -265,13 +377,23 @@ export function signingService(d: SigningDeps) {
           const { computed } = await d.renderer.renderData(sr.payloadSnapshot || {});
           selfPayAmount = Number(computed?.selfPayAmount) || 0;
         }
+        // ADR 027 A: the signed offer's sent total, number and link (not AH — its field set stays
+        // as today; not when the variant could not be found among several)
+        let signedOffer: { total: number | null; offerNumber: string } | undefined;
+        if (!isAhOffer(sr) && dec.kind !== "unknown") {
+          const total = await sentTotal(sr).catch(() => null);
+          if (total === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "no sent total for the signed offer — amount left as it was", dealId);
+          signedOffer = { total, offerNumber: String(sr.offerNumber || "") };
+        }
         await d.deals.updateDealAfterSigning({
           dealId: sr.bitrixEntityId, customerType: sr.customerType, selfPayAmount,
           ...(isAhOffer(sr) && { categoryId: STAGES.AH_SIGNING.categoryId, stageId: STAGES.AH_SIGNING.stageId }),
+          ...(signedOffer && { signedOffer }),
         });
         result.dealMove = "ok";
       } catch (err) {
         d.log.warn({ err: msg(err) }, "signing: Bitrix deal stage update failed");
+        report(ERROR_CODES.SIGNING_DEAL_UPDATE_FAILED, "error", `deal update after signing failed: ${msg(err)}`.slice(0, 300), dealId);
         result.dealMove = "failed";
       }
     }
@@ -325,6 +447,15 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       catch (e) {
         if (e instanceof OfferChangedError) return reply.status(409).send(offerChangedBody(e, req.id));
         req.log.warn({ err: e }, "sent-offer check failed — continuing");
+      }
+      // ADR 027 A, step 3: a variant that was not chosen (another one is signed) is not handed over
+      if (b.dealId) {
+        let refused = false;
+        try {
+          const v = await resolveSendVariant(String(b.dealId), { variantId: b.variantId, offerNumber: offerNo });
+          refused = await isNotChosen(String(b.dealId), v.variantId);
+        } catch (e) { req.log.warn({ err: e }, "variant check of the hand-over failed — continuing"); }
+        if (refused) return fail(req, reply, 409, ERROR_CODES.VARIANT_NOT_CHOSEN, NOT_CHOSEN_MESSAGE);
       }
       payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user, d.apDefaultEmail);
       const result: any = await svc.createRequest({
@@ -435,6 +566,11 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const entity = sr.bitrixEntityType === "deal" ? "D" : sr.bitrixEntityType === "contact" ? "C" : "";
       const entityUrl = entity ? `https://emczwei.bitrix24.de/crm/${entity === "D" ? "deal" : "contact"}/details/${sr.bitrixEntityId}/` : "";
       const ocUrl = `${baseUrl(req)}/?offer=${encodeURIComponent(sr.offerNumber || "")}`;
+      // ADR 027 A: a link closed because another variant was signed — the office must know that
+      const closedFor = await closedByChoice(sr.token).catch(() => null);
+      const closedNote = closedFor
+        ? `Hinweis: Dieser Link wurde geschlossen, weil der Kunde ein anderes Angebot zu diesem Auftrag unterschrieben hat` + (closedFor.offerNumber ? ` (${closedFor.offerNumber})` : "") + `. Bitte vor einem neuen Link mit dem Kunden klären.`
+        : null;
       const lines = [
         `Kunde fordert über die Signaturseite einen neuen Signatur-Link an.`,
         ``,
@@ -445,6 +581,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
         entityUrl ? `Bitrix: ${entityUrl}` : null,
         `OC: ${ocUrl}`,
         `Alter Link: /sign/${sr.token.slice(0, 8)}… (abgelaufen)`,
+        ...(closedNote ? [closedNote] : []),
         ``,
         `Bitte Angebot in OC öffnen und den Signatur-Link neu an den Kunden senden.`,
       ].filter((l) => l !== null);
@@ -468,7 +605,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       const taskId = task?.result?.task?.id;
       await svc.postTimeline(sr,
         `Kunde fordert einen neuen Signatur-Link an (${sr.offerNumber || ""})\n` +
-        `Der bisherige Link ist abgelaufen. Bitte neuen Signatur-Link an ${p.email || sr.customerEmail || "den Kunden"} senden.` +
+        (closedNote ? `${closedNote}` : `Der bisherige Link ist abgelaufen. Bitte neuen Signatur-Link an ${p.email || sr.customerEmail || "den Kunden"} senden.`) +
         (taskId ? `\nAufgabe: https://emczwei.bitrix24.de/company/personal/user/${NEW_LINK_TASK.responsible}/tasks/task/view/${taskId}/` : ""));
       return { ok: true, taskId: taskId || null };
     } catch (err) { return err500(req, reply, "POST signing request-new-link", err); }

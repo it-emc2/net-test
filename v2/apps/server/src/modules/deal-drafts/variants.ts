@@ -237,4 +237,99 @@ export async function resolveSendVariant(dealId: string, a: { variantId?: unknow
   return { variantId, lockKey: storedVariant(variantId) ? `${dealId}#${variantId}` : dealId };
 }
 
+// ---------------- step 3: the signature decides (ADR 027 A) ----------------
+
+/** a live variant with every offer number it ever carried (current number + its send records) */
+export interface VariantNumbers { variantId: string; name: string; numbers: string[]; notChosenAt: Date | null }
+
+/** The live variants of a deal with all their offer numbers, first variant first. */
+export async function variantNumbers(dealId: string): Promise<VariantNumbers[]> {
+  if (!dealId) return [];
+  const variants = await liveWithNumbers(dealId);
+  const facts = await factsOf(dealId, variants);
+  return variants.map((v) => ({ variantId: publicVariantId(v), name: variantNameOf(v), numbers: [...(facts.get(publicVariantId(v))?.numbers ?? [])], notChosenAt: v.notChosenAt ?? null }));
+}
+
+/**
+ * The variant a signed offer number belongs to: the send record's `variantId` when it names a
+ * live variant, else the variant that carried the number; a deal with ONE variant: that one.
+ * null: not to be found (several variants, number unknown) — nothing is marked then.
+ */
+export function variantOfNumber(all: VariantNumbers[], a: { variantId?: unknown; offerNumber?: unknown }): VariantNumbers | null {
+  const asked = str(a.variantId), nr = str(a.offerNumber);
+  return (asked && all.find((v) => v.variantId === asked)) || (nr && all.find((v) => v.numbers.includes(nr))) || (all.length === 1 ? all[0]! : null);
+}
+
+/**
+ * The signature that decides a deal (ADR 027 A, step 3): one document per deal in
+ * `deal_variant_choices`, keyed by the deal number itself (`_id`), so the first completion wins
+ * atomically without any index migration. Kept for good — a later signature of another variant
+ * is a "second signature" and changes nothing of the choice (no "reactivate" by design).
+ */
+const choices = () => mongoose.connection.collection<{ _id: string; [k: string]: unknown }>("deal_variant_choices");
+export interface VariantChoice { dealId: string; variantId: string; offerNumber: string; token: string; at: Date }
+
+/** first: this signature decided the deal (now, or in an earlier run of the same variant) */
+export async function claimVariantChoice(dealId: string, c: { variantId: string; offerNumber: string; token: string }, at = new Date()): Promise<{ first: boolean; choice: VariantChoice }> {
+  try {
+    await choices().insertOne({ _id: dealId, variantId: c.variantId, offerNumber: c.offerNumber, token: c.token, at });
+    return { first: true, choice: { dealId, ...c, at } };
+  } catch (e) {
+    if ((e as { code?: number })?.code !== 11000) throw e;
+  }
+  const cur: any = await choices().findOne({ _id: dealId });
+  const choice: VariantChoice = { dealId, variantId: str(cur?.variantId), offerNumber: str(cur?.offerNumber), token: str(cur?.token), at: cur?.at ?? at };
+  // the same variant again (a repeated completion, or a newer version of it signed): still the chosen one
+  return { first: choice.variantId === c.variantId, choice };
+}
+
+/** what was closed when a variant was chosen — read by "Neuen Link anfordern" on such a link */
+export async function recordClosedLinks(dealId: string, closed: { token: string; offerNumber: string; variantId: string; signedDocs: number }[]) {
+  if (!closed.length) return;
+  await choices().updateOne({ _id: dealId }, { $push: { closed: { $each: closed.map((c) => ({ ...c, at: new Date() })) } } } as any);
+}
+export async function closedByChoice(token: string): Promise<VariantChoice | null> {
+  if (!token) return null;
+  const cur: any = await choices().findOne({ "closed.token": token } as any);
+  return cur ? { dealId: String(cur._id), variantId: str(cur.variantId), offerNumber: str(cur.offerNumber), token: str(cur.token), at: cur.at } : null;
+}
+
+/**
+ * The signed variant that holds the deal's amount, offer number and link ("signed wins"): the
+ * recorded choice; for a deal signed before step 3 (no choice recorded) the variant signed first.
+ */
+export async function signedVariantOf(dealId: string): Promise<{ variantId: string; offerNumber: string; name: string } | null> {
+  if (!dealId) return null;
+  const c: any = await choices().findOne({ _id: dealId });
+  const list = await listVariants(dealId);
+  if (c) {
+    const v = list.variants.find((x) => x.variantId === str(c.variantId));
+    return { variantId: str(c.variantId), offerNumber: str(c.offerNumber), name: v?.name ?? "" };
+  }
+  const signed = list.variants.filter((v) => v.status === "signed").sort((a, b) => +new Date(a.signedAt ?? 0) - +new Date(b.signedAt ?? 0))[0];
+  return signed ? { variantId: signed.variantId, offerNumber: signed.offerNumber, name: signed.name } : null;
+}
+
+/**
+ * "Signed wins": another variant than `variantId` is signed on the deal — then a send of this one
+ * must not change the deal's amount, offer number or offer link. A failing read answers null
+ * (the send goes on as before).
+ */
+export async function signedElsewhere(dealId: string, variantId: string): Promise<{ variantId: string; offerNumber: string; name: string } | null> {
+  if (!dealId) return null;
+  try {
+    const s = await signedVariantOf(dealId);
+    return s && s.variantId !== (variantId || FIRST_VARIANT_ID) ? s : null;
+  } catch { return null; }
+}
+
+/** A send of this variant is refused: it was marked "not chosen" and is not itself signed. */
+export async function isNotChosen(dealId: string, variantId: string): Promise<boolean> {
+  if (!dealId || !variantId) return false;
+  const v = (await listVariants(dealId)).variants.find((x) => x.variantId === variantId);
+  return v?.status === "not-chosen";
+}
+export const NOT_CHOSEN_MESSAGE =
+  "Diese Variante wurde nicht gewählt – zu diesem Auftrag ist bereits ein anderes Angebot unterschrieben. Sie kann nicht mehr versendet werden. Bitte erstellen Sie bei Bedarf eine neue Variante.";
+
 export { touchOpened };
