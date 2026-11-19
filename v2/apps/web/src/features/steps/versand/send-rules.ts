@@ -134,6 +134,11 @@ export function movePayload(offer: Fields, result: SentResult, offerNumber: stri
   if (materialCodes) out.materialCodes = materialCodes;
   return out;
 }
+/** the line after the move; another variant of the deal is signed → the server kept its amount (ADR 027 A, step 3) */
+export function movedText(answer: unknown): string {
+  const kept = obj(answer).amountKept === true;
+  return kept ? "Deal wurde auf „ANG verschickt\" verschoben. Betrag bleibt beim unterschriebenen Angebot." : "Deal wurde auf „ANG verschickt\" verschoben.";
+}
 /** "WV-WW · DW-SL" — the supplier codes of the price */
 export function materialCodes(price: unknown): string {
   const c = obj(obj(price).supplierCodes);

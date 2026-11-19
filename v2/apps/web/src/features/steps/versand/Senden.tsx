@@ -19,7 +19,7 @@ import { StopActions } from "./NeueVersion.js";
 import { NOTHING, NeedsNewVersion, refusal, saveBeforeSend, setStop } from "./version.js";
 import { ccDefault, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
-  TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
+  TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, movedText, sending, sentTitle, started,
   type MainItem, type SentResult,
 } from "./send-rules.js";
 
@@ -243,8 +243,9 @@ export function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onCl
   const move = async () => {
     setMoving(true); setLine({ ok: true, text: "Verschiebe Deal…" });
     try {
-      await call("moveSent", { params: { id: s.dealId }, body: movePayload(s.offer, s.result, s.offerNumber, codes) });
-      setMoved(true); setLine({ ok: true, text: "Deal wurde auf „ANG verschickt\" verschoben." });
+      const variantId = sendVariantOf(st(), s.dealId); // the variant just sent (ADR 027 A)
+      const r = await call("moveSent", { params: { id: s.dealId }, body: { ...movePayload(s.offer, s.result, s.offerNumber, codes), ...(variantId ? { variantId } : {}) } });
+      setMoved(true); setLine({ ok: true, text: movedText(r) });
     } catch (err) {
       setLine({ ok: false, text: `Deal konnte nicht verschoben werden: ${messageOf(err)}`, then: "Das Angebot wurde trotzdem versendet – bitte NICHT erneut senden." });
     } finally { setMoving(false); }

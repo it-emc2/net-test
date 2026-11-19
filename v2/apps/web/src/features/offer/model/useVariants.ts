@@ -25,7 +25,8 @@ export function openAsRow(s: { variantId: string | null; variantName: string; of
 export function useVariants(enabled = true) {
   const dealId = useOfferStore((s) => s.dealId);
   const q = useQuery({
-    queryKey: variantsKey(dealId), enabled: enabled && !!dealId, retry: false, staleTime: 5_000,
+    // a signature arrives from outside (the customer's link): asked again when the window gets focus (ADR 027 A, step 3)
+    queryKey: variantsKey(dealId), enabled: enabled && !!dealId, retry: false, staleTime: 5_000, refetchOnWindowFocus: true,
     queryFn: ({ signal }) => call("dealVariants", { params: { dealId: dealId! }, signal }),
   });
   const variants = q.data?.variants.length ? q.data.variants : null;
