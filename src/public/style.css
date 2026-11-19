@@ -12156,8 +12156,8 @@ body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 1px solid var(-
 body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); box-shadow: inset 0 0 0 1px var(--cl-accent); background: var(--panel, #fff); }
 body.ui-classic #page-Duschwanne .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
 body.ui-classic #page-Duschwanne .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
-body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 120px; padding: 6px; border-radius: 10px; background: #fafafa; }
-body.ui-classic #page-Duschwanne .dw-acc > .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+body.ui-classic #page-Duschwanne .dw-acc .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 120px; padding: 6px; border-radius: 10px; background: #fafafa; display: block; }
+body.ui-classic #page-Duschwanne .dw-acc .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
 body.ui-classic #page-Duschwanne .dw-acc__text { grid-column: 1; grid-row: 2; }
 body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.92rem; font-weight: 600; }
 body.ui-classic #page-Duschwanne .dw-acc__text small { font-size: 0.75rem; }
@@ -12171,7 +12171,7 @@ body.ui-classic #page-Duschwanne .dw-acc .sec-switch__track::after {
 }
 body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
 body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track::after { opacity: 1; }
-[data-mode="dark"] body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { background: rgba(255, 255, 255, 0.92); }
+[data-mode="dark"] body.ui-classic #page-Duschwanne .dw-acc .img-wrap { background: rgba(255, 255, 255, 0.92); }
 body.ui-classic #page-Duschwanne .stelzlager-qty-row {
   grid-column: 1; grid-row: 3; position: relative; z-index: 1; background: none; gap: 6px; justify-self: start;
 }
