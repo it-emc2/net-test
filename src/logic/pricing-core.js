@@ -223,6 +223,14 @@ export const WINWALL_CATALOG = {
   WS151: "lindgrün",
   WS132: "sand",
   WS120: "hellgrau",
+  // Plain colours on winwall.com that were missing here (2026-11-18).
+  WS023: "koralle",
+  WS046: "türkis",
+  WS081: "sand (Basics)",
+  WS110: "elfenbein",
+  WS121: "grau",
+  WS140: "hellblau (Trend)",
+  WS170: "lachs",
   WS233: "Beton",
   WS232: "Beton hell",
   WS234: "Beton dunkel",
@@ -300,11 +308,19 @@ export const WINWALL_CATALOG = {
 export const WINWALL_DECORS = ["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203", "WS219",
   "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"].map((code) => ({ code, name: WINWALL_CATALOG[code] }));
 
-/** "ws 233" / "NW220" / "233" (saved before 2026-10-30: digits only = WS) → "WS233"; else null. */
+// "ws 233" / "NW220" / digits only ("230": NW when the catalog has NW230, else WS —
+// saved before 2026-10-30 as digits = WS) / article no. from the Muster ("23013" or
+// "NW 23013" = decor 230 + format 13, ANG2026-1117-115333) → "NW230"; else null.
+const WW_TYPED = /^(WS|NW)?(\d{3})(\d{2})?$/;
 export function winwallDecorCode(v) {
-  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
-  if (/^\d{3}$/.test(s)) return "WS" + s;
-  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  if (!m || (m[3] && !WINWALL_SINGLE_FORMATS.includes(m[3]))) return null;
+  return m[1] ? m[1] + m[2] : WINWALL_CATALOG["NW" + m[2]] ? "NW" + m[2] : "WS" + m[2];
+}
+/** Format code inside a typed article no. ("23013" → "13"); else null. */
+export function winwallArticleFormat(v) {
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  return m?.[3] && WINWALL_SINGLE_FORMATS.includes(m[3]) ? m[3] : null;
 }
 /** Decor of a Wandverkleidung payload: the tile, or the typed number for "Anderes Dekor". */
 export function winwallDecor(wv) {
@@ -450,6 +466,35 @@ export function winwallOrderLines(decor, qtyByFormat = {}) {
     if (n) lines.push({ productId: `${decor}${code}`, qty: n, format: wwFormat(code), panels: n });
   }
   return lines;
+}
+
+/**
+ * Usable winwall leftover from the offcut strips: every plate is cut down to the
+ * cladding height, the strip above it (width × (plate height − height)) goes to the
+ * floor. Same usable share and minimum as winwallLeftoverM2. Plates shorter than the
+ * height give nothing. null below the minimum or without a height.
+ */
+export function winwallStripLeftoverM2(qtyByFormat = {}, heightCm = 0, usable = 0.8, min = 0.5) {
+  const h = Number(heightCm) || 0;
+  if (!(h > 0)) return null;
+  let strips = 0;
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
+    const f = wwFormat(code);
+    strips += (n * f.widthCm * Math.max(0, f.heightCm - h)) / 10000;
+  }
+  const m2 = Math.round(strips * usable * 100) / 100;
+  return m2 >= min && m2 > 0 ? m2 : null;
+}
+
+/** Floor plates per winwall format from wallCladdingWwQty ({"13":0,"15":2,…} as JSON); null when absent/empty. */
+export function winwallFloorQty(raw) {
+  let o = raw;
+  if (typeof o === "string") { try { o = JSON.parse(o); } catch { return null; } }
+  if (!o || typeof o !== "object") return null;
+  const q = {};
+  for (const code of WINWALL_SINGLE_FORMATS) q[code] = Math.max(0, Math.round(Number(o[code]) || 0));
+  return Object.values(q).some(Boolean) ? q : null;
 }
 
 /**
@@ -1311,7 +1356,9 @@ function grossToNet(gross, taxRate) {
 
     // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
     setCat("Fußboden");
-    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    // winwall floor: plates per format (wallCladdingWwQty); older offers have one size + qty.
+    const wcWwQty = dusch.wallCladdingSupplier === "ww" ? winwallFloorQty(dusch.wallCladdingWwQty) : null;
+    const wallCladdingQty = wcWwQty ? Object.values(wcWwQty).reduce((a, b) => a + b, 0) : Number(dusch.wallCladdingQty || 0) || 0;
     // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
     // panel line then, but the adhesive is still billed for the full floor area.
     const wcLeftoverOnly =
@@ -1329,11 +1376,12 @@ function grossToNet(gross, taxRate) {
       if (wcWinwall) {
         const decor = winwallDecor({ wvWwDecor: dusch.wallCladdingWwDecor, wvWwDecorCustom: dusch.wallCladdingWwDecorCustom });
         const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
-        for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
+        for (const l of winwallOrderLines(decor.code, wcWwQty || { [wallCladdingSize]: wallCladdingQty })) {
           const f = l.format;
-          const what = `${f.widthCm}×${f.heightCm} cm`;
-          add(l.productId, l.qty, `- ${l.panels} Stk winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f.price, null,
-            { name: `winwall Wandverkleidung ${decorText} ${what}` });
+          const mm = `${f.widthCm * 10}×${f.heightCm * 10} mm`;
+          // Same word as the VIGOUR floor ("Aluverbundplatte (Farbe)") — Angebot, Kosten, signing.
+          add(l.productId, l.qty, `- ${l.panels} Stk Aluverbundplatte ${mm} — Dekor: ${decorText}`, f.price, null,
+            { name: `Aluverbundplatte ${mm} — Dekor: ${decorText}` });
         }
       } else if (wallCladdingQty > 0)
         add(
@@ -1349,7 +1397,9 @@ function grossToNet(gross, taxRate) {
       const wwFmt = wcWinwall ? WINWALL_FORMATS.find((f) => f.code === wallCladdingSize) : null;
       const wcArea =
         Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
-        (wwFmt
+        (wcWwQty
+          ? WINWALL_FORMATS.reduce((a, f) => a + (wcWwQty[f.code] || 0) * f.widthCm * f.heightCm, 0) / 10000
+          : wwFmt
           ? (wallCladdingQty * wwFmt.widthCm * wwFmt.heightCm) / 10000
           : wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55);
       const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
@@ -1612,11 +1662,12 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
           const f = l.format;
           winwallPanels += l.panels;
-          const what = `${f.widthCm}×${f.heightCm} cm`;
           // Price from the price list: any decor (also a typed one) costs the same per format.
-          // name for a typed decor that has no product in the DB
-          add(l.productId, l.qty, `- ${l.panels} Stk winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
-            { name: `winwall Duschrückwand ${decorText} ${what}` });
+          // Worded like VIGOUR ("Wandverkleidung 3.0 Alu 997×2550 mm — Farbe: …"), not the
+          // DB's "Duschrückwand"; the same plate on the Fußboden is "Aluverbundplatte".
+          const mm = `${f.widthCm * 10}×${f.heightCm * 10} mm`;
+          add(l.productId, l.qty, `- ${l.panels} Stk Wandverkleidung Alu ${mm} — Dekor: ${decorText}`, f.price, null,
+            { name: `Wandverkleidung Alu ${mm} — Dekor: ${decorText}` });
         }
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
@@ -2341,9 +2392,12 @@ if (l.source === "hl_pipe") {
       const wvBase = l.category === "Fußboden"
         ? "Aluverbundplatte"
         : `Wandverkleidung 3.0 Alu ${/^V3WVK/.test(l.id) ? "997" : "1497"}×2550 mm`;
+      // winwall plates: our own name (Wand: "Wandverkleidung Alu …", Fußboden: "Aluverbundplatte …"),
+      // never the DB's "winwall Duschrückwand …". Accessories (WS80xxx) keep the DB name.
+      const isWwPlate = /^(WS|NW)[0-7]\d{2}(13|15|16|17)$/.test(l.id) && !!l.meta?.name;
       const displayName = isWvPanel
         ? (metaColor ? `${wvBase} (${metaColor})` : wvBase)
-        : displayNameBase;
+        : isWwPlate ? l.meta.name : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`

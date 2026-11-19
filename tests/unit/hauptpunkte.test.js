@@ -163,3 +163,13 @@ describe("invalid winwall decor rows", () => {
     expect(invalidDekorRows({ wandverkleidung: { wvEnabled: true, wvWwRows: "x" } })).toEqual([]);
   });
 });
+
+describe("winwall panels count as Wandverkleidung panels", () => {
+  test("NW22015 is a panel, WS80113 (profile) is not", () => {
+    const win = { __pricing: { materialsDisplayUI: { lines: [
+      { productId: "NW22015", qty: 2, category: "Wandverkleidung" },
+      { productId: "WS80113", qty: 3, category: "Wandverkleidung" },
+    ] } } };
+    expect(sendEnv({}, win).wvPanels).toBe(2);
+  });
+});
