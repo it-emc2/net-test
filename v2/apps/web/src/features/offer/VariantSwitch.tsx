@@ -3,7 +3,7 @@
 // — name, total, status — and „Variante erstellen“. Renaming, deleting and creating happen in the
 // same panel. The Versand page opens the panel on „Variante erstellen“ too (`openVariantPanel`).
 // The name of a variant is internal: it is never part of the offer (payload), a document or a mail.
-import type { DealVariant } from "@oc/api-contract";
+import type { DealVariant, DealVariantsResponse } from "@oc/api-contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, CopyPlus, Layers, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -104,8 +104,8 @@ function List() {
     const problem = await saveOpen(); // never lose input: the open variant is saved first
     setBusy("");
     if (problem) { toast.error(TEXT.notSaved, { description: problem }); return; }
+    go(id); // navigate while this panel is still mounted (an unmounted component's navigate is ignored), then close
     set(null);
-    go(id);
   };
   return (
     <>
@@ -181,10 +181,12 @@ function CreateForm() {
           const problem = await saveOpen(true); // the copy is made of what is saved: the open variant first
           if (problem) throw new Error(`${TEXT.notSavedCreate} ${problem}`);
           const v = await createVariant(name);
-          void qc.invalidateQueries({ queryKey: variantsKey(useOfferStore.getState().dealId) });
+          const dealId = useOfferStore.getState().dealId;
+          qc.setQueryData<DealVariantsResponse>(variantsKey(dealId), (d) => (d ? { ...d, variants: [...d.variants.filter((x) => x.variantId !== v.variantId), v] } : d)); // in the list at once
+          void qc.invalidateQueries({ queryKey: variantsKey(dealId) });
+          go(v.variantId);
           set(null);
           toast.success(TEXT.created, { description: v.name });
-          go(v.variantId);
         }}
       />
     </>
@@ -217,10 +219,13 @@ function DeleteAsk({ id }: { id: string }) {
   const yes = async () => {
     setBusy(true);
     try {
+      const dealId = useOfferStore.getState().dealId;
       const { next } = await deleteVariant(id);
-      void qc.invalidateQueries({ queryKey: variantsKey(useOfferStore.getState().dealId) });
+      // gone from the list at once (the panel may open again before the list is asked anew)
+      qc.setQueryData<DealVariantsResponse>(variantsKey(dealId), (d) => (d ? { ...d, variants: d.variants.filter((x) => x.variantId !== id) } : d));
+      void qc.invalidateQueries({ queryKey: variantsKey(dealId) });
       toast.success(TEXT.deleted, { description: v.name });
-      if (next) { set(null); go(next, true); } else set({ kind: "list" });
+      if (next) { go(next, true); set(null); } else set({ kind: "list" });
     } catch (err) { setError(variantError(err)); }
     finally { setBusy(false); }
   };

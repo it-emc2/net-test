@@ -252,6 +252,13 @@ describe("variants", () => {
     expect(l[2]).toMatchObject({ variantId: C, status: "not-chosen", sentAt: null, total: 5 });
   });
 
+  it("status from the offer itself: only a versand with how and when counts as sent (a new offer carries an empty object) — step 2 fix", async () => {
+    await put("6011", { offerType: "bu", payload: OFFER("", { zusammenfassung: { versand: {} } }), baseRevision: 0 });
+    expect((await variants("6011")).variants[0]).toMatchObject({ variantId: "v1", status: "draft", sentAt: null });
+    await put("6012", { offerType: "bu", payload: OFFER("ANG-6012", { zusammenfassung: { versand: { art: "E-Mail", versendetAm: "2026-01-02" } } }), baseRevision: 0 });
+    expect((await variants("6012")).variants[0]).toMatchObject({ variantId: "v1", status: "sent" });
+  });
+
   it("markOthersNotChosen: idempotent; a later signature on another variant chooses it again; unknown id refused", async () => {
     const [, B, C] = (await variants("6007")).variants.map((v: any) => v.variantId);
     expect(await markOthersNotChosen("6007", B)).toEqual([]);

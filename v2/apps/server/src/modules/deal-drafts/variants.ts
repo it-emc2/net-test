@@ -63,11 +63,19 @@ async function liveWithNumbers(dealId: string): Promise<any[]> {
   return meta.map((v) => ({ ...v, payload: { offerNumber: nums.find((n) => String(n._id) === String(v._id))?.payload?.offerNumber } }));
 }
 
+/** `zusammenfassung.versand` marks an old offer as sent: an object only when it says how and when
+ *  (the web's checkliste rule isSent) — a new offer carries an empty object there; a non-empty text as before */
+export const versandSent = (versand: unknown): boolean => {
+  if (typeof versand === "string") return versand.trim() !== "";
+  const v = versand && typeof versand === "object" ? (versand as Record<string, unknown>) : {};
+  return !!(v.art && v.versendetAm);
+};
+
 function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolean, versand: unknown): DealVariant {
   const reached = f.sends.find((s) => s.status === "done" && s.channel !== "bitrix");
   const lastDone = f.sends.find((s) => s.status === "done");
   const signedAt = signed?.at ?? f.sends.find((s) => s.signedAt)?.signedAt ?? null;
-  const status: DealVariant["status"] = signedAt ? "signed" : v.notChosenAt ? "not-chosen" : reached || versand ? "sent" : "draft";
+  const status: DealVariant["status"] = signedAt ? "signed" : v.notChosenAt ? "not-chosen" : reached || versandSent(versand) ? "sent" : "draft";
   return {
     variantId: publicVariantId(v), name: variantNameOf(v), offerType: v.offerType, offerNumber: str(v.payload?.offerNumber),
     status, sentAt: reached ? reached.finishedAt ?? reached.startedAt : null, sentChannel: reached ? reached.channel : null,
