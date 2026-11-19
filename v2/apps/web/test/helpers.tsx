@@ -43,3 +43,13 @@ export function openMore() {
   const b = document.getElementById("zf-more-trigger");
   if (b && b.getAttribute("aria-expanded") !== "true") fireEvent.click(b);
 }
+
+/** New Badumbau offers open the Wandverkleidung in the winwall simple view (main 64a75e08). The
+ *  recordings of the classic editor switched to it with "Alter Konfigurator" right after the
+ *  switch was turned on and left that (`wvUi: ""`) out of what they stored — the replays do the same. */
+export async function toClassic(user: { click: (el: Element) => Promise<void> }) {
+  const { screen } = await import("@testing-library/react");
+  const b = screen.queryByRole("button", { name: "Alter Konfigurator (Wandplan, Zeilen)" });
+  if (b) await user.click(b);
+}
+export const withoutClassic = <T extends Record<string, unknown>>(diff: T): T => { const { wvUi, ...rest } = diff; return (wvUi === "" ? rest : diff) as T; };

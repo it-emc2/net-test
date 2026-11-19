@@ -9,7 +9,7 @@ import { cutList, planOf, wallDecorOf, wallRows } from "../src/features/steps/wa
 import { ACCESSORIES, fromRows } from "../src/features/steps/wandverkleidung/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wandrechner.json" with { type: "json" };
-import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { BASE, fakeServer, renderApp, toClassic, withoutClassic } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -26,7 +26,7 @@ const wall = (key: string) => screen.getAllByTestId("kc-wall").find((w) => w.dat
 async function play(steps: (string | number)[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
-    if (kind === "on") await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
+    if (kind === "on") { await user.click(screen.getByRole("switch", { name: "Wandverkleidung" })); if (kind === "on") await toClassic(user); }
     else if (kind === "sit") await user.click(within(screen.getByRole("group", { name: "Wandsituation" })).getByRole("button", { name: SIT[a as string]! }));
     else if (kind === "view") await user.click(within(screen.getByRole("group", { name: "Ansicht" })).getByRole("button", { name: a === "room" ? "Raumansicht" : "Nur Paneele" }));
     else if (kind === "width") fireEvent.change(screen.getByLabelText(`Breite ${WALL[a as string]} in cm`), { target: { value: b } });
@@ -51,7 +51,7 @@ describe("the wall calculator stores and shows what today's UI does", () => {
   it.each(reference.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
     const base = await open();
     await play(scenario.steps);
-    expect(changed(base.wandverkleidung, offer().wandverkleidung)).toEqual(scenario.wandverkleidung); // incl. the exact text of wvWallDecor and wvWwRows
+    expect(withoutClassic(changed(base.wandverkleidung, offer().wandverkleidung))).toEqual(scenario.wandverkleidung); // incl. the exact text of wvWallDecor and wvWwRows
     expect([changed(base.duschwanne, offer().duschwanne), changed(base.Arbeitszeit, offer().Arbeitszeit)]).toEqual([scenario.duschwanne, scenario.arbeitszeit]);
 
     const v = scenario.view;
