@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { chargeOf, departure, entryOf, fullRouteHref, mondayKey, pause, prefill, searchEntries, todayModel, weekModel, type TodayPayload, type WeekPayload } from "../src/features/home/planning-rules.js";
 import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { customerOfContact } from "@oc/api-contract";
 import old from "./fixtures/home-planung.json";
 import lean from "./fixtures/home-planung-v2.json";
 
@@ -22,6 +23,8 @@ const HANDLERS = (bitrix: unknown) => ({
   "POST /api/bitrix/log-action": { body: { ok: true } },
   "GET /api/offers/by-deal/*": { body: [] },
   "GET /api/bitrix/deal/*": bitrix ? { body: { contact: bitrix } } : FAIL,
+  // the planning asks the deal through the one-request route (same contact, mapped on the server)
+  "GET /api/deals/*/customer": bitrix ? { body: { dealId: "70001", dealTitle: "", customer: customerOfContact({ ID: "5001", ...(bitrix as object) }), vermieter: { erforderlich: null, liegtVor: null }, source: "batch", loadedAt: "2026-11-18T10:00:00.000Z" } } : FAIL,
   "GET /api/bitrix/contact/*": bitrix ? { body: { result: bitrix } } : FAIL,
 });
 const card = (id: string) => document.querySelector(`[data-testid="appointment"][data-id="${id}"]`) as HTMLElement;

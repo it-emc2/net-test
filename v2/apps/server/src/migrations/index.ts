@@ -5,6 +5,7 @@ import type mongoose from "mongoose";
 import { migrateDealDraftIndexes } from "../modules/deal-drafts/index.js";
 import { migrateOfferSendIndexes } from "../modules/sends/index.js";
 import { migrateOfferNumberIndexes } from "../modules/sends/index.js";
+import { migrateErrorEventIndexes } from "../platform/error-events.js";
 
 export interface MigrationResult { id: string; dryRun: boolean; matched: number; changed: number; note: string }
 
@@ -32,7 +33,13 @@ export async function m003OfferSendIndexes(_db: mongoose.mongo.Db, dryRun = true
   return { id: "003-offer-send-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 6, note: "creates uniq_sendId, offer_started, deal_started, signing_token on offer_sends and uniq_token on signing_completions, uniq_offerNumber on offer_numbers" };
 }
 
-export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes];
+/** 004 — indexes for the NEW error log collection `error_events` (expiry after 90 days). */
+export async function m004ErrorEventIndexes(_db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
+  if (!dryRun) await migrateErrorEventIndexes();
+  return { id: "004-error-event-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 2, note: "creates ttl_at (90 days), area_code_at on error_events" };
+}
+
+export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes, m004ErrorEventIndexes];
 
 /**
  * ROLLBACK tool (CUTOVER.md §4.2) — not a migration. Copies each deal's CURRENT autosaved draft

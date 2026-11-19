@@ -62,10 +62,13 @@ export class BitrixStub {
       const [, app, method, query] = m as unknown as [string, string, string, string | undefined];
       const raw = req.method === "POST" ? await body(req) : (query ?? "");
       (this.calls[app] ??= []).push({ http: req.method ?? "", method, params: raw });
-      const h = this.handlers[method];
+      const h = method === "batch" && !this.handlers.batch ? batchOf(this.handlers) : this.handlers[method];
       if (!h) { res.socket?.destroy(); return; }
+      const out: any = h(new URLSearchParams(raw), app);
+      if (out?.__drop) { res.socket?.destroy(); return; } // no answer at all (connection lost)
+      res.statusCode = out?.__status ?? 200; // e.g. 503 for Bitrix's rate limit
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify(h(new URLSearchParams(raw), app)));
+      res.end(typeof out?.__raw === "string" ? out.__raw : JSON.stringify(out?.__status ? out.body : out));
     });
     await new Promise<void>((r) => this.server!.listen(0, "127.0.0.1", r));
     this.port = (this.server!.address() as { port: number }).port;
@@ -77,3 +80,36 @@ export class BitrixStub {
 const body = (req: IncomingMessage) => new Promise<string>((resolve) => {
   let s = ""; req.setEncoding("utf8"); req.on("data", (c) => (s += c)); req.on("end", () => resolve(s));
 });
+
+/**
+ * Bitrix's `batch` method on top of the single-method handlers, as documented
+ * (apidocs.bitrix24.com/settings/how-to-call-rest-api/batch.html): cmd[key] = "method?query",
+ * commands run in order, $result[key][FIELD][0]… is replaced by an earlier answer (an unknown
+ * reference by ""), halt=0 collects failures in result_error; empty parts come as [] (PHP).
+ * A handler answering { __status } inside a batch counts as that command's error.
+ * The whole batch is ONE recorded HTTP request.
+ */
+export function batchOf(handlers: Record<string, Handler>): Handler {
+  return (p, app) => {
+    const result: Record<string, unknown> = {}, errors: Record<string, unknown> = {};
+    const halt = p.get("halt") === "1" || p.get("halt") === "true";
+    const keys = [...p.keys()].map((k) => /^cmd\[([^\]]+)\]$/.exec(k)?.[1]).filter((k): k is string => !!k);
+    for (const key of keys) {
+      const cmd = p.get(`cmd[${key}]`) ?? "";
+      const [method, query = ""] = cmd.split("?", 2) as [string, string?];
+      const resolved = query.replace(/\$result((?:\[[^\]]*\])+)/g, (_m, path: string) => {
+        let v: any = result;
+        for (const seg of path.slice(1, -1).split("][")) v = v == null ? undefined : v[seg];
+        return v == null || typeof v === "object" ? "" : encodeURIComponent(String(v));
+      });
+      const h = handlers[method];
+      const out: any = h ? h(new URLSearchParams(resolved), app) : { error: "ERROR_METHOD_NOT_FOUND", error_description: "Method not found!" };
+      const body = out?.__status ? out.body : out;
+      if (body?.error) errors[key] = { error: body.error, error_description: body.error_description ?? "" };
+      else result[key] = body?.result;
+      if (halt && errors[key]) break;
+    }
+    const orEmpty = (o: Record<string, unknown>) => (Object.keys(o).length ? o : []);
+    return { result: { result: orEmpty(result), result_error: orEmpty(errors), result_total: [], result_next: [], result_time: [] }, time: { start: 0 } };
+  };
+}

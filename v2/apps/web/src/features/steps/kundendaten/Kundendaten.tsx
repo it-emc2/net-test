@@ -16,6 +16,7 @@ import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, use
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
+import { BitrixCustomer, CustomerSearch } from "./CustomerSources.js";
 import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
 
 const KD = "Kundendaten";
@@ -422,6 +423,8 @@ export function Kundendaten() {
   const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
   return (
     <>
+      <CustomerSearch />
+      <BitrixCustomer />
       <Contact />
       <Address />
       <ContactPerson />

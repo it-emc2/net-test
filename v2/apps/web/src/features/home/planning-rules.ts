@@ -134,6 +134,9 @@ export function enrichmentOf(c: Record<string, any> | null | undefined): Enrichm
     street: c?.ADDRESS || "", city: c?.ADDRESS_CITY || "", postalCode: c?.ADDRESS_POSTAL_CODE || "",
   };
 }
+/** the same from the deal's customer as GET /api/deals/:id/customer gives it (already mapped as today) */
+export const enrichmentOfCustomer = (c: Pick<Enrichment, keyof Enrichment>): Enrichment =>
+  ({ salutation: c.salutation, email: c.email, phone: c.phone, street: c.street, city: c.city, postalCode: c.postalCode });
 /** the fields of Kundendaten the Bitrix contact adds: the Anrede always, the rest only where still empty */
 export function enrichmentPatch(f: Enrichment, kunde: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = f.salutation ? { salutation: f.salutation } : {};

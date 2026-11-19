@@ -14,7 +14,7 @@ import { createSentAwarePricing, sentOfferRecorder } from "./modules/sends/index
 import { registerOfferNumbers } from "./modules/sends/index.js";
 import { registerAdmin } from "./modules/admin/index.js";
 import { registerCustomers } from "./modules/customers/index.js";
-import { registerBitrixRead } from "./modules/bitrix/index.js";
+import { registerBitrixRead, registerDealCustomer } from "./modules/bitrix/index.js";
 import { BitrixClient } from "./integrations/bitrix.js";
 import { BitrixLog, PDF_LOG_APP, PdfLog } from "./platform/models.js";
 import { dealWrites } from "./integrations/bitrix-deal.js";
@@ -116,6 +116,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     },
   });
   await registerBitrixRead(app, bitrix);
+  await registerDealCustomer(app, bitrix);
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   await registerSends(app, { deals });
   await registerOfferNumbers(app);
