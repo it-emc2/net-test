@@ -1,7 +1,7 @@
 // Duschwanne (Badumbau) must store and show what today's UI does for the same inputs.
 // Reference: fixtures/duschwanne.json, recorded from today's UI by v2/scripts/capture-duschwanne.cjs
 // (with the answers of the tray search, so the same product lists are replayed here).
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
@@ -22,22 +22,33 @@ async function open() {
   await screen.findByRole("heading", { name: "Duschwanne" });
   return { base: structuredClone(offer()), server };
 }
+/** the offer as it is now, with these fields of the Duschwanne, is saved and opened again (a draft of a deal): a new page, nothing remembered */
+async function reopen(fields: Record<string, unknown>) {
+  const saved = structuredClone(offer());
+  saved.duschwanne = { ...saved.duschwanne, ...fields };
+  cleanup();
+  useOfferStore.getState().close();
+  fakeServer({ ...BASE, "GET /admin/api/config/public": { body: arbeiten.config }, ...SEARCHES, "GET /api/deals/*/draft": { body: { dealId: "4711", revision: 3, offerType: "bu", payload: saved, updatedAt: "2026-11-19T10:00:00.000Z", updatedBy: "ap@example.test" } } });
+  renderApp("/deal/4711/bu/Duschwanne");
+  await screen.findByRole("heading", { name: "Duschwanne" });
+}
 const settled = () => waitFor(() => expect(screen.queryByText("Suche…")).toBeNull());
-async function play(steps: (string | number)[][]) {
+async function play(steps: unknown[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
     const o = offer();
+    if (kind === "open") { await reopen(a as Record<string, unknown>); continue; }
     if (kind === "kind") useOfferStore.getState().patchAll(arbeitenChanges(o, chooseKind(o.duschwanne, String(a)))); // chosen on the Arbeiten step
     else if (kind === "task") useOfferStore.getState().patchAll(arbeitenChanges(o, toggleTask(o.duschwanne, String(a), !(o.duschwanne.workTasks ?? []).includes(a))));
     else if (kind === "on" || kind === "off") await user.click(screen.getByRole("switch", { name: "Duschwanne" }));
-    else if (kind === "tier") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: a === "standard" ? /^Standard/ : /^Premium/ }));
+    else if (kind === "tier") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: a === "standard" ? /^Badolux/ : /^Hassmann/ }));
     else if (kind === "dims") { fireEvent.change(screen.getByLabelText("Breite in cm"), { target: { value: a } }); fireEvent.change(screen.getByLabelText("Länge in cm"), { target: { value: b } }); }
     else if (kind === "pick") await user.click(screen.getAllByTestId("tray-card").filter((c) => c.dataset.pinned !== "true")[Number(a) - 1]!.querySelector("input")!);
     else if (kind === "color") await user.click(screen.getByRole("group", { name: "Farbe der Duschwanne Slate" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "acc") await user.click(screen.getByTestId(`acc-${a}`).querySelector("input")!);
     else if (kind === "qty") await user.click(screen.getByRole("button", { name: a === "+" ? "Mehr" : "Weniger" }));
     else if (kind === "hint") await user.click(screen.getByRole("switch", { name: "Hinweis zu möglichen Zusatzkosten einblenden" }));
-    else if (kind === "cheaper") await user.click(screen.getByRole("button", { name: "Auf Standard wechseln" }));
+    else if (kind === "cheaper") await user.click(screen.getByRole("button", { name: "Auf Badolux wechseln" }));
     else if (kind === "restore") await user.click(screen.getByRole("button", { name: "Vorherige Maße zurück" }));
     else if (kind === "custom") { (screen.getByTestId("tray-custom") as HTMLDetailsElement).open = true; /* the user opens the section to type */ const el = screen.getByLabelText(CUSTOM[a as string]!, { exact: true }); await user.clear(el); await user.type(el, String(b)); }
     else throw new Error(`step not handled: ${kind}`);
@@ -48,6 +59,9 @@ const sorted = (v: unknown): unknown => (Array.isArray(v) ? v.map(sorted) : v &&
 const same = (a: unknown, b: unknown) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 const changed = (base: Record<string, unknown>, now: Record<string, unknown>) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])]
   .filter((k) => k !== "computed" && !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
+/** the recording is today's HTML, which spells the two sub lines "guenstig" / "Markenqualitaet" (no umlauts); React spells them
+ *  with umlauts (UX-CHANGES U-042). The button text is the name and the line below it, without a space. */
+const umlauts = (t: string) => t.replace(/ /, "").replace("guenstig", "günstig").replace("Markenqualitaet", "Markenqualität");
 const squeeze = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "");
 const part = (el: Element, name: string) => squeeze(el.querySelector(`[data-part="${name}"]`)?.textContent);
 
@@ -66,7 +80,8 @@ describe("Duschwanne stores and shows what today's UI does", () => {
       expect(screen.queryByTestId("tray-custom")).toBeNull();
       return;
     }
-    expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Standard/ : /^Premium/);
+    expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Badolux/ : /^Hassmann/);
+    expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getAllByRole("button").map((b) => b.textContent)).toEqual(v.tierButtons.map(umlauts)); // as the recording has it: the name, then the line below
     expect(screen.getByTestId("tier-line").textContent).toBe(v.tierLine);
     expect((screen.getByRole("switch", { name: "Hinweis zu möglichen Zusatzkosten einblenden" }) as HTMLInputElement).checked).toBe(v.hint);
     expect([(screen.getByLabelText("Breite in cm") as HTMLInputElement).value, (screen.getByLabelText("Länge in cm") as HTMLInputElement).value]).toEqual(v.dims);

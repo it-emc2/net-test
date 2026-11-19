@@ -67,6 +67,11 @@
     "tabs": false,
     "tab": "floor",
     "floorShown": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -183,6 +188,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -318,6 +328,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -462,6 +477,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "Gesamtes-Bad",
@@ -606,6 +626,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "Fehlstellen",
@@ -730,6 +755,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -873,6 +903,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1018,6 +1053,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1163,6 +1203,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1308,6 +1353,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1441,6 +1491,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1584,6 +1639,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1740,6 +1800,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -1888,6 +1953,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -2010,6 +2080,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -2075,7 +2150,7 @@
    }
   },
   {
-   "name": "Standard line",
+   "name": "Badolux line",
    "steps": [
     [
      "on"
@@ -2131,6 +2206,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "kind": "",
@@ -2222,7 +2302,7 @@
    }
   },
   {
-   "name": "Standard line, area 5",
+   "name": "Badolux line, area 5",
    "steps": [
     [
      "on"
@@ -2297,6 +2377,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "kind": "",
@@ -2388,7 +2473,7 @@
    }
   },
   {
-   "name": "Standard line, second covering",
+   "name": "Badolux line, second covering",
    "steps": [
     [
      "on"
@@ -2467,6 +2552,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "kind": "",
@@ -2558,7 +2648,7 @@
    }
   },
   {
-   "name": "Premium colour picked, then Standard confirmed",
+   "name": "Hassmann colour picked, then Badolux confirmed",
    "steps": [
     [
      "on"
@@ -2635,6 +2725,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "kind": "",
@@ -2726,7 +2821,7 @@
    }
   },
   {
-   "name": "Premium colour picked, then Standard declined",
+   "name": "Hassmann colour picked, then Badolux declined",
    "steps": [
     [
      "on"
@@ -2808,6 +2903,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -2873,7 +2973,342 @@
    }
   },
   {
-   "name": "default colour only, then Standard",
+   "name": "Hassmann colour picked, Badolux asked, still open",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "area",
+     "5"
+    ],
+    [
+     "color",
+     "Loft-Grau"
+    ],
+    [
+     "tier",
+     "standard"
+    ]
+   ],
+   "duschwanne": {
+    "addFlooring": true,
+    "computed": {
+     "adhesive": {
+      "packs": 9,
+      "productId": "R_4260602",
+      "total": 106.38,
+      "unit": 11.82
+     },
+     "areaM2": 5,
+     "sealing": {
+      "effM2": 0,
+      "productId": "TRBDSET7",
+      "rolls": 0,
+      "sets": 0,
+      "total": 0,
+      "unitRoll": 104.78,
+      "unitSet": 288.3
+     }
+    },
+    "floorAdhesive": [
+     "Flächenkleber R_4260602"
+    ],
+    "floorAdhesive[]": [
+     "Flächenkleber R_4260602"
+    ],
+    "floorArea": "5",
+    "flooringProduct": [
+     "V5FB02|Loft-Grau"
+    ],
+    "flooringProduct[]": [
+     "V5FB02|Loft-Grau"
+    ]
+   },
+   "arbeitszeit": {
+    "autoSuggestedHoursHHMM": "00:40",
+    "autoSuggestedHoursNumeric": 0.67,
+    "autoSuggestedTasks": [
+     {
+      "key": "flooring",
+      "label": "Fußboden individuell",
+      "minutes": 8,
+      "qty": 5
+     }
+    ]
+   },
+   "priceLines": [
+    {
+     "productId": "V5FB02",
+     "label": "- 20 Stk Fußboden-Paneele (1 Paneele = 0.3 m²) — Farbe: Loft-Grau",
+     "qty": 20,
+     "unitPrice": 19.98,
+     "lineTotal": 399.6
+    }
+   ],
+   "view": {
+    "on": true,
+    "tabs": true,
+    "tab": "floor",
+    "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "kind": "",
+    "area": "5",
+    "calcOpen": false,
+    "calcToggle": "Flächenrechner öffnen",
+    "calcTotal": "0,00 m²",
+    "calcRows": [
+     {
+      "sign": "+ Addieren",
+      "length": "",
+      "width": "",
+      "area": "0,00 m²"
+     }
+    ],
+    "premiumShown": true,
+    "premium": [
+     {
+      "value": "AVP-W|Weiß",
+      "caption": "Alu-Platte weiß",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Lava-Beige",
+      "caption": "Lava-Beige",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Schiefer-Beige",
+      "caption": "Schiefer-Beige",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Loft-Grau",
+      "caption": "Loft-Grau",
+      "checked": true
+     },
+     {
+      "value": "V5FB02|Speckstein-Schwarz",
+      "caption": "Speckstein-Schwarz",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Eiche-Natur",
+      "caption": "Eiche-Natur",
+      "checked": false
+     }
+    ],
+    "standardShown": false,
+    "standard": [],
+    "panels": "20",
+    "adhesive": {
+     "checked": true,
+     "hint": "R_4260602 · 1 Pkg je 0,60 m² = 9 Pkg bei 5 m²"
+    },
+    "sealing": {
+     "checked": false,
+     "hint": "TRBDSET7 · 1 Set pauschal"
+    },
+    "summary": "Loft-Grau · 5 m² V5FB02 20 × Fußboden-Paneele 9 × Flächenkleber 600 ml",
+    "confirmOpen": true,
+    "confirmText": [
+     "Fußboden auf „Badolux\" umstellen?",
+     "Die bisherige Auswahl „Loft-Grau\" gehört zur Linie Hassmann und wird entfernt. Sie müssen anschließend neu wählen.",
+     "Auf Badolux umstellen"
+    ]
+   }
+  },
+  {
+   "name": "Badolux covering picked, Hassmann asked, still open",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "tier",
+     "standard"
+    ],
+    [
+     "area",
+     "5"
+    ],
+    [
+     "budget",
+     2
+    ],
+    [
+     "tier",
+     "premium"
+    ]
+   ],
+   "duschwanne": {
+    "addFlooring": true,
+    "computed": {
+     "adhesive": {
+      "packs": 9,
+      "productId": "R_4260602",
+      "total": 106.38,
+      "unit": 11.82
+     },
+     "areaM2": 5,
+     "sealing": {
+      "effM2": 0,
+      "productId": "TRBDSET7",
+      "rolls": 0,
+      "sets": 0,
+      "total": 0,
+      "unitRoll": 104.78,
+      "unitSet": 288.3
+     }
+    },
+    "floorAdhesive": [
+     "Flächenkleber R_4260602"
+    ],
+    "floorAdhesive[]": [
+     "Flächenkleber R_4260602"
+    ],
+    "floorArea": "5",
+    "floorBudgetMode": "1",
+    "flooringProduct": [
+     "BP002|Hydroträgerplatte grau"
+    ],
+    "flooringProduct[]": [
+     "BP002|Hydroträgerplatte grau"
+    ]
+   },
+   "arbeitszeit": {
+    "autoSuggestedHoursHHMM": "00:40",
+    "autoSuggestedHoursNumeric": 0.67,
+    "autoSuggestedTasks": [
+     {
+      "key": "flooring",
+      "label": "Fußboden individuell",
+      "minutes": 8,
+      "qty": 5
+     }
+    ]
+   },
+   "priceLines": [
+    {
+     "productId": "BP002",
+     "label": "- 4 Pkg Hydroträgerplatte (1 Pkg = 1,49 m²) — Farbe: Hydroträgerplatte grau",
+     "qty": 4,
+     "unitPrice": 35.16,
+     "lineTotal": 140.64
+    }
+   ],
+   "view": {
+    "on": true,
+    "tabs": true,
+    "tab": "floor",
+    "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "kind": "",
+    "area": "5",
+    "calcOpen": false,
+    "calcToggle": "Flächenrechner öffnen",
+    "calcTotal": "0,00 m²",
+    "calcRows": [
+     {
+      "sign": "+ Addieren",
+      "length": "",
+      "width": "",
+      "area": "0,00 m²"
+     }
+    ],
+    "premiumShown": false,
+    "premium": [
+     {
+      "value": "AVP-W|Weiß",
+      "caption": "Alu-Platte weiß",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Lava-Beige",
+      "caption": "Lava-Beige",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Schiefer-Beige",
+      "caption": "Schiefer-Beige",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Loft-Grau",
+      "caption": "Loft-Grau",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Speckstein-Schwarz",
+      "caption": "Speckstein-Schwarz",
+      "checked": false
+     },
+     {
+      "value": "V5FB02|Eiche-Natur",
+      "caption": "Eiche-Natur",
+      "checked": false
+     }
+    ],
+    "standardShown": true,
+    "standard": [
+     {
+      "value": "BP001|Hydroträgerplatte steingrau",
+      "caption": "steingrau",
+      "checked": false
+     },
+     {
+      "value": "BP002|Hydroträgerplatte grau",
+      "caption": "grau",
+      "checked": true
+     },
+     {
+      "value": "BP003|Hydroträgerplatte creme",
+      "caption": "creme",
+      "checked": false
+     },
+     {
+      "value": "BP004|Hydroträgerplatte Sahara",
+      "caption": "Sahara",
+      "checked": false
+     },
+     {
+      "value": "BP005|Hydroträgerplatte Cafe",
+      "caption": "Cafe",
+      "checked": false
+     }
+    ],
+    "panels": "4",
+    "adhesive": {
+     "checked": true,
+     "hint": "R_4260602 · 1 Pkg je 0,60 m² = 9 Pkg bei 5 m²"
+    },
+    "sealing": {
+     "checked": false,
+     "hint": "TRBDSET7 · 1 Set pauschal"
+    },
+    "summary": "Hydroträgerplatte grau · 5 m² BP002 4 × Fußboden-Paneele 9 × Flächenkleber 600 ml",
+    "confirmOpen": true,
+    "confirmText": [
+     "Fußboden auf „Hassmann\" umstellen?",
+     "Die bisherige Auswahl „grau\" gehört zur Linie Badolux und wird entfernt. Sie müssen anschließend neu wählen.",
+     "Auf Hassmann umstellen"
+    ]
+   }
+  },
+  {
+   "name": "default colour only, then Badolux",
    "steps": [
     [
      "on"
@@ -2942,6 +3377,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "kind": "",
@@ -3033,7 +3473,7 @@
    }
   },
   {
-   "name": "Standard covering picked, then Premium confirmed",
+   "name": "Badolux covering picked, then Hassmann confirmed",
    "steps": [
     [
      "on"
@@ -3113,6 +3553,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3237,6 +3682,11 @@
     "tabs": false,
     "tab": "floor",
     "floorShown": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3371,6 +3821,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3456,6 +3911,11 @@
     "tabs": true,
     "tab": "wall",
     "floorShown": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3584,6 +4044,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3663,6 +4128,11 @@
     "tabs": false,
     "tab": "floor",
     "floorShown": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3786,6 +4256,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -3930,6 +4405,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "",
@@ -4060,6 +4540,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "Fehlstellen",
@@ -4209,6 +4694,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "Fehlstellen",
@@ -4354,6 +4844,11 @@
     "tabs": true,
     "tab": "floor",
     "floorShown": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "standardEmpty": "",
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "kind": "Fehlstellen",
