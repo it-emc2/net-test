@@ -18,20 +18,21 @@
 //    beyond the wall. The adhesive is always for the whole floor
 //  - floor decor changed by hand away from the rest while the rest is used: an in-page question,
 //    "Abbrechen" goes back
-//  - wall → floor (simple view of the Wandverkleidung, not built in React yet — item 2):
-//    `wallChanged` / `autoAdd` / `wallDecorChanged` say what today's UI does then (with what it
-//    remembers meanwhile: `WallSession`)
+//  - wall → floor (simple view of the Wandverkleidung, wired there): `wallChanged` / `autoAdd` /
+//    `wallDecorChanged` / `restGone` say what today's UI does then (with what it remembers
+//    meanwhile: `WallSession`, kept in the store's scratch as `wcSession` + `wcWwLast`)
 //  - changing the mode or switching off keeps everything that was entered
 // Legacy oddities ported unchanged: the switch "Reste anrechnen" with winwall plates puts the
 // quantity of a single format into wallCladdingQty (the plates JSON stays, the price uses it);
 // with 100×205 cm as the main format it stops there (a TypeError in today's UI).
-import { WINWALL_CATALOG, WINWALL_DECORS, WINWALL_FORMATS, winwallDecorCode, winwallFloorQty, winwallLeftoverM2, winwallOrderLines, winwallStripLeftoverM2 } from "@oc/pricing";
+import { WINWALL_CATALOG, WINWALL_FORMATS, winwallDecorCode, winwallFloorQty, winwallLeftoverM2, winwallOrderLines, winwallStripLeftoverM2 } from "@oc/pricing";
 import { VG_COLORS } from "../wandverkleidung/colors.js";
 import { situationOf, wallsOf, WALLS } from "../wandverkleidung/calc.js";
 import { WW_DECORS, WW_SWATCHES } from "../wandverkleidung/decors.js";
 import { lineOf, rowsOf } from "../wandverkleidung/rules.js";
 import { rowsOf as vigourRowsOf } from "../wandverkleidung/vigour.js";
 import { setMode } from "./rules.js";
+import { paletteTiles, type PaletteTile } from "../wandverkleidung/simple.js";
 
 type Fields = Record<string, unknown>;
 export type Supplier = "ww" | "hm";
@@ -79,15 +80,9 @@ export function customHint(dw: Fields): { text: string; kind: "" | "ok" | "warn"
   if (!code) return { text: "Nicht erkannt – Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015).", kind: "warn" };
   return catalog[code] ? { text: `✓ ${catalog[code]} (${nice(code)})`, kind: "ok" } : { text: `${nice(code)} ist nicht im winwall-Katalog – Nummer bitte prüfen.`, kind: "warn" };
 }
-export interface PaletteTile { code: string; name: string; small: string; checked: boolean; swatch: boolean; label: string }
-/** the palette of the Wandverkleidung simple view: the tiles, NW 230 after NW 216, and the floor's own decor when it is none of them */
-export function paletteOf(dw: Fields): PaletteTile[] {
-  const sel = decorOf(dw).code;
-  const list = (WINWALL_DECORS as { code: string }[]).map((d) => d.code);
-  if (list.length && !list.includes("NW230")) list.splice(list.indexOf("NW216") + 1, 0, "NW230");
-  if (sel && !list.includes(sel)) list.push(sel);
-  return list.map((c) => ({ code: c, name: nameOf(c), small: nice(c), checked: c === sel, swatch: WW_SWATCHES.has(c), label: WW_SWATCHES.has(c) ? "" : nice(c) }));
-}
+export type { PaletteTile };
+/** the palette of the Wandverkleidung simple view (shared): the tiles, NW 230 after NW 216, and the floor's own decor when it is none of them */
+export const paletteOf = (dw: Fields): PaletteTile[] => paletteTiles(decorOf(dw).code);
 /** a palette tile: a decor with a tile is stored as the tile, any other as "Anderes Dekor" with its number */
 export const pickDecor = (code: string): Fields => (isTile(code) ? { wallCladdingWwDecor: code, wallCladdingWwDecorCustom: "" } : { wallCladdingWwDecor: "custom", wallCladdingWwDecorCustom: nice(code) });
 /** the floor decor set back (or set by the wall): the tile, else "custom" with the number; the typed text of a tile stays */
@@ -258,10 +253,6 @@ export function settled(dw: Fields, change: Fields, rest: Rest | null, last?: Qt
   if (supplierOf(next) === "ww") {
     if (last !== undefined) Object.assign(out, follow(next, credit, "wallCladdingSupplier" in change && supplierOf(dw) !== "ww" ? null : last));
   } else if (suggestion(next, credit)?.allCovered && (String(next.wallCladdingPanelSize ?? "") || num(next.wallCladdingQty) > 0)) { out.wallCladdingPanelSize = ""; out.wallCladdingQty = "0"; }
-  // React's empty Badumbau (packages/domain/src/empty/bu.json, recorded before main 4f91a03b) has no
-  // wallCladdingWwQty; today's has it empty. "No plates" removes the field (an older JSON never stays
-  // behind) — the same for every reader: the engine and today's restore treat empty and missing alike.
-  if (out.wallCladdingWwQty === "") out.wallCladdingWwQty = undefined;
   return out;
 }
 /** another line: format, quantity and plates belong to the line that is left */
@@ -321,6 +312,11 @@ export function wallChanged(dw: Fields, rest: Rest | null, s: WallSession): Step
   const fields = settled(dw, change, rest, s.last);
   return { fields, session: followed(apply(dw, fields), rest, { ...s, autoArea }) };
 }
+/** today's toast when the floor used the wall's rest and the wall leaves none any more (wcWallChanged; not after a decor change) */
+export function restGone(before: Fields, after: Fields, rest: Rest | null): string | null {
+  const had = before.addWallCladding && supplierOf(before) === "ww" ? num(before.wallCladdingLeftoverM2) : 0;
+  return had > 0 && !(creditOf(after, rest) > 0) ? `Von ${nameOf(decorOf(after).code ?? "")} bleiben an der Wand keine nutzbaren Reste mehr. Der Fußboden wird jetzt mit Platten berechnet.` : null;
+}
 /** the floor switched to "Wandverkleidung als Fußboden" in winwall, this decor, the rest used, the plates proposed */
 export function wallFloor(dw: Fields, rest: Rest | null, code: string, area: string | null, s: WallSession): Step {
   const change: Fields = { ...setMode(dw, true, "wall"), ...setSupplier(dw, "ww"), ...setFloorDecor(code), ...(area != null && !num(dw.wallCladdingArea) ? { wallCladdingArea: area } : {}), ...(restIn(rest, code) > 0 ? { wallCladdingUseLeftover: "on" } : {}), ...qtyFields(zero()) };
@@ -337,12 +333,12 @@ export function autoAdd(dw: Fields, rest: Rest | null, code: string, s: WallSess
 export interface Ask { title: string; message: string; confirm: string; cancel: string }
 /** the wall's decor changed from `oldCode` to `newCode`. `pre`: what happens at once (the wall changed;
  *  maybe a floor added from the rest); `ask`: today's question (null = none); `yes`: what "Ja" does */
-export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string, newCode: string, s: WallSession): { pre: Step; ask: Ask | null; yes: Step | null } | null {
+export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string, newCode: string, s: WallSession): { pre: Step; ask: Ask | null; yes: Step | null; toast?: string } | null {
   if (!newCode || oldCode === newCode) return null;
   let pre = wallChanged(dw, rest, s);
   let now = apply(dw, pre.fields);
   const auto = autoAdd(now, rest, newCode, pre.session);
-  if (auto) return { pre: { fields: { ...pre.fields, ...auto.fields }, session: auto.session }, ask: null, yes: null };
+  if (auto) return { pre: { fields: { ...pre.fields, ...auto.fields }, session: auto.session }, ask: null, yes: null, toast: auto.toast };
   if (now.addWallCladding && supplierOf(now) === "ww") {
     if (decorOf(now).code !== oldCode) return { pre, ask: null, yes: null }; // the floor goes with another wall decor (or its own)
     const hasItems = areaOf(now) > 0 || sum(qtyOf(now)) > 0;

@@ -5,11 +5,15 @@
 // The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
 // Sketch and note use the shared sketch pad (shared/ui/sketch-pad.tsx).
 import { Minus, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
 import { useWallSettings } from "../fussboden/settings.js";
 import { creditOf, proposalOf, restOf, restText, settled, takeRest } from "../fussboden/wand.js";
+import * as fw from "../fussboden/wand.js";
+import { DecorPalette, PlateCards } from "../../../shared/ui/winwall.js";
+import { toast } from "../../../shared/ui/toaster.js";
+import * as sv from "./simple.js";
 import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
@@ -20,7 +24,7 @@ import { LEGEND, NOTE, SITUATIONS, WALLS, cutList, heightWarning, planOf, sameDe
 import { VG_COLORS } from "./colors.js";
 import * as bx from "./keramico.js";
 import * as vg from "./vigour.js";
-import { WW_DECORS } from "./decors.js";
+import { WW_DECORS, WW_SWATCHES } from "./decors.js";
 import { Drawing, TONES } from "./Drawing.js";
 import {
   ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
@@ -525,12 +529,154 @@ function RestForFloor() {
   );
 }
 
+// ---- the winwall simple view (simple.ts) and what it does to the floor (fussboden/wand.ts) ----
+type Sess = fw.WallSession;
+/** what today's UI remembers about the floor while the offer is open: `wcSession` (+ `wcWwLast`, the Fußboden step's) */
+const sessNow = (): Sess => { const sc = useOfferStore.getState().scratch; return { ...fw.SESSION, ...((sc.wcSession as Partial<Sess> | undefined) ?? {}), last: (sc.wcWwLast as fw.Qty | null | undefined) ?? null }; };
+const keepSess = (st: Sess) => { remember("wcSession", { autoArea: st.autoArea, optedOut: st.optedOut, askedSwitch: st.askedSwitch }); remember("wcWwLast", st.last); };
+type Step = { fields: Fields; session: Sess };
+type WallAsk = fw.Ask & { yes: Step | null };
+/** the floor after a change of the wall (today's wcWallChanged / wcOnWallDecor): its fields, the session, toasts and a question */
+function floorAfter(dw0: Fields, rest: ReturnType<typeof restOf>, how: { pref: string | null; quiet?: boolean } | { old: string; next: string }): { fields: Fields; session: Sess; toasts: string[]; ask: WallAsk | null } {
+  let s = sessNow(), dw = dw0, fields: Fields = {};
+  const toasts: string[] = [];
+  const take = (st: Step) => { fields = { ...fields, ...st.fields }; dw = { ...dw, ...st.fields }; s = st.session; };
+  if ("old" in how) {
+    const r = fw.wallDecorChanged(dw, rest, how.old, how.next, s);
+    if (!r) return { fields, session: s, toasts, ask: null };
+    take(r.pre);
+    if (r.toast) toasts.push(r.toast);
+    return { fields, session: s, toasts, ask: r.ask ? { ...r.ask, yes: r.yes } : null };
+  }
+  take(fw.wallChanged(dw, rest, s));
+  const gone = how.quiet ? null : fw.restGone(dw0, dw, rest);
+  if (gone) toasts.push(gone);
+  if (how.pref) { const a = fw.autoAdd(dw, rest, how.pref, s); if (a) { take(a); toasts.push(a.toast); } }
+  return { fields, session: s, toasts, ask: null };
+}
+
+/** The simple view: decor chips, the four plates with Menge, the total, the cladding height, the palette and "Anderes Dekor". */
+function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
+  const wv = useWv();
+  const settings = useWallSettings();
+  const rows = rowsOf(wv);
+  const kept = useOfferStore((s) => s.scratch.wvSimple) as sv.Simple | undefined;
+  const st = kept ?? sv.load(rows, null);
+  // the step is opened: the groups are read from the rows again (today's sync), a decor without plates stays
+  useEffect(() => { remember("wvSimple", sv.load(rowsOf(wvNow()), useOfferStore.getState().scratch.wvSimple as sv.Simple | undefined)); }, []);
+  const other = String(useOfferStore((s) => s.scratch.wvsOther) ?? "");
+  const g = st.groups[st.active]!;
+  const focusHeight = useRef<string | null>(null);
+  const rest = restOf(wv, settings.rest);
+  const height = sv.heightHint(wv.wvWwHeight, rest?.supplier === "ww" && Number(wv.wvWwHeight) > 0 ? rest.byDecor : undefined);
+  const hint = sv.typed(other).hint;
+  /** the groups changed: the rows (and with them plates, suggestions, price) follow, and the floor (`how`) — one change of the offer */
+  const commit = (next: sv.Simple, how?: Parameters<typeof floorAfter>[2]) => {
+    remember("wvSimple", next);
+    const o = offerNow(), before = (o.wandverkleidung ?? {}) as Fields;
+    const list = sv.save(next.groups, rowsOf(before));
+    remember("wvRowOpen", { idx: list.length ? 0 : -1, folded: true });
+    remember("wvRowTyped", null);
+    renewSealHint();
+    const wvf = fromRows(list, planOf(before), before);
+    if (!how) return write(wvf);
+    const o2 = { ...o, wandverkleidung: { ...before, ...wvf } };
+    const f = floorAfter((o.duschwanne ?? {}) as Fields, restOf(o2.wandverkleidung, settings.rest), how);
+    useOfferStore.getState().patchAll({ ...wvChanges(o, wvf), ...arbeitenChanges(o2, f.fields) });
+    keepSess(f.session);
+    f.toasts.forEach((t) => toast.info(t));
+    if (f.ask) onAsk(f.ask);
+  };
+  /** the cladding height left (today's "change"): the floor follows */
+  const heightDone = () => {
+    if (focusHeight.current === String(wvNow().wvWwHeight ?? "")) return;
+    focusHeight.current = String(wvNow().wvWwHeight ?? "");
+    const o = offerNow(), f = floorAfter((o.duschwanne ?? {}) as Fields, restOf(wvNow(), settings.rest), { pref: g.code });
+    useOfferStore.getState().patchAll(arbeitenChanges(o, f.fields));
+    keepSess(f.session);
+    f.toasts.forEach((t) => toast.info(t));
+  };
+  const pickDecor = (code: string) => {
+    remember("wvsOther", "");
+    const r = sv.pick(st, code);
+    if (!r.moved) return remember("wvSimple", r.next);
+    commit(r.next, { old: g.code, next: code });
+  };
+  const type = (text: string) => {
+    remember("wvsOther", text);
+    const t = sv.typed(text);
+    if (t.code) commit(sv.typedInto(st, t.code, t.fmt), { old: g.code, next: t.code });
+  };
+  const bad = sv.badOf(rows);
+  const chip = "flex min-h-12 cursor-pointer items-center gap-2 rounded-full border-2 bg-card px-3 text-foreground";
+  return (
+    <div className="grid gap-4" data-testid="wvs">
+      <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
+        <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">1</span> Platten – Menge je Größe</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Dekore">
+          {sv.tabsOf(st).map((t, i) => (
+            <span key={`${t.code}-${i}`} className="flex items-center gap-1">
+              <button type="button" data-testid="wvs-tab" aria-pressed={t.pressed} onClick={() => { remember("wvsOther", ""); remember("wvSimple", { ...st, active: i }); }} className={cn(chip, t.pressed ? "border-primary font-semibold" : "border-input")}>
+                <i aria-hidden className="size-7 rounded-full border border-border bg-muted bg-cover bg-center" style={t.swatch ? { backgroundImage: `url(/assets/winwall/${t.code}.jpg)` } : undefined} /><span data-part="text">{t.text}</span>
+              </button>
+              {t.removable ? <Button variant="ghost" size="icon" aria-label={`Dekor ${sv.nameOf(t.code)} entfernen`} onClick={() => commit(sv.removeGroup(st, i), { pref: null })}><X aria-hidden /></Button> : null}
+            </span>
+          ))}
+          <button type="button" onClick={() => remember("wvSimple", sv.addGroup(st))} className={cn(chip, "border-dashed border-input text-primary")}>+ weiteres Dekor</button>
+        </div>
+        <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "" }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" />
+        <p className="m-0 font-semibold" data-testid="wvs-total">{sv.totalOf(st)}</p>
+        {bad ? (
+          <div role="alert" data-testid="wvs-bad" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 font-semibold text-destructive">
+            <span data-part="text">{bad}</span>
+            <Button variant="outline" onClick={() => toClassic()}>Im alten Konfigurator korrigieren</Button>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-input bg-card p-3">
+          <label htmlFor="wvs-height" className="grid min-w-0 flex-1 cursor-pointer"><strong>Höhe der Verkleidung</strong><small data-testid="wvs-height-hint" data-ok={height.ok} className={height.ok ? "text-success" : "text-muted-foreground"}>{height.text}</small></label>
+          <span className="flex items-center gap-2"><span className="w-28"><Input id="wvs-height" type="number" inputMode="numeric" min={0} max={250} step={1} placeholder="z. B. 230" value={String(wv.wvWwHeight ?? "")}
+            onFocus={() => { focusHeight.current = String(wvNow().wvWwHeight ?? ""); }} onChange={(e) => write({ wvWwHeight: e.target.value })} onBlur={heightDone} /></span>cm</span>
+        </div>
+      </fieldset>
+      <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0" data-testid="wvs-colors">
+        <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">2</span> Dekor – gilt für die Platten oben</legend>
+        <DecorPalette tiles={sv.paletteTiles(g.code)} label="Dekor" onPick={pickDecor} />
+        <div className="grid gap-1.5" data-testid="wvs-other">
+          <label htmlFor="wvs-other-input" className="font-semibold">Anderes Dekor</label>
+          <div className="w-48"><Input id="wvs-other-input" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={other} onChange={(e) => type(e.target.value)} /></div>
+          <small data-part="hint" data-kind={hint.kind} className={cn(hint.kind === "ok" && "font-semibold text-success", hint.kind === "warn" && "font-semibold text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
+        </div>
+        <div><Button variant="ghost" className="text-primary" onClick={() => toClassic()}>Alter Konfigurator (Wandplan, Zeilen)</Button></div>
+      </fieldset>
+    </div>
+  );
+}
+/** the classic editor (wall plan, rows) — same rows underneath */
+const toClassic = () => write({ wvUi: "" });
+/** back to the simple view: the groups are read from the rows anew */
+const toSimple = () => { remember("wvSimple", undefined); remember("wvsOther", ""); write({ wvUi: "simple" }); };
+
+/** a question the wall asks about the floor (today's appConfirm), in the page */
+function WallQuestion({ ask, onClose }: { ask: WallAsk; onClose: () => void }) {
+  const yes = () => { onClose(); if (!ask.yes) return; useOfferStore.getState().patchAll(arbeitenChanges(offerNow(), ask.yes.fields)); keepSess(ask.yes.session); };
+  return (
+    <div role="alertdialog" aria-labelledby="wv-ask-title" data-testid="wv-ask" className="grid gap-2 rounded-lg border-2 border-primary p-3">
+      <strong id="wv-ask-title">{ask.title}</strong>
+      <p className="m-0">{ask.message}</p>
+      <div className="flex flex-wrap gap-2"><Button onClick={yes}>{ask.confirm}</Button><Button variant="outline" onClick={onClose}>{ask.cancel}</Button></div>
+    </div>
+  );
+}
+
 export function Wandverkleidung() {
   const wv = useWv();
   const tasks = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne?.workTasks as string[] | undefined);
   const height = useOfferStore((s) => String((s.offer as Record<string, any> | null)?.duschwanne?.wandverkleidungHoehe ?? ""));
   const on = wv.wvEnabled === true;
   const line = lineOf(wv);
+  const simple = sv.isSimple(wv);
+  const lineOpen = !!useOfferStore((s) => s.scratch.wvLineOpen);
+  const [ask, setAsk] = useState<WallAsk | null>(null); // the wall's question about the floor
   const sealWalls = useOfferStore((s) => s.scratch.wvSealWalls) as Fields | null | undefined;
   const shower = Array.isArray(tasks) && tasks.includes(SHOWER_TASK);
   const dw = (fields: (dw: Fields) => Fields) => { const o = offerNow(); useOfferStore.getState().patchAll(arbeitenChanges(o, fields(o.duschwanne ?? {}))); };
@@ -550,7 +696,13 @@ export function Wandverkleidung() {
       </div>
       {on ? (
         <>
-          <div className="grid gap-3 rounded-lg border-2 border-border p-3">
+          {simple ? (
+            <button type="button" aria-expanded={lineOpen} aria-controls="wv-line" onClick={() => remember("wvLineOpen", !lineOpen)} data-testid="wv-line-row" className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-lg border-2 border-border bg-card px-3 py-2 text-left text-foreground">
+              <span className="grid"><strong>Produktlinie</strong><small className="text-muted-foreground" data-part="text">{sv.lineLabel(line)}</small></span><span aria-hidden className={cn("text-xl text-muted-foreground transition-transform", lineOpen && "rotate-90")}>›</span>
+            </button>
+          ) : null}
+          {!simple || lineOpen ? (
+          <div id="wv-line" className="grid gap-3 rounded-lg border-2 border-border p-3">
             <div className="grid"><strong>Produktlinie</strong><small className="text-muted-foreground" data-testid="wv-line-text">Nur Produkte von {LINES[line].brand}</small></div>
             <div className="grid grid-cols-3 gap-2" role="group" aria-label="Produktlinie wählen">
               {(Object.keys(LINES) as Line[]).map((t) => (
@@ -560,15 +712,18 @@ export function Wandverkleidung() {
               ))}
             </div>
           </div>
+          ) : null}
           <Choices legend="Ausführung" name="wv-kind" options={KINDS} value={String(wv.wvKind ?? "") || undefined} onChange={(v) => write({ wvKind: v })} />
           <div className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+            <label className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3">
               <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={shower} onChange={(e) => dw((d) => toggleTask(d, SHOWER_TASK, e.target.checked))} />
               <span>Im Duschbereich bis Höhe <small className="text-muted-foreground">(Arbeiten)</small></span>
             </label>
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
-          {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={wallAreaOf({ ...wv, ...(sealWalls ?? {}) })} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
+          {ask ? <WallQuestion ask={ask} onClose={() => setAsk(null)} /> : null}
+          {line === "ww" && !simple ? <div><Button variant="outline" className="w-full border-dashed text-primary" onClick={toSimple}>Zur neuen Ansicht wechseln (Platten + Dekor)</Button></div> : null}
+          {line === "ww" ? <>{simple ? <SimpleView onAsk={setAsk} /> : <><Calculator kit={WW_KIT} /><Rows /></>}<Accessories label="Zubehör winwall" area={wallAreaOf({ ...wv, ...(sealWalls ?? {}) })} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
           <SketchAndNote />
           <RestForFloor />
         </>

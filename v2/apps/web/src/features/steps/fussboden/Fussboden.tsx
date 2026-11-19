@@ -4,7 +4,7 @@
 // stores and shows for the same inputs). The mode "Wandverkleidung als Fußboden" (wand.ts) uses
 // wall panels as the covering, with the rest of the wall cladding where there is one.
 import { useQuery } from "@tanstack/react-query";
-import { Minus, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
@@ -16,6 +16,7 @@ import {
 } from "./rules.js";
 import * as w from "./wand.js";
 import { useWallSettings } from "./settings.js";
+import { DecorPalette, PlateCards } from "../../../shared/ui/winwall.js";
 
 type Fields = Record<string, unknown>;
 const offerNow = () => (useOfferStore.getState().offer ?? {}) as Record<string, any>;
@@ -157,8 +158,12 @@ function Floor() {
   );
 }
 
-/** width × height of each winwall plate in cm (the picture is drawn to scale) */
-const PLATE_CM: Record<string, [number, number]> = { 13: [100, 205], 15: [100, 250], 16: [125, 250], 17: [150, 250] };
+/** what today's UI remembers about the floor for the Wandverkleidung simple view (wand.ts `WallSession`) */
+const session = (): w.WallSession => ({ ...w.SESSION, ...(useOfferStore.getState().scratch.wcSession as Partial<w.WallSession> | undefined) });
+/** the user's own tap on the switch: no floor is added from the wall's rest again (today's wcOptOut) */
+const forget = () => remember("wcSession", { ...session(), optedOut: true, autoArea: null });
+/** a typed area no longer follows the rest */
+const typedArea = () => { if (session().autoArea != null) remember("wcSession", { ...session(), autoArea: null }); };
 type Ask = { title: string; message: string; confirm: string; cancel: string; onCancel: () => void };
 
 /** winwall: the four plates with − / +, the total and "↻ Vorschlag aus Fläche" (wand.ts `platesOf`). */
@@ -166,26 +171,7 @@ function Plates({ p, onStep, onResync }: { p: w.Plates; onStep: (fmt: string, d:
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-plates">
       <legend className="mb-1.5 p-0 font-semibold">Platten – Vorschlag aus der Fläche, mit − / + anpassen</legend>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {p.plates.map((x) => {
-          const [cw, ch] = PLATE_CM[x.code] ?? [100, 250];
-          return (
-            <div key={x.code} data-testid="wc-plate" data-code={x.code} data-img={x.img} className={cn("grid justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center", x.qty ? "border-primary" : "border-input")}>
-              <span aria-hidden className="relative grid place-items-end rounded bg-muted bg-cover bg-center" style={{ width: cw * 0.4, height: ch * 0.4, backgroundImage: `url(/assets/winwall/${x.img}.jpg)` }}>
-                <span className="m-1 rounded-full bg-card px-2 text-sm font-semibold">{x.qty}</span>
-              </span>
-              <span data-part="size">{x.size}</span>
-              <small data-part="best" className="min-h-5 text-muted-foreground">{x.best}</small>
-              <span className="flex items-center gap-1">
-                <Button variant="outline" size="icon" aria-label={`Weniger ${x.size}`} onClick={() => onStep(x.code, -1)}><Minus aria-hidden /></Button>
-                <output data-part="qty" className="w-8 text-center font-semibold">{x.qty}</output>
-                <Button variant="outline" size="icon" aria-label={`Mehr ${x.size}`} onClick={() => onStep(x.code, 1)}><Plus aria-hidden /></Button>
-              </span>
-              <small className="text-muted-foreground">Menge</small>
-            </div>
-          );
-        })}
-      </div>
+      <PlateCards plates={p.plates.map((x) => ({ ...x, note: x.best }))} onStep={onStep} testId="wc-plate" notePart="best" />
       <p className={cn("m-0 flex flex-wrap justify-between gap-2 font-semibold", p.total.short && "text-destructive")} data-testid="wc-total" data-short={p.total.short}>
         <span data-part="text">{p.total.text}</span><small data-part="small" className="font-normal">{p.total.small}</small>
       </p>
@@ -256,7 +242,7 @@ function Wall() {
         </div>
       ) : null}
       <div className="grid gap-2">
-        <Field id="wc-area" label="Fläche (m²)" inputMode="decimal" placeholder="z. B. 8,5" value={String(dw.wallCladdingArea ?? "")} onChange={(e) => write({ wallCladdingArea: e.target.value }, true)} />
+        <Field id="wc-area" label="Fläche (m²)" inputMode="decimal" placeholder="z. B. 8,5" value={String(dw.wallCladdingArea ?? "")} onChange={(e) => { typedArea(); write({ wallCladdingArea: e.target.value }, true); }} />
         <div><Button variant="outline" aria-expanded={calcOpen} onClick={() => setCalcOpen(!calcOpen)}>{calcOpen ? "Flächenrechner schließen" : "Flächenrechner öffnen"}</Button></div>
         {calcOpen ? <Calculator store="wcCalcRows" onApply={(area) => write({ wallCladdingArea: area }, true)} /> : null}
       </div>
@@ -271,14 +257,7 @@ function Wall() {
       {ww ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-decors">
           <legend className="mb-1.5 p-0 font-semibold">Dekor — winwall</legend>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Dekor Fußboden">
-            {w.paletteOf(dw).map((d) => (
-              <button key={d.code} type="button" role="radio" aria-checked={d.checked} data-code={d.code} onClick={() => changeDecor(w.pickDecor(d.code))} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere]", d.checked ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                <i aria-hidden data-part="label" className={cn(IMG.swatch, "grid place-items-center rounded bg-muted bg-cover bg-center not-italic text-sm")} style={d.swatch ? { backgroundImage: `url(/assets/winwall/${d.code}.jpg)` } : undefined}>{d.label}</i>
-                <span data-part="name">{d.name}</span><small data-part="small" className="text-muted-foreground">{d.small}</small>
-              </button>
-            ))}
-          </div>
+          <DecorPalette tiles={w.paletteOf(dw)} label="Dekor Fußboden" onPick={(code) => changeDecor(w.pickDecor(code))} />
           <div className="grid gap-1.5" data-testid="wc-custom">
             <label htmlFor="wc-decor-number" className="font-semibold">Anderes Dekor</label>
             <div className="w-48"><Input id="wc-decor-number" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={String(dw.wallCladdingWwDecorCustom ?? "")} onChange={(e) => changeDecor(w.typeDecor(e.target.value))} /></div>
@@ -352,7 +331,7 @@ export function Fussboden() {
     <Card aria-labelledby="fb-title">
       <CardTitle id="fb-title">Fußboden</CardTitle>
       <div className="flex items-center gap-3">
-        <Switch id="fb-on" checked={on} onChange={(v) => change(v, v ? ((useOfferStore.getState().scratch.floorMode as "floor" | "wall" | undefined) ?? "floor") : mode)} label="Fußboden" />
+        <Switch id="fb-on" checked={on} onChange={(v) => { if (!v) forget(); change(v, v ? ((useOfferStore.getState().scratch.floorMode as "floor" | "wall" | undefined) ?? "floor") : mode); }} label="Fußboden" />
         <label htmlFor="fb-on" className="grid cursor-pointer"><strong>Fußboden</strong><small className="text-muted-foreground">Bodenbelag oder Wandverkleidung als Fußboden im Angebot. Aus: nichts berechnet.</small></label>
       </div>
       {on ? (
