@@ -247,7 +247,7 @@ describe.each([
       if (scenario.name.includes("back to Kassenkunde") && field === "pflegekasseGenehmigung") continue;
       expect([field, onPage(field)]).toEqual([field, shown]);
     }
-  });
+  }, 20000); // the longest recordings type some 40 fields: 3.5 s alone on a fast machine, over the default 5 s on a loaded CI runner
 });
 
 describe("Kundendaten stores what today's UI stores — Wohnumfeld and the internal list, every offer type", () => {
