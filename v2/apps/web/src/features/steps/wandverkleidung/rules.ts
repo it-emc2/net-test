@@ -38,7 +38,7 @@ export const lineOf = (wv: Fields): Line => (wv.wvBudgetMode ? "standard" : wv.w
 const WW_PLATES = ["wvWwDecor", "wvWwDecorCustom", "wvWwQty_13", "wvWwQty_15", "wvWwQty_16", "wvWwQty_17", "wvWwRows"];
 const WW_ACCESSORIES = ["wvWwAccManual", "wvWwQty_R_4260602", "wvWwQty_WS80110", "wvWwQty_WS80111", "wvWwQty_WS80112", "wvWwQty_WS80113", "wvWwSealing", "wvWwSealingQty",
   "wvWw_R_4260602", "wvWw_WS80110", "wvWw_WS80111", "wvWw_WS80112", "wvWw_WS80113", "wvWwCut"];
-const WW_FIRST: Fields = { wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" };
+const WW_FIRST: Fields = { wvWwAccManual: "", wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" };
 /** VIGOUR: stored only while the line is chosen */
 const HM_ONLY = ["wvCorners", "wvCornersCount", "wvEndProfileQty", "wvFlachenQty", "wvQty1497", "wvQty997", "wvSilikonQty", "wvV3VQty", "flechenkleber", "wvSealing", "wvSilikon", "wvEndProfile", "wvPanels[]"];
 const HM_FIRST: Fields = { wvCorners: "0", wvCornersCount: "0", wvEndProfileQty: "0", wvFlachenQty: "0", wvQty1497: "", wvQty997: "", wvSilikonQty: "0", wvV3VQty: "0" };
