@@ -7,7 +7,7 @@ import { registerPricing, registerSubmissions } from "./modules/pricing/index.js
 import { BusinessConfig } from "./platform/business-config.js";
 import { AppConfig, Draft, Offer, Product } from "./platform/models.js";
 import { vigorPriceFetcher } from "./integrations/vigor.js";
-import { registerOffersExternal, registerOffersRead, registerOffersWrite } from "./modules/offers/index.js";
+import { registerOffersExternal, registerOffersRead, registerOffersWrite, resolveAnsprechpartner } from "./modules/offers/index.js";
 import { registerDealDrafts } from "./modules/deal-drafts/index.js";
 import { registerSends } from "./modules/sends/index.js";
 import { createSentAwarePricing, sentOfferRecorder } from "./modules/sends/index.js";
@@ -104,7 +104,10 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerSubmissions(app, { computePrices: (p) => pricing.computePrices(p) });
   await registerOffersExternal(app, { externalApiKey: cfg.EXTERNAL_API_KEY });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
-  await registerDealDrafts(app);
+  await registerDealDrafts(app, {
+    // a new variant is the signed-in user's document, like "Neue Version" (ADR 027 A)
+    resolveContact: (kd, user) => resolveAnsprechpartner({ ...kd, ansprechpartner: user?.email ?? "" }, user, cfg.AP_DEFAULT_EMAIL ?? ""),
+  });
   await registerCustomers(app);
   await registerAdmin(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   const bitrix = deps.bitrix ?? new BitrixClient({

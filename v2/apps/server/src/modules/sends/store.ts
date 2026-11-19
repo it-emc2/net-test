@@ -35,6 +35,8 @@ export const OfferSend = model("OfferSend", new Schema({
   status: { type: String, enum: ["running", "done", "failed"], required: true },
   by: { type: String, default: "" },
   dealId: { type: String, default: "" },
+  /** the variant of the deal's offer this send belongs to (ADR 027 A); "" on records before variants */
+  variantId: { type: String, default: "" },
   contactId: { type: String, default: "" },
   offerNumber: { type: String, default: "" },
   offerType: { type: String, default: "" },
@@ -214,7 +216,7 @@ export const offerChangedBody = (e: OfferChangedError, requestId: string) => ({
 /** What the client may see of a send (no payload, no file contents). */
 export function sendView(s: any) {
   return {
-    sendId: s.sendId, channel: s.channel, status: s.status, by: s.by, dealId: s.dealId, offerNumber: s.offerNumber, offerType: s.offerType,
+    sendId: s.sendId, channel: s.channel, status: s.status, by: s.by, dealId: s.dealId, variantId: s.variantId || "", offerNumber: s.offerNumber, offerType: s.offerType,
     to: s.to, cc: s.cc, subject: s.subject, total: s.total, selfPayAmount: s.selfPayAmount,
     ansprechpartner: s.identity?.ansprechpartner || "", customer: s.identity?.customer || "", resendOf: s.resendOf || "",
     steps: s.steps ?? {}, files: (s.files ?? []).map((f: SendFile) => ({ role: f.role, filename: f.filename, fileId: f.fileId, size: f.size, sha256: f.sha256 })),

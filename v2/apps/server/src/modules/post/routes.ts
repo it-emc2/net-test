@@ -14,6 +14,7 @@ import { buildInternalNoteComment, type DealWrites } from "../../integrations/bi
 import type { Onlinebrief24 } from "../../integrations/onlinebrief24.js";
 import { PostalSend } from "../../platform/models.js";
 import { claimSendLock } from "../email/index.js";
+import { resolveSendVariant } from "../deal-drafts/index.js";
 import { randomUUID } from "node:crypto";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, beginSend, finishSend, lastSentOffer, offerChangedBody, patchSend, readSendFile, recordStep,
@@ -133,10 +134,17 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       try { normalizeRecipientAddress(recipient || {}); } catch (err) { throw staged(err, "normalize_recipient"); }
       const offerNumber = String(meta?.offerNumber || b.offerNumber || "").trim() || mainFilename.replace(/\.pdf$/i, "");
 
+      // the variant of the deal's offer (ADR 027 A): its own 24 h lock row; never blocks the send
+      const recordDealId = String(meta?.dealId ?? dealId ?? auftragId ?? "").trim();
+      let sendVariant = { variantId: "", lockKey: recordDealId };
+      if (recordDealId) {
+        try { sendVariant = await resolveSendVariant(recordDealId, { variantId: b.variantId ?? meta?.variantId, offerNumber }); }
+        catch (e) { req.log.warn({ err: e, sendId }, "variant of the send not resolved — deal lock used"); }
+      }
       const offerLetter = b.letterKind !== "signed"; // "signed" = the signed documents, a second letter by design
       try {
         const begun = await beginSend(sendId, {
-          channel: "post", by: String(req.user?.email || ""), dealId: String(meta?.dealId ?? dealId ?? auftragId ?? ""), offerNumber,
+          channel: "post", by: String(req.user?.email || ""), dealId: String(meta?.dealId ?? dealId ?? auftragId ?? ""), variantId: sendVariant.variantId, offerNumber,
           offerType: String(meta?.offerType || b.payload?.activeOffer || ""), to: [recipient?.name, recipient?.street, recipient?.zipCode || recipient?.zip || recipient?.postalCode, recipient?.city].filter(Boolean).join(", "),
           subject: offerLetter ? "Angebot per Post" : "Unterschriebene Unterlagen per Post", recipient: recipient ?? null,
         });
@@ -210,7 +218,7 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       if (registered === "r1" || registered === "r2") letter.registered = registered;
       const { mode } = d.ob24.config();
 
-      const guardDealId = String(meta?.dealId ?? dealId ?? auftragId ?? "").trim();
+      const guardDealId = sendVariant.lockKey; // the lock row's key (deal number, or deal#variant)
       if (guardDealId) {
         const existing = await claimSendLock(PostalSend, guardDealId, b.forceResend === true, { inFlightMs: IN_FLIGHT_MS, resendBlockMs: RESEND_BLOCK_MS });
         if (existing) {

@@ -12,7 +12,7 @@ export interface MigrationResult { id: string; dryRun: boolean; matched: number;
 /** 001 — indexes for the NEW deal draft collections (ADR 007). */
 export async function m001DealDraftIndexes(_db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
   if (!dryRun) await migrateDealDraftIndexes();
-  return { id: "001-deal-draft-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 2, note: "creates uniq_dealId, uniq_deal_revision" };
+  return { id: "001-deal-draft-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 3, note: "creates uniq_deal_variant, uniq_deal_revision, deal_variant_revision (since ADR 027 A; before: uniq_dealId — migration 005 drops it)" };
 }
 
 /**
@@ -39,13 +39,48 @@ export async function m004ErrorEventIndexes(_db: mongoose.mongo.Db, dryRun = tru
   return { id: "004-error-event-indexes", dryRun, matched: 0, changed: dryRun ? 0 : 2, note: "creates ttl_at (90 days), area_code_at on error_events" };
 }
 
-export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes, m004ErrorEventIndexes];
+/**
+ * 005 — variants of a deal's offer (ADR 027 A). Documents are NOT rewritten: a draft without
+ * `variantId` is the deal's first variant. Only the indexes change:
+ *  - deal_drafts: creates uniq_deal_variant {dealId, variantId} (existing data satisfies it — one
+ *    draft per deal, all without variantId), THEN drops uniq_dealId {dealId} (one draft per deal)
+ *  - deal_draft_revisions: creates deal_variant_revision {dealId, variantId, revision -1};
+ *    uniq_deal_revision {dealId, revision} stays (revision numbers are unique per deal)
+ * Idempotent: an index that exists is not created again, a missing one is not dropped. The legacy
+ * collections (emailsends / postalsends and their unique dealId index) are not touched.
+ */
+export async function m005DealDraftVariants(db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
+  const has = async (coll: string, name: string) => {
+    try { return (await db.collection(coll).indexes()).some((i) => i.name === name); }
+    catch { return false; } // collection does not exist yet
+  };
+  const todo: string[] = [];
+  if (!(await has("deal_drafts", "uniq_deal_variant"))) todo.push("create deal_drafts.uniq_deal_variant");
+  if (!(await has("deal_draft_revisions", "deal_variant_revision"))) todo.push("create deal_draft_revisions.deal_variant_revision");
+  if (await has("deal_drafts", "uniq_dealId")) todo.push("drop deal_drafts.uniq_dealId");
+  const matched = await db.collection("deal_drafts").countDocuments({ variantId: { $exists: false } });
+  if (!dryRun) {
+    // create before drop: there is never a moment without a unique index on the deal's drafts
+    await db.collection("deal_drafts").createIndex({ dealId: 1, variantId: 1 }, { unique: true, name: "uniq_deal_variant" });
+    await db.collection("deal_draft_revisions").createIndex({ dealId: 1, variantId: 1, revision: -1 }, { name: "deal_variant_revision" });
+    if (await has("deal_drafts", "uniq_dealId")) await db.collection("deal_drafts").dropIndex("uniq_dealId");
+  }
+  return {
+    id: "005-deal-draft-variants", dryRun, matched, changed: dryRun ? 0 : todo.length,
+    note: `${matched} existing drafts are first variants (not rewritten); ${todo.length ? todo.join(", ") : "indexes already in place"}`,
+  };
+}
+
+export const MIGRATIONS = [m001DealDraftIndexes, m002UnsetEmptyCustomerNumber, m003OfferSendIndexes, m004ErrorEventIndexes, m005DealDraftVariants];
 
 /**
- * ROLLBACK tool (CUTOVER.md §4.2) — not a migration. Copies each deal's CURRENT autosaved draft
- * (v2 `deal_drafts`) into the legacy `drafts` collection as an ordinary draft, so the old app
- * shows the work after switching back (its "Deal laden" dialog finds it via payload.auftragId).
- * Idempotent: the key `clientSaveId = "dealdraft:<dealId>:<revision>"` is never written twice.
+ * ROLLBACK tool (CUTOVER.md §4.2) — not a migration. Copies the CURRENT autosaved draft of every
+ * variant of every deal (v2 `deal_drafts`; deleted variants are skipped) into the legacy `drafts`
+ * collection as an ordinary draft, so the old app shows the work after switching back (its
+ * "Deal laden" dialog finds them via payload.auftragId; a deal with variants lists one draft per
+ * variant, the name ends in the variant's name). Idempotent: the key
+ * `clientSaveId = "dealdraft:<dealId>:<revision>"` is never written twice (revision numbers are
+ * unique per deal across its variants, ADR 027 A).
  * Only INSERTS into `drafts`; `deal_drafts` is only read.
  */
 export async function exportDealDraftsToLegacy(db: mongoose.mongo.Db, dryRun = true): Promise<MigrationResult> {
@@ -53,6 +88,7 @@ export async function exportDealDraftsToLegacy(db: mongoose.mongo.Db, dryRun = t
   let matched = 0, changed = 0;
   const pad = (n: number) => String(n).padStart(2, "0");
   for (const d of deals as any[]) {
+    if (d.deletedAt) continue;
     const key = `dealdraft:${d.dealId}:${d.revision}`;
     if (await db.collection("drafts").countDocuments({ clientSaveId: key }, { limit: 1 })) continue;
     matched++;
@@ -62,7 +98,8 @@ export async function exportDealDraftsToLegacy(db: mongoose.mongo.Db, dryRun = t
     const clean = (v: unknown) => String(v ?? "").trim().replace(/[^\p{L}\p{N}]+/gu, "") || "X";
     // same name shape as today's quick save: ANG-{TYPE}-{First}-{Last}-{DDMMYYYY}-{HHMMSS}
     const name = `ANG-${String(d.offerType).toUpperCase()}-${clean(k.firstName)}-${clean(k.lastName)}-` +
-      `${pad(at.getDate())}${pad(at.getMonth() + 1)}${at.getFullYear()}-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`;
+      `${pad(at.getDate())}${pad(at.getMonth() + 1)}${at.getFullYear()}-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}` +
+      (d.variantId ? `-${clean(d.variantName || "Variante")}` : ""); // the first variant keeps today's name
     const now = new Date();
     await db.collection("drafts").insertOne({
       name, offerType: d.offerType, payload: d.payload,

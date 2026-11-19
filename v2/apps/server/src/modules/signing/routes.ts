@@ -14,6 +14,7 @@ import { STAGES } from "../../integrations/bitrix-deal.js";
 import type { Mailer } from "../../integrations/mail.js";
 import { buildEmailHtml } from "../email/index.js";
 import { resolveAnsprechpartner } from "../offers/index.js";
+import { resolveSendVariant } from "../deal-drafts/index.js";
 import { tokenFromHeaders, verifyToken } from "../../platform/auth.js";
 import { injectHead } from "../web/index.js";
 import {
@@ -341,9 +342,11 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
         try {
           if (!(await sendForSigning(token))) {
             const mailed = !!b.sendEmail;
+            // the variant of the deal's offer this hand-over belongs to (ADR 027 A)
+            const variantId = b.dealId ? (await resolveSendVariant(String(b.dealId), { variantId: b.variantId, offerNumber: sr.offerNumber || offerNo })).variantId : "";
             await OfferSend.create({
               sendId: String(b.sendId), channel: mailed ? "signlink" : "onsite", status: "done", by: String(req.user?.email || ""),
-              dealId: String(b.dealId || ""), contactId: String(b.contactId || ""), offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || ""),
+              dealId: String(b.dealId || ""), variantId, contactId: String(b.contactId || ""), offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || ""),
               to: mailed ? String(prefill.email || "") : "", subject: mailed ? "Link zur Online-Unterschrift" : "Unterschrift vor Ort",
               payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, startedAt: new Date(), finishedAt: new Date(),
             });

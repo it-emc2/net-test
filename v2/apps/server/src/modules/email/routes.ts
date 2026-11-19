@@ -21,6 +21,7 @@ import {
   DEFAULT_CONTACT_NAME, buildBitrixEmailComment, buildEmailTextBody, describeOfferChanges, getBitrixTargetFromPayload,
   getPresetAttachments, safeOfferFilename, sha256,
 } from "./builders.js";
+import { resolveSendVariant } from "../deal-drafts/index.js";
 import { EMAIL_IN_FLIGHT_MS, EMAIL_RESEND_BLOCK_MS, claimSendLock } from "./send-lock.js";
 import type { OfferDocuments, SigningPort } from "./ports.js";
 import type { EnsureSentOffer } from "../sends/index.js";
@@ -103,10 +104,16 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       if (contactId) payload.bitrixContactId = contactId;
       // an offer the old app sent, opened again in today's UI: the stored offer goes out (sends/sent-original.ts)
       payload = (await sentOriginalFor(payload?.offerNumber || offerNumber, payload, fields.client)) ?? payload;
+      // the variant of the deal's offer (ADR 027 A): its own 24 h lock row; never blocks the send
+      let sendVariant = { variantId: "", lockKey: dealId };
+      if (dealId) {
+        try { sendVariant = await resolveSendVariant(dealId, { variantId: fields.variantId, offerNumber: payload?.offerNumber || offerNumber }); }
+        catch (e) { req.log.warn({ err: e, sendId }, "variant of the send not resolved — deal lock used"); }
+      }
 
       try {
         const begun = await beginSend(sendId, {
-          channel: bitrixOnly ? "bitrix" : "email", by: String(req.user?.email || ""), dealId, contactId,
+          channel: bitrixOnly ? "bitrix" : "email", by: String(req.user?.email || ""), dealId, variantId: sendVariant.variantId, contactId,
           offerNumber: String(payload?.offerNumber || offerNumber), offerType: String(payload?.activeOffer || offerType), to, cc, subject,
         });
         if (begun.state === "running") return fail(req, reply, 409, "SEND_IN_PROGRESS", "Dieser Versand läuft bereits. Bitte warten Sie einen Moment.", { sendId });
@@ -142,7 +149,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       }
 
       if (dealId && !bitrixOnly) {
-        const existing = await claimSendLock(EmailSend, dealId, ["1", "true"].includes(String(fields.forceResend || "")), { inFlightMs: EMAIL_IN_FLIGHT_MS, resendBlockMs: EMAIL_RESEND_BLOCK_MS });
+        const existing = await claimSendLock(EmailSend, sendVariant.lockKey, ["1", "true"].includes(String(fields.forceResend || "")), { inFlightMs: EMAIL_IN_FLIGHT_MS, resendBlockMs: EMAIL_RESEND_BLOCK_MS });
         if (existing) {
           const inFlight = existing.inFlightUntil && new Date(existing.inFlightUntil) > new Date();
           req.log.warn({ dealId, offerNumber, inFlight }, "duplicate offer email blocked");
@@ -151,7 +158,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
               : `Für diesen Deal wurde bereits eine Angebots-E-Mail versendet (${existing.offerNumber || "-"}).`,
             { lastSentAt: existing.sentAt || null, lastOfferNumber: existing.offerNumber || "" });
         }
-        lockedDealId = dealId;
+        lockedDealId = sendVariant.lockKey; // the lock row's key (deal number, or deal#variant)
       }
 
       // Ansprechpartner re-derived server-side from the selected email (never a spoofed name)

@@ -37,10 +37,22 @@ export const ERROR_CODES = {
   CUSTOMER_SEARCH_FAILED: "CUSTOMER_SEARCH_FAILED",
   /** „Kunde suchen“: the picked customer could not be read */
   CUSTOMER_LOAD_FAILED: "CUSTOMER_LOAD_FAILED",
+  /** variants (ADR 027 A): the deal has no variant with this id (or it was deleted) */
+  VARIANT_NOT_FOUND: "VARIANT_NOT_FOUND",
+  /** variants: delete refused — the variant was sent (send record, legacy log or signing request for its number) */
+  VARIANT_SENT: "VARIANT_SENT",
+  /** variants: delete refused — the only variant of a deal stays */
+  VARIANT_LAST: "VARIANT_LAST",
+  /** variants: the name is empty or longer than 60 characters */
+  VARIANT_NAME_INVALID: "VARIANT_NAME_INVALID",
+  /** variants: all variants of a deal have the same offer type; a save with another one is refused */
+  VARIANT_TYPE_MISMATCH: "VARIANT_TYPE_MISMATCH",
+  /** variants: creating a variant failed (e.g. migration 005 has not run: the old one-draft-per-deal index is still there) */
+  VARIANT_CREATE_FAILED: "VARIANT_CREATE_FAILED",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
-export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search" } as const;
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants" } as const;
 export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
 
 // ---------- the customer of a Bitrix deal (Kundendaten) ----------
@@ -124,6 +136,9 @@ export const DealDraftResponseSchema = z.object({
   revision: z.number().int(),
   updatedAt: z.union([z.string(), z.date()]),
   updatedBy: z.string().nullish(),
+  /** the variant this draft is (ADR 027 A); older servers did not send it */
+  variantId: z.string().optional(),
+  variantName: z.string().optional(),
 });
 export type DealDraftResponse = z.infer<typeof DealDraftResponseSchema>;
 
@@ -142,6 +157,53 @@ export type SaveDealDraftResponse = z.infer<typeof SaveDealDraftResponseSchema>;
 export const DEAL_NUMBER_RE = /^\d{1,12}$/;
 export const TEMP_DRAFT_KEY_RE = /^t-[0-9a-f]{24}$/;
 export const isDraftKey = (v: unknown): v is string => typeof v === "string" && (DEAL_NUMBER_RE.test(v) || TEMP_DRAFT_KEY_RE.test(v));
+
+// ---------- variants of a deal's offer (ADR 027 A) ----------
+// A variant is a separate offer under the same deal: its own draft (with its own history), its
+// own offer number (given at the first send), its own sends. Every draft call takes an optional
+// query parameter `variant=<id>`; without it the call acts on the variant opened last (today's
+// UI has no selector). The first variant of a deal has the id "v1" (drafts saved before variants
+// existed are this variant); later ones "v-" + 12 hex.
+export const FIRST_VARIANT_ID = "v1";
+export const VARIANT_ID_RE = /^(v1|v-[0-9a-f]{12})$/;
+export const isVariantId = (v: unknown): v is string => typeof v === "string" && VARIANT_ID_RE.test(v);
+export const VARIANT_NAME_MAX = 60;
+/** derived, never stored twice: draft → sent → signed; "not-chosen" when another variant was signed */
+export const VariantStatusSchema = z.enum(["draft", "sent", "signed", "not-chosen"]);
+export type VariantStatus = z.infer<typeof VariantStatusSchema>;
+const When = z.union([z.string(), z.date()]);
+export const DealVariantSchema = z.object({
+  variantId: z.string(),
+  /** internal only — never on customer documents or mails (owner 2026-11-19) */
+  name: z.string(),
+  offerType: z.string(),
+  /** the variant's current offer number, "" before its first send */
+  offerNumber: z.string(),
+  status: VariantStatusSchema,
+  /** the last send that reached the customer (not "only filed in Bitrix") */
+  sentAt: When.nullable(),
+  sentChannel: z.string().nullable(),
+  signedAt: When.nullable(),
+  /** gross total of the last completed send, null when never sent */
+  total: z.number().nullable(),
+  revision: z.number().int(),
+  updatedAt: When,
+  notChosenAt: When.nullable(),
+  /** the variant calls without `variant` act on */
+  isDefault: z.boolean(),
+});
+export type DealVariant = z.infer<typeof DealVariantSchema>;
+export const DealVariantsResponseSchema = z.object({ dealId: z.string(), defaultVariantId: z.string().nullable(), variants: z.array(DealVariantSchema) });
+export type DealVariantsResponse = z.infer<typeof DealVariantsResponseSchema>;
+/** a copy of `from` (default: the variant opened last); `name` empty → "Variante N" */
+export const CreateVariantRequestSchema = z.object({ from: z.string().regex(VARIANT_ID_RE).optional(), name: z.string().max(VARIANT_NAME_MAX).optional() });
+export type CreateVariantRequest = z.infer<typeof CreateVariantRequestSchema>;
+export const CreateVariantResponseSchema = z.object({ dealId: z.string(), variant: DealVariantSchema, revision: z.number().int() });
+export type CreateVariantResponse = z.infer<typeof CreateVariantResponseSchema>;
+export const RenameVariantRequestSchema = z.object({ name: z.string().min(1).max(VARIANT_NAME_MAX) });
+export type RenameVariantRequest = z.infer<typeof RenameVariantRequestSchema>;
+export const RenameVariantResponseSchema = z.object({ dealId: z.string(), variant: DealVariantSchema });
+export const DeleteVariantResponseSchema = z.object({ ok: z.literal(true), dealId: z.string(), variantId: z.string(), defaultVariantId: z.string().nullable() });
 
 // ---------- route suggestion (distance and travel time to the customer's address) ----------
 export const SuggestDistanceResponseSchema = z.looseObject({
@@ -220,6 +282,13 @@ export const endpoints = {
   traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
+  /** the variants of a deal (ADR 027 A) with their derived status */
+  dealVariants: { method: "GET", path: "/api/deals/:dealId/variants", response: DealVariantsResponseSchema },
+  /** a new variant: a copy of another one without offer number and send status; it becomes the variant opened last */
+  createDealVariant: { method: "POST", path: "/api/deals/:dealId/variants", request: CreateVariantRequestSchema, response: CreateVariantResponseSchema },
+  renameDealVariant: { method: "PATCH", path: "/api/deals/:dealId/variants/:variantId", request: RenameVariantRequestSchema, response: RenameVariantResponseSchema },
+  /** only a variant that was never sent; never the only one (VARIANT_SENT, VARIANT_LAST) */
+  deleteDealVariant: { method: "DELETE", path: "/api/deals/:dealId/variants/:variantId", response: DeleteVariantResponseSchema },
   /** the state of one send (ADR 023): status running | done | failed, and the answer of a finished send */
   send: { method: "GET", path: "/api/sends/:sendId", response: z.looseObject({ send: z.looseObject({ status: z.string() }).nullish(), result: z.unknown().nullish() }) },
   /** files a sent offer again in Bitrix from the stored files — nothing is sent again */
