@@ -12171,8 +12171,8 @@ body.ui-classic #page-Duschwanne .stelzlager-qty-row {
 body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 
-/* Klassisch: keine Beschreibungen unter den Zubehör-Kacheln */
-body.ui-classic #page-Duschwanne .dw-acc__text small { display: none; }
+/* Klassisch: Produktlinie ohne Beschreibung unter Badolux/Hassmann (nur Duschwanne) */
+body.ui-classic #page-Duschwanne .tier-seg__btn span { display: none; }
 
 /* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
 body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
