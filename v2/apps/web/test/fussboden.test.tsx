@@ -54,9 +54,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(sorted(a)) === JSON.stri
 const changed = (base: Record<string, unknown>, now: Record<string, unknown>) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])]
   .filter((k) => !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
 const without = (o: Record<string, unknown>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key));
-/** the recording is today's HTML: "Badolux guenstig" / "Hassmann Vigour · Markenqualitaet". React leaves the two words out
+/** the recording is today's HTML: "Badolux guenstig" / "Hassmann Vigour · Markenqualitaet". React shows the names alone
  *  (UX-CHANGES U-042, owner 2026-11-19). The button text is the name and the line below it, without a space. */
-const withoutClaims = (t: string) => t.replace(/ ?guenstig/, "").replace(/ · Markenqualitaet/, "").replace(/ /, "");
+const withoutClaims = (t: string) => t.replace(/ ?guenstig/, "").replace(/ ?Vigour · Markenqualitaet/, "");
 const squeeze = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "");
 const tiles = () => screen.queryAllByTestId("fb-tile").map((t) => ({ value: t.dataset.value, caption: t.querySelector('[data-part="caption"]')!.textContent, checked: t.querySelector("input")!.checked }));
 
