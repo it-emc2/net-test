@@ -288,3 +288,31 @@ Tests: `tests/e2e/parity/v2-local-first.spec.cjs` (5), `tests/e2e/offline-sync/v
 - Plan and phases: `docs/rewrite/MODULARIZATION-PLAN.md`.
 
 **Not part of this decision.** Session recording (main PR #325) stays unported until a later phase (owner, 2026-11-12).
+
+## ADR 027 — Variants of an offer, and a second offer type for the same customer (owner, 2026-11-19; not built yet)
+
+Two features the owner asked for on 2026-11-19, with the answers to the open questions. Nothing is built; this entry is the brief. Both are built in the new app.
+
+**A. Variants.** A button creates a new variant of the open offer: everything the same, the user changes what differs.
+
+| Question | Owner's answer |
+|---|---|
+| Sending | One variant at a time, never several in one mail |
+| After a signature | The other variants are marked as not chosen (kept, not deleted) |
+| Name | The user names a variant; a default name is only the fallback |
+| Amount in Bitrix | The signed variant's total; before a signature, the last sent one. A signature on an OLDER variant updates Bitrix too |
+
+Working assumption (not yet confirmed by a design): variants are separate offers under the same deal, each with its own offer number; today the new app has one draft per deal (U-002), so the draft model grows from one to several per deal.
+
+**B. A second offer type for the same customer** (for example a Badumbau customer also wants Alltagshilfe). Creating it creates a NEW deal in Bitrix.
+
+| Question | Owner's answer |
+|---|---|
+| Combinations | Any type to any type |
+| The new deal | Created in „Neue Anfragen“ first — Bitrix robots run there — and is moved on from there as usual. Building offers belong to the HD pipeline, Haushaltshilfe / Alltagshilfe offers to the AH pipeline; where a deal moves when sent or signed is already set in the OC and stays as it is |
+| What is copied | Everything of the customer data: care level, insurance, address and the rest |
+| Testing | A test pipeline in Bitrix — to be created if there is none (owner's OK given 2026-11-19) — and the first real creation together with the owner |
+
+Open for the design: the new deal's title and responsible person; which fields of the first deal are copied to the new deal in Bitrix itself (contact link at least); how the two offers show their relation in the app.
+
+**Order agreed:** (1) sync with main, (2) the React steps take over main's changes, (3) variants, (4) second offer type, (5) B3 and the remaining small gaps.
