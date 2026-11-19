@@ -15,6 +15,9 @@ COPY v2/apps/server/package.json apps/server/
 COPY v2/apps/web/package.json apps/web/
 RUN npm ci --no-audit --no-fund
 COPY v2/ ./
+# the photo index of the Referenzbilder steps is the file of today's UI (one source for both UIs);
+# the web build bundles it from there
+COPY src/public/referenz-manifest.js /app/src/public/referenz-manifest.js
 RUN npx tsc -b && npm run build -w @oc/web && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:24-bookworm-slim
