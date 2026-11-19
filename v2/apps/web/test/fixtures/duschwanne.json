@@ -146,11 +146,11 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
-    "tier": "premium",
     "tierButtons": [
      "Badoluxguenstig",
      "HassmannVigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
     "hint": true,
@@ -229,11 +229,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -323,11 +323,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -439,11 +439,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -525,11 +525,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -588,28 +588,37 @@
    }
   },
   {
-   "name": "reopened offer without budgetMode, tray on: Hassmann",
+   "name": "reopened offer with Badolux, tray on (stays Badolux)",
    "steps": [
     [
      "open",
-     {}
-    ],
-    [
-     "on"
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": true,
+      "budgetMode": "1"
+     }
     ]
    ],
    "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
     "trayEnabled": true
    },
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
-    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
     "dims": [
@@ -626,34 +635,34 @@
      {
       "name": "abdichtSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Wannenabdichtband-Set TRWDB",
       "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
      },
      {
       "name": "drainSet",
       "shown": true,
-      "checked": false,
-      "caption": "Ablaufgarnitur TRAGD9060",
-      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
      },
      {
       "name": "stelzlager",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Stelzlager-Set PLA5282",
       "small": "Plattenlager Pro, justierbar 64–110 mm"
      },
      {
       "name": "smallMaterial",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Kleinmaterial",
       "small": "KM02"
      }
     ],
     "qty": "8",
-    "qtyShown": false,
+    "qtyShown": true,
     "customShown": true,
     "customOpen": false,
     "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
@@ -667,29 +676,34 @@
    }
   },
   {
-   "name": "reopened offer with Hassmann (budgetMode empty), tray on",
+   "name": "reopened offer with Hassmann, tray on (stays Hassmann)",
    "steps": [
     [
      "open",
      {
-      "budgetMode": ""
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": true
      }
-    ],
-    [
-     "on"
     ]
    ],
    "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
     "trayEnabled": true
    },
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -707,34 +721,122 @@
      {
       "name": "abdichtSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Wannenabdichtband-Set TRWDB",
       "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
      },
      {
       "name": "drainSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Ablaufgarnitur TRAGD9060",
       "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
      },
      {
       "name": "stelzlager",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Stelzlager-Set PLA5282",
       "small": "Plattenlager Pro, justierbar 64–110 mm"
      },
      {
       "name": "smallMaterial",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Kleinmaterial",
       "small": "KM02"
      }
     ],
     "qty": "8",
-    "qtyShown": false,
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer without budgetMode, tray on: Hassmann",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial"
+     }
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
     "customShown": true,
     "customOpen": false,
     "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
@@ -753,6 +855,10 @@
     [
      "open",
      {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
       "trayEnabled": false
      }
     ],
@@ -761,16 +867,20 @@
     ]
    ],
    "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
     "trayEnabled": true
    },
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -788,34 +898,34 @@
      {
       "name": "abdichtSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Wannenabdichtband-Set TRWDB",
       "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
      },
      {
       "name": "drainSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Ablaufgarnitur TRAGD9060",
       "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
      },
      {
       "name": "stelzlager",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Stelzlager-Set PLA5282",
       "small": "Plattenlager Pro, justierbar 64–110 mm"
      },
      {
       "name": "smallMaterial",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Kleinmaterial",
       "small": "KM02"
      }
     ],
     "qty": "8",
-    "qtyShown": false,
+    "qtyShown": true,
     "customShown": true,
     "customOpen": false,
     "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
@@ -834,6 +944,10 @@
     [
      "open",
      {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
       "trayEnabled": false,
       "budgetMode": "1"
      }
@@ -843,17 +957,21 @@
     ]
    ],
    "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
     "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
     "trayEnabled": true
    },
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -871,34 +989,34 @@
      {
       "name": "abdichtSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Wannenabdichtband-Set TRWDB",
       "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
      },
      {
       "name": "drainSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Siphon Bridge 90 PR95DW001",
       "small": "Badolux · Ablauf 90 mm"
      },
      {
       "name": "stelzlager",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Stelzlager-Set PLA5282",
       "small": "Plattenlager Pro, justierbar 64–110 mm"
      },
      {
       "name": "smallMaterial",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Kleinmaterial",
       "small": "KM02"
      }
     ],
     "qty": "8",
-    "qtyShown": false,
+    "qtyShown": true,
     "customShown": true,
     "customOpen": false,
     "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
@@ -912,14 +1030,27 @@
    }
   },
   {
-   "name": "reopened offer with a Hassmann tray, off and on",
+   "name": "reopened offer with a Hassmann tray picked, off and on",
    "steps": [
     [
+     "on"
+    ],
+    [
+     "tier",
+     "premium"
+    ],
+    [
+     "dims",
+     "90",
+     "120"
+    ],
+    [
+     "pick",
+     1
+    ],
+    [
      "open",
-     {
-      "trayEnabled": true,
-      "chosenTrayProductId": "SLA12090"
-     }
+     {}
     ],
     [
      "off"
@@ -929,61 +1060,97 @@
     ]
    ],
    "duschwanne": {
-    "trayEnabled": true
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "chosenTrayProductId": "SLA12090",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true,
+    "traySize": "120 x 90 x 3 cm",
+    "traySuggestion": "SLA12090",
+    "tray_l_cm": "120",
+    "tray_w_cm": "90"
    },
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
     "dims": [
-     "",
-     ""
+     "90",
+     "120"
     ],
-    "headings": [],
-    "cards": [],
+    "headings": [
+     "HASSMANN-DUSCHWANNEN"
+    ],
+    "cards": [
+     {
+      "id": "SLA12090",
+      "title": "Slate 120 × 90 × 3 cm, Mineralguss weiß",
+      "sub": "Beste Übereinstimmung 8 auf Lager Hassmann",
+      "price": "368,55 €",
+      "selected": true,
+      "pinned": false
+     },
+     {
+      "id": "SLA13090",
+      "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
+      "sub": "Hassmann",
+      "price": "377,37 €",
+      "selected": false,
+      "pinned": false
+     },
+     {
+      "id": "SLA120100",
+      "title": "Slate 120 × 100 × 3 cm, Mineralguss weiß",
+      "sub": "7 auf Lager Hassmann",
+      "price": "424,62 €",
+      "selected": false,
+      "pinned": false
+     }
+    ],
     "notes": [],
-    "cheaper": "",
-    "colorShown": false,
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
+    "colorShown": true,
     "color": "Weiss",
     "accessories": [
      {
       "name": "abdichtSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Wannenabdichtband-Set TRWDB",
       "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
      },
      {
       "name": "drainSet",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Ablaufgarnitur TRAGD9060",
       "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
      },
      {
       "name": "stelzlager",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Stelzlager-Set PLA5282",
       "small": "Plattenlager Pro, justierbar 64–110 mm"
      },
      {
       "name": "smallMaterial",
       "shown": true,
-      "checked": false,
+      "checked": true,
       "caption": "Kleinmaterial",
       "small": "KM02"
      }
     ],
     "qty": "8",
-    "qtyShown": false,
+    "qtyShown": true,
     "customShown": true,
     "customOpen": false,
     "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
@@ -993,7 +1160,138 @@
      "dwCustomQty": "1",
      "dwCustomId": ""
     },
-    "summary": ""
+    "summary": "Slate 120 × 90 × 3 cm, Mineralguss weiß Slate · Farbe Weiß · Art.-Nr. SLA12090 · 368,55 € Wannenabdichtband-Set TRWDB Ablaufgarnitur TRAGD9060 8 × Stelzlager-Set PLA5282 Kleinmaterial"
+   }
+  },
+  {
+   "name": "reopened offer with a Badolux tray picked, tray off and on",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "dims",
+     "90",
+     "120"
+    ],
+    [
+     "pick",
+     1
+    ],
+    [
+     "open",
+     {}
+    ],
+    [
+     "off"
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "chosenTrayProductId": "DW015",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true,
+    "traySize": "90 x 120 x 2.6 cm",
+    "traySuggestion": "DW015",
+    "tray_l_cm": "120",
+    "tray_w_cm": "90"
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "90",
+     "120"
+    ],
+    "headings": [
+     "BADOLUX-DUSCHWANNEN"
+    ],
+    "cards": [
+     {
+      "id": "DW015",
+      "title": "Riviera 90 × 120 × 2,6 cm",
+      "sub": "Beste Übereinstimmung Art.-Nr. PRI70DW06 Badolux",
+      "price": "138,80 €",
+      "selected": true,
+      "pinned": false
+     },
+     {
+      "id": "DW021",
+      "title": "Riviera 100 × 120 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW09 Badolux",
+      "price": "248,64 €",
+      "selected": false,
+      "pinned": false
+     },
+     {
+      "id": "DW016",
+      "title": "Riviera 90 × 140 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW07 Badolux",
+      "price": "161,08 €",
+      "selected": false,
+      "pinned": false
+     }
+    ],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": "Riviera 90 × 120 × 2,6 cm Badolux · extraflach · Art.-Nr. PRI70DW06 · 138,80 € Wannenabdichtband-Set TRWDB Siphon Bridge 90 PR95DW001 8 × Stelzlager-Set PLA5282 Kleinmaterial"
    }
   },
   {
@@ -1014,11 +1312,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -1104,11 +1402,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -1228,11 +1526,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -1352,11 +1650,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -1481,11 +1779,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -1606,11 +1904,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -1733,11 +2031,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -1863,11 +2161,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -1991,11 +2289,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -2120,11 +2418,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2246,11 +2544,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2380,11 +2678,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2497,11 +2795,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2623,11 +2921,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2724,11 +3022,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2836,11 +3134,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -2963,11 +3261,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -3093,11 +3391,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -3207,11 +3505,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": false,
@@ -3299,11 +3597,11 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
-    "tier": "premium",
     "tierButtons": [
      "Badoluxguenstig",
      "HassmannVigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
     "hint": true,
@@ -3429,11 +3727,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -3572,11 +3870,11 @@
    },
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -3729,11 +4027,11 @@
    },
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -3853,11 +4151,11 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
-    "tier": "premium",
     "tierButtons": [
      "Badoluxguenstig",
      "HassmannVigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
     "hint": true,
@@ -4003,11 +4301,11 @@
    },
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -4127,11 +4425,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -4242,11 +4540,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -4364,11 +4662,11 @@
    },
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,
@@ -4469,11 +4767,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "standard",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
     "hint": true,
@@ -4593,11 +4891,11 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
-    "tier": "premium",
     "tierButtons": [
      "Badoluxguenstig",
      "HassmannVigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
     "hint": true,
@@ -4711,11 +5009,11 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
-    "tier": "premium",
     "tierButtons": [
      "Badolux guenstig",
      "Hassmann Vigour · Markenqualitaet"
     ],
+    "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
     "hint": true,

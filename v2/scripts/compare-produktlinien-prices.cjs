@@ -37,7 +37,6 @@ const CASES = {
   p7: ["reopened: offer with a Hassmann tray", [["open", { trayEnabled: true }], D, ["pick", 1]]],
   p8: ["reopened: no budgetMode, tray off, then on (Hassmann)", [["open", { trayEnabled: false }], ON, D, ["pick", 1]]],
   p9: ["reopened: budgetMode 1 (Badolux), tray off, then on", [["open", { trayEnabled: false, budgetMode: "1" }], ON, D, ["pick", 1]]],
-  p10: ["reopened: budgetMode empty, tray off, then on", [["open", { trayEnabled: false, budgetMode: "" }], ON, D, ["pick", 1]]],
   f1: ["floor: Hassmann colour (line unchanged)", [["fb"], ["farea", "5"], ["fcolor", "Loft-Grau"]]],
   f2: ["floor: Badolux covering 2", [["fb"], ["ftier", "standard"], ["farea", "5"], ["fpick", 2]]],
   f3: ["floor: Hassmann colour, Badolux confirmed, covering", [["fb"], ["farea", "5"], ["fcolor", "Loft-Grau"], ["ftier", "standard"], ["confirm", "yes"], ["fpick", 1]]],
