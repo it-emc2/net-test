@@ -23,8 +23,8 @@ import * as vg from "./vigour.js";
 import { WW_DECORS } from "./decors.js";
 import { Drawing, TONES } from "./Drawing.js";
 import {
-  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, areaOf, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, lineOf, rowNote, rowTitle, rowsOf,
-  sealing, setAccessoryQty, toggleAccessory, withDecor, type Line, type Row,
+  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
+  sealing, setAccessoryQty, toggleAccessory, wallAreaOf, withDecor, type Line, type Row,
 } from "./rules.js";
 
 const WV = "wandverkleidung";
@@ -36,6 +36,13 @@ const write = (fields: Fields) => useOfferStore.getState().patchAll(wvChanges(of
 const remember = (key: string, value: unknown) => useOfferStore.getState().remember(key, value);
 const useWv = () => useOfferStore((s) => (s.offer as Record<string, any> | null)?.wandverkleidung as Fields | undefined) ?? {};
 const ROW = "flex min-h-12 items-center gap-3 rounded-lg border-2 border-input bg-card px-4 py-2";
+// As today: the sealing hint ("nach Wandfläche …") is renewed with the rows, the sealing number and
+// the line — not when a wall's width, height or situation changes without writing rows (no decor
+// yet). Until then it keeps the walls it was last worked out with (legacy, ported as is).
+const WALL_FIELDS = ["wvKSituation", "wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe"] as const;
+const wallFieldsOf = (wv: Fields): Fields => Object.fromEntries(WALL_FIELDS.map((k) => [k, wv[k]]));
+const freezeSealWalls = (wv: Fields) => { if (!useOfferStore.getState().scratch.wvSealWalls) remember("wvSealWalls", wallFieldsOf(wv)); };
+const renewSealHint = () => { if (useOfferStore.getState().scratch.wvSealWalls) remember("wvSealWalls", null); };
 
 function Stepper({ label, value, placeholder, onChange }: { label: string; value: string; placeholder?: string; onChange: (text: string) => void }) {
   const n = Math.max(0, Math.round(Number(value) || 0));
@@ -49,7 +56,7 @@ function Stepper({ label, value, placeholder, onChange }: { label: string; value
 }
 
 /** The decor tiles of the open row, with "Anderes Dekor" and its number. */
-function Decors({ onPick }: { onPick: (value: string, text?: string) => void }) {
+function Decors({ onPick }: { onPick: (value: string, text?: string, typing?: boolean) => void }) {
   const wv = useWv();
   const picked = String(wv.wvWwDecor ?? "");
   const hint = customHint(wv);
@@ -68,7 +75,7 @@ function Decors({ onPick }: { onPick: (value: string, text?: string) => void }) 
       {picked === "custom" ? (
         <div className="grid gap-1.5" data-testid="wv-custom">
           <label htmlFor="wv-decor-number" className="font-semibold">Dekor-Nummer</label>
-          <div className="w-40"><Input id="wv-decor-number" placeholder="WS 233" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={7} value={String(wv.wvWwDecorCustom ?? "")} onChange={(e) => onPick("custom", e.target.value)} /></div>
+          <div className="w-40"><Input id="wv-decor-number" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={String(wv.wvWwDecorCustom ?? "")} onChange={(e) => onPick("custom", e.target.value, true)} /></div>
           <small data-testid="wv-custom-hint" className={cn(hint.kind === "ok" && "text-success", hint.kind === "warn" && "text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
         </div>
       ) : null}
@@ -94,7 +101,7 @@ const WW_KIT: CalcKit = {
     const r = wallGroups(next, decor, { isTile: (v) => WW_DECORS.some((d) => d.value === v), key: (x: Row) => `${x.code}|${x.fmt}`, current: rowsOf(next),
       rowsFor: (v, widths) => Object.entries(planOf({ ...next, wvKLinks: widths.links ?? "", wvKBack: widths.back ?? "", wvKRechts: widths.rechts ?? "" }).qty ?? {}).filter(([, n]) => n > 0).map(([fmt, n]) => ({ code: decorCode(v), fmt, qty: n, custom: false, text: "" })) });
     // as today, the suggested profiles are measured against the plan as it was before this change
-    return r && { wallDecor: r.wallDecor, fields: fromRows(r.rows, planOf(before)), count: r.rows.length };
+    return r && { wallDecor: r.wallDecor, fields: fromRows(r.rows, planOf(before), next), count: r.rows.length };
   },
 };
 const vigourKit = (prices: vg.Prices): CalcKit => ({
@@ -130,7 +137,9 @@ function Calculator({ kit }: { kit: CalcKit }) {
     const before = wvNow();
     const next = { ...before, ...fields };
     const r = kit.rows(before, next, decor ?? wallDecorOf(next, kit.line));
-    if (!r) return write(decor ? { ...fields, wvWallDecor: JSON.stringify(decor) } : fields);
+    if (!r) { freezeSealWalls(before); return write(decor ? { ...fields, wvWallDecor: JSON.stringify(decor) } : fields); }
+    renewSealHint();
+    remember("wvRowTyped", null);
     remember("wvRowOpen", { idx: kit.line === "hm" ? r.count - 1 : r.count ? 0 : -1, folded: true });
     write({ ...fields, wvWallDecor: JSON.stringify(r.wallDecor), ...r.fields });
   };
@@ -200,20 +209,28 @@ function Rows() {
   // which row is open: kept while the offer is open; an opened offer starts with all rows folded
   const ui = (useOfferStore((s) => s.scratch.wvRowOpen) as { idx: number; folded: boolean } | undefined) ?? { idx: rows.length ? 0 : -1, folded: true };
   const openIdx = ui.folded ? -1 : ui.idx;
+  // As today: typing a decor number renews the row's title, not its note and red mark — those
+  // keep what the row was before the typing until the next other change (legacy, ported as is).
+  const typed = useOfferStore((s) => s.scratch.wvRowTyped) as { idx: number; bad: boolean } | null | undefined;
+  const bad = (r: Row, i: number) => (typed && typed.idx === i ? typed.bad : isBadRow(r));
   /** the rows changed: plates, suggestions and the decor shown for the open row follow */
-  const set = (next: Row[], idx: number, folded: boolean) => { remember("wvRowOpen", { idx, folded }); write({ ...fromRows(next, planOf(wvNow())), ...(folded ? {} : decorOf(next[idx])) }); };
-  const tap = (i: number) => { const folded = i === ui.idx ? !ui.folded : false; remember("wvRowOpen", { idx: i, folded }); if (!folded) write(decorOf(rows[i])); };
+  const set = (next: Row[], idx: number, folded: boolean, typing = false) => {
+    remember("wvRowTyped", typing ? (typed && typed.idx === idx ? typed : { idx, bad: !!rows[idx] && isBadRow(rows[idx]) }) : null);
+    renewSealHint();
+    remember("wvRowOpen", { idx, folded }); write({ ...fromRows(next, planOf(wvNow()), wvNow()), ...(folded ? {} : decorOf(next[idx])) });
+  };
+  const tap = (i: number) => { const folded = i === ui.idx ? !ui.folded : false; remember("wvRowTyped", null); remember("wvRowOpen", { idx: i, folded }); if (!folded) write(decorOf(rows[i])); };
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
       <legend className="mb-1.5 p-0 font-semibold">Platten — winwall</legend>
       {rows.length ? rows.map((r, i) => {
         const open = i === openIdx;
         return (
-          <div key={i} data-testid="wv-row" data-open={open} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
+          <div key={i} data-testid="wv-row" data-open={open} data-bad={bad(r, i) || undefined} className={cn("grid gap-3 rounded-lg border-2 p-3", bad(r, i) ? "border-destructive bg-destructive/10" : "bg-card", open ? "border-primary" : bad(r, i) ? "" : "border-input")}>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => tap(i)} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
                 {r.code ? <img src={`/assets/winwall/${r.code}.jpg`} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
-                <span className="grid min-w-0"><b data-part="title">{rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{rowNote(open)}</small></span>
+                <span className="grid min-w-0"><b data-part="title">{rowTitle(r)}</b><small data-part="note" className={bad(r, i) ? "font-semibold text-destructive" : "text-muted-foreground"}>{rowNote(bad(r, i), open)}</small></span>
               </button>
               <select aria-label={`Format Zeile ${i + 1}`} value={r.fmt} onChange={(e) => set(rows.map((x, j) => (j === i ? { ...x, fmt: e.target.value } : x)), ui.idx, ui.folded)} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-2 text-foreground">
                 {FORMATS.map(([c, t]) => <option key={c} value={c}>{t}</option>)}
@@ -225,7 +242,7 @@ function Rows() {
               </span>
               <Button variant="ghost" size="icon" aria-label={`Zeile ${i + 1} entfernen`} onClick={() => { const next = rows.filter((_, j) => j !== i); set(next, Math.min(ui.idx, next.length - 1), ui.folded); }}><X aria-hidden /></Button>
             </div>
-            {open ? <Decors onPick={(value, text) => set(rows.map((x, j) => (j === i ? withDecor(x, value, text) : x)), ui.idx, false)} /> : null}
+            {open ? <Decors onPick={(value, text, typing) => set(rows.map((x, j) => (j === i ? withDecor(x, value, text) : x)), ui.idx, false, typing)} /> : null}
           </div>
         );
       }) : <p className="m-0 text-muted-foreground">Noch keine Platten. Mit „+ Zeile hinzufügen“ beginnen.</p>}
@@ -346,16 +363,16 @@ function Accessories({ label, area, cut }: { label: string; area: number; cut: b
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv[`wvWw_${a.id}`]} onChange={(e) => write(toggleAccessory(wvNow(), a.id, e.target.checked))} />
             <span className="grid"><span data-part="caption">{a.caption}</span><small data-part="small" className="text-muted-foreground">{a.small}</small></span>
           </label>
-          <Stepper label={`Menge ${a.caption}`} value={String(accessoryQty(wv, a.id))} onChange={(t) => write(setAccessoryQty(a.id, Number(t)))} />
+          <Stepper label={`Menge ${a.caption}`} value={String(accessoryQty(wv, a.id))} onChange={(t) => write(setAccessoryQty(wvNow(), a.id, Number(t)))} />
         </div>
       ))}
       <div data-testid="wv-acc-sealing" className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
           <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv.wvWwSealing} onChange={(e) => write({ wvWwSealing: e.target.checked ? "on" : undefined })} />
           <span className="grid"><span data-part="caption">Abdichtungsset DIN 18534-1</span>
-            <small data-part="small" className="text-muted-foreground">{seal.hint}{manual ? <> <button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-primary underline" onClick={(e) => { e.preventDefault(); write({ wvWwSealingQty: "" }); }}>Automatisch</button></> : null}</small></span>
+            <small data-part="small" className="text-muted-foreground">{seal.hint}{manual ? <> <button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-primary underline" onClick={(e) => { e.preventDefault(); renewSealHint(); write({ wvWwSealingQty: "" }); }}>Automatisch</button></> : null}</small></span>
         </label>
-        <Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => write({ wvWwSealingQty: t })} />
+        <Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => { renewSealHint(); write({ wvWwSealingQty: t }); }} />
       </div>
       {cut ? <div data-testid="wv-acc-cut" className={cn(ROW, "has-[:checked]:border-primary")}>
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
@@ -374,7 +391,7 @@ function KeramicoRows() {
   // which row is open: kept while the offer is open; an opened offer starts with all rows folded
   const ui = (useOfferStore((s) => s.scratch.wvRowOpen) as { idx: number; folded: boolean } | undefined) ?? { idx: rows.length ? 0 : -1, folded: true };
   const openIdx = ui.folded ? -1 : ui.idx;
-  const set = (next: bx.KRow[], idx: number, folded: boolean) => { remember("wvRowOpen", { idx, folded }); write(bx.fromRows(wvNow(), next)); };
+  const set = (next: bx.KRow[], idx: number, folded: boolean) => { renewSealHint(); remember("wvRowOpen", { idx, folded }); write(bx.fromRows(wvNow(), next)); };
   const change = (i: number, c: Partial<bx.KRow>) => set(rows.map((r, j) => (j === i ? { ...r, ...c } : r)), ui.idx, ui.folded);
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
@@ -514,12 +531,14 @@ export function Wandverkleidung() {
   const height = useOfferStore((s) => String((s.offer as Record<string, any> | null)?.duschwanne?.wandverkleidungHoehe ?? ""));
   const on = wv.wvEnabled === true;
   const line = lineOf(wv);
+  const sealWalls = useOfferStore((s) => s.scratch.wvSealWalls) as Fields | null | undefined;
   const shower = Array.isArray(tasks) && tasks.includes(SHOWER_TASK);
   const dw = (fields: (dw: Fields) => Fields) => { const o = offerNow(); useOfferStore.getState().patchAll(arbeitenChanges(o, fields(o.duschwanne ?? {}))); };
   const toLine = (to: Line) => {
     const st = useOfferStore.getState();
     const r = chooseLine(wvNow(), to, (st.scratch.wvLines as Partial<Record<Line, Fields>> | undefined) ?? {});
     st.remember("wvLines", r.parked);
+    renewSealHint();
     write(r.changes);
   };
   return (
@@ -549,7 +568,7 @@ export function Wandverkleidung() {
             </label>
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
-          {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={areaOf(rowsOf(wv))} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
+          {line === "ww" ? <><Calculator kit={WW_KIT} /><Rows /><Accessories label="Zubehör winwall" area={wallAreaOf({ ...wv, ...(sealWalls ?? {}) })} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}
           <SketchAndNote />
           <RestForFloor />
         </>

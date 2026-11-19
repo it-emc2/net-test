@@ -343,6 +343,7 @@
     "wvSupplier": "ww",
     "wvV3VSelected": false,
     "wvWallDecor": "",
+    "wvWwAccManual": "",
     "wvWwDecor": "WS203",
     "wvWwDecorCustom": "",
     "wvWwQty_13": "0",
@@ -354,7 +355,7 @@
     "wvWwQty_WS80111": "0",
     "wvWwQty_WS80112": "0",
     "wvWwQty_WS80113": "0",
-    "wvWwRows": "",
+    "wvWwRows": "[]",
     "wvWwSealing": "on",
     "wvWwSealingQty": ""
   },

@@ -32,7 +32,7 @@ interface View {
   ask: { title: string; message: string; ok: string; cancel: string } | null; versand: string;
 }
 interface Act { act: string[]; requests: Obj[]; toasts: string[][]; alerts: string[]; stored: Obj; view: View }
-interface Scenario { name: string; type: string; offer: Obj; pre: unknown[][]; answers: [string, number, Obj][]; view: View; acts: Act[] }
+interface Scenario { name: string; type: string; offer: Obj; pre: unknown[][]; answers: [string, number, Obj][]; view: View; acts: Act[]; /** the price answer the main items were read from (scenarios with wall cladding) */ price?: Obj }
 // U-024 (owner 2026-11-17): "Nur in Bitrix ablegen" and the files for Bitrix only are gone from
 // the page — the scenarios that use them are not replayed (the recording stays as it was). The
 // own files for the customer are covered below ("files added in the drop zone …").
@@ -73,7 +73,7 @@ function server(s: Scenario, payload: Obj) {
     if (url === "/api/users") return json(reference.users);
     if (url === `/api/deals/${KEY}/draft` && method === "GET") return json({ dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" });
     if (url === `/api/deals/${KEY}/draft` && method === "PUT") return json({ dealId: KEY, revision: 4, changed: true });
-    if (url === "/api/price") return json({ total: 10, selfPayAmount: 0 });
+    if (url === "/api/price") return json(s.price ?? { total: 10, selfPayAmount: 0 });
     if (url === "/api/price/inputs") return json({});
     if (url === "/api/offers" && method === "POST") { seen.push({ path: url, offerNumber: mask(body.offerNumber), offerType: body.offerType, payload: Object.keys(changed(before, body.payload ?? {})) }); return json({ ok: true }); }
     if (url === "/api/email/send-offer") {

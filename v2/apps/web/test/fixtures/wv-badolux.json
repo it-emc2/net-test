@@ -136,7 +136,7 @@
       "qty": "",
       "placeholder": "0",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche · automatisch"
+      "small": "nach Wandfläche · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -385,7 +385,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -646,7 +646,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 7,27 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 7,27 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -899,7 +899,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1168,7 +1168,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 7,27 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 7,27 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1432,7 +1432,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1696,7 +1696,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1964,7 +1964,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -2217,7 +2217,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -2443,7 +2443,7 @@
       "qty": "",
       "placeholder": "0",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche · automatisch"
+      "small": "nach Wandfläche · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -2703,7 +2703,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -2957,7 +2957,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3212,7 +3212,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3471,7 +3471,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3731,7 +3731,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3886,6 +3886,7 @@
     "wvMotif": "",
     "wvSealingSelected": true,
     "wvSilikonSelected": true,
+    "wvWwAccManual": "WS80110",
     "wvWwDecor": "<removed>",
     "wvWwDecorCustom": "<removed>",
     "wvWwQty_13": "<removed>",
@@ -3991,7 +3992,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -4257,7 +4258,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 9,69 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 9,69 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -4412,16 +4413,15 @@
     "wvMotif": "",
     "wvSealingSelected": true,
     "wvSilikonSelected": true,
+    "wvWwAccManual": "R_4260602",
     "wvWwDecor": "<removed>",
     "wvWwDecorCustom": "<removed>",
     "wvWwQty_13": "<removed>",
     "wvWwQty_15": "<removed>",
     "wvWwQty_16": "<removed>",
     "wvWwQty_17": "<removed>",
-    "wvWwQty_R_4260602": "4",
     "wvWwQty_WS80113": "1",
     "wvWwRows": "<removed>",
-    "wvWw_R_4260602": "on",
     "wvWw_WS80113": "on"
    },
    "duschwanne": {},
@@ -4504,8 +4504,8 @@
      {
       "id": "wvWw_R_4260602",
       "shown": true,
-      "checked": true,
-      "qty": "4",
+      "checked": false,
+      "qty": "0",
       "placeholder": "",
       "caption": "Flächenkleber Ramsauer 645",
       "small": "R_4260602 · Beutel 600 ml · aus dem Lager, wie VIGOUR · Vorschlag: 2 je Platte"
@@ -4517,7 +4517,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -4770,7 +4770,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -5027,7 +5027,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -5295,7 +5295,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -5560,7 +5560,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -5765,7 +5765,7 @@
       "qty": "",
       "placeholder": "0",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche · automatisch"
+      "small": "nach Wandfläche · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -6041,7 +6041,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -6317,7 +6317,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 9,69 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 9,69 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -6625,7 +6625,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 9,69 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 9,69 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -6945,7 +6945,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 9,69 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 9,69 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -7250,7 +7250,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -7529,7 +7529,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 2,42 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 2,42 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -7810,7 +7810,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -8099,7 +8099,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 7,27 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 7,27 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -8364,7 +8364,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -8575,7 +8575,7 @@
       "qty": "",
       "placeholder": "0",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche · automatisch"
+      "small": "nach Wandfläche · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -8710,6 +8710,7 @@
     "wvSilikonQty": "0",
     "wvSupplier": "hm",
     "wvV3VQty": "0",
+    "wvWwAccManual": "<removed>",
     "wvWwDecor": "<removed>",
     "wvWwDecorCustom": "<removed>",
     "wvWwQty_13": "<removed>",
@@ -8801,7 +8802,7 @@
       "qty": "",
       "placeholder": "0",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche · automatisch"
+      "small": "nach Wandfläche · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -9042,7 +9043,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 4,85 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 4,85 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",

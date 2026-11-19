@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { WW_DECORS } from "../src/features/steps/wandverkleidung/decors.js";
-import { ACCESSORIES, areaOf, chooseLine, decorCode, fromRows, rowsOf, sealing } from "../src/features/steps/wandverkleidung/rules.js";
+import { ACCESSORIES, areaOf, articleFormat, chooseLine, decorCode, fromRows, rowsOf, sealing, wallAreaOf } from "../src/features/steps/wandverkleidung/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wandverkleidung.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
@@ -98,8 +98,9 @@ describe("Wandverkleidung stores and shows what today's UI does", () => {
 });
 
 describe("Wandverkleidung — rules", () => {
-  it("a decor number: WS or NW with three digits; digits alone are WS", () => {
-    expect(["WS 233", "nw230", "203", "XY", "WS12", ""].map(decorCode)).toEqual(["WS233", "NW230", "WS203", null, null, null]);
+  it("a decor number: WS or NW with three digits; digits alone are NW when the catalogue has it, else WS; an article number from the Muster names decor and format", () => {
+    expect(["WS 233", "nw230", "203", "230", "XY", "WS12", "", "23013", "NW 23015", "23014"].map(decorCode)).toEqual(["WS233", "NW230", "WS203", "NW230", null, null, null, "NW230", "NW230", null]);
+    expect(["23013", "NW 23015", "WS 233"].map(articleFormat)).toEqual(["13", "15", null]);
   });
 
   it("the rows give the plates per format and the suggestions; a row without a decor counts nothing", () => {
@@ -110,7 +111,10 @@ describe("Wandverkleidung — rules", () => {
   });
 
   it("sealing: one 6,25 m² set between 5 and 6,25 m², otherwise 5 m² sets", () => {
-    expect([sealing({}, areaOf([{ code: "WS203", fmt: "15", qty: 1 }])).auto, sealing({}, areaOf([{ code: "WS203", fmt: "17", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 }])).hint, sealing({}, 0).auto]).toEqual([1, "nach Plattenfläche 6,25 m² → 1 × 6,25 m² · automatisch", 0]);
+    expect([sealing({}, areaOf([{ code: "WS203", fmt: "15", qty: 1 }])).auto, sealing({}, areaOf([{ code: "WS203", fmt: "17", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 }])).hint, sealing({}, 0).auto]).toEqual([1, "nach Wandfläche 6,25 m² → 1 × 6,25 m² · automatisch", 0]);
+    // main ca43ed48: by wall area — the walls × height plus every plate beyond the plan (ANG2026-1112-100246: U 70/161/70 × 55 cm, 3 plates 100 × 205)
+    const u = { wvKSituation: "u", wvKLinks: "70", wvKBack: "161", wvKRechts: "70", wvKHoehe: "55" };
+    expect([wallAreaOf({ ...u, wvWwQty_13: "2" }), wallAreaOf({ ...u, wvWwQty_13: "3" }), wallAreaOf({ ...u, wvWwQty_13: "3", wvArea: "4,5" }), wallAreaOf({ wvWwQty_13: "3" })].map((x) => Math.round(x * 1e4) / 1e4)).toEqual([1.6555, 3.7055, 4.5, 6.15]);
   });
 
   it("a line that is left keeps its entries for the way back", () => {

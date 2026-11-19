@@ -3876,7 +3876,9 @@
    "offer": {
     "wandverkleidung": {
      "wvEnabled": true,
+     "wvUi": "",
      "wvSupplier": "ww",
+     "wvWwHeight": "",
      "wvArea": "",
      "wvKSituation": "wand",
      "wvWallDecor": "",
@@ -3885,13 +3887,14 @@
      "wvKRechts": "",
      "wvKHoehe": "",
      "wvKQty": "",
-     "wvWwRows": "",
+     "wvWwRows": "[]",
      "wvWwDecor": "WS203",
      "wvWwDecorCustom": "",
      "wvWwQty_13": "0",
      "wvWwQty_15": "0",
      "wvWwQty_16": "0",
      "wvWwQty_17": "0",
+     "wvWwAccManual": "",
      "wvWwQty_WS80110": "0",
      "wvWwQty_WS80111": "0",
      "wvWwQty_WS80112": "0",
@@ -4249,7 +4252,9 @@
    "offer": {
     "wandverkleidung": {
      "wvEnabled": true,
+     "wvUi": "",
      "wvSupplier": "ww",
+     "wvWwHeight": "",
      "wvArea": "",
      "wvKSituation": "wand",
      "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS203\",\"auto\":[\"WS203|15\"]}",
@@ -4265,6 +4270,7 @@
      "wvWwQty_15": "2",
      "wvWwQty_16": "0",
      "wvWwQty_17": "0",
+     "wvWwAccManual": "",
      "wvWwQty_WS80110": "0",
      "wvWwQty_WS80111": "0",
      "wvWwQty_WS80112": "0",
@@ -4472,19 +4478,19 @@
      }
     },
     "materials": {
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -4558,19 +4564,19 @@
     },
     "materialsDisplayUI": {
      "title": "Material für Badumbau",
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -4717,9 +4723,7 @@
         "status": "rot",
         "title": "Wandverkleidung vollständig",
         "details": [
-         "Art der Wandverkleidung fehlt.",
-         "Dekor / Farbe fehlt.",
-         "Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner)."
+         "Art der Wandverkleidung fehlt."
         ],
         "target": "Wandverkleidung"
        },
@@ -4788,8 +4792,10 @@
    "offer": {
     "wandverkleidung": {
      "wvEnabled": true,
+     "wvUi": "",
      "wvSupplier": "ww",
      "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
      "wvArea": "",
      "wvKSituation": "wand",
      "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS203\",\"auto\":[\"WS203|15\"]}",
@@ -4805,6 +4811,7 @@
      "wvWwQty_15": "2",
      "wvWwQty_16": "0",
      "wvWwQty_17": "0",
+     "wvWwAccManual": "",
      "wvWwQty_WS80110": "0",
      "wvWwQty_WS80111": "0",
      "wvWwQty_WS80112": "0",
@@ -5022,19 +5029,19 @@
      }
     },
     "materials": {
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -5108,19 +5115,19 @@
     },
     "materialsDisplayUI": {
      "title": "Material für Badumbau",
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -5200,8 +5207,8 @@
    "view": {
     "heading": "Angebotscheck",
     "text": "Regelbasierte Prüfung: passt die Auswahl zum Angebot?",
-    "status": "rot",
-    "head": "Gesamtstatus: Fehlt",
+    "status": "gelb",
+    "head": "Gesamtstatus: Bitte prüfen",
     "groups": [
      {
       "title": "Auszuführende Arbeiten",
@@ -5257,21 +5264,11 @@
      },
      {
       "title": "Material für Badumbau",
-      "status": "rot",
+      "status": "gruen",
       "counts": [
-       "rot 1",
-       "gruen 4"
+       "gruen 5"
       ],
       "rows": [
-       {
-        "status": "rot",
-        "title": "Wandverkleidung vollständig",
-        "details": [
-         "Dekor / Farbe fehlt.",
-         "Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner)."
-        ],
-        "target": "Wandverkleidung"
-       },
        {
         "status": "gruen",
         "title": "Material erfasst",
@@ -5289,6 +5286,12 @@
         "title": "Alle Positionen bepreist",
         "details": [],
         "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Wandverkleidung vollständig",
+        "details": [],
+        "target": "Wandverkleidung"
        },
        {
         "status": "gruen",
@@ -8390,8 +8393,9 @@
      "floorArea": "",
      "wallCladdingSupplier": "ww",
      "wallCladdingArea": "",
-     "wallCladdingWwDecor": "WS203",
+     "wallCladdingWwQty": "",
      "wallCladdingWwDecorCustom": "",
+     "wallCladdingWwDecor": "WS203",
      "wallCladdingLeftoverM2": "",
      "wallCladdingPanelSize": "",
      "wallCladdingQty": "",
@@ -8436,7 +8440,9 @@
     },
     "wandverkleidung": {
      "wvEnabled": true,
+     "wvUi": "",
      "wvSupplier": "ww",
+     "wvWwHeight": "",
      "wvArea": "",
      "wvKSituation": "wand",
      "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS203\",\"auto\":[\"WS203|15\"]}",
@@ -8452,6 +8458,7 @@
      "wvWwQty_15": "2",
      "wvWwQty_16": "0",
      "wvWwQty_17": "0",
+     "wvWwAccManual": "",
      "wvWwQty_WS80110": "0",
      "wvWwQty_WS80111": "0",
      "wvWwQty_WS80112": "0",
@@ -8676,19 +8683,19 @@
      }
     },
     "materials": {
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -8762,19 +8769,19 @@
     },
     "materialsDisplayUI": {
      "title": "Material für Badumbau",
-     "sum": 438.93,
+     "sum": 441.87,
      "lines": [
       {
-       "productId": "WS20325",
-       "name": "winwall Duschrückwand Marmor weiß Set 2 × 100 × 250 cm",
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "color": null,
-       "qty": 1,
+       "qty": 2,
        "unit": null,
-       "unitPrice": 261.76,
-       "lineTotal": 261.76,
-       "label": "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)",
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
        "labelLines": [
-        "- 1 Set winwall Duschrückwand Set (2 Platten) 100×250 cm — Dekor: Marmor weiß (WS 203)"
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
        ],
        "source": null,
        "finish": null,
@@ -8921,9 +8928,7 @@
         "status": "rot",
         "title": "Wandverkleidung vollständig",
         "details": [
-         "Art der Wandverkleidung fehlt.",
-         "Dekor / Farbe fehlt.",
-         "Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner)."
+         "Art der Wandverkleidung fehlt."
         ],
         "target": "Wandverkleidung"
        },
@@ -24741,6 +24746,952 @@
         "title": "Alle Positionen bepreist",
         "details": [],
         "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Duschwanne mit Abtrennung",
+        "details": [],
+        "target": "Duschwanne"
+       }
+      ]
+     },
+     {
+      "title": "Optionale Produkte",
+      "status": "gruen",
+      "counts": [
+       "gruen 1"
+      ],
+      "rows": [
+       {
+        "status": "gruen",
+        "title": "Optionale Produkte mit Menge",
+        "details": [],
+        "target": "Optional"
+       }
+      ]
+     }
+    ],
+    "empty": ""
+   },
+   "answers": []
+  },
+  {
+   "name": "winwall row with an invalid decor",
+   "setup": [
+    [
+     "az",
+     "25",
+     "030"
+    ],
+    [
+     "wvon"
+    ],
+    [
+     "wvkind",
+     "Deckenhoch"
+    ],
+    [
+     "wwrow",
+     "23014"
+    ]
+   ],
+   "offer": {
+    "wandverkleidung": {
+     "wvEnabled": true,
+     "wvUi": "",
+     "wvSupplier": "ww",
+     "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
+     "wvArea": "",
+     "wvKSituation": "wand",
+     "wvWallDecor": "",
+     "wvKLinks": "",
+     "wvKBack": "",
+     "wvKRechts": "",
+     "wvKHoehe": "",
+     "wvKQty": "",
+     "wvWwDecor": "custom",
+     "wvWwDecorCustom": "23014",
+     "wvWwRows": "[{\"code\":null,\"fmt\":\"15\",\"qty\":1,\"custom\":true,\"text\":\"23014\"}]",
+     "wvWwQty_13": "0",
+     "wvWwQty_15": "0",
+     "wvWwQty_16": "0",
+     "wvWwQty_17": "0",
+     "wvWwAccManual": "",
+     "wvWwQty_WS80110": "0",
+     "wvWwQty_WS80111": "0",
+     "wvWwQty_WS80112": "0",
+     "wvWwQty_WS80113": "0",
+     "wvWwQty_R_4260602": "0",
+     "wvWwSealing": "on",
+     "wvWwSealingQty": "",
+     "wvSketchDataUrl": "",
+     "wvSketchJson": "",
+     "wvNote": "",
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "wvColor": "",
+     "wvSonderConfigNr": "",
+     "wvSealingSelected": false,
+     "wvFlachenSelected": false,
+     "wvEndProfileSelected": false,
+     "wvSilikonSelected": false,
+     "wvV3VSelected": false,
+     "wvColor_997": "",
+     "wvColor_1497": "",
+     "panelConfigs": {
+      "997x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      },
+      "1497x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      }
+     }
+    },
+    "Arbeitszeit": {
+     "totalHoursHHMM": "8:00",
+     "totalHoursNumeric": 8,
+     "ReiseHoursNumeric": 1,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:30",
+     "distanceKm": "25",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 69.5,
+      "travelSecondWorkerCost": 35,
+      "totalCost": 1077.5
+     }
+    },
+    "materials": []
+   },
+   "price": {
+    "services": {
+     "sum": 1187,
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "kilometer",
+       "label": "- 50 km Kilometerpauschale ",
+       "amount": 17.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "reisezeit",
+       "label": "- 1,00 Std Anfahrt × (69,50 € + 35,00 €)",
+       "qty": 1,
+       "unit": "Std",
+       "unitPrice": 104.5,
+       "amount": 104.5,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ]
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "kilometer",
+       "label": "- 50 km Kilometerpauschale ",
+       "amount": 17.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "reisezeit",
+       "label": "- 1,00 Std Anfahrt × (69,50 € + 35,00 €)",
+       "qty": 1,
+       "unit": "Std",
+       "unitPrice": 104.5,
+       "amount": 104.5,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1187,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 50,
+     "laborHours": 7,
+     "reiseHours": 1,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 2,
+      "totalHoursOverall": 16,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 1,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 8,
+        "onSiteCost": 486.5,
+        "travelCost": 69.5,
+        "totalCost": 556
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 1,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 8,
+        "onSiteCost": 486.5,
+        "travelCost": 35,
+        "totalCost": 521.5
+       }
+      ]
+     }
+    },
+    "materials": {
+     "sum": 0,
+     "lines": []
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 0,
+     "lines": []
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    }
+   },
+   "view": {
+    "heading": "Angebotscheck",
+    "text": "Regelbasierte Prüfung: passt die Auswahl zum Angebot?",
+    "status": "rot",
+    "head": "Gesamtstatus: Fehlt",
+    "groups": [
+     {
+      "title": "Auszuführende Arbeiten",
+      "status": "gelb",
+      "counts": [
+       "gelb 1",
+       "gruen 5"
+      ],
+      "rows": [
+       {
+        "status": "gelb",
+        "title": "Umbauart gewählt",
+        "details": [
+         "Keine Umbauart gewählt – Arbeiten werden nicht automatisch angehakt."
+        ],
+        "target": "Arbeiten",
+        "ack": {
+         "id": "umbauart",
+         "on": false
+        }
+       },
+       {
+        "status": "gruen",
+        "title": "Aufschlag",
+        "details": [],
+        "target": "rabatt"
+       },
+       {
+        "status": "gruen",
+        "title": "Arbeitspositionen erfasst",
+        "details": [],
+        "target": "Arbeiten"
+       },
+       {
+        "status": "gruen",
+        "title": "Arbeitspositionen bepreist",
+        "details": [],
+        "target": "Arbeiten"
+       },
+       {
+        "status": "gruen",
+        "title": "Anfahrt erfasst",
+        "details": [],
+        "target": "Arbeitszeit"
+       },
+       {
+        "status": "gruen",
+        "title": "Reisezeit erfasst",
+        "details": [],
+        "target": "Arbeitszeit"
+       }
+      ]
+     },
+     {
+      "title": "Material für Badumbau",
+      "status": "rot",
+      "counts": [
+       "rot 2",
+       "gruen 3"
+      ],
+      "rows": [
+       {
+        "status": "rot",
+        "title": "Material erfasst",
+        "details": [
+         "Kein Material erfasst."
+        ],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "rot",
+        "title": "Wandverkleidung vollständig",
+        "details": [
+         "Dekor / Farbe fehlt.",
+         "Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner)."
+        ],
+        "target": "Wandverkleidung"
+       },
+       {
+        "status": "gruen",
+        "title": "Alle Positionen mit Artikel-ID",
+        "details": [],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Alle Positionen bepreist",
+        "details": [],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Duschwanne mit Abtrennung",
+        "details": [],
+        "target": "Duschwanne"
+       }
+      ]
+     },
+     {
+      "title": "Optionale Produkte",
+      "status": "gruen",
+      "counts": [
+       "gruen 1"
+      ],
+      "rows": [
+       {
+        "status": "gruen",
+        "title": "Optionale Produkte mit Menge",
+        "details": [],
+        "target": "Optional"
+       }
+      ]
+     }
+    ],
+    "empty": ""
+   },
+   "answers": []
+  },
+  {
+   "name": "winwall wall and a row with an invalid decor",
+   "setup": [
+    [
+     "az",
+     "25",
+     "030"
+    ],
+    [
+     "wall"
+    ],
+    [
+     "wvkind",
+     "Deckenhoch"
+    ],
+    [
+     "wwrow",
+     "23014"
+    ]
+   ],
+   "offer": {
+    "wandverkleidung": {
+     "wvEnabled": true,
+     "wvUi": "",
+     "wvSupplier": "ww",
+     "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
+     "wvArea": "",
+     "wvKSituation": "wand",
+     "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS203\",\"auto\":[\"WS203|15\"]}",
+     "wvKLinks": "",
+     "wvKBack": "170",
+     "wvKRechts": "",
+     "wvKHoehe": "",
+     "wvKQty": "",
+     "wvWwDecor": "custom",
+     "wvWwDecorCustom": "23014",
+     "wvWwRows": "[{\"code\":\"WS203\",\"fmt\":\"15\",\"qty\":2},{\"code\":null,\"fmt\":\"15\",\"qty\":1,\"custom\":true,\"text\":\"23014\"}]",
+     "wvWwQty_13": "0",
+     "wvWwQty_15": "2",
+     "wvWwQty_16": "0",
+     "wvWwQty_17": "0",
+     "wvWwAccManual": "",
+     "wvWwQty_WS80110": "0",
+     "wvWwQty_WS80111": "0",
+     "wvWwQty_WS80112": "0",
+     "wvWw_WS80113": "on",
+     "wvWwQty_WS80113": "1",
+     "wvWw_R_4260602": "on",
+     "wvWwQty_R_4260602": "4",
+     "wvWwSealing": "on",
+     "wvWwSealingQty": "",
+     "wvSketchDataUrl": "",
+     "wvSketchJson": "",
+     "wvNote": "",
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "wvColor": "",
+     "wvSonderConfigNr": "",
+     "wvSealingSelected": false,
+     "wvFlachenSelected": false,
+     "wvEndProfileSelected": false,
+     "wvSilikonSelected": false,
+     "wvV3VSelected": false,
+     "wvColor_997": "",
+     "wvColor_1497": "",
+     "panelConfigs": {
+      "997x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      },
+      "1497x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      }
+     }
+    },
+    "Arbeitszeit": {
+     "totalHoursHHMM": "8:00",
+     "totalHoursNumeric": 8,
+     "ReiseHoursNumeric": 1,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:30",
+     "distanceKm": "25",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 69.5,
+      "travelSecondWorkerCost": 35,
+      "totalCost": 1077.5
+     }
+    },
+    "materials": []
+   },
+   "price": {
+    "services": {
+     "sum": 1187,
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "kilometer",
+       "label": "- 50 km Kilometerpauschale ",
+       "amount": 17.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "reisezeit",
+       "label": "- 1,00 Std Anfahrt × (69,50 € + 35,00 €)",
+       "qty": 1,
+       "unit": "Std",
+       "unitPrice": 104.5,
+       "amount": 104.5,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ]
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "kilometer",
+       "label": "- 50 km Kilometerpauschale ",
+       "amount": 17.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "reisezeit",
+       "label": "- 1,00 Std Anfahrt × (69,50 € + 35,00 €)",
+       "qty": 1,
+       "unit": "Std",
+       "unitPrice": 104.5,
+       "amount": 104.5,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1187,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 50,
+     "laborHours": 7,
+     "reiseHours": 1,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 2,
+      "totalHoursOverall": 16,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 1,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 8,
+        "onSiteCost": 486.5,
+        "travelCost": 69.5,
+        "totalCost": 556
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 1,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 8,
+        "onSiteCost": 486.5,
+        "travelCost": 35,
+        "totalCost": 521.5
+       }
+      ]
+     }
+    },
+    "materials": {
+     "sum": 441.87,
+     "lines": [
+      {
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 441.87,
+     "lines": [
+      {
+       "productId": "WS20315",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Marmor weiß (WS 203)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    }
+   },
+   "view": {
+    "heading": "Angebotscheck",
+    "text": "Regelbasierte Prüfung: passt die Auswahl zum Angebot?",
+    "status": "gelb",
+    "head": "Gesamtstatus: Bitte prüfen",
+    "groups": [
+     {
+      "title": "Auszuführende Arbeiten",
+      "status": "gelb",
+      "counts": [
+       "gelb 1",
+       "gruen 5"
+      ],
+      "rows": [
+       {
+        "status": "gelb",
+        "title": "Umbauart gewählt",
+        "details": [
+         "Keine Umbauart gewählt – Arbeiten werden nicht automatisch angehakt."
+        ],
+        "target": "Arbeiten",
+        "ack": {
+         "id": "umbauart",
+         "on": false
+        }
+       },
+       {
+        "status": "gruen",
+        "title": "Aufschlag",
+        "details": [],
+        "target": "rabatt"
+       },
+       {
+        "status": "gruen",
+        "title": "Arbeitspositionen erfasst",
+        "details": [],
+        "target": "Arbeiten"
+       },
+       {
+        "status": "gruen",
+        "title": "Arbeitspositionen bepreist",
+        "details": [],
+        "target": "Arbeiten"
+       },
+       {
+        "status": "gruen",
+        "title": "Anfahrt erfasst",
+        "details": [],
+        "target": "Arbeitszeit"
+       },
+       {
+        "status": "gruen",
+        "title": "Reisezeit erfasst",
+        "details": [],
+        "target": "Arbeitszeit"
+       }
+      ]
+     },
+     {
+      "title": "Material für Badumbau",
+      "status": "gruen",
+      "counts": [
+       "gruen 5"
+      ],
+      "rows": [
+       {
+        "status": "gruen",
+        "title": "Material erfasst",
+        "details": [],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Alle Positionen mit Artikel-ID",
+        "details": [],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Alle Positionen bepreist",
+        "details": [],
+        "target": "Duschwanne"
+       },
+       {
+        "status": "gruen",
+        "title": "Wandverkleidung vollständig",
+        "details": [],
+        "target": "Wandverkleidung"
        },
        {
         "status": "gruen",

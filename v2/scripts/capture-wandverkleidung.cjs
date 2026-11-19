@@ -56,6 +56,7 @@ const SCENARIOS = {
   "corner profile by quantity": [ON, ROW, ["accqty", "WS80111", "+"], ["accqty", "WS80111", "+"]],
   "suggested adhesive switched off": [ON, ROW, ["qty", 1, "+"], ["acc", "R_4260602"]],
   "suggested profile changed, then another plate": [ON, ROW, ["qty", 1, "+"], ["accqty", "WS80113", "+"], ["qty", 1, "+"]],
+  "suggested adhesive changed, then another row": [ON, ROW, ["accqty", "R_4260602", "-"], ROW], // main ca43ed48: stays as set by hand
   "no sealing set": [ON, ROW, ["seal"]],
   "sealing sets by hand": [ON, ROW, ["qty", 1, "+"], ["qty", 1, "+"], ["sealqty", "3"]],
   "cutting by winwall": [ON, ROW, ["cut"]],

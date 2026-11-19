@@ -44,7 +44,8 @@
      "room": true,
      "empty": true
     },
-    "rows": []
+    "rows": [],
+    "sealing": "nach Wandfläche · automatisch"
    }
   },
   {
@@ -110,7 +111,8 @@
      "room": true,
      "empty": false
     },
-    "rows": []
+    "rows": [],
+    "sealing": "nach Wandfläche · automatisch"
    }
   },
   {
@@ -182,7 +184,8 @@
      "room": true,
      "empty": false
     },
-    "rows": []
+    "rows": [],
+    "sealing": "nach Wandfläche · automatisch"
    }
   },
   {
@@ -271,7 +274,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,5 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -360,7 +364,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,5 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -441,7 +446,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 2,5 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -537,7 +543,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 6,5 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -618,7 +625,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 2,38 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -654,7 +662,7 @@
     "wvWwQty_15": "2",
     "wvWwQty_16": "1",
     "wvWwQty_R_4260602": "6",
-    "wvWwQty_WS80113": "2",
+    "wvWwQty_WS80113": "1",
     "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":2},{\"code\":\"WS229\",\"fmt\":\"16\",\"qty\":1}]",
     "wvWw_R_4260602": "on",
     "wvWw_WS80113": "on"
@@ -725,7 +733,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 8 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -757,7 +766,8 @@
    "wandverkleidung": {
     "wvEnabled": true,
     "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[]}",
-    "wvWwRows": "[]"
+    "wvWwQty_WS80113": "1",
+    "wvWw_WS80113": "on"
    },
    "duschwanne": {},
    "arbeitszeit": {},
@@ -792,7 +802,8 @@
      "room": true,
      "empty": true
     },
-    "rows": []
+    "rows": [],
+    "sealing": "nach Wandfläche · automatisch"
    }
   },
   {
@@ -890,7 +901,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,5 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1018,7 +1030,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 7,5 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -1146,7 +1159,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 7,5 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -1276,7 +1290,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 7,5 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -1424,7 +1439,8 @@
       "qty": "4",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 8,75 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -1543,7 +1559,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,25 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1637,7 +1654,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 3,6 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1731,7 +1749,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 2,16 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1825,7 +1844,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,68 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1919,7 +1939,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 3,6 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -1957,7 +1978,7 @@
     "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
     "wvWwQty_15": "4",
     "wvWwQty_R_4260602": "8",
-    "wvWwQty_WS80113": "3",
+    "wvWwQty_WS80113": "1",
     "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":3},{\"code\":\"WS203\",\"fmt\":\"15\",\"qty\":1}]",
     "wvWw_R_4260602": "on",
     "wvWw_WS80113": "on"
@@ -2028,7 +2049,8 @@
       "qty": "1",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 9,5 m² → 2 × 5 m² · automatisch"
    }
   },
   {
@@ -2127,7 +2149,8 @@
       "qty": "2",
       "open": false
      }
-    ]
+    ],
+    "sealing": "nach Wandfläche 4,75 m² → 1 × 5 m² · automatisch"
    }
   },
   {
@@ -2197,7 +2220,451 @@
      "room": false,
      "empty": false
     },
-    "rows": []
+    "rows": [],
+    "sealing": "nach Wandfläche · automatisch"
+   }
+  },
+  {
+   "name": "wall rows, then a plate more by hand",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "width",
+     "back",
+     "180"
+    ],
+    [
+     "wall",
+     "back"
+    ],
+    [
+     "decor",
+     "back",
+     "WS229"
+    ],
+    [
+     "qty",
+     1,
+     "+"
+    ]
+   ],
+   "wandverkleidung": {
+    "wvEnabled": true,
+    "wvKBack": "180",
+    "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
+    "wvWwQty_15": "3",
+    "wvWwQty_R_4260602": "6",
+    "wvWwQty_WS80113": "1",
+    "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":3}]",
+    "wvWw_R_4260602": "on",
+    "wvWw_WS80113": "on"
+   },
+   "duschwanne": {},
+   "arbeitszeit": {},
+   "view": {
+    "note": "winwall-Platten gibt es 100, 125 und 150 cm breit, 205 oder 250 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.",
+    "sit": "wand",
+    "view": "room",
+    "walls": [
+     {
+      "key": "back",
+      "letter": "A",
+      "name": "Rückwand",
+      "sub": "",
+      "decor": "Struktur steingrau",
+      "width": "180",
+      "open": false
+     }
+    ],
+    "tilesUnder": [],
+    "sameButton": false,
+    "tileActive": [],
+    "height": "",
+    "warn": "",
+    "cutList": "1 Schnitt vor Ort Geliefert werden 2 Paneele ungeschnitten (2 × 100×250 cm). Breite: Platte 2 auf 80 cm (Verschnitt 20 cm Breite).",
+    "drawing": {
+     "pieces": [
+      {
+       "plate": "1",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "2",
+       "cut": true,
+       "textured": true
+      }
+     ],
+     "marks": [
+      "1100",
+      "280"
+     ],
+     "badges": [
+      "A"
+     ],
+     "heightLabel": "",
+     "room": true,
+     "empty": false
+    },
+    "rows": [
+     {
+      "title": "Struktur steingrau · WS 229",
+      "fmt": "15",
+      "qty": "3",
+      "open": false
+     }
+    ],
+    "sealing": "nach Wandfläche 7 m² → 2 × 5 m² · automatisch"
+   }
+  },
+  {
+   "name": "wall rows, profile set by hand, then the width again",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "width",
+     "back",
+     "180"
+    ],
+    [
+     "wall",
+     "back"
+    ],
+    [
+     "decor",
+     "back",
+     "WS229"
+    ],
+    [
+     "accqty",
+     "WS80113",
+     "+"
+    ],
+    [
+     "width",
+     "back",
+     "280"
+    ]
+   ],
+   "wandverkleidung": {
+    "wvEnabled": true,
+    "wvKBack": "280",
+    "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
+    "wvWwAccManual": "WS80113",
+    "wvWwQty_15": "3",
+    "wvWwQty_R_4260602": "6",
+    "wvWwQty_WS80113": "2",
+    "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":3}]",
+    "wvWw_R_4260602": "on",
+    "wvWw_WS80113": "on"
+   },
+   "duschwanne": {},
+   "arbeitszeit": {},
+   "view": {
+    "note": "winwall-Platten gibt es 100, 125 und 150 cm breit, 205 oder 250 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.",
+    "sit": "wand",
+    "view": "room",
+    "walls": [
+     {
+      "key": "back",
+      "letter": "A",
+      "name": "Rückwand",
+      "sub": "",
+      "decor": "Struktur steingrau",
+      "width": "280",
+      "open": false
+     }
+    ],
+    "tilesUnder": [],
+    "sameButton": false,
+    "tileActive": [],
+    "height": "",
+    "warn": "",
+    "cutList": "1 Schnitt vor Ort Geliefert werden 3 Paneele ungeschnitten (3 × 100×250 cm). Breite: Platte 3 auf 80 cm (Verschnitt 20 cm Breite).",
+    "drawing": {
+     "pieces": [
+      {
+       "plate": "1",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "2",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "3",
+       "cut": true,
+       "textured": true
+      }
+     ],
+     "marks": [
+      "1100",
+      "2100",
+      "380"
+     ],
+     "badges": [
+      "A"
+     ],
+     "heightLabel": "",
+     "room": true,
+     "empty": false
+    },
+    "rows": [
+     {
+      "title": "Struktur steingrau · WS 229",
+      "fmt": "15",
+      "qty": "3",
+      "open": false
+     }
+    ],
+    "sealing": "nach Wandfläche 7 m² → 2 × 5 m² · automatisch"
+   }
+  },
+  {
+   "name": "wall rows, adhesive set by hand, then the width again",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "width",
+     "back",
+     "180"
+    ],
+    [
+     "wall",
+     "back"
+    ],
+    [
+     "decor",
+     "back",
+     "WS229"
+    ],
+    [
+     "accqty",
+     "R_4260602",
+     "-"
+    ],
+    [
+     "width",
+     "back",
+     "280"
+    ]
+   ],
+   "wandverkleidung": {
+    "wvEnabled": true,
+    "wvKBack": "280",
+    "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
+    "wvWwAccManual": "R_4260602",
+    "wvWwQty_15": "3",
+    "wvWwQty_R_4260602": "3",
+    "wvWwQty_WS80113": "1",
+    "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":3}]",
+    "wvWw_R_4260602": "on",
+    "wvWw_WS80113": "on"
+   },
+   "duschwanne": {},
+   "arbeitszeit": {},
+   "view": {
+    "note": "winwall-Platten gibt es 100, 125 und 150 cm breit, 205 oder 250 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.",
+    "sit": "wand",
+    "view": "room",
+    "walls": [
+     {
+      "key": "back",
+      "letter": "A",
+      "name": "Rückwand",
+      "sub": "",
+      "decor": "Struktur steingrau",
+      "width": "280",
+      "open": false
+     }
+    ],
+    "tilesUnder": [],
+    "sameButton": false,
+    "tileActive": [],
+    "height": "",
+    "warn": "",
+    "cutList": "1 Schnitt vor Ort Geliefert werden 3 Paneele ungeschnitten (3 × 100×250 cm). Breite: Platte 3 auf 80 cm (Verschnitt 20 cm Breite).",
+    "drawing": {
+     "pieces": [
+      {
+       "plate": "1",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "2",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "3",
+       "cut": true,
+       "textured": true
+      }
+     ],
+     "marks": [
+      "1100",
+      "2100",
+      "380"
+     ],
+     "badges": [
+      "A"
+     ],
+     "heightLabel": "",
+     "room": true,
+     "empty": false
+    },
+    "rows": [
+     {
+      "title": "Struktur steingrau · WS 229",
+      "fmt": "15",
+      "qty": "3",
+      "open": false
+     }
+    ],
+    "sealing": "nach Wandfläche 7 m² → 2 × 5 m² · automatisch"
+   }
+  },
+  {
+   "name": "corner, two walls, a plate more by hand",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "sit",
+     "ecke"
+    ],
+    [
+     "width",
+     "links",
+     "120"
+    ],
+    [
+     "width",
+     "back",
+     "180"
+    ],
+    [
+     "wall",
+     "links"
+    ],
+    [
+     "decor",
+     "links",
+     "WS229"
+    ],
+    [
+     "decor",
+     "back",
+     "WS229"
+    ],
+    [
+     "qty",
+     1,
+     "+"
+    ]
+   ],
+   "wandverkleidung": {
+    "wvEnabled": true,
+    "wvKBack": "180",
+    "wvKLinks": "120",
+    "wvKSituation": "ecke",
+    "wvWallDecor": "{\"line\":\"ww\",\"links\":\"WS229\",\"auto\":[\"WS229|15\",\"WS229|16\"],\"back\":\"WS229\"}",
+    "wvWwQty_15": "3",
+    "wvWwQty_16": "1",
+    "wvWwQty_R_4260602": "8",
+    "wvWwQty_WS80113": "1",
+    "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":3},{\"code\":\"WS229\",\"fmt\":\"16\",\"qty\":1}]",
+    "wvWw_R_4260602": "on",
+    "wvWw_WS80113": "on"
+   },
+   "duschwanne": {},
+   "arbeitszeit": {},
+   "view": {
+    "note": "winwall-Platten gibt es 100, 125 und 150 cm breit, 205 oder 250 cm hoch. Wandsituation wählen und die Breiten eintragen — der Rechner wählt die im Einkauf günstigste Kombination.",
+    "sit": "ecke",
+    "view": "room",
+    "walls": [
+     {
+      "key": "links",
+      "letter": "A",
+      "name": "Linke Wand",
+      "sub": "",
+      "decor": "Struktur steingrau",
+      "width": "120",
+      "open": false
+     },
+     {
+      "key": "back",
+      "letter": "B",
+      "name": "Rückwand",
+      "sub": "",
+      "decor": "Struktur steingrau",
+      "width": "180",
+      "open": false
+     }
+    ],
+    "tilesUnder": [],
+    "sameButton": false,
+    "tileActive": [],
+    "height": "",
+    "warn": "",
+    "cutList": "2 Schnitte vor Ort Geliefert werden 3 Paneele ungeschnitten (2 × 100×250 + 1 × 125×250 cm). Breite: Platte 1 auf 120 cm, Platte 3 auf 80 cm (Verschnitt 25 cm Breite).",
+    "drawing": {
+     "pieces": [
+      {
+       "plate": "2",
+       "cut": false,
+       "textured": true
+      },
+      {
+       "plate": "3",
+       "cut": true,
+       "textured": true
+      },
+      {
+       "plate": "1",
+       "cut": true,
+       "textured": true
+      }
+     ],
+     "marks": [
+      "2100",
+      "380",
+      "1120"
+     ],
+     "badges": [
+      "B",
+      "A"
+     ],
+     "heightLabel": "",
+     "room": true,
+     "empty": false
+    },
+    "rows": [
+     {
+      "title": "Struktur steingrau · WS 229",
+      "fmt": "15",
+      "qty": "3",
+      "open": false
+     },
+     {
+      "title": "Struktur steingrau · WS 229",
+      "fmt": "16",
+      "qty": "1",
+      "open": false
+     }
+    ],
+    "sealing": "nach Wandfläche 10 m² → 2 × 5 m² · automatisch"
    }
   }
  ]

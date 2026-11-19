@@ -5883,6 +5883,1455 @@
     }
    },
    "acts": []
+  },
+  {
+   "name": "Neukundenbonus ticked",
+   "type": "bu",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ]
+   ],
+   "rb": [
+    [
+     "big"
+    ],
+    [
+     "rabatt"
+    ],
+    [
+     "b300"
+    ]
+   ],
+   "price": {
+    "items": [],
+    "materials": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 40,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 7033.6,
+       "label": "- 40 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 40 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ],
+     "sum": 7128.16,
+     "vigorPriceDrift": null,
+     "grabCounts": {
+      "cl30": 0,
+      "cl40": 0,
+      "cl60": 0,
+      "cl80": 0,
+      "total": 0,
+      "freeId": null,
+      "refUnit": null
+     }
+    },
+    "productsSubtotal": 7128.16,
+    "services": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "Nettobetrag": 11757.24,
+    "markupPct": 0.5,
+    "markup": 3564.08,
+    "markupBase": 7128.16,
+    "markupExemptIds": [],
+    "vatOnNet": 2193.96,
+    "taxRate": 0.19,
+    "total": 13741.12,
+    "netAfterRabatt_and_Bonus": 11547.16,
+    "netAfterRabatt": 11757.24,
+    "materialDiscountPct": 0,
+    "rabattAmount": 0,
+    "totalAfterRabatt": 13991.12,
+    "baseVat": 2233.88,
+    "base_total": 13991.12,
+    "bonusGross": 210.08,
+    "bonusNeuNet": 210.08,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000,
+    "bonusNeuLegacy": false,
+    "grabBonusMaterial": 0,
+    "grabBonusArbeit": 0,
+    "grabBonusReal": 0,
+    "bonusFlags": {
+     "bonus_neu": true,
+     "bonus_Haltegriff": false
+    },
+    "flags": {
+     "bonus_neu": true,
+     "bonus_Haltegriff": false
+    },
+    "subsidyKind": "",
+    "subsidyInput": 0,
+    "subsidyAmount": 0,
+    "prior": 0,
+    "subsidyAmount_max": 0,
+    "selfPayAmount": 13741.12,
+    "selectedTray": null,
+    "supplierCodes": {
+     "wv": null,
+     "dw": null
+    },
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 7128.16,
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 40,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 7033.6,
+       "label": "- 40 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 40 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ]
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "materialsDisplayDocx": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 40,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 7033.6,
+       "label": "- 40 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 40 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ]
+    },
+    "servicesDisplayDocx": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "priceAdjustments": {
+     "services": 0,
+     "material": 0
+    },
+    "material_afterRabatt_and_aufschlag": 6918.08,
+    "bwtIncludedDisplayUI": [],
+    "material_plus_aufschlag": 10692.24
+   },
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-19",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "",
+     "city": "",
+     "state": "",
+     "postalCode": "",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {
+     "tray_w_cm": "",
+     "tray_l_cm": "",
+     "tray_h_cm": "",
+     "chosenTrayProductId": null,
+     "traySize": "",
+     "trayColor": "Weiss",
+     "stelzlagerQty": "8",
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": "",
+     "floorArea": "",
+     "addWallCladding": "on",
+     "wallCladdingSupplier": "hm",
+     "wallCladdingArea": "4,5",
+     "wallCladdingWwQty": "",
+     "wallCladdingWwDecorCustom": "",
+     "wallCladdingWwDecor": "WS203",
+     "wallCladdingLeftoverM2": "",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "40",
+     "wallCladdingColor": "Marmor weiß",
+     "computed": {
+      "areaM2": 0,
+      "adhesive": {
+       "productId": "R_4260602",
+       "packs": 0,
+       "unit": 0,
+       "total": 0
+      },
+      "sealing": {
+       "productId": "TRBDSET7",
+       "sets": 0,
+       "unit": 0,
+       "total": 0
+      }
+     },
+     "manualTasks": [],
+     "addFlooring": false,
+     "ebenerdigeMontage": true,
+     "chosenBathtubProductId": null,
+     "bathtubSize": "",
+     "wannenaufsatzProductId": null,
+     "chosenBathtubName": null,
+     "chosenBathtubPrice": null,
+     "chosenScreenName": null,
+     "chosenScreenPrice": null,
+     "chosenBathtubDesc": null,
+     "chosenScreenDesc": null,
+     "wanneZubehoer": [],
+     "trayEnabled": false
+    },
+    "rabatt": {
+     "sonderaufschlagValue": "50",
+     "rb-add-rabatt": "ja",
+     "rabattEnabled": true,
+     "materialDiscountPct": 0,
+     "bonus300": true,
+     "bonusGrab": false
+    },
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:00",
+     "totalHoursNumeric": 7,
+     "ReiseHoursNumeric": 0,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "",
+     "distanceKm": "",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:36",
+     "autoSuggestedHoursNumeric": 0.6,
+     "autoSuggestedTasks": [
+      {
+       "key": "wallCladdingFloor",
+       "label": "Fußboden (Wandverkleidung)",
+       "minutes": 8,
+       "qty": 4.5
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 0,
+      "travelSecondWorkerCost": 0,
+      "totalCost": 973
+     }
+    },
+    "postal": {
+     "auftragId": "",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "",
+      "zipCode": "",
+      "city": "",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1119-121254 zum Badumbau",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-121254\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    }
+   },
+   "view": {
+    "title": "Angebot per E-Mail senden",
+    "antrag": {
+     "label": "Antrag bei Pflegekasse bereits gestellt (Hinweis zur Antragsstellung im Text weglassen)",
+     "checked": false
+    },
+    "deal": {
+     "label": "Lead ID / Auftrag ID",
+     "value": "",
+     "placeholder": "z.B. 12345"
+    },
+    "to": {
+     "label": "Empfänger E-Mail",
+     "value": "kunde@example.test"
+    },
+    "cc": {
+     "label": "CC (z.B. Ansprechpartner)",
+     "value": ""
+    },
+    "subject": {
+     "label": "Betreff",
+     "value": "emc2 | Ihr Angebot <number> zum Badumbau"
+    },
+    "body": {
+     "label": "E-Mail-Text",
+     "value": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot <number>\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF",
+      "fixed": true
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default",
+      "fixed": false
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default",
+      "fixed": false
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default",
+      "fixed": false
+     }
+    ],
+    "count": "4 Dateien",
+    "preview": {
+     "text": "Sehr geehrte Frau Muster,vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:Ihr Angebot <number>Abtretungserklärung zur Abrechnung mit der KrankenkasseVollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XIUnseren aktuellen Flyer \"Barrierefreies Wohnen\"Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:(Ihr persönlicher Link wird beim Versand automatisch eingefügt)Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.Bei Rückfragen stehe ich Ihnen gerne zur Verfügung. -- Freundliche Grüße Capture Ihr Team von emc2 ______________________________ EmC2 Attila Landgrafe Waldstr. 5 / 95032 Hof Tel.: +49 9281 5915900 Fax: +49 9281 5915909 Mail: service@e-m-c-2.de Web: www.emczwei.de Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.",
+     "links": [
+      "mailto:service@e-m-c-2.de",
+      "mailto:service@e-m-c-2.de",
+      "https://www.emczwei.de"
+     ],
+     "lists": [
+      "ul 4",
+      "ol 4"
+     ],
+     "bold": [
+      "Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:"
+     ]
+    }
+   },
+   "acts": []
+  },
+  {
+   "name": "Neukundenbonus ticked, the total below the threshold",
+   "type": "bu",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ]
+   ],
+   "rb": [
+    [
+     "big"
+    ],
+    [
+     "rabatt"
+    ],
+    [
+     "b300"
+    ],
+    [
+     "small"
+    ]
+   ],
+   "price": {
+    "items": [],
+    "materials": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 351.68,
+       "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 2 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ],
+     "sum": 446.24,
+     "vigorPriceDrift": null,
+     "grabCounts": {
+      "cl30": 0,
+      "cl40": 0,
+      "cl60": 0,
+      "cl80": 0,
+      "total": 0,
+      "freeId": null,
+      "refUnit": null
+     }
+    },
+    "productsSubtotal": 446.24,
+    "services": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "Nettobetrag": 1734.36,
+    "markupPct": 0.5,
+    "markup": 223.12,
+    "markupBase": 446.24,
+    "markupExemptIds": [],
+    "vatOnNet": 329.53,
+    "taxRate": 0.19,
+    "total": 2063.89,
+    "netAfterRabatt_and_Bonus": 1734.36,
+    "netAfterRabatt": 1734.36,
+    "materialDiscountPct": 0,
+    "rabattAmount": 0,
+    "totalAfterRabatt": 2063.89,
+    "baseVat": 329.53,
+    "base_total": 2063.89,
+    "bonusGross": 0,
+    "bonusNeuNet": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000,
+    "bonusNeuLegacy": false,
+    "grabBonusMaterial": 0,
+    "grabBonusArbeit": 0,
+    "grabBonusReal": 0,
+    "bonusFlags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "flags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "subsidyKind": "",
+    "subsidyInput": 0,
+    "subsidyAmount": 0,
+    "prior": 0,
+    "subsidyAmount_max": 0,
+    "selfPayAmount": 2063.89,
+    "selectedTray": null,
+    "supplierCodes": {
+     "wv": null,
+     "dw": null
+    },
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 446.24,
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 351.68,
+       "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 2 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ]
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "materialsDisplayDocx": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "V3WVK09",
+       "name": "Aluverbundplatte (Marmor weiß)",
+       "color": "Marmor weiß",
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 175.84,
+       "lineTotal": 351.68,
+       "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+       "labelLines": [
+        "- 2 Stk Aluverbundplatte (Marmor weiß)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": "V3WVK09",
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 8,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 94.56,
+       "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+       "labelLines": [
+        "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Fußboden"
+      }
+     ]
+    },
+    "servicesDisplayDocx": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "priceAdjustments": {
+     "services": 0,
+     "material": 0
+    },
+    "material_afterRabatt_and_aufschlag": 446.2399999999999,
+    "bwtIncludedDisplayUI": [],
+    "material_plus_aufschlag": 669.3599999999999
+   },
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-19",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "",
+     "city": "",
+     "state": "",
+     "postalCode": "",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {
+     "tray_w_cm": "",
+     "tray_l_cm": "",
+     "tray_h_cm": "",
+     "chosenTrayProductId": null,
+     "traySize": "",
+     "trayColor": "Weiss",
+     "stelzlagerQty": "8",
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": "",
+     "floorArea": "",
+     "addWallCladding": "on",
+     "wallCladdingSupplier": "hm",
+     "wallCladdingArea": "4,5",
+     "wallCladdingWwQty": "",
+     "wallCladdingWwDecorCustom": "",
+     "wallCladdingWwDecor": "WS203",
+     "wallCladdingLeftoverM2": "",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "2",
+     "wallCladdingColor": "Marmor weiß",
+     "computed": {
+      "areaM2": 0,
+      "adhesive": {
+       "productId": "R_4260602",
+       "packs": 0,
+       "unit": 0,
+       "total": 0
+      },
+      "sealing": {
+       "productId": "TRBDSET7",
+       "sets": 0,
+       "unit": 0,
+       "total": 0
+      }
+     },
+     "manualTasks": [],
+     "addFlooring": false,
+     "ebenerdigeMontage": true,
+     "chosenBathtubProductId": null,
+     "bathtubSize": "",
+     "wannenaufsatzProductId": null,
+     "chosenBathtubName": null,
+     "chosenBathtubPrice": null,
+     "chosenScreenName": null,
+     "chosenScreenPrice": null,
+     "chosenBathtubDesc": null,
+     "chosenScreenDesc": null,
+     "wanneZubehoer": [],
+     "trayEnabled": false
+    },
+    "rabatt": {
+     "sonderaufschlagValue": "50",
+     "rb-add-rabatt": "ja",
+     "rabattEnabled": true,
+     "materialDiscountPct": 0,
+     "bonus300": true,
+     "bonusGrab": false
+    },
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:00",
+     "totalHoursNumeric": 7,
+     "ReiseHoursNumeric": 0,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "",
+     "distanceKm": "",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:36",
+     "autoSuggestedHoursNumeric": 0.6,
+     "autoSuggestedTasks": [
+      {
+       "key": "wallCladdingFloor",
+       "label": "Fußboden (Wandverkleidung)",
+       "minutes": 8,
+       "qty": 4.5
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 0,
+      "travelSecondWorkerCost": 0,
+      "totalCost": 973
+     }
+    },
+    "postal": {
+     "auftragId": "",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "",
+      "zipCode": "",
+      "city": "",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1119-121307 zum Badumbau",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-121307\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    }
+   },
+   "view": {
+    "title": "Angebot per E-Mail senden",
+    "antrag": {
+     "label": "Antrag bei Pflegekasse bereits gestellt (Hinweis zur Antragsstellung im Text weglassen)",
+     "checked": false
+    },
+    "deal": {
+     "label": "Lead ID / Auftrag ID",
+     "value": "",
+     "placeholder": "z.B. 12345"
+    },
+    "to": {
+     "label": "Empfänger E-Mail",
+     "value": "kunde@example.test"
+    },
+    "cc": {
+     "label": "CC (z.B. Ansprechpartner)",
+     "value": ""
+    },
+    "subject": {
+     "label": "Betreff",
+     "value": "emc2 | Ihr Angebot <number> zum Badumbau"
+    },
+    "body": {
+     "label": "E-Mail-Text",
+     "value": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot <number>\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF",
+      "fixed": true
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default",
+      "fixed": false
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default",
+      "fixed": false
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default",
+      "fixed": false
+     }
+    ],
+    "count": "4 Dateien",
+    "preview": {
+     "text": "Sehr geehrte Frau Muster,vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:Ihr Angebot <number>Abtretungserklärung zur Abrechnung mit der KrankenkasseVollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XIUnseren aktuellen Flyer \"Barrierefreies Wohnen\"Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:(Ihr persönlicher Link wird beim Versand automatisch eingefügt)Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.Bei Rückfragen stehe ich Ihnen gerne zur Verfügung. -- Freundliche Grüße Capture Ihr Team von emc2 ______________________________ EmC2 Attila Landgrafe Waldstr. 5 / 95032 Hof Tel.: +49 9281 5915900 Fax: +49 9281 5915909 Mail: service@e-m-c-2.de Web: www.emczwei.de Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.",
+     "links": [
+      "mailto:service@e-m-c-2.de",
+      "mailto:service@e-m-c-2.de",
+      "https://www.emczwei.de"
+     ],
+     "lists": [
+      "ul 4",
+      "ol 4"
+     ],
+     "bold": [
+      "Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:"
+     ]
+    }
+   },
+   "acts": []
   }
  ],
  "users": [

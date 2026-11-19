@@ -5,7 +5,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { BONUS_LINE, attachments, bodyDefault, bodyHtml, excluded, greetingLine, keptBody, mailChanges, subjectDefault, touchedOf, withBonusLine } from "../src/features/steps/versand/mail-rules.js";
+import { BONUS_LINE, attachments, bodyDefault, bonusKey, bonusNeuFor, bodyHtml, excluded, greetingLine, keptBody, mailChanges, subjectDefault, touchedOf, withBonusLine } from "../src/features/steps/versand/mail-rules.js";
 import reference from "./fixtures/versand-mail.json" with { type: "json" };
 import { BASE, fakeServer, openMore, renderApp } from "./helpers.js";
 
@@ -16,7 +16,7 @@ interface View {
   title: string; antrag: { label: string; checked: boolean }; deal: Labelled & { placeholder: string }; to: Labelled; cc: Labelled; subject: Labelled; body: Labelled;
   attachments: { name: string; meta: string; fixed: boolean }[]; count: string; preview: { text: string; links: string[]; lists: string[]; bold: string[] };
 }
-interface Scenario { name: string; type: string; offer: Obj; view: View; acts: { act: string[]; step: string; stored: Obj; view: View }[] }
+interface Scenario { name: string; type: string; offer: Obj; view: View; acts: { act: string[]; step: string; stored: Obj; view: View }[]; /** the discount ticked on the step Rabatt before (main d0528418) and the last price answer */ rb?: string[][]; price?: Obj }
 const SCENARIOS = reference.scenarios as unknown as Scenario[];
 const BASES = reference.bases as unknown as Record<string, Obj>;
 const NUM = /ANG\d{4}-\d{4}-\d{6}/g, NUMBER = "ANG2026-1116-093000";
@@ -40,7 +40,7 @@ afterEach(() => vi.restoreAllMocks());
 async function open(s: Scenario, payload = offerOf(s)) {
   // the sends of the offer are known and empty (as on the real server): a download renumbers only a number that was not sent (audit F5)
   fakeServer({ ...BASE, "GET /api/offers/*/sends": { body: { ok: true, sends: [] } }, "GET /api/deals/*/sends": { body: { ok: true, sends: [] } }, "GET /api/auth/me": { body: { user: { email: "capture@local.test", name: "Capture", role: "user" } } }, "GET /api/users": { body: reference.users }, "POST /docx-template": { body: {} },
-    [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } } });
+    [`GET /api/deals/${KEY}/draft`]: { body: { dealId: KEY, offerType: s.type, payload, revision: 3, updatedAt: "2026-11-12T10:00:00Z" } }, ...(s.price ? { "POST /api/price": { body: s.price } } : {}) });
   renderApp(`/deal/${KEY}/${s.type}/Zusammenfassung`);
   return screen.findByTestId("zf-mail");
 }
@@ -62,7 +62,14 @@ function shown(): View {
 
 describe("the mail form shows and stores what today's UI does", () => {
   it.each(SCENARIOS.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, s) => {
-    await open(s);
+    if (s.rb) {
+      // the same session as the recording: the discount was ticked on the step Rabatt a moment ago, the text
+      // is not stored yet. The tick wrote it with the price answer from before the tick: bonus300 was false
+      // there, so flags.bonus_neu false (pricing: flags.bonus_neu = !!rabatt.bonus300) — what Rabatt.tsx remembers.
+      const { mail: _m, ...payload } = offerOf(s);
+      await open(s, payload);
+      useOfferStore.getState().remember("mailBonusNeuAt", { flag: false, key: bonusKey(offer(), false) });
+    } else await open(s);
     await waitFor(() => expect(shown()).toEqual(s.view));
     const user = userEvent.setup(), before = structuredClone(offer());
     for (const a of s.acts) {
@@ -103,6 +110,12 @@ describe("the mail form — rules and what goes beyond the recordings", () => {
     expect(withBonus).toContain(`• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n${BONUS_LINE}\n`);
     expect(withBonusLine(withBonus, o({}))).toBe(hand);
     expect(withBonusLine("Guten Tag", o({ rabattEnabled: true, bonus300: true }))).toBe("Guten Tag"); // no list to put it in
+    // main d0528418: ticked but not granted by the price (flags.bonus_neu false) → not advertised; no price yet → as ticked
+    expect([bodyDefault(o({ rabattEnabled: true, bonus300: true }), false, false).includes(BONUS_LINE), bodyDefault(o({ rabattEnabled: true, bonus300: true }), false, true).includes(BONUS_LINE), bodyDefault(o({ rabattEnabled: true, bonus300: true }), false, undefined).includes(BONUS_LINE)]).toEqual([false, true, true]);
+    expect(withBonusLine(withBonus, o({ rabattEnabled: true, bonus300: true }), false)).toBe(hand);
+    // the flag the text is written with: the one seen at the last discount tick, until something else rewrites the text
+    const at = { flag: false, key: bonusKey(o({}), false) };
+    expect([bonusNeuFor(true, at, bonusKey(o({}), false)), bonusNeuFor(true, at, bonusKey(o({}), true)), bonusNeuFor(undefined, null, "x"), bonusNeuFor(false, null, "x")]).toEqual([false, true, undefined, false]);
   });
 
   it("greeting: the partner of a two-person offer comes before a contact person; without a name: Mustermann", () => {

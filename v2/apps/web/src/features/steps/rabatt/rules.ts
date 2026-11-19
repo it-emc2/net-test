@@ -5,11 +5,15 @@
 //  - the discount on materials (0–9 %) is only for Kassenkunde with a markup of at least 50 %;
 //    when that no longer holds, a discount that was set goes back to 0
 //  - the Neukundenbonus is offered only above the offer's threshold (the total after the
-//    discount); below it a ticked bonus is unticked. Offers from before the bonus was a setting
-//    keep their old rule (300 € from 3.000 €) and are never unticked
+//    discount); below it the row is hidden, but a ticked bonus STAYS ticked — the price leaves it
+//    out (`flags.bonus_neu`) and the mail does not advertise it (main d0528418: unticking off one
+//    price answer lost the bonus on reopening). Offers from before the bonus was a setting keep
+//    their old rule (300 € from 3.000 €)
 //  - the free grab bar is offered only while an eligible grab bar is in the offer; the list of
 //    eligible bars is stored with the offer once the bonus is given, so a later change of the
-//    setting does not change this offer
+//    setting does not change this offer. A ticked free grab bar is unticked only when the price
+//    has no eligible bar AND the offer itself has none either (main b806c0e8: a stale price
+//    answer on reopening dropped it)
 //  - all sums come from the price; nothing is calculated here
 import { parsePercent } from "../markup/rules.js";
 
@@ -57,6 +61,8 @@ export function grabOffered(price: Price | null, ids: readonly string[]): boolea
   const lines = ((price?.materials as { lines?: { productId?: string; id?: string; qty?: unknown }[] } | undefined)?.lines ?? []);
   return lines.some((l) => ids.includes(String(l.productId || l.id)) && n(l.qty) > 0);
 }
+/** an eligible grab bar in the offer itself (`optional.qty_<id>` above 0) — today's `formHasEligibleGrab` */
+export const grabInOffer = (optional: Fields | null | undefined, ids: readonly string[]): boolean => ids.some((id) => n(optional?.[`qty_${id}`]) > 0);
 
 // ---- changes (each returns the fields per section of the offer) ----
 type Changes = Record<string, Fields>;
@@ -76,9 +82,9 @@ export function corrections(offer: Record<string, Fields | undefined>, price: Pr
   const add = (c: Changes) => { for (const [k, v] of Object.entries(c)) out[k] = { ...(out[k] ?? {}), ...v }; };
   if (n(r.materialDiscountPct) !== 0 && !mayDiscountMaterials(kd.payer, kd.aufschlag)) add(setPercent(0));
   if (price) {
-    const bonus = newCustomerBonus(offer.pricingRules);
-    if (r.bonus300 === true && !bonus.legacy && !newCustomerBonusOffered(price, bonus)) add(setNewCustomerBonus(false));
-    if (r.bonusGrab === true && !grabOffered(price, grabIds(offer.pricingRules, config))) add(setGrabBonus(false, GRAB_DEFAULT));
+    // the Neukundenbonus is never unticked here (main d0528418)
+    const ids = grabIds(offer.pricingRules, config);
+    if (r.bonusGrab === true && !grabOffered(price, ids) && !grabInOffer(offer.optional, ids)) add(setGrabBonus(false, GRAB_DEFAULT));
   }
   return Object.keys(out).length ? out : null;
 }

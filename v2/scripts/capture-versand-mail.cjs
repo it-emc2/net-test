@@ -26,6 +26,10 @@ const CP = [...KUNDE, ["text", "emailCc", "cc@example.test"], ["radio", "hasCont
 //   ["tile", file name] removes an attachment · ["deal" | "to" | "cc" | "subject" | "body", text] typed by hand ·
 //   ["ap", email] another contact person · ["stamp"] "Angebot als DOCX" (the offer gets a new number) ·
 //   ["kd", ...step] a change on Kundendaten, then back to the page
+// set-up of the discount (`rb`, main d0528418 — the mail advertises the Neukundenbonus only while it is ticked AND
+//   the price grants it): ["big"] 40 wall panels as flooring · ["rabatt"] "Rabatt hinzufügen" · ["b300"] the Neukundenbonus ·
+//   ["small"] the panels down to 2 (below the threshold; the bonus stays ticked). Such scenarios keep the last price answer (`price`).
+// RESUME=1 ONLY="name|name" adds these scenarios to the finished recording.
 const SCENARIOS = {
   "new offer": {},
   "customer with e-mail": { setup: KUNDE },
@@ -49,6 +53,8 @@ const SCENARIOS = {
   "Badelift": { type: "bl", setup: KUNDE },
   "Alltagshilfe": { type: "ah", setup: KUNDE, acts: [["tile", "AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf"]] },
   "Alltagshilfe, Selbstzahler": { type: "ah", setup: [...KUNDE, ["radio", "payer", "Selbstzahler"]] },
+  "Neukundenbonus ticked": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"]] },
+  "Neukundenbonus ticked, the total below the threshold": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"], ["small"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;
@@ -67,8 +73,9 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
   const kept = [OUT + ".part", OUT].find((f) => fs.existsSync(f)); // …or add scenarios to a finished recording
   if (process.env.RESUME && kept) Object.assign(out, JSON.parse(fs.readFileSync(kept, "utf8")));
   const have = new Set(out.scenarios.map((x) => x.name));
-  for (const [name, { type = "bu", setup = [], acts = [] }] of Object.entries(SCENARIOS)) {
-    if (have.has(name)) continue;
+  const only = process.env.ONLY ? new Set(process.env.ONLY.split("|")) : null;
+  for (const [name, { type = "bu", setup = [], rb = [], acts = [] }] of Object.entries(SCENARIOS)) {
+    if (have.has(name) || (only && !only.has(name))) continue;
     const record = async () => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
       await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
@@ -97,8 +104,19 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
         }, [kind, f, v]);
         await page.waitForTimeout(80);
       };
+      let lastPrice = null;
+      page.on("response", async (res) => { if (res.ok() && new URL(res.url()).pathname === "/api/price" && res.request().method() === "POST") { try { lastPrice = await res.json(); } catch {} } });
       for (const st of setup) await kd(st);
       await page.waitForTimeout(600);
+      for (const [kind] of rb) {
+        if (kind === "big") { await go("Fussboden"); await page.locator("#page-Fussboden label.sec-switch:has(#fbMaster)").click(); await page.locator("#fbTabBtnWall").click(); await page.locator('#wcSupplierRow .wc-sup-btn[data-sup="hm"]').click(); await page.locator("#wallCladdingArea").fill("4,5"); await page.locator("#wallCladdingArea").blur(); await page.waitForTimeout(800); await page.locator('#wallCladdingCards .wvc-card[data-size="997"]').click(); await page.locator("#wallCladdingQtyInput").fill("40"); await page.locator("#wallCladdingQtyInput").blur(); }
+        else if (kind === "small") { await go("Fussboden"); await page.locator("#wallCladdingQtyInput").fill("2"); await page.locator("#wallCladdingQtyInput").blur(); }
+        else if (kind === "rabatt") { await go("Rabatt"); await page.locator('#page-Rabatt label:has(input[name="rb-add-rabatt"][value="ja"])').click(); }
+        else if (kind === "b300") { await go("Rabatt"); await page.locator("#page-Rabatt label:has(#rb-bonus-300)").click(); }
+        else throw new Error(`rb step not handled: ${kind}`);
+        await page.waitForTimeout(1300);
+      }
+      if (rb.length) { await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(900); }
       await go("Zusammenfassung");
       await page.waitForTimeout(1000);
       const NUM = /ANG\d{4}-\d{4}-\d{6}/g;
@@ -120,7 +138,7 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       const mask = (v) => JSON.parse(JSON.stringify(v).replace(NUM, "<number>"));
       const pick = (p) => ({ mail: p.mail, auftragId: p.auftragId, docSelection: p.docSelection, offerNumber: p.offerNumber });
       const offer = await page.evaluate(() => window.buildPayload());
-      const entry = { name, type, setup, offer: changed(base, offer), view: mask(await viewOf()), acts: [] };
+      const entry = { name, type, setup, ...(rb.length ? { rb, price: lastPrice } : {}), offer: changed(base, offer), view: mask(await viewOf()), acts: [] };
       for (const [kind, a, ...rest] of acts) {
         if (kind === "antrag") await page.locator('label:has(#mailAntragGestellt)').click();
         else if (kind === "doc") await page.locator(`#zfDocSelectionCard label.doc-select-row:has(#docSel_${a})`).click();

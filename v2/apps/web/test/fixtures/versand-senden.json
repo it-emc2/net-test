@@ -13124,6 +13124,3294 @@
      }
     }
    ]
+  },
+  {
+   "name": "winwall plates: no question about the wall cladding",
+   "type": "bu",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ],
+    [
+     "radio",
+     "vermieterGenehmigungErforderlich",
+     "Nein"
+    ]
+   ],
+   "wv": [
+    [
+     "wall"
+    ]
+   ],
+   "price": {
+    "items": [],
+    "materials": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ],
+     "sum": 441.87,
+     "vigorPriceDrift": null,
+     "grabCounts": {
+      "cl30": 0,
+      "cl40": 0,
+      "cl60": 0,
+      "cl80": 0,
+      "total": 0,
+      "freeId": null,
+      "refUnit": null
+     }
+    },
+    "productsSubtotal": 441.87,
+    "services": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "Nettobetrag": 1727.81,
+    "markupPct": 0.5,
+    "markup": 220.94,
+    "markupBase": 441.87,
+    "markupExemptIds": [],
+    "vatOnNet": 328.28,
+    "taxRate": 0.19,
+    "total": 2056.09,
+    "netAfterRabatt_and_Bonus": 1727.81,
+    "netAfterRabatt": 1727.81,
+    "materialDiscountPct": 0,
+    "rabattAmount": 0,
+    "totalAfterRabatt": 2056.09,
+    "baseVat": 328.28,
+    "base_total": 2056.09,
+    "bonusGross": 0,
+    "bonusNeuNet": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000,
+    "bonusNeuLegacy": false,
+    "grabBonusMaterial": 0,
+    "grabBonusArbeit": 0,
+    "grabBonusReal": 0,
+    "bonusFlags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "flags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "subsidyKind": "",
+    "subsidyInput": 0,
+    "subsidyAmount": 0,
+    "prior": 0,
+    "subsidyAmount_max": 0,
+    "selfPayAmount": 2056.09,
+    "selectedTray": null,
+    "supplierCodes": {
+     "wv": "WV-WW",
+     "dw": null
+    },
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 441.87,
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "materialsDisplayDocx": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "servicesDisplayDocx": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "priceAdjustments": {
+     "services": 0,
+     "material": 0
+    },
+    "material_afterRabatt_and_aufschlag": 441.86999999999995,
+    "bwtIncludedDisplayUI": [],
+    "material_plus_aufschlag": 662.81
+   },
+   "pre": [
+    [
+     "deal",
+     "65418"
+    ]
+   ],
+   "answers": [],
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-19",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "",
+     "city": "",
+     "state": "",
+     "postalCode": "",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "vermieterGenehmigungErforderlich": "Nein",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "wandverkleidung": {
+     "wvEnabled": true,
+     "wvUi": "",
+     "wvSupplier": "ww",
+     "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
+     "wvArea": "",
+     "wvKSituation": "wand",
+     "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
+     "wvKLinks": "",
+     "wvKBack": "170",
+     "wvKRechts": "",
+     "wvKHoehe": "",
+     "wvKQty": "",
+     "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":2}]",
+     "wvWwDecor": "WS203",
+     "wvWwDecorCustom": "",
+     "wvWwQty_13": "0",
+     "wvWwQty_15": "2",
+     "wvWwQty_16": "0",
+     "wvWwQty_17": "0",
+     "wvWwAccManual": "",
+     "wvWwQty_WS80110": "0",
+     "wvWwQty_WS80111": "0",
+     "wvWwQty_WS80112": "0",
+     "wvWw_WS80113": "on",
+     "wvWwQty_WS80113": "1",
+     "wvWw_R_4260602": "on",
+     "wvWwQty_R_4260602": "4",
+     "wvWwSealing": "on",
+     "wvWwSealingQty": "",
+     "wvSketchDataUrl": "",
+     "wvSketchJson": "",
+     "wvNote": "",
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "wvColor": "",
+     "wvSonderConfigNr": "",
+     "wvSealingSelected": false,
+     "wvFlachenSelected": false,
+     "wvEndProfileSelected": false,
+     "wvSilikonSelected": false,
+     "wvV3VSelected": false,
+     "wvColor_997": "",
+     "wvColor_1497": "",
+     "panelConfigs": {
+      "997x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      },
+      "1497x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      }
+     }
+    },
+    "auftragId": "65418",
+    "postal": {
+     "auftragId": "65418",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "",
+      "zipCode": "",
+      "city": "",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "65418",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1119-120843 zum Badumbau",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120843\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    },
+    "materials": []
+   },
+   "view": {
+    "step": "Zusammenfassung",
+    "send": {
+     "label": "An Kunden senden",
+     "disabled": false,
+     "edited": false
+    },
+    "bitrix": {
+     "label": "Nur in Bitrix ablegen",
+     "disabled": false
+    },
+    "docx": {
+     "title": "Angebot in Word angepasst?",
+     "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+     "remove": false,
+     "note": ""
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF"
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default"
+     }
+    ],
+    "count": "4 Dateien",
+    "bitrixFiles": [],
+    "bitrixCount": "0 Dateien",
+    "deal": {
+     "value": "65418",
+     "invalid": false
+    },
+    "note": "",
+    "status": null,
+    "hp": null,
+    "stage": null,
+    "ask": null,
+    "versand": "Noch nicht versendet."
+   },
+   "acts": [
+    {
+     "act": [
+      "send"
+     ],
+     "requests": [],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "Wird gesendet …",
+       "disabled": true,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Wird gesendet …",
+       "disabled": true
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": null,
+      "hp": {
+       "title": "Bitte vor dem Versand bestätigen",
+       "text": "Diese Punkte sind im Angebot nicht enthalten. Bitte jeden einzeln bestätigen.",
+       "rows": [
+        {
+         "key": "duschwanne",
+         "text": "Es wurde keine Duschwanne ausgewählt. Ist das korrekt?",
+         "page": "Duschwanne",
+         "checked": false
+        },
+        {
+         "key": "fussboden",
+         "text": "Es wurde kein Fußboden ausgewählt. Ist das korrekt?",
+         "page": "Fussboden",
+         "checked": false
+        },
+        {
+         "key": "duschabtrennung",
+         "text": "Es wurde keine Duschabtrennung ausgewählt. Ist das korrekt?",
+         "page": "DuschabtrennungNeu",
+         "checked": false
+        },
+        {
+         "key": "duschvorhang",
+         "text": "Es wurde kein Duschvorhang ausgewählt. Ist das korrekt?",
+         "page": "Duschvorhang",
+         "checked": false
+        },
+        {
+         "key": "optional",
+         "text": "Es wurden keine optionalen Produkte ausgewählt (z. B. Haltegriffe, Waschtisch, WC, Badewanne). Ist das korrekt?",
+         "page": "Optional",
+         "checked": false
+        }
+       ],
+       "buttons": [
+        {
+         "label": "Zurück",
+         "disabled": false
+        },
+        {
+         "label": "Bestätigt – senden",
+         "disabled": true
+        }
+       ]
+      },
+      "stage": null,
+      "ask": null,
+      "versand": "Noch nicht versendet."
+     }
+    },
+    {
+     "act": [
+      "hp",
+      "all"
+     ],
+     "requests": [
+      {
+       "path": "/api/drafts",
+       "method": "POST"
+      },
+      {
+       "path": "/docx-template",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/hassmann-cart",
+       "sent": {}
+      },
+      {
+       "path": "/kalkulation/pdf-v2",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/online-orders",
+       "sent": {}
+      },
+      {
+       "path": "/api/email/send-offer",
+       "fields": {
+        "to": "kunde@example.test",
+        "internalNote": "",
+        "subject": "emc2 | Ihr Angebot <number> zum Badumbau",
+        "body": "Sehr geehrte Frau Muster,\r\n\r\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\r\n\r\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\r\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\r\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\r\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\r\n\r\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\r\n\r\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\r\n\r\n1. Ihr Angebot <number>\r\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\r\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\r\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\r\n\r\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\r\n\r\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\r\n\r\n{{SIGN_LINK}}\r\n\r\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\r\n\r\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung.",
+        "offerNumber": "<number>",
+        "offerType": "bu",
+        "excludePreset": "[]",
+        "excludeBitrixPresets": "",
+        "includeProductImages": "",
+        "dealId": "65418",
+        "contactId": ""
+       },
+       "files": {
+        "bitrixDocs": [
+         "ANGEBOT_TEST.docx",
+         "Hassmann_TEST.csv",
+         "Kalkulation_TEST.pdf"
+        ]
+       },
+       "payload": {}
+      },
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_shown",
+        "offerNumber": "<number>",
+        "offerType": "bu"
+       }
+      },
+      {
+       "path": "/api/offers",
+       "offerNumber": "<number>",
+       "offerType": "bu",
+       "payload": {
+        "zusammenfassung": {
+         "versand": {
+          "art": "mail",
+          "versendetAm": "2026-11-19T11:08:53.758Z"
+         },
+         "checkliste": {
+          "skizzeErstellt": false,
+          "fotosErstellt": false
+         },
+         "checkAck": {}
+        }
+       }
+      }
+     ],
+     "toasts": [
+      [
+       "success",
+       "Gespeichert",
+       "Angebot <number> wurde gespeichert."
+      ]
+     ],
+     "alerts": [],
+     "stored": {
+      "zusammenfassung": {
+       "versand": {
+        "art": "mail",
+        "versendetAm": "2026-11-19T11:08:53.758Z"
+       },
+       "checkliste": {
+        "skizzeErstellt": false,
+        "fotosErstellt": false
+       },
+       "checkAck": {}
+      }
+     },
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": {
+       "log": [
+        [
+         "info",
+         "Sende-Vorgang gestartet …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebot-DOCX …"
+        ],
+        [
+         "info",
+         "Erzeuge Hassmann-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Kalkulation-PDF …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge Bestellhinweise Online-Handel …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebots-PDF & sende E-Mail …"
+        ],
+        [
+         "success",
+         "E-Mail gesendet — Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf"
+        ]
+       ]
+      },
+      "hp": null,
+      "stage": {
+       "title": "✅ E-Mail gesendet",
+       "text": "Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf",
+       "body": "",
+       "buttons": [
+        {
+         "label": "Deal auf „ANG verschickt\" verschieben",
+         "disabled": false
+        },
+        {
+         "label": "Schließen",
+         "disabled": false
+        }
+       ]
+      },
+      "ask": null,
+      "versand": "✅ Versendet per E-Mail am 19.11.2026 um 12:08 Uhr."
+     }
+    },
+    {
+     "act": [
+      "close"
+     ],
+     "requests": [
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_dismissed",
+        "offerNumber": "<number>",
+        "offerType": "bu"
+       }
+      }
+     ],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": {
+       "log": [
+        [
+         "info",
+         "Sende-Vorgang gestartet …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebot-DOCX …"
+        ],
+        [
+         "info",
+         "Erzeuge Hassmann-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Kalkulation-PDF …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge Bestellhinweise Online-Handel …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebots-PDF & sende E-Mail …"
+        ],
+        [
+         "success",
+         "E-Mail gesendet — Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf"
+        ]
+       ]
+      },
+      "hp": null,
+      "stage": null,
+      "ask": null,
+      "versand": "✅ Versendet per E-Mail am 19.11.2026 um 12:08 Uhr."
+     }
+    }
+   ]
+  },
+  {
+   "name": "winwall row with an invalid decor: back",
+   "type": "bu",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ],
+    [
+     "radio",
+     "vermieterGenehmigungErforderlich",
+     "Nein"
+    ]
+   ],
+   "wv": [
+    [
+     "wwrow",
+     "23014"
+    ]
+   ],
+   "price": {
+    "items": [],
+    "materials": {
+     "title": "Material für Badumbau",
+     "lines": [],
+     "sum": 0,
+     "vigorPriceDrift": null,
+     "grabCounts": {
+      "cl30": 0,
+      "cl40": 0,
+      "cl60": 0,
+      "cl80": 0,
+      "total": 0,
+      "freeId": null,
+      "refUnit": null
+     }
+    },
+    "productsSubtotal": 0,
+    "services": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "Nettobetrag": 1065,
+    "markupPct": 0.5,
+    "markup": 0,
+    "markupBase": 0,
+    "markupExemptIds": [],
+    "vatOnNet": 202.35,
+    "taxRate": 0.19,
+    "total": 1267.35,
+    "netAfterRabatt_and_Bonus": 1065,
+    "netAfterRabatt": 1065,
+    "materialDiscountPct": 0,
+    "rabattAmount": 0,
+    "totalAfterRabatt": 1267.35,
+    "baseVat": 202.35,
+    "base_total": 1267.35,
+    "bonusGross": 0,
+    "bonusNeuNet": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000,
+    "bonusNeuLegacy": false,
+    "grabBonusMaterial": 0,
+    "grabBonusArbeit": 0,
+    "grabBonusReal": 0,
+    "bonusFlags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "flags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "subsidyKind": "",
+    "subsidyInput": 0,
+    "subsidyAmount": 0,
+    "prior": 0,
+    "subsidyAmount_max": 0,
+    "selfPayAmount": 1267.35,
+    "selectedTray": null,
+    "supplierCodes": {
+     "wv": null,
+     "dw": null
+    },
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 0,
+     "lines": []
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "materialsDisplayDocx": {
+     "title": "Material für Badumbau",
+     "lines": []
+    },
+    "servicesDisplayDocx": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "priceAdjustments": {
+     "services": 0,
+     "material": 0
+    },
+    "material_afterRabatt_and_aufschlag": 0,
+    "bwtIncludedDisplayUI": [],
+    "material_plus_aufschlag": 0
+   },
+   "pre": [
+    [
+     "deal",
+     "65418"
+    ]
+   ],
+   "answers": [],
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-19",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "",
+     "city": "",
+     "state": "",
+     "postalCode": "",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "vermieterGenehmigungErforderlich": "Nein",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "wandverkleidung": {
+     "wvEnabled": true,
+     "wvUi": "",
+     "wvSupplier": "ww",
+     "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
+     "wvArea": "",
+     "wvKSituation": "wand",
+     "wvWallDecor": "",
+     "wvKLinks": "",
+     "wvKBack": "",
+     "wvKRechts": "",
+     "wvKHoehe": "",
+     "wvKQty": "",
+     "wvWwDecor": "custom",
+     "wvWwDecorCustom": "23014",
+     "wvWwRows": "[{\"code\":null,\"fmt\":\"15\",\"qty\":1,\"custom\":true,\"text\":\"23014\"}]",
+     "wvWwQty_13": "0",
+     "wvWwQty_15": "0",
+     "wvWwQty_16": "0",
+     "wvWwQty_17": "0",
+     "wvWwAccManual": "",
+     "wvWwQty_WS80110": "0",
+     "wvWwQty_WS80111": "0",
+     "wvWwQty_WS80112": "0",
+     "wvWwQty_WS80113": "0",
+     "wvWwQty_R_4260602": "0",
+     "wvWwSealing": "on",
+     "wvWwSealingQty": "",
+     "wvSketchDataUrl": "",
+     "wvSketchJson": "",
+     "wvNote": "",
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "wvColor": "",
+     "wvSonderConfigNr": "",
+     "wvSealingSelected": false,
+     "wvFlachenSelected": false,
+     "wvEndProfileSelected": false,
+     "wvSilikonSelected": false,
+     "wvV3VSelected": false,
+     "wvColor_997": "",
+     "wvColor_1497": "",
+     "panelConfigs": {
+      "997x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      },
+      "1497x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      }
+     }
+    },
+    "auftragId": "65418",
+    "postal": {
+     "auftragId": "65418",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "",
+      "zipCode": "",
+      "city": "",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "65418",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1119-120857 zum Badumbau",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120857\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    },
+    "materials": []
+   },
+   "view": {
+    "step": "Zusammenfassung",
+    "send": {
+     "label": "An Kunden senden",
+     "disabled": false,
+     "edited": false
+    },
+    "bitrix": {
+     "label": "Nur in Bitrix ablegen",
+     "disabled": false
+    },
+    "docx": {
+     "title": "Angebot in Word angepasst?",
+     "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+     "remove": false,
+     "note": ""
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF"
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default"
+     }
+    ],
+    "count": "4 Dateien",
+    "bitrixFiles": [],
+    "bitrixCount": "0 Dateien",
+    "deal": {
+     "value": "65418",
+     "invalid": false
+    },
+    "note": "",
+    "status": null,
+    "hp": null,
+    "stage": null,
+    "ask": null,
+    "versand": "Noch nicht versendet."
+   },
+   "acts": [
+    {
+     "act": [
+      "send"
+     ],
+     "requests": [],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "Wird gesendet …",
+       "disabled": true,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Wird gesendet …",
+       "disabled": true
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": null,
+      "hp": {
+       "title": "Bitte vor dem Versand bestätigen",
+       "text": "Diese Punkte sind im Angebot nicht enthalten. Bitte jeden einzeln bestätigen.",
+       "rows": [
+        {
+         "key": "duschwanne",
+         "text": "Es wurde keine Duschwanne ausgewählt. Ist das korrekt?",
+         "page": "Duschwanne",
+         "checked": false
+        },
+        {
+         "key": "fussboden",
+         "text": "Es wurde kein Fußboden ausgewählt. Ist das korrekt?",
+         "page": "Fussboden",
+         "checked": false
+        },
+        {
+         "key": "wandverkleidung",
+         "text": "Es wurde keine Wandverkleidungsplatte ausgewählt. Ist das korrekt?",
+         "page": "Wandverkleidung",
+         "checked": false
+        },
+        {
+         "key": "duschabtrennung",
+         "text": "Es wurde keine Duschabtrennung ausgewählt. Ist das korrekt?",
+         "page": "DuschabtrennungNeu",
+         "checked": false
+        },
+        {
+         "key": "duschvorhang",
+         "text": "Es wurde kein Duschvorhang ausgewählt. Ist das korrekt?",
+         "page": "Duschvorhang",
+         "checked": false
+        },
+        {
+         "key": "optional",
+         "text": "Es wurden keine optionalen Produkte ausgewählt (z. B. Haltegriffe, Waschtisch, WC, Badewanne). Ist das korrekt?",
+         "page": "Optional",
+         "checked": false
+        },
+        {
+         "key": "wvDekorUngueltig",
+         "text": "In der Wandverkleidung gibt es Platten-Zeilen mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot. Ist das korrekt?",
+         "page": "Wandverkleidung",
+         "checked": false
+        }
+       ],
+       "buttons": [
+        {
+         "label": "Zurück",
+         "disabled": false
+        },
+        {
+         "label": "Bestätigt – senden",
+         "disabled": true
+        }
+       ]
+      },
+      "stage": null,
+      "ask": null,
+      "versand": "Noch nicht versendet."
+     }
+    },
+    {
+     "act": [
+      "hp",
+      "back"
+     ],
+     "requests": [],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": {
+       "type": "info",
+       "text": "Versand abgebrochen."
+      },
+      "hp": null,
+      "stage": null,
+      "ask": null,
+      "versand": "Noch nicht versendet."
+     }
+    }
+   ]
+  },
+  {
+   "name": "winwall plates and a row with an invalid decor",
+   "type": "bu",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ],
+    [
+     "radio",
+     "vermieterGenehmigungErforderlich",
+     "Nein"
+    ]
+   ],
+   "wv": [
+    [
+     "wall"
+    ],
+    [
+     "wwrow",
+     "23014"
+    ]
+   ],
+   "price": {
+    "items": [],
+    "materials": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ],
+     "sum": 441.87,
+     "vigorPriceDrift": null,
+     "grabCounts": {
+      "cl30": 0,
+      "cl40": 0,
+      "cl60": 0,
+      "cl80": 0,
+      "total": 0,
+      "freeId": null,
+      "refUnit": null
+     }
+    },
+    "productsSubtotal": 441.87,
+    "services": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "Nettobetrag": 1727.81,
+    "markupPct": 0.5,
+    "markup": 220.94,
+    "markupBase": 441.87,
+    "markupExemptIds": [],
+    "vatOnNet": 328.28,
+    "taxRate": 0.19,
+    "total": 2056.09,
+    "netAfterRabatt_and_Bonus": 1727.81,
+    "netAfterRabatt": 1727.81,
+    "materialDiscountPct": 0,
+    "rabattAmount": 0,
+    "totalAfterRabatt": 2056.09,
+    "baseVat": 328.28,
+    "base_total": 2056.09,
+    "bonusGross": 0,
+    "bonusNeuNet": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000,
+    "bonusNeuLegacy": false,
+    "grabBonusMaterial": 0,
+    "grabBonusArbeit": 0,
+    "grabBonusReal": 0,
+    "bonusFlags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "flags": {
+     "bonus_neu": false,
+     "bonus_Haltegriff": false
+    },
+    "subsidyKind": "",
+    "subsidyInput": 0,
+    "subsidyAmount": 0,
+    "prior": 0,
+    "subsidyAmount_max": 0,
+    "selfPayAmount": 2056.09,
+    "selectedTray": null,
+    "supplierCodes": {
+     "wv": "WV-WW",
+     "dw": null
+    },
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    },
+    "materialsDisplayUI": {
+     "title": "Material für Badumbau",
+     "sum": 441.87,
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "optionalDisplayUI": {
+     "sum": 0,
+     "lines": []
+    },
+    "servicesDisplayUI": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "materialsDisplayDocx": {
+     "title": "Material für Badumbau",
+     "lines": [
+      {
+       "productId": "WS22915",
+       "name": "Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "color": null,
+       "qty": 2,
+       "unit": null,
+       "unitPrice": 132.35,
+       "lineTotal": 264.7,
+       "label": "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)",
+       "labelLines": [
+        "- 2 Stk Wandverkleidung Alu 1000×2500 mm — Dekor: Struktur steingrau (WS 229)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80113",
+       "name": "winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 16.39,
+       "lineTotal": 16.39,
+       "label": "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert",
+       "labelLines": [
+        "- 1 Stk winwall Verbindungsprofil 2550 mm, Alu eloxiert"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "R_4260602",
+       "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+       "color": null,
+       "qty": 4,
+       "unit": null,
+       "unitPrice": 11.82,
+       "lineTotal": 47.28,
+       "label": "- 4 Pkg Flächenkleber (Wandverkleidung)",
+       "labelLines": [
+        "- 4 Pkg Flächenkleber (Wandverkleidung)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      },
+      {
+       "productId": "WS80301",
+       "name": "winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "color": null,
+       "qty": 1,
+       "unit": null,
+       "unitPrice": 113.5,
+       "lineTotal": 113.5,
+       "label": "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)",
+       "labelLines": [
+        "- 1 Stk winwall Abdichtungsset 5 m² (DIN 18534-1)"
+       ],
+       "source": null,
+       "finish": null,
+       "currentNet": null,
+       "hassmannArticle": null,
+       "hassmannQty": null,
+       "docxHide": false,
+       "category": "Wandverkleidung"
+      }
+     ]
+    },
+    "servicesDisplayDocx": {
+     "title": "Auszuführende Arbeiten",
+     "lines": [
+      {
+       "key": "fahrzeug",
+       "label": "- 1,00 Stk Fahrzeugbereitstellung",
+       "qty": 1,
+       "unitPrice": 80,
+       "amount": 80
+      },
+      {
+       "key": "werkzeuge",
+       "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+       "qty": 1,
+       "unitPrice": 7.5,
+       "amount": 7.5
+      },
+      {
+       "key": "beraeumung",
+       "label": "- 1,00 Stk Beräumung der Baustelle",
+       "qty": 1,
+       "unitPrice": 4.5,
+       "amount": 4.5
+      },
+      {
+       "key": "facharbeiter",
+       "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+       "qty": 7,
+       "unit": "Std",
+       "unitPrice": 139,
+       "amount": 973,
+       "docxHide": true
+      },
+      {
+       "key": "worknote",
+       "label": "- Verkleidung deckenhoch im Dusch-/Wannenbereich",
+       "amount": 0
+      }
+     ],
+     "sum": 1065,
+     "payer": "KK",
+     "zoneLabel": "",
+     "distanceKm": 0,
+     "laborHours": 7,
+     "reiseHours": 0,
+     "laborRate": 69.5,
+     "isBwt": false,
+     "extraAufgabeAmount": 0,
+     "travelSecondWorkerRate": 35,
+     "timeBreakdown": {
+      "workHoursOverall": 14,
+      "travelHoursOverall": 0,
+      "totalHoursOverall": 14,
+      "employees": [
+       {
+        "label": "Mitarbeiter 1 (Fahrer)",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 69.5,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       },
+       {
+        "label": "Mitarbeiter 2",
+        "onSiteHours": 7,
+        "travelHours": 0,
+        "onSiteRate": 69.5,
+        "travelRate": 35,
+        "totalHours": 7,
+        "onSiteCost": 486.5,
+        "travelCost": 0,
+        "totalCost": 486.5
+       }
+      ]
+     }
+    },
+    "priceAdjustments": {
+     "services": 0,
+     "material": 0
+    },
+    "material_afterRabatt_and_aufschlag": 441.86999999999995,
+    "bwtIncludedDisplayUI": [],
+    "material_plus_aufschlag": 662.81
+   },
+   "pre": [
+    [
+     "deal",
+     "65418"
+    ]
+   ],
+   "answers": [],
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-19",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "",
+     "city": "",
+     "state": "",
+     "postalCode": "",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "vermieterGenehmigungErforderlich": "Nein",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "wandverkleidung": {
+     "wvEnabled": true,
+     "wvUi": "",
+     "wvSupplier": "ww",
+     "wvKind": "Deckenhoch",
+     "wvWwHeight": "",
+     "wvArea": "",
+     "wvKSituation": "wand",
+     "wvWallDecor": "{\"line\":\"ww\",\"back\":\"WS229\",\"auto\":[\"WS229|15\"]}",
+     "wvKLinks": "",
+     "wvKBack": "170",
+     "wvKRechts": "",
+     "wvKHoehe": "",
+     "wvKQty": "",
+     "wvWwDecor": "custom",
+     "wvWwDecorCustom": "23014",
+     "wvWwRows": "[{\"code\":\"WS229\",\"fmt\":\"15\",\"qty\":2},{\"code\":null,\"fmt\":\"15\",\"qty\":1,\"custom\":true,\"text\":\"23014\"}]",
+     "wvWwQty_13": "0",
+     "wvWwQty_15": "2",
+     "wvWwQty_16": "0",
+     "wvWwQty_17": "0",
+     "wvWwAccManual": "",
+     "wvWwQty_WS80110": "0",
+     "wvWwQty_WS80111": "0",
+     "wvWwQty_WS80112": "0",
+     "wvWw_WS80113": "on",
+     "wvWwQty_WS80113": "1",
+     "wvWw_R_4260602": "on",
+     "wvWwQty_R_4260602": "4",
+     "wvWwSealing": "on",
+     "wvWwSealingQty": "",
+     "wvSketchDataUrl": "",
+     "wvSketchJson": "",
+     "wvNote": "",
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "wvColor": "",
+     "wvSonderConfigNr": "",
+     "wvSealingSelected": false,
+     "wvFlachenSelected": false,
+     "wvEndProfileSelected": false,
+     "wvSilikonSelected": false,
+     "wvV3VSelected": false,
+     "wvColor_997": "",
+     "wvColor_1497": "",
+     "panelConfigs": {
+      "997x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      },
+      "1497x2550": {
+       "enabled": false,
+       "qty": 0,
+       "overrideColor": "",
+       "color": ""
+      }
+     }
+    },
+    "auftragId": "65418",
+    "postal": {
+     "auftragId": "65418",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "",
+      "zipCode": "",
+      "city": "",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "65418",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1119-121039 zum Badumbau",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-121039\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    },
+    "materials": []
+   },
+   "view": {
+    "step": "Zusammenfassung",
+    "send": {
+     "label": "An Kunden senden",
+     "disabled": false,
+     "edited": false
+    },
+    "bitrix": {
+     "label": "Nur in Bitrix ablegen",
+     "disabled": false
+    },
+    "docx": {
+     "title": "Angebot in Word angepasst?",
+     "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+     "remove": false,
+     "note": ""
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF"
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default"
+     }
+    ],
+    "count": "4 Dateien",
+    "bitrixFiles": [],
+    "bitrixCount": "0 Dateien",
+    "deal": {
+     "value": "65418",
+     "invalid": false
+    },
+    "note": "",
+    "status": null,
+    "hp": null,
+    "stage": null,
+    "ask": null,
+    "versand": "Noch nicht versendet."
+   },
+   "acts": [
+    {
+     "act": [
+      "send"
+     ],
+     "requests": [],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "Wird gesendet …",
+       "disabled": true,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Wird gesendet …",
+       "disabled": true
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": null,
+      "hp": {
+       "title": "Bitte vor dem Versand bestätigen",
+       "text": "Diese Punkte sind im Angebot nicht enthalten. Bitte jeden einzeln bestätigen.",
+       "rows": [
+        {
+         "key": "duschwanne",
+         "text": "Es wurde keine Duschwanne ausgewählt. Ist das korrekt?",
+         "page": "Duschwanne",
+         "checked": false
+        },
+        {
+         "key": "fussboden",
+         "text": "Es wurde kein Fußboden ausgewählt. Ist das korrekt?",
+         "page": "Fussboden",
+         "checked": false
+        },
+        {
+         "key": "duschabtrennung",
+         "text": "Es wurde keine Duschabtrennung ausgewählt. Ist das korrekt?",
+         "page": "DuschabtrennungNeu",
+         "checked": false
+        },
+        {
+         "key": "duschvorhang",
+         "text": "Es wurde kein Duschvorhang ausgewählt. Ist das korrekt?",
+         "page": "Duschvorhang",
+         "checked": false
+        },
+        {
+         "key": "optional",
+         "text": "Es wurden keine optionalen Produkte ausgewählt (z. B. Haltegriffe, Waschtisch, WC, Badewanne). Ist das korrekt?",
+         "page": "Optional",
+         "checked": false
+        },
+        {
+         "key": "wvDekorUngueltig",
+         "text": "In der Wandverkleidung gibt es Platten-Zeilen mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot. Ist das korrekt?",
+         "page": "Wandverkleidung",
+         "checked": false
+        }
+       ],
+       "buttons": [
+        {
+         "label": "Zurück",
+         "disabled": false
+        },
+        {
+         "label": "Bestätigt – senden",
+         "disabled": true
+        }
+       ]
+      },
+      "stage": null,
+      "ask": null,
+      "versand": "Noch nicht versendet."
+     }
+    },
+    {
+     "act": [
+      "hp",
+      "all"
+     ],
+     "requests": [
+      {
+       "path": "/api/drafts",
+       "method": "POST"
+      },
+      {
+       "path": "/docx-template",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/hassmann-cart",
+       "sent": {}
+      },
+      {
+       "path": "/kalkulation/pdf-v2",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/online-orders",
+       "sent": {}
+      },
+      {
+       "path": "/api/email/send-offer",
+       "fields": {
+        "to": "kunde@example.test",
+        "internalNote": "",
+        "subject": "emc2 | Ihr Angebot <number> zum Badumbau",
+        "body": "Sehr geehrte Frau Muster,\r\n\r\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\r\n\r\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\r\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\r\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\r\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\r\n\r\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\r\n\r\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\r\n\r\n1. Ihr Angebot <number>\r\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\r\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\r\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\r\n\r\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\r\n\r\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\r\n\r\n{{SIGN_LINK}}\r\n\r\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\r\n\r\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung.",
+        "offerNumber": "<number>",
+        "offerType": "bu",
+        "excludePreset": "[]",
+        "excludeBitrixPresets": "",
+        "includeProductImages": "",
+        "dealId": "65418",
+        "contactId": ""
+       },
+       "files": {
+        "bitrixDocs": [
+         "ANGEBOT_TEST.docx",
+         "Hassmann_TEST.csv",
+         "Kalkulation_TEST.pdf"
+        ]
+       },
+       "payload": {}
+      },
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_shown",
+        "offerNumber": "<number>",
+        "offerType": "bu"
+       }
+      },
+      {
+       "path": "/api/offers",
+       "offerNumber": "<number>",
+       "offerType": "bu",
+       "payload": {
+        "zusammenfassung": {
+         "versand": {
+          "art": "mail",
+          "versendetAm": "2026-11-19T11:11:50.215Z"
+         },
+         "checkliste": {
+          "skizzeErstellt": false,
+          "fotosErstellt": false
+         },
+         "checkAck": {}
+        }
+       }
+      }
+     ],
+     "toasts": [
+      [
+       "success",
+       "Gespeichert",
+       "Angebot <number> wurde gespeichert."
+      ]
+     ],
+     "alerts": [],
+     "stored": {
+      "zusammenfassung": {
+       "versand": {
+        "art": "mail",
+        "versendetAm": "2026-11-19T11:11:50.215Z"
+       },
+       "checkliste": {
+        "skizzeErstellt": false,
+        "fotosErstellt": false
+       },
+       "checkAck": {}
+      }
+     },
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": {
+       "log": [
+        [
+         "info",
+         "Sende-Vorgang gestartet …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebot-DOCX …"
+        ],
+        [
+         "info",
+         "Erzeuge Hassmann-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Kalkulation-PDF …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge Bestellhinweise Online-Handel …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebots-PDF & sende E-Mail …"
+        ],
+        [
+         "success",
+         "E-Mail gesendet — Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf"
+        ]
+       ]
+      },
+      "hp": null,
+      "stage": {
+       "title": "✅ E-Mail gesendet",
+       "text": "Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf",
+       "body": "",
+       "buttons": [
+        {
+         "label": "Deal auf „ANG verschickt\" verschieben",
+         "disabled": false
+        },
+        {
+         "label": "Schließen",
+         "disabled": false
+        }
+       ]
+      },
+      "ask": null,
+      "versand": "✅ Versendet per E-Mail am 19.11.2026 um 12:11 Uhr."
+     }
+    },
+    {
+     "act": [
+      "close"
+     ],
+     "requests": [
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_dismissed",
+        "offerNumber": "<number>",
+        "offerType": "bu"
+       }
+      }
+     ],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": {
+       "log": [
+        [
+         "info",
+         "Sende-Vorgang gestartet …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebot-DOCX …"
+        ],
+        [
+         "info",
+         "Erzeuge Hassmann-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Kalkulation-PDF …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge Badolux-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (CSV) …"
+        ],
+        [
+         "info",
+         "Erzeuge winwall-Warenkorb (JSON) …"
+        ],
+        [
+         "info",
+         "Erzeuge Bestellhinweise Online-Handel …"
+        ],
+        [
+         "info",
+         "Erzeuge Angebots-PDF & sende E-Mail …"
+        ],
+        [
+         "success",
+         "E-Mail gesendet — Anhänge: ANGEBOT.pdf, Abtretungserklärung.pdf"
+        ]
+       ]
+      },
+      "hp": null,
+      "stage": null,
+      "ask": null,
+      "versand": "✅ Versendet per E-Mail am 19.11.2026 um 12:11 Uhr."
+     }
+    }
+   ]
   }
  ],
  "users": [

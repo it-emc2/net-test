@@ -8,6 +8,7 @@ import { call } from "../../../shared/api/index.js";
 import { Card, CardTitle, Check, Choices } from "../../../shared/ui/index.js";
 import { useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { Markup } from "../markup/Markup.js";
+import { bonusKey } from "../versand/mail-rules.js";
 import {
   GRAB_TEXT, corrections, grabIds, grabOffered, heading, isEnabled, mayDiscountMaterials, newCustomerBonus, newCustomerBonusOffered, overview, percentOf, percentText, results,
   setEnabled, setGrabBonus, setNewCustomerBonus, setPercent, type Price,
@@ -16,6 +17,14 @@ import {
 type Fields = Record<string, unknown>;
 const useSection = (name: string) => useOfferStore((s) => (s.offer as Record<string, any> | null)?.[name] as Fields | undefined) ?? {};
 const patch = (changes: Record<string, Fields>) => useOfferStore.getState().patchAll(changes);
+/** As today: a tick of the discount or a bonus writes the mail text at once, with the Neukundenbonus
+ *  flag of the price answer that is there at that moment (the one from before the tick) — kept for
+ *  the mail until something else rewrites its text (mail-rules.ts `bonusNeuFor`; legacy, ported as is). */
+const tick = (changes: Record<string, Fields>, price: Price | null) => {
+  const st = useOfferStore.getState();
+  st.remember("mailBonusNeuAt", { flag: (price?.flags as { bonus_neu?: unknown } | undefined)?.bonus_neu, key: bonusKey(st.offer as never, st.scratch.mailAntrag === true) });
+  patch(changes);
+};
 const SUM = "flex items-baseline justify-between gap-4";
 
 /** "Übersicht": the sums of the offer, as the price says. */
@@ -61,7 +70,7 @@ function Discount({ price }: { price: Price | null }) {
   return (
     <Card aria-labelledby="rb-title">
       <CardTitle id="rb-title">{heading(kd.payer)}</CardTitle>
-      <Choices legend="Rabatt" name="rb-add" options={[{ value: "nein", label: "Kein Rabatt" }, { value: "ja", label: "Rabatt hinzufügen" }]} value={on ? "ja" : "nein"} onChange={(v) => patch(setEnabled(v === "ja"))} />
+      <Choices legend="Rabatt" name="rb-add" options={[{ value: "nein", label: "Kein Rabatt" }, { value: "ja", label: "Rabatt hinzufügen" }]} value={on ? "ja" : "nein"} onChange={(v) => tick(setEnabled(v === "ja"), price)} />
       {on ? (
         <div className="grid gap-4" data-testid="rb-controls">
           {out.empty ? <p className="m-0 text-muted-foreground" data-testid="rb-empty">Keine Rabatte oder Boni anwendbar.</p> : null}
@@ -82,8 +91,8 @@ function Discount({ price }: { price: Price | null }) {
               <div className={SUM}><dt>Gesamtbetrag nach Materialrabatt</dt><dd className="m-0 tabular-nums" data-part="after">{out.afterDiscount}</dd></div>
             </dl>
           ) : null}
-          {offered.bonus ? <Check id="rb-bonus-new" checked={r.bonus300 === true} onChange={(v) => patch(setNewCustomerBonus(v))}>{bonus.text}</Check> : null}
-          {offered.grab ? <Check id="rb-bonus-grab" checked={r.bonusGrab === true} onChange={(v) => patch(setGrabBonus(v, ids))}>{GRAB_TEXT}</Check> : null}
+          {offered.bonus ? <Check id="rb-bonus-new" checked={r.bonus300 === true} onChange={(v) => tick(setNewCustomerBonus(v), price)}>{bonus.text}</Check> : null}
+          {offered.grab ? <Check id="rb-bonus-grab" checked={r.bonusGrab === true} onChange={(v) => tick(setGrabBonus(v, ids), price)}>{GRAB_TEXT}</Check> : null}
           {out.afterBonus ? <dl className="m-0"><div className={`${SUM} font-bold`}><dt>Gesamtbetrag nach Bonus</dt><dd className="m-0 tabular-nums" data-testid="rb-after-bonus">{out.afterBonus}</dd></div></dl> : null}
         </div>
       ) : null}
