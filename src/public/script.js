@@ -10869,6 +10869,13 @@ function isDaHassmannVisible() {
   if (!toggle) return;
   toggle.addEventListener("change", () => {
     setDwTrayEnabled(toggle.checked);
+    // New offer: the first time Duschwanne is switched on, Badolux is preselected.
+    // Never on a restore (absent flag = Hassmann, so old offers keep their line) and
+    // never again once the line was picked or an offer was loaded.
+    if (toggle.checked && !window.__dwLineDefaulted && !window.__RESTORING__ && !window.__restoring) {
+      window.__dwLineDefaulted = true;
+      if (getLine("duschwanne") === "premium") setLine("duschwanne", "standard");
+    }
     // Re-price: the tray and its accessories just entered or left the offer.
     toggle.form?.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -11560,17 +11567,22 @@ const LINE_LABEL = {
 const TIER_INFO = {
   standard: {
     name: "Standard",
+    uiName: "Badolux", // Duschwanne/Fußboden show the brand, not the tier (Wand keeps Standard)
     brand: "Badolux",
     note: (key) =>
       `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Badolux-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
   premium: {
     name: "Premium",
+    uiName: "Hassmann",
     brand: "Vigour / Hassmann",
     note: (key) =>
       `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Vigour/Hassmann-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
 };
+
+// Name shown to the user: brand for Duschwanne/Fußboden, tier name for Wand (unchanged).
+const tierName = (key, tier) => (key === "wand" ? TIER_INFO[tier].name : TIER_INFO[tier].uiName);
 
 // Lagerbestand aus der Vigor-DB. stockSymbol 3/6/9 fuehren immer stockQuantity 0,
 // sind aber lieferbar — deshalb ein eigener Bernstein-Zustand statt Rot. Ohne
@@ -11794,8 +11806,8 @@ async function setLine(key, tier, { keepSelection = false } = {}) {
   // there is nothing to lose and nothing worth interrupting for.
   const atRisk = lineSelectionAtRisk(key);
   if (atRisk && !window.__restoring && !window.__RESTORING__) {
-    const from = TIER_INFO[getLine(key)].name;
-    const to = TIER_INFO[tier].name;
+    const from = tierName(key, getLine(key));
+    const to = tierName(key, tier);
     const ok = await appConfirm({
       title: `${LINE_LABEL[key]} auf „${to}" umstellen?`,
       message:
@@ -11951,7 +11963,7 @@ function syncTierSwitchUi() {
     const info = TIER_INFO[tier];
     status.dataset.tier = tier;
     const text = status.querySelector(".tier-status__text");
-    if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note(key)}`;
+    if (text) text.innerHTML = `<b>${tierName(key, tier)} aktiv</b> — ${info.note(key)}`;
   });
   // Compact form inside a settings row (Duschwanne): just which products show.
   document.querySelectorAll("[data-tier-line]").forEach((el) => {
@@ -15079,10 +15091,10 @@ function initSmartTraySearch() {
     lineHint.dataset.pid = alt.productId;
     lineHint.innerHTML = `
       <div class="tlh-text">
-        <strong>Diese Größe gibt es auch als Standard (Badolux) — ${euroDe(save)} € günstiger.</strong>
+        <strong>Diese Größe gibt es auch als Badolux — ${euroDe(save)} € günstiger.</strong>
         <span>${escapeHtml(badoluxTrayName(alt))} · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
       </div>
-      <button type="button" class="secondary" data-tray-line-switch>Auf Standard wechseln</button>`;
+      <button type="button" class="secondary" data-tray-line-switch>Auf Badolux wechseln</button>`;
     lineHint.hidden = false;
   };
   lineHint.addEventListener("click", (e) => {
@@ -15265,8 +15277,8 @@ function initSmartTraySearch() {
   // when the active one has nothing for these dimensions.
   const rowFor = (tier, lists) =>
     tier === "standard"
-      ? { list: lists.badolux, local: lists.badoluxLocal, key: "badolux", brand: "Badolux", name: "Standard" }
-      : { list: lists.hassmann, local: lists.hassmannLocal, key: "hassmann", brand: "Hassmann", name: "Premium" };
+      ? { list: lists.badolux, local: lists.badoluxLocal, key: "badolux", brand: "Badolux", name: "Badolux" }
+      : { list: lists.hassmann, local: lists.hassmannLocal, key: "hassmann", brand: "Hassmann", name: "Hassmann" };
 
   // A saved offer can hold a tray from the OTHER line: until this redesign both
   // rows were always visible, so nothing stopped a premium offer from carrying a
@@ -15316,7 +15328,7 @@ function initSmartTraySearch() {
       return `
         <div class="tray-fallback">
           <p><strong>Keine passende Duschwanne gefunden.</strong>
-          Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten
+          Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten
           als freien Posten erfassen.</p>
         </div>`;
     }
@@ -21156,6 +21168,7 @@ function restoreDuschwanne(dw) {
   // from an earlier offer in the same tab would flip this one to Badolux pricing
   // (Siphon Bridge PR95DW001 instead of AGD9060). Set before the rest: BadoluxManager starts
   // fetching the Badolux floor/panel tiles on this change event.
+  window.__dwLineDefaulted = true; // a loaded offer keeps its saved line, no Badolux preselect
   const isOn = (v) => v === "1" || v === 1 || v === true;
   setCheckbox("budgetToggle", isOn(dw.budgetMode));
   // Fußboden has its own line since 2026-09-11. Absent in every offer saved before
