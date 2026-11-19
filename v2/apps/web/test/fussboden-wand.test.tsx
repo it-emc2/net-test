@@ -1,17 +1,17 @@
 // Fußboden, mode "Wandverkleidung als Fußboden", must store and show what today's UI does for
 // the same inputs. Reference: fixtures/fussboden-wand.json, recorded from today's UI by
 // v2/scripts/capture-fussboden-wand.cjs (with the answers of the price list the page asked for).
-// Steps on the winwall simple view of the Wandverkleidung (item 2, not built in React yet) are not
-// played: the wall is set to what today's UI stored, and what today's UI does to the floor then is
-// done with the rules that view will call (wand.ts `autoAdd`, `wallDecorChanged`) — see WALL below.
+// Steps on the winwall simple view of the Wandverkleidung (item 2) are played in React too: the floor
+// that follows the wall (added from the rest, decor follows, the questions and toasts) is the real wiring.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { arbeitenChanges, suggestion as workTime } from "../src/features/steps/arbeiten/rules.js";
 import * as w from "../src/features/steps/fussboden/wand.js";
 import { VG_COLORS } from "../src/features/steps/wandverkleidung/colors.js";
 import { WW_DECORS } from "../src/features/steps/wandverkleidung/decors.js";
+import { toast } from "../src/shared/ui/toaster.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/fussboden-wand.json" with { type: "json" };
 import { BASE, fakeServer, renderApp, type Reply } from "./helpers.js";
@@ -46,79 +46,26 @@ const opened = (fields: Fields) => act(() => {
     return { offer: saved as never, scratch: {} };
   });
 });
-/** the wall as today's UI stored it (the simple view's steps are not played in React) */
-const wallSet = (fields: Fields) => act(() => { useOfferStore.setState((s) => ({ offer: sectionsWith(s.offer as Record<string, any>, "wandverkleidung", fields) as never })); });
 /** a change of the floor as the step makes it: with the work-time suggestion that follows it */
-const floorPatch = (fields: Fields) => act(() => { useOfferStore.getState().patchAll(arbeitenChanges(offer(), fields)); });
-const SIMPLE = new Set(["wvplate", "wvcolor", "wvheight", "snap"]);
-const restNow = () => w.restOf(offer().wandverkleidung ?? {});
-
-/** what today's UI remembers about the floor while the offer is open (wand.ts `WallSession`); `last` lives in React's scratch */
-let SESS: w.WallSession = { ...w.SESSION };
-const session = (): w.WallSession => ({ ...SESS, last: (useOfferStore.getState().scratch.wcWwLast as w.Qty | undefined) ?? null });
-const keep = (st: { fields: Fields; session: w.WallSession }) => { floorPatch(st.fields); SESS = st.session; act(() => { useOfferStore.getState().remember("wcWwLast", st.session.last); }); };
-const asked = (a: w.Ask | null) => a && { title: a.title, message: a.message, ok: a.confirm, cancel: a.cancel };
-/** what the simple view of the Wandverkleidung does to the floor in these scenarios (today's UI) — item 2 wires it in React.
- *  Called at the end of each visit to the wall (`seg` counts them); the wall is set to what today's UI stored. */
-const added = (wv: Fields) => { wallSet(wv); const r = w.autoAdd(offer().duschwanne, restNow(), "WS203", session())!; keep(r); return r; };
-const WALL: Record<string, (s: Scenario, seg: number) => void> = {
-  "strips: floor added from the rest": (s) => { expect([added(s.wandverkleidung).toast]).toEqual(s.view.toasts); },
-  "strips: floor added, then plates by hand": (s) => { added(s.wandverkleidung); },
-  // the floor is on already: no new floor; the plates follow the proposal (the rest is not switched on by itself)
-  "strips: floor on before, rest switched on": (s) => { wallSet(s.wandverkleidung); keep(w.wallChanged(offer().duschwanne, restNow(), session())); expect(w.autoAdd(offer().duschwanne, restNow(), "WS203", session())).toBeNull(); },
-  "strips: height without a rest": (s) => { wallSet(s.wandverkleidung); expect(w.autoAdd(offer().duschwanne, restNow(), "WS203", session())).toBeNull(); },
-  "strips: wall decor changed, the added floor follows without a question": (s, seg) => decorChange(s, seg, null),
-  "strips: area typed, wall decor changed, floor follows (yes)": (s, seg) => decorChange(s, seg, true),
-  "strips: area typed, wall decor changed, floor stays (no)": (s, seg) => decorChange(s, seg, false),
-  "strips: Bodenbelag, wall decor changed, switch to winwall": (s) => {
-    wallSet(s.snaps![0]!.wandverkleidung);
-    keep(w.wallChanged(offer().duschwanne, restNow(), session()));
-    expect(w.autoAdd(offer().duschwanne, restNow(), "WS203", session())).toBeNull(); // the floor is a covering
-    wallSet(s.wandverkleidung);
-    const r = w.wallDecorChanged(offer().duschwanne, restNow(), "WS203", "WS229", session())!;
-    keep(r.pre);
-    expect(asked(r.ask)).toEqual(s.dialogs[0]);
-    keep(r.yes!);
-  },
-  // switched off by hand: a later wall change adds no floor again
-  "strips: floor switched off by hand, no new floor": (s, seg) => {
-    if (seg === 0) { added(s.snaps![0]!.wandverkleidung); return; }
-    wallSet(s.wandverkleidung);
-    keep(w.wallChanged(offer().duschwanne, restNow(), session()));
-    expect(w.autoAdd(offer().duschwanne, restNow(), "WS203", session())).toBeNull();
-  },
-};
-function decorChange(s: Scenario, seg: number, yes: boolean | null) {
-  if (seg === 0) { added(s.snaps?.[0]?.wandverkleidung ?? s.wandverkleidung); return; }
-  expect(sorted(mine(changed(BASE_DW, offer().duschwanne)))).toEqual(sorted(mine(s.snaps![0]!.duschwanne))); // the floor before the wall's decor changes
-  wallSet(s.wandverkleidung);
-  const r = w.wallDecorChanged(offer().duschwanne, restNow(), "WS203", "WS229", session())!;
-  keep(r.pre);
-  expect(asked(r.ask)).toEqual(s.dialogs[0] ?? null);
-  if (yes) keep(r.yes!);
-}
-let BASE_DW: Fields = {};
+const SIMPLE = new Set(["wvplate", "wvcolor", "wvheight"]);
+const PLATE: Record<string, string> = { 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" };
 
 async function play(s: Scenario, router: Awaited<ReturnType<typeof open>>["router"]) {
   const user = userEvent.setup();
   const steps = s.steps;
-  let seg = -1, inWall = false;
   for (let i = 0; i < steps.length; i++) {
     const [kind, a, b, c] = steps[i]!;
-    // a visit to the simple view of the wall: not played; WALL does what it does to the floor
-    if (kind === "goto" && a === "Wandverkleidung" && SIMPLE.has(String(steps.slice(i + 1).find((x) => x[0] !== "wvon")?.[0]))) { inWall = true; seg++; continue; }
-    if (inWall) { if (kind === "goto" && a === "Fussboden") { inWall = false; await router.navigate(`/deal/${KEY}/bu/Fussboden`); await screen.findByRole("heading", { name: "Fußboden" }); WALL[s.name]!(s, seg); } continue; }
     if (kind === "snap") continue;
-    if (kind === "on" || kind === "off") { await user.click(screen.getByRole("switch", { name: "Fußboden" })); if (kind === "off") SESS = { ...SESS, optedOut: true }; } // a tap of the user's own: no floor again (wcOptOut)
+    if (kind === "on" || kind === "off") await user.click(screen.getByRole("switch", { name: "Fußboden" }));
     else if (kind === "tab") await user.click(screen.getByRole("tab", { name: a === "wall" ? "Wandverkleidung als Fußboden" : "Fußboden" }));
     else if (kind === "sup") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: a === "ww" ? /^winwall/ : /^VIGOUR/ }));
     else if (kind === "kind") await user.click(screen.getByRole("radio", { name: a === "Fehlstellen" ? "Nur Fehlstellen" : "Gesamter Badboden" }));
-    else if (kind === "area") { fireEvent.change(screen.getByLabelText("Fläche (m²)"), { target: { value: a } }); SESS = { ...SESS, autoArea: null }; } // a typed area no longer follows the rest
+    else if (kind === "area") fireEvent.change(screen.getByLabelText("Fläche (m²)"), { target: { value: a } });
     else if (kind === "plate") await user.click(screen.getByRole("button", { name: `${b === "-" ? "Weniger" : "Mehr"} ${plateSize(String(a))}` }));
     else if (kind === "resync") await user.click(screen.getByRole("button", { name: "↻ Vorschlag aus Fläche" }));
     else if (kind === "decor") await user.click(screen.getByTestId("wc-decors").querySelector(`[data-code="${a}"]`)!);
     else if (kind === "custom") fireEvent.change(screen.getByLabelText("Anderes Dekor"), { target: { value: a } });
-    else if (kind === "confirm") await user.click(within(screen.getByTestId("wc-ask")).getByRole("button", { name: a === "ok" ? s.dialogs.at(-1)!.ok : s.dialogs.at(-1)!.cancel }));
+    else if (kind === "confirm") await user.click(within(screen.queryByTestId("wv-ask") ?? screen.getByTestId("wc-ask")).getByRole("button", { name: a === "ok" ? s.dialogs.at(-1)!.ok : s.dialogs.at(-1)!.cancel }));
     else if (kind === "color") await user.click(screen.getByTestId("wc-colors").querySelector(`label[data-value="${a}"]`)!);
     else if (kind === "card") await user.click(screen.getAllByTestId("wc-card").find((x) => x.dataset.size === a)!);
     else if (kind === "qty") fireEvent.change(screen.getByLabelText("Anzahl Paneele (Stück)"), { target: { value: a } });
@@ -130,7 +77,10 @@ async function play(s: Scenario, router: Awaited<ReturnType<typeof open>>["route
     else if (kind === "open") opened(a as Fields);
     else if (kind === "goto") { await router.navigate(`/deal/${KEY}/bu/${a}`); await screen.findByRole("heading", { name: a === "Fussboden" ? "Fußboden" : String(a) }); }
     else if (kind === "wvon") await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
-    else if (kind === "wvclassic") continue; // React's Wandverkleidung is the classic view (item 2 brings the simple one)
+    else if (kind === "wvclassic") await user.click(screen.getByRole("button", { name: "Alter Konfigurator (Wandplan, Zeilen)" }));
+    else if (kind === "wvplate") await user.click(within(screen.getByTestId("wvs")).getByRole("button", { name: `Mehr ${PLATE[String(a)]}` }));
+    else if (kind === "wvcolor") await user.click(within(screen.getByTestId("wvs-colors")).getByRole("radiogroup").querySelector(`[data-code="${a}"]`)!);
+    else if (kind === "wvheight") { const el = screen.getByLabelText(/^Höhe der Verkleidung/); await user.click(el); await user.clear(el); await user.type(el, String(a)); await user.tab(); }
     else if (kind === "wvline") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: /^VIGOUR/ }));
     else if (kind === "wvwidth") fireEvent.change(screen.getByLabelText(`Breite ${WALL_NAMES[a as string]} in cm`), { target: { value: b } });
     else if (kind === "wvwall") await user.click(screen.getByRole("button", { name: `Dekor für ${WALL_NAMES[a as string]} wählen` }));
@@ -156,19 +106,23 @@ interface View {
 }
 const tiles = (testId: string): Tile[] => Array.from(screen.getByTestId(testId).querySelectorAll("label[data-value]")).map((l) => { const i = l.querySelector("input")!; return { value: (l as HTMLElement).dataset.value!, caption: part(l, "caption"), checked: i.checked, disabled: i.disabled }; });
 
+afterEach(() => { vi.restoreAllMocks(); });
+
 describe("Wandverkleidung als Fußboden stores and shows what today's UI does", () => {
   it.each(SCENARIOS.map((s) => [s.name, s] as const))("%s", { timeout: 20000 }, async (_name, scenario) => {
     const { base, router } = await open();
-    BASE_DW = base.duschwanne;
-    SESS = { ...w.SESSION };
+    const toasts = vi.spyOn(toast, "info");
     await play(scenario, router);
     const v = scenario.view, next = scenario.next;
     await waitFor(() => expect(mine(changed(base.duschwanne, offer().duschwanne))).toEqual(mine(scenario.duschwanne)));
     expect(changed(base.Arbeitszeit, offer().Arbeitszeit)).toEqual(scenario.arbeitszeit); // the floor in the work-time suggestion
     if (next) { await waitFor(() => expect(router.state.location.pathname.split("/").pop()).toBe(next.step)); return; } // today this mode asks for nothing
     expect(router.state.location.pathname.split("/").pop()).toBe(v.step);
-    // the in-page questions of the floor step itself (the wall's are checked in WALL)
-    if (!scenario.steps.some((x) => SIMPLE.has(String(x[0])))) expect(scenario.dialogs.length).toBe(scenario.steps.filter((x) => x[0] === "confirm").length);
+    // every in-page question (the floor step's and the wall's) is answered by a step
+    expect(scenario.dialogs.length).toBe(scenario.steps.filter((x) => x[0] === "confirm").length);
+    // the wall as today's UI stored it (scenarios that visit it; a reopened offer gets today's empty sketch, not priced — known)
+    if (scenario.steps.some((x) => String(x[0]).startsWith("wv"))) expect(changed(base.wandverkleidung, offer().wandverkleidung)).toEqual(scenario.wandverkleidung);
+    if (scenario.steps.some((x) => SIMPLE.has(String(x[0])))) expect(toasts.mock.calls.map((x) => String(x[0]))).toEqual(v.toasts); // the wall's toasts about the floor
 
     expect((screen.getByRole("switch", { name: "Fußboden" }) as HTMLInputElement).checked).toBe(v.on);
     if (!v.on) return; // off: only the switch

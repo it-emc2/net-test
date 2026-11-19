@@ -9,7 +9,7 @@ import { WW_DECORS } from "../src/features/steps/wandverkleidung/decors.js";
 import { ACCESSORIES, areaOf, articleFormat, chooseLine, decorCode, fromRows, rowsOf, sealing, wallAreaOf } from "../src/features/steps/wandverkleidung/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wandverkleidung.json" with { type: "json" };
-import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { BASE, fakeServer, renderApp, toClassic, withoutClassic } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -25,7 +25,7 @@ async function open() {
 async function play(steps: (string | number)[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
-    if (kind === "on" || kind === "off") await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
+    if (kind === "on" || kind === "off") { await user.click(screen.getByRole("switch", { name: "Wandverkleidung" })); if (kind === "on") await toClassic(user); }
     else if (kind === "line") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[a as string]! }));
     else if (kind === "kind") await user.click(screen.getByRole("group", { name: "Ausführung" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "shower") await user.click(screen.getByRole("checkbox", { name: /^Im Duschbereich bis Höhe/ }));
@@ -57,7 +57,7 @@ describe("Wandverkleidung stores and shows what today's UI does", () => {
   it.each(reference.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
     const { base, router } = await open();
     await play(scenario.steps.filter(([kind]) => kind !== "next"));
-    expect(changed(base.wandverkleidung, offer().wandverkleidung)).toEqual(scenario.wandverkleidung);
+    expect(withoutClassic(changed(base.wandverkleidung, offer().wandverkleidung))).toEqual(scenario.wandverkleidung);
     expect(changed(base.duschwanne, offer().duschwanne)).toEqual(scenario.duschwanne);
     expect(changed(base.Arbeitszeit, offer().Arbeitszeit)).toEqual(scenario.arbeitszeit);
 

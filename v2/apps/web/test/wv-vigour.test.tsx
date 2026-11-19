@@ -11,7 +11,7 @@ import { chooseLine } from "../src/features/steps/wandverkleidung/rules.js";
 import { fromRows, rowsOf, setQty, toggleSwitch } from "../src/features/steps/wandverkleidung/vigour.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wv-vigour.json" with { type: "json" };
-import { BASE, fakeServer, renderApp, type Reply } from "./helpers.js";
+import { BASE, fakeServer, renderApp, type Reply, toClassic, withoutClassic } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -34,7 +34,7 @@ const wall = (key: string) => screen.getAllByTestId("kc-wall").find((w) => w.dat
 async function play(steps: (string | number)[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
-    if (kind === "on" || kind === "off") await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
+    if (kind === "on" || kind === "off") { await user.click(screen.getByRole("switch", { name: "Wandverkleidung" })); if (kind === "on") await toClassic(user); }
     else if (kind === "line") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[a as string]! }));
     else if (kind === "row+") await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Farbe oder Sonderdruck)" }));
     else if (kind === "row") await user.click(screen.getAllByTestId("vg-row")[Number(a) - 1]!.querySelector("button")!);
@@ -64,7 +64,7 @@ describe("Wandverkleidung, line VIGOUR, stores and shows what today's UI does", 
   it.each(reference.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
     const base = await open();
     await play(scenario.steps);
-    await waitFor(() => expect(changed(base.wandverkleidung, offer().wandverkleidung)).toEqual(scenario.wandverkleidung));
+    await waitFor(() => expect(withoutClassic(changed(base.wandverkleidung, offer().wandverkleidung))).toEqual(scenario.wandverkleidung));
     expect(changed(base.Arbeitszeit, offer().Arbeitszeit)).toEqual(scenario.arbeitszeit); // panels and silicone in the work-time suggestion
 
     const v = scenario.view;
