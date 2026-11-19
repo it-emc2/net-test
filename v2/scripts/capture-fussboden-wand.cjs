@@ -26,7 +26,7 @@ const HM = [...W, ["sup", "hm"], ["area", "4,5"]];
 // a wall with winwall plates that leave a rest (wall plan of the classic view, as React's
 // Wandverkleidung step today): 170 cm wide, 250 cm high → 2 plates of 100 cm
 const REST_WW = [["goto", "Wandverkleidung"], ["wvon"], ["wvclassic"], ["wvwidth", "back", "170"], ["wvwall", "back"], ["wvdecor", "back", 7], ["goto", "Fussboden"]];
-const REST_HM = [["goto", "Wandverkleidung"], ["wvon"], ["wvline", "premium"], ["wvwidth", "back", "170"], ["wvwall", "back"], ["wvdecor", "back", 2], ["goto", "Fussboden"]];
+const REST_HM = [["goto", "Wandverkleidung"], ["wvon"], ["wvclassic"], ["wvline", "premium"], ["wvwidth", "back", "170"], ["wvwall", "back"], ["wvdecor", "back", 2], ["goto", "Fussboden"]];
 // the winwall simple view of the wall (new offers): 3 × 100×250 in Marmor weiß, cut at 200 cm →
 // strips of 3 × 1,00 × 0,50 = 1,5 m², 80 % usable = 1,2 m² rest
 const STRIPS_NO_FLOOR = [["goto", "Wandverkleidung"], ["wvon"], ["wvplate", "15"], ["wvplate", "15"], ["wvplate", "15"]];
@@ -98,8 +98,9 @@ const SCENARIOS = {
   "strips: floor added, then plates by hand": [...STRIPS, ["plate", "13", "+"]],
   "strips: floor on before, rest switched on": [...W, ["area", "3"], ...STRIPS, ["rest"]],
   "strips: height without a rest": [["goto", "Wandverkleidung"], ["wvon"], ["wvplate", "15"], ["wvheight", "245"], ["goto", "Fussboden"]],
-  "strips: wall decor changed, floor follows (yes)": [...STRIPS, ["snap"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "ok"], ["goto", "Fussboden"]],
-  "strips: wall decor changed, floor stays (no)": [...STRIPS, ["snap"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "cancel"], ["goto", "Fussboden"]],
+  "strips: wall decor changed, the added floor follows without a question": [...STRIPS, ["snap"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["goto", "Fussboden"]],
+  "strips: area typed, wall decor changed, floor follows (yes)": [...STRIPS, ["area", "3"], ["snap"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "ok"], ["goto", "Fussboden"]],
+  "strips: area typed, wall decor changed, floor stays (no)": [...STRIPS, ["area", "3"], ["snap"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "cancel"], ["goto", "Fussboden"]],
   "strips: Bodenbelag, wall decor changed, switch to winwall": [["on"], ["tab", "floor"], ...STRIPS_NO_FLOOR, ["wvheight", "200"], ["snap"], ["wvcolor", "WS229"], ["confirm", "ok"], ["goto", "Fussboden"]],
   "strips: floor switched off by hand, no new floor": [...STRIPS, ["snap"], ["off"], ["goto", "Wandverkleidung"], ["wvplate", "15"], ["goto", "Fussboden"]],
   "old offer: only format and quantity": [["open", OLD], ["goto", "Fussboden"]],
@@ -128,7 +129,7 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
 async function newPage(browser, onResponse) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
   await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
-  await ctx.addInitScript(() => { window.__toasts = []; window.showToast = (msg, kind) => { window.__toasts.push({ msg: String(msg), kind: kind || "" }); }; });
+  await ctx.addInitScript(() => { window.__toasts = []; });
   const page = await ctx.newPage();
   const json = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   await page.route("**/api/auth/me", (r) => r.fulfill(json({ user: { email: "capture@local.test", name: "Capture", role: "user" } })));
@@ -142,6 +143,12 @@ async function newPage(browser, onResponse) {
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.setStep("Fussboden"));
   await page.waitForTimeout(500);
+  // script.js's own showToast replaces the one above; it shows through window.toast / showNiceToast — collect from there
+  await page.evaluate(() => {
+    const push = (m) => window.__toasts.push({ msg: String(m), kind: "" });
+    if (window.toast) for (const k of Object.keys(window.toast)) if (typeof window.toast[k] === "function") { const f = window.toast[k]; window.toast[k] = (t, m, ...r) => { push(m ?? t); return f(t, m, ...r); }; }
+    if (window.showNiceToast) { const f = window.showNiceToast; window.showNiceToast = (m, ...r) => { push(m); return f(m, ...r); }; }
+  });
   return { ctx, page };
 }
 

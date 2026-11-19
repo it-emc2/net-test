@@ -1630,20 +1630,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "16",
       "qty": "3",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -1699,7 +1699,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 9,38 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 9,38 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1757,20 +1757,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "2",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -1826,7 +1826,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 5 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 5 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -1882,27 +1882,27 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Tippen zum Ändern · Set (2 gleiche Platten, günstiger)",
+      "small": "Tippen zum Ändern",
       "fmt": "15",
       "qty": "1",
       "open": false
      },
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "1",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -1958,7 +1958,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 5 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 5 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3320,6 +3320,7 @@
    ],
    "wandverkleidung": {
     "wvEnabled": true,
+    "wvWwAccManual": "R_4260602",
     "wvWwQty_15": "2",
     "wvWwQty_WS80113": "1",
     "wvWwRows": "[{\"code\":\"WS203\",\"fmt\":\"15\",\"qty\":2}]",
@@ -3345,20 +3346,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "2",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -3414,7 +3415,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 5 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 5 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3455,6 +3456,7 @@
    ],
    "wandverkleidung": {
     "wvEnabled": true,
+    "wvWwAccManual": "WS80113",
     "wvWwQty_15": "3",
     "wvWwQty_R_4260602": "6",
     "wvWwQty_WS80113": "2",
@@ -3482,20 +3484,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "3",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -3551,7 +3553,7 @@
       "qty": "",
       "placeholder": "2",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 7,5 m² → 2 × 5 m² · automatisch"
+      "small": "nach Wandfläche 7,5 m² → 2 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -3743,20 +3745,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "3",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -4149,20 +4151,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "2",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -4218,7 +4220,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 5 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 5 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",
@@ -4414,20 +4416,20 @@
     "rows": [
      {
       "title": "Marmor weiß · WS 203",
-      "small": "Dekor wählen · Set (2 gleiche Platten, günstiger)",
+      "small": "Dekor wählen",
       "fmt": "15",
       "qty": "2",
       "open": true
      }
     ],
     "rowsEmpty": "",
-    "rowsHint": "Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).",
+    "rowsHint": "",
     "decorsShown": true,
     "decorLabel": "Dekor für diese Zeile",
     "decor": "WS203",
     "customShown": false,
     "custom": "",
-    "customHint": "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.",
+    "customHint": "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).",
     "customCaption": "Anderes Dekor",
     "accLabel": "ZUBEHÖR WINWALL",
     "acc": [
@@ -4483,7 +4485,7 @@
       "qty": "",
       "placeholder": "1",
       "caption": "Abdichtungsset DIN 18534-1",
-      "small": "nach Plattenfläche 5 m² → 1 × 5 m² · automatisch"
+      "small": "nach Wandfläche 5 m² → 1 × 5 m² · automatisch"
      },
      {
       "id": "wvWwCut",

@@ -30,7 +30,7 @@ const CASES = {
   d: ["floor from the wall's rest (classic wall plan, area 3, rest used)", { steps: [...REST_WW, ...W, ["area", "3"], ["rest"]] }],
   e: ["floor from the strips above the cladding height (added by today's UI, opened)", { setup: STRIPS, steps: [] }],
   f: ["strips floor opened, then a plate more", { setup: STRIPS, steps: [["plate", "13", "+"]] }],
-  g: ["wall decor changed afterwards, floor follows (today's UI, opened)", { setup: [...STRIPS, ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "ok"], ["goto", "Fussboden"]], steps: [] }],
+  g: ["wall decor changed afterwards, floor follows (area 3 typed, \"Ja, ändern\"; today's UI, opened)", { setup: [...STRIPS, ["area", "3"], ["goto", "Wandverkleidung"], ["wvcolor", "WS229"], ["confirm", "ok"], ["goto", "Fussboden"]], steps: [] }],
   h: ["wall decor changed afterwards in the classic wall plan (rest used before)", { steps: [...REST_WW, ...W, ["area", "3"], ["rest"], ["goto", "Wandverkleidung"], ["wvwall", "back"], ["wvdecor", "back", 3], ["goto", "Fussboden"]] }],
   i: ["old offer: only format + quantity (opened)", { open: cap.OLD, steps: [] }],
   j: ["old offer: a plate more", { open: cap.OLD, steps: [["plate", "15", "+"]] }],

@@ -19,7 +19,8 @@
 //  - floor decor changed by hand away from the rest while the rest is used: an in-page question,
 //    "Abbrechen" goes back
 //  - wall → floor (simple view of the Wandverkleidung, not built in React yet — item 2):
-//    `autoAdd` / `wallDecorChanged` say what today's UI does then
+//    `wallChanged` / `autoAdd` / `wallDecorChanged` say what today's UI does then (with what it
+//    remembers meanwhile: `WallSession`)
 //  - changing the mode or switching off keeps everything that was entered
 // Legacy oddities ported unchanged: the switch "Reste anrechnen" with winwall plates puts the
 // quantity of a single format into wallCladdingQty (the plates JSON stays, the price uses it);
@@ -30,6 +31,7 @@ import { situationOf, wallsOf, WALLS } from "../wandverkleidung/calc.js";
 import { WW_DECORS, WW_SWATCHES } from "../wandverkleidung/decors.js";
 import { lineOf, rowsOf } from "../wandverkleidung/rules.js";
 import { rowsOf as vigourRowsOf } from "../wandverkleidung/vigour.js";
+import { setMode } from "./rules.js";
 
 type Fields = Record<string, unknown>;
 export type Supplier = "ww" | "hm";
@@ -298,34 +300,63 @@ export function leavingRest(dw: Fields, prev: string | null, rest: Rest | null):
 
 // ---- wall → floor (today's simple view of the Wandverkleidung; React wires it with item 2) ----
 const de = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
-/** the wall left a rest in `code` and the floor is empty: the floor is added in winwall with this
- *  decor, the rest as its area, the rest used (and the toast today's UI shows); null when not */
-export function autoAdd(dw: Fields, rest: Rest | null, code: string, optedOut = false): { fields: Fields; toast: string } | null {
-  const m = restIn(rest, code);
-  if (!m || optedOut || dw.addFlooring || dw.addWallCladding) return null;
-  return { fields: wallFloor(dw, rest, code, de(m)), toast: `Fußboden ergänzt: ${de(m)} m² ${nameOf(code)} aus den Wandresten (schon bezahlt) + Flächenkleber.` };
+/** what today's UI remembers about the floor while the offer is open (script.js initWallCladdingSection):
+ *  `last` the plate proposal the plates were last set to; `autoArea` the area an automatic floor got
+ *  (it follows the rest until the area is typed); `optedOut` the floor was switched off by hand;
+ *  `askedSwitch` "Fußboden auf winwall umstellen?" was asked already */
+export interface WallSession { last: Qty | null; autoArea: string | null; optedOut: boolean; askedSwitch: boolean }
+export const SESSION: WallSession = { last: null, autoArea: null, optedOut: false, askedSwitch: false };
+type Step = { fields: Fields; session: WallSession };
+const apply = (dw: Fields, fields: Fields) => ({ ...dw, ...fields });
+/** the plates followed: the proposal they are set to now */
+const followed = (dw: Fields, rest: Rest | null, s: WallSession): WallSession => (supplierOf(dw) === "ww" ? { ...s, last: proposalOf(dw, creditOf(dw, rest)) } : s);
+/** the wall changed (plates, height, decor): an automatic area follows the rest of the floor's decor, the plates follow the proposal */
+export function wallChanged(dw: Fields, rest: Rest | null, s: WallSession): Step {
+  let change: Fields = {}, autoArea: string | null = null;
+  if (s.autoArea != null && dw.addWallCladding && supplierOf(dw) === "ww" && String(dw.wallCladdingArea ?? "") === s.autoArea) {
+    const m = restIn(rest, decorOf(dw).code);
+    change = { wallCladdingArea: m ? de(m) : "" };
+    autoArea = m ? de(m) : null;
+  }
+  const fields = settled(dw, change, rest, s.last);
+  return { fields, session: followed(apply(dw, fields), rest, { ...s, autoArea }) };
 }
 /** the floor switched to "Wandverkleidung als Fußboden" in winwall, this decor, the rest used, the plates proposed */
-export function wallFloor(dw: Fields, rest: Rest | null, code: string, area: string | null): Fields {
-  const change: Fields = { addWallCladding: "on", addFlooring: undefined, ...setSupplier(dw, "ww"), ...setFloorDecor(code), ...(area != null && !num(dw.wallCladdingArea) ? { wallCladdingArea: area } : {}), ...(restIn(rest, code) > 0 ? { wallCladdingUseLeftover: "on" } : {}), ...qtyFields(zero()) };
-  return settled(dw, change, rest, null);
+export function wallFloor(dw: Fields, rest: Rest | null, code: string, area: string | null, s: WallSession): Step {
+  const change: Fields = { ...setMode(dw, true, "wall"), ...setSupplier(dw, "ww"), ...setFloorDecor(code), ...(area != null && !num(dw.wallCladdingArea) ? { wallCladdingArea: area } : {}), ...(restIn(rest, code) > 0 ? { wallCladdingUseLeftover: "on" } : {}), ...qtyFields(zero()) };
+  const fields = settled(dw, change, rest, null);
+  return { fields, session: followed(apply(dw, fields), rest, { ...s, last: null }) };
 }
-/** the wall's decor changed from `oldCode` to `newCode`: what today's UI asks (if anything) and does on "Ja" */
-export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string, newCode: string): { ask: { title: string; message: string; confirm: string; cancel: string } | null; yes: Fields } | null {
+/** the wall left a rest in `code` and there is no floor: the floor is added from the rest (+ the toast today's UI shows); null when not */
+export function autoAdd(dw: Fields, rest: Rest | null, code: string, s: WallSession): (Step & { toast: string }) | null {
+  const m = restIn(rest, code);
+  if (!m || s.optedOut || dw.addFlooring || dw.addWallCladding) return null;
+  const r = wallFloor(dw, rest, code, de(m), s);
+  return { ...r, session: { ...r.session, autoArea: de(m) }, toast: `Fußboden ergänzt: ${de(m)} m² ${nameOf(code)} aus den Wandresten (schon bezahlt) + Flächenkleber.` };
+}
+export interface Ask { title: string; message: string; confirm: string; cancel: string }
+/** the wall's decor changed from `oldCode` to `newCode`. `pre`: what happens at once (the wall changed;
+ *  maybe a floor added from the rest); `ask`: today's question (null = none); `yes`: what "Ja" does */
+export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string, newCode: string, s: WallSession): { pre: Step; ask: Ask | null; yes: Step | null } | null {
   if (!newCode || oldCode === newCode) return null;
-  if (dw.addWallCladding && supplierOf(dw) === "ww") {
-    if (decorOf(dw).code !== oldCode) return null; // the floor goes with another wall decor (or its own)
-    const hasItems = areaOf(dw) > 0 || sum(qtyOf(dw)) > 0;
-    const lost = !!dw.wallCladdingUseLeftover && restIn(rest, oldCode) === 0 && restIn(rest, newCode) > 0;
-    const yes = { ...setFloorDecor(newCode), ...(!dw.wallCladdingUseLeftover && restIn(rest, newCode) > 0 && !hasItems ? { wallCladdingUseLeftover: "on" } : {}) };
-    return {
-      ask: hasItems ? { title: "Fußboden-Dekor auch ändern?", message: `An der Wand ist jetzt ${nameOf(newCode)} statt ${nameOf(oldCode)}. Den Fußboden auch auf ${nameOf(newCode)} umstellen? Fläche und Platten bleiben.` + (lost ? " Bei „Nein“ werden die Reste aus der Wandverkleidung nicht mehr für den Boden angerechnet." : ""), confirm: "Ja, ändern", cancel: "Nein" } : null,
-      yes: settled(dw, yes, rest, null),
-    };
+  let pre = wallChanged(dw, rest, s);
+  let now = apply(dw, pre.fields);
+  const auto = autoAdd(now, rest, newCode, pre.session);
+  if (auto) return { pre: { fields: { ...pre.fields, ...auto.fields }, session: auto.session }, ask: null, yes: null };
+  if (now.addWallCladding && supplierOf(now) === "ww") {
+    if (decorOf(now).code !== oldCode) return { pre, ask: null, yes: null }; // the floor goes with another wall decor (or its own)
+    const hasItems = areaOf(now) > 0 || sum(qtyOf(now)) > 0;
+    const lost = !!now.wallCladdingUseLeftover && restIn(rest, oldCode) === 0 && restIn(rest, newCode) > 0;
+    const change = { ...setFloorDecor(newCode), ...(!now.wallCladdingUseLeftover && restIn(rest, newCode) > 0 && !hasItems ? { wallCladdingUseLeftover: "on" } : {}) };
+    const fields = settled(now, change, rest, pre.session.last), yes = { fields, session: followed(apply(now, fields), rest, pre.session) };
+    if (!hasItems) return { pre: { fields: { ...pre.fields, ...yes.fields }, session: yes.session }, ask: null, yes: null };
+    return { pre, ask: { title: "Fußboden-Dekor auch ändern?", message: `An der Wand ist jetzt ${nameOf(newCode)} statt ${nameOf(oldCode)}. Den Fußboden auch auf ${nameOf(newCode)} umstellen? Fläche und Platten bleiben.` + (lost ? " Bei „Nein“ werden die Reste aus der Wandverkleidung nicht mehr für den Boden angerechnet." : ""), confirm: "Ja, ändern", cancel: "Nein" }, yes };
   }
   const m = restIn(rest, newCode);
-  if (!m) return null;
-  return { ask: { title: "Fußboden auf winwall umstellen?", message: `Von ${nameOf(newCode)} bleiben ca. ${de(m)} m² übrig (schon bezahlt). Den Fußboden auf „Wandverkleidung als Fußboden“ in ${nameOf(newCode)} umstellen? Die Fläche bleibt.`, confirm: "Ja, umstellen", cancel: "Nein" }, yes: wallFloor(dw, rest, newCode, String(dw.floorArea ?? "") || de(m)) };
+  if (!m || pre.session.askedSwitch) return { pre, ask: null, yes: null };
+  pre = { ...pre, session: { ...pre.session, askedSwitch: true } };
+  now = apply(dw, pre.fields);
+  return { pre, ask: { title: "Fußboden auf winwall umstellen?", message: `Von ${nameOf(newCode)} bleiben ca. ${de(m)} m² übrig (schon bezahlt). Den Fußboden auf „Wandverkleidung als Fußboden“ in ${nameOf(newCode)} umstellen? Die Fläche bleibt.`, confirm: "Ja, umstellen", cancel: "Nein" }, yes: wallFloor(now, rest, newCode, String(now.floorArea ?? "") || de(m), pre.session) };
 }
 
 // ---- "Ihre Auswahl" ----
