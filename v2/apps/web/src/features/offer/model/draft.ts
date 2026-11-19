@@ -4,34 +4,37 @@
 //  - opening an offer loads its draft; none yet → a new, empty offer
 //  - every change is saved AUTOSAVE_MS after the last one (and kept in a localStorage snapshot when the page goes away); `flushDraft()` saves at once
 //  - a draft changed elsewhere in the meantime is never overwritten (server answers 409)
+import { FIRST_VARIANT_ID } from "@oc/api-contract";
 import { isNewOfferType, pricingRulesOf, type NewOfferType, type Offer } from "@oc/domain";
 import { useEffect, useState } from "react";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { todayIso } from "../../../shared/lib/format.js";
 import { usePrefs } from "../../../shared/lib/prefs.js";
-import { useOfferStore } from "./store.js";
+import { useOfferStore, type OpenVariant } from "./store.js";
+import { snapshotKey, variantQuery } from "./variants.js";
 
 export const AUTOSAVE_MS = 2500;
 
 // Synchronous device snapshot (localStorage): the page may go away within the autosave delay and
 // a request or IndexedDB write may not finish during unload. `revision` = server revision it is based on.
-const SNAP = "oc.snapshot.";
+// One per deal and variant (variants.ts snapshotKey: the first variant keeps today's key).
 interface Snapshot { at: number; revision: number; offerType: string; payload: unknown }
 export function writeSnapshot(): void {
-  const { offer, dealId, version, savedVersion, revision } = useOfferStore.getState();
+  const { offer, dealId, variantId, version, savedVersion, revision } = useOfferStore.getState();
   if (!offer || !dealId || version === savedVersion) return;
-  try { localStorage.setItem(SNAP + dealId, JSON.stringify({ at: Date.now(), revision, offerType: offer.activeOffer, payload: offer } satisfies Snapshot)); } catch { /* full / private mode: the server draft remains */ }
+  try { localStorage.setItem(snapshotKey(dealId, variantId), JSON.stringify({ at: Date.now(), revision, offerType: offer.activeOffer, payload: offer } satisfies Snapshot)); } catch { /* full / private mode: the server draft remains */ }
 }
-const readSnapshot = (dealId: string): Snapshot | null => { try { return JSON.parse(localStorage.getItem(SNAP + dealId) ?? "null"); } catch { return null; } };
-const dropSnapshot = (dealId: string) => { try { localStorage.removeItem(SNAP + dealId); } catch { /* ignore */ } };
+const readSnapshot = (key: string): Snapshot | null => { try { return JSON.parse(localStorage.getItem(key) ?? "null"); } catch { return null; } };
+export const dropSnapshot = (key: string) => { try { localStorage.removeItem(key); } catch { /* ignore */ } };
 
 /** A snapshot based on the server revision that is still current holds newer input → open it as
  *  unsaved changes (uploaded by autosave / "Speichern"). A snapshot of an older revision never wins. */
-function applySnapshot(dealId: string, type: NewOfferType, serverRevision: number): boolean {
-  const snap = readSnapshot(dealId);
+function applySnapshot(dealId: string, variant: OpenVariant, type: NewOfferType, serverRevision: number): boolean {
+  const key = snapshotKey(dealId, variant.id);
+  const snap = readSnapshot(key);
   if (!snap) return false;
-  if (snap.revision !== serverRevision || snap.offerType !== type || !snap.payload) { dropSnapshot(dealId); return false; }
-  useOfferStore.getState().load(snap.payload as Offer, dealId, serverRevision);
+  if (snap.revision !== serverRevision || snap.offerType !== type || !snap.payload) { dropSnapshot(key); return false; }
+  useOfferStore.getState().load(snap.payload as Offer, dealId, serverRevision, variant);
   useOfferStore.setState({ version: 1 }); // dirty: savedVersion stays 0
   return true;
 }
@@ -39,6 +42,8 @@ function applySnapshot(dealId: string, type: NewOfferType, serverRevision: numbe
 export type OpenState =
   | { status: "loading" }
   | { status: "ready" }
+  /** the asked variant is gone: another one was opened → the address should name it */
+  | { status: "moved"; variantId: string }
   /** the draft of this deal is an offer of another type → the address should follow it */
   | { status: "other-type"; type: NewOfferType }
   | { status: "error"; message: string };
@@ -49,42 +54,68 @@ let pendingStart: { dealId: string; apply: () => void } | null = null;
 export const prefillNextOffer = (dealId: string, apply: () => void) => { pendingStart = { dealId, apply }; };
 const takePrefill = (dealId: string) => { const p = pendingStart; pendingStart = null; if (p?.dealId === dealId) p.apply(); };
 
-/** Makes the offer of `dealId` the open one: its draft, or a new empty offer of `type`. */
-export function useOpenOffer(dealId: string, type: NewOfferType): OpenState {
-  const [state, setState] = useState<OpenState>({ status: "loading" });
+/** The open offer is about to be replaced (another deal or variant by address, e.g. the browser's
+ *  back button): its unsaved input is kept on the device at once and saved to ITS draft. */
+function keepOpenInput(): void {
+  const s = useOfferStore.getState();
+  if (!s.offer || !s.dealId || s.version === s.savedVersion) return;
+  writeSnapshot();
+  void flushDraft();
+}
+
+/** Is this offer (and variant, if the address names one) the open one? An address without a
+ *  variant keeps the variant that is open (the frame then writes it into the address). */
+const isOpen = (s: ReturnType<typeof useOfferStore.getState>, dealId: string, type: NewOfferType, variant: string | undefined) =>
+  s.dealId === dealId && s.offer?.activeOffer === type && (!variant || s.variantId === variant);
+
+/** Makes the offer of `dealId` the open one: its draft (of `variant`, else of the variant the
+ *  server opened last), or a new empty offer of `type`. */
+export function useOpenOffer(dealId: string, type: NewOfferType, variant?: string): OpenState {
+  const open = useOfferStore((s) => isOpen(s, dealId, type, variant));
+  const want = `${dealId}|${type}|${variant ?? ""}`;
+  const [state, setState] = useState<OpenState & { for?: string }>({ status: "loading" });
   useEffect(() => {
-    const s = useOfferStore.getState();
-    if (s.dealId === dealId && s.offer?.activeOffer === type) { setState({ status: "ready" }); return; }
+    if (isOpen(useOfferStore.getState(), dealId, type, variant)) { setState({ status: "ready", for: want }); return; }
+    keepOpenInput();
     const ctl = new AbortController();
-    setState({ status: "loading" });
-    call("dealDraft", { params: { dealId }, signal: ctl.signal }).then(
-      (d) => {
-        if (!isNewOfferType(d.offerType)) return setState({ status: "error", message: "Dieser Entwurf hat eine Angebotsart, die hier nicht bearbeitet werden kann." });
-        if (d.offerType !== type) return setState({ status: "other-type", type: d.offerType });
-        pendingStart = null; // an existing draft is never overwritten by an appointment
-        if (!applySnapshot(dealId, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
-        setState({ status: "ready" });
-      },
-      (err: unknown) => {
-        if ((err as Error)?.name === "AbortError") return;
-        if (err instanceof ApiFailure && err.status === 404) { // no draft yet
-          // a new offer carries a snapshot of the business settings, as today; without the
-          // settings (offline) it starts without one and is priced with the defaults
-          call("publicConfig", { signal: ctl.signal }).then(pricingRulesOf, () => undefined).then((pricingRules) => {
-            if (ctl.signal.aborted) return;
-            if (applySnapshot(dealId, type, 0)) return setState({ status: "ready" });
-            useOfferStore.getState().start(type, { date: todayIso(), ...(pricingRules ? { pricingRules } : {}) }, dealId);
-            takePrefill(dealId);
-            setState({ status: "ready" });
-          });
-          return;
-        }
-        setState({ status: "error", message: err instanceof ApiFailure ? err.message : "Der Entwurf konnte nicht geladen werden." });
-      },
-    );
+    const say = (s: OpenState) => { if (!ctl.signal.aborted) setState({ ...s, for: want }); };
+    setState({ status: "loading", for: want });
+    const get = (asked: string | undefined) => call("dealDraft", { params: { dealId }, signal: ctl.signal, ...(asked ? { query: `variant=${encodeURIComponent(asked)}` } : {}) });
+    const loaded = (d: Awaited<ReturnType<typeof get>>, asked: string | undefined) => {
+      if (!isNewOfferType(d.offerType)) return say({ status: "error", message: "Dieser Entwurf hat eine Angebotsart, die hier nicht bearbeitet werden kann." });
+      if (d.offerType !== type) return say({ status: "other-type", type: d.offerType });
+      pendingStart = null; // an existing draft is never overwritten by an appointment
+      const v: OpenVariant = { id: d.variantId ?? asked ?? FIRST_VARIANT_ID, name: d.variantName, known: !!(d.variantId || asked) };
+      if (!applySnapshot(dealId, v, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision, v);
+      if (variant && v.id !== variant) return say({ status: "moved", variantId: v.id });
+      say({ status: "ready" });
+    };
+    const fresh = () => { // no draft yet
+      // a new offer carries a snapshot of the business settings, as today; without the
+      // settings (offline) it starts without one and is priced with the defaults
+      call("publicConfig", { signal: ctl.signal }).then(pricingRulesOf, () => undefined).then((pricingRules) => {
+        if (ctl.signal.aborted) return;
+        const v: OpenVariant = { id: FIRST_VARIANT_ID, known: false };
+        if (applySnapshot(dealId, v, type, 0)) return say(variant && variant !== FIRST_VARIANT_ID ? { status: "moved", variantId: FIRST_VARIANT_ID } : { status: "ready" });
+        useOfferStore.getState().start(type, { date: todayIso(), ...(pricingRules ? { pricingRules } : {}) }, dealId, v);
+        takePrefill(dealId);
+        say(variant && variant !== FIRST_VARIANT_ID ? { status: "moved", variantId: FIRST_VARIANT_ID } : { status: "ready" });
+      });
+    };
+    const failed = (err: unknown) => {
+      if ((err as Error)?.name === "AbortError") return;
+      if (err instanceof ApiFailure && err.status === 404) return fresh();
+      say({ status: "error", message: err instanceof ApiFailure ? err.message : "Der Entwurf konnte nicht geladen werden." });
+    };
+    get(variant).then((d) => loaded(d, variant), (err: unknown) => {
+      // the asked variant is gone (deleted, an old link) or the deal has no draft yet: the server's default
+      if (variant && err instanceof ApiFailure && err.status === 404) get(undefined).then((d) => loaded(d, undefined), failed);
+      else failed(err);
+    });
     return () => ctl.abort();
-  }, [dealId, type]);
-  return state;
+  }, [dealId, type, variant, want]);
+  if (open && (state.for !== want || state.status === "loading")) return { status: "ready" };
+  return state.for === want ? state : { status: "loading" };
 }
 
 export type SaveStatus = { state: "idle" } | { state: "saving" } | { state: "saved"; at: Date } | { state: "conflict" } | { state: "failed"; message: string };
@@ -104,15 +135,17 @@ export function useSaveStatus(): SaveStatus {
 /** Saves the open offer now if it has unsaved changes. One save at a time; resolves with the outcome. */
 export function flushDraft(): Promise<SaveStatus> {
   if (inFlight) return inFlight.then(() => flushDraft());
-  const { offer, dealId, version, savedVersion, revision } = useOfferStore.getState();
+  const s = useOfferStore.getState(), { offer, dealId, variantId, version, savedVersion, revision } = s;
   if (!offer || !dealId || version === savedVersion) return Promise.resolve({ state: "idle" });
   tell({ state: "saving" });
-  inFlight = call("saveDealDraft", { params: { dealId }, body: { offerType: offer.activeOffer, payload: offer, baseRevision: revision } })
+  const query = variantQuery(s);
+  inFlight = call("saveDealDraft", { params: { dealId }, ...(query ? { query } : {}), body: { offerType: offer.activeOffer, payload: offer, baseRevision: revision } })
     .then((r): SaveStatus => {
-      // only if the same offer is still open (the user may have gone to the Hauptmenü meanwhile)
-      if (useOfferStore.getState().dealId === dealId) {
-        useOfferStore.getState().saved(version, r.revision);
-        if (useOfferStore.getState().version === version) dropSnapshot(dealId); // nothing newer typed meanwhile
+      // only if the same offer is still open (the user may have gone to the Hauptmenü or another variant meanwhile)
+      const now = useOfferStore.getState();
+      if (now.dealId === dealId && now.variantId === variantId) {
+        now.saved(version, r.revision);
+        if (useOfferStore.getState().version === version) dropSnapshot(snapshotKey(dealId, variantId)); // nothing newer typed meanwhile
       }
       return tell({ state: "saved", at: new Date() });
     })
@@ -126,13 +159,14 @@ export function flushDraft(): Promise<SaveStatus> {
  *  because the draft was changed elsewhere). What was typed on this device since is given up.
  *  False: it could not be loaded — nothing changed. */
 export async function reloadDraft(): Promise<boolean> {
-  const { offer, dealId } = useOfferStore.getState();
+  const s = useOfferStore.getState(), { offer, dealId, variantId, variantName, variantKnown } = s;
   if (!offer || !dealId) return false;
   try {
-    const d = await call("dealDraft", { params: { dealId } });
-    if (useOfferStore.getState().dealId !== dealId || d.offerType !== offer.activeOffer) return false;
-    dropSnapshot(dealId);
-    useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision);
+    const query = variantQuery(s);
+    const d = await call("dealDraft", { params: { dealId }, ...(query ? { query } : {}) });
+    if (useOfferStore.getState().dealId !== dealId || useOfferStore.getState().variantId !== variantId || d.offerType !== offer.activeOffer) return false;
+    dropSnapshot(snapshotKey(dealId, variantId));
+    useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision, { id: d.variantId ?? variantId ?? FIRST_VARIANT_ID, name: d.variantName ?? variantName, known: variantKnown || !!d.variantId });
     tell({ state: "idle" });
     return true;
   } catch { return false; }
@@ -145,7 +179,8 @@ export function useAutosave(): void {
   const dirty = useOfferStore((s) => s.version !== s.savedVersion);
   const dealId = useOfferStore((s) => s.dealId);
   const auto = usePrefs((p) => p.autosave);
-  useEffect(() => { tell({ state: "idle" }); }, [dealId]); // another offer: its own saving state
+  const variantId = useOfferStore((s) => s.variantId);
+  useEffect(() => { tell({ state: "idle" }); }, [dealId, variantId]); // another offer or variant: its own saving state
   useEffect(() => {
     if (!dirty || !auto) return;
     const t = setTimeout(() => { void flushDraft(); }, AUTOSAVE_MS);

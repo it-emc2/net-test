@@ -6,7 +6,7 @@ import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { checkStep, useOfferStore, usePrice } from "../../offer/index.js";
+import { checkStep, sendVariantOf, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
 import { MainItems, Question, type Ask } from "./Senden.js";
 import { errorOf, missingMain, type MainItem } from "./send-rules.js";
@@ -70,8 +70,9 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
       setBusy(true);
       say({ type: "info", text: TEXT.opening });
       const deal = String(offer.auftragId ?? (offer.mail ?? {}).auftragId ?? "").trim(), sendId = crypto.randomUUID();
+      const variantId = sendVariantOf(st(), deal); // the variant signed (ADR 027 A)
       const ask = async (force: boolean) => {
-        const res = await fetch("/api/signing", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request(payload, number, type, deal, via, force, sendId)) });
+        const res = await fetch("/api/signing", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...request(payload, number, type, deal, via, force, sendId), ...(variantId ? { variantId } : {}) }) });
         return { res, body: (await res.json().catch(() => ({}))) as Offer };
       };
       let { res, body } = await ask(false);

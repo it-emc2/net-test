@@ -8,7 +8,7 @@ import { useState } from "react";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { useOfferStore } from "../../offer/index.js";
+import { useOfferStore, useVariants, variantOfSend } from "../../offer/index.js";
 import { TEXT, linesOf, type Line } from "./history-rules.js";
 
 type Fields = Record<string, unknown>;
@@ -31,6 +31,10 @@ export function Verlauf() {
   const { sends, number } = useSends();
   const [busy, setBusy] = useState("");
   const lines = linesOf(sends.data, number);
+  // ADR 027 A: with several variants each line names its variant (internal name, never sent to the customer)
+  const variants = useVariants(true).variants;
+  const byId = new Map((sends.data ?? []).map((s) => [String(s.sendId ?? ""), s]));
+  const variantOf = (id: string) => (variants && variants.length > 1 ? variantOfSend(byId.get(id) ?? {}, variants)?.name ?? "" : "");
   if (!lines.length) return null; // nothing sent for this deal: no list
   const refile = async (id: string) => {
     setBusy(id);
@@ -42,16 +46,17 @@ export function Verlauf() {
     <section className="grid gap-2 rounded-xl border border-border bg-card p-4" aria-labelledby="zf-history-title" aria-live="polite" data-testid="zf-history" data-count={(sends.data ?? []).filter((s) => s.status === "done").length}>
       <h3 id="zf-history-title" className="m-0 text-[1.05rem] font-semibold">Versandverlauf</h3>
       <ul className="m-0 grid list-none p-0">
-        {lines.map((l) => <Row key={l.id} line={l} busy={busy === l.id} onRefile={() => void refile(l.id)} />)}
+        {lines.map((l) => <Row key={l.id} line={l} variant={variantOf(l.id)} busy={busy === l.id} onRefile={() => void refile(l.id)} />)}
       </ul>
     </section>
   );
 }
 
-function Row({ line, busy, onRefile }: { line: Line; busy: boolean; onRefile: () => void }) {
+function Row({ line, variant, busy, onRefile }: { line: Line; variant: string; busy: boolean; onRefile: () => void }) {
   return (
     <li data-testid="zf-history-row" className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border py-2 first:border-t-0">
       <span className="font-bold whitespace-nowrap" data-part="when">{line.when}</span>
+      {variant ? <span data-part="variant" title="Variante" className="rounded-full bg-muted px-2.5 py-0.5 text-[0.95rem] font-semibold">{variant}</span> : null}
       {line.offer ? <span data-part="offer" className="rounded-full border border-border px-2.5 py-0.5 text-[0.95rem] text-muted-foreground">Angebot {line.offer}</span> : null}
       <span data-part="how">{line.how}</span>
       {line.notes.map((n) => <span key={n.text} data-part="note" data-tone={n.tone} className={TONE[n.tone]}>{n.text}</span>)}

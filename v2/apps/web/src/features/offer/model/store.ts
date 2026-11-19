@@ -1,6 +1,7 @@
 // The offer being edited: ONE typed object in one store (ADR 026). Screens read single fields
 // through narrow selectors and write through `patch`; nothing is read back from the page.
 // Starting an offer and leaving it are one assignment each — no field is reset one by one.
+import { FIRST_VARIANT_ID } from "@oc/api-contract";
 import { emptyOffer, type NewOfferType, type Offer, type OfferContext, type SectionKey } from "@oc/domain";
 import { create } from "zustand";
 
@@ -9,15 +10,25 @@ export interface OfferState {
   offer: Offer | null;
   /** the draft this offer is saved under: a deal number or a temporary key (null: Hauptmenü) */
   dealId: string | null;
+  /** the variant of the deal's offer that is open (ADR 027 A; "v1" = the first one, also before the server named it) */
+  variantId: string | null;
+  /** its internal name (never on documents or mails) */
+  variantName: string;
+  /** the server named this variant (GET draft answered its id, or it was created / opened by id):
+   *  only then do draft calls and sends carry it — else they act on the server's default, which
+   *  for a deal without variants is the same draft */
+  variantKnown: boolean;
   /** counts every change — cheap "has it changed?" for autosave and the price request */
   version: number;
   /** revision of the draft on the server this offer is based on (0: nothing saved yet) */
   revision: number;
   /** the `version` that is on the server */
   savedVersion: number;
-  start(type: NewOfferType, ctx: OfferContext, dealId?: string | null): void;
+  start(type: NewOfferType, ctx: OfferContext, dealId?: string | null, variant?: OpenVariant): void;
   /** replace everything with a stored offer (draft, sent offer) */
-  load(offer: Offer, dealId?: string | null, revision?: number): void;
+  load(offer: Offer, dealId?: string | null, revision?: number, variant?: OpenVariant): void;
+  /** the open variant was renamed */
+  setVariantName(name: string): void;
   /** back to the Hauptmenü */
   close(): void;
   /** change fields of one section; a field set to `undefined` is removed (today's UI stores
@@ -35,7 +46,11 @@ export interface OfferState {
   saved(version: number, revision: number): void;
 }
 
-const CLOSED = { offer: null, dealId: null, version: 0, revision: 0, savedVersion: 0, scratch: {} };
+/** which variant an offer that is opened is */
+export interface OpenVariant { id: string; name?: string | undefined; known: boolean }
+const CLOSED = { offer: null, dealId: null, variantId: null, variantName: "", variantKnown: false, version: 0, revision: 0, savedVersion: 0, scratch: {} };
+const variantOf = (dealId: string | null, v: OpenVariant | undefined) =>
+  dealId ? { variantId: v?.id ?? FIRST_VARIANT_ID, variantName: v?.name ?? "", variantKnown: !!v?.known } : {};
 
 /** the section with `fields` applied; `undefined` removes a field */
 function merged(section: Record<string, unknown> | undefined, fields: Record<string, unknown>): Record<string, unknown> {
@@ -46,8 +61,9 @@ function merged(section: Record<string, unknown> | undefined, fields: Record<str
 
 export const useOfferStore = create<OfferState>()((set) => ({
   ...CLOSED,
-  start: (type, ctx, dealId = null) => set({ ...CLOSED, offer: emptyOffer(type, ctx) as Offer, dealId }),
-  load: (offer, dealId = null, revision = 0) => set({ ...CLOSED, offer, dealId, revision }),
+  start: (type, ctx, dealId = null, variant) => set({ ...CLOSED, offer: emptyOffer(type, ctx) as Offer, dealId, ...variantOf(dealId, variant) }),
+  load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, offer, dealId, revision, ...variantOf(dealId, variant) }),
+  setVariantName: (variantName) => set({ variantName }),
   close: () => set({ ...CLOSED }),
   patch: (section, fields) =>
     set((s) => (s.offer ? { offer: { ...s.offer, [section]: merged((s.offer as any)[section], fields as Record<string, unknown>) } as Offer, version: s.version + 1 } : s)),

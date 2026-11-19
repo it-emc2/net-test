@@ -8,7 +8,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, DropZone, Field, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { useOfferStore, usePrice } from "../../offer/index.js";
+import { sendVariantOf, useOfferStore, usePrice } from "../../offer/index.js";
 import { FileRow } from "./Mail.js";
 import { giveNumber } from "./number.js";
 import {
@@ -81,7 +81,8 @@ async function sendSigned(io: { release: () => Promise<{ confirmedBy: string } |
   if (!parts) throw new Error("Keine unterschriebenen Unterlagen gefunden.");
   if ((await printerMode()) !== "test" && !(await io.live({ recipient, documents: signed.documents.map((d) => d.filename), offerNumber: number }))) { say("info", TEXT.cancelled); return; }
   say("info", SIGN.sendingSigned);
-  const sendId = crypto.randomUUID(), body = JSON.stringify(signedLetter({ deal, recipient, ...parts, release: released, offerNumber: number, sendId }));
+  const sendId = crypto.randomUUID(), variantId = sendVariantOf(st(), deal);
+  const body = JSON.stringify({ ...signedLetter({ deal, recipient, ...parts, release: released, offerNumber: number, sendId }), ...(variantId ? { variantId } : {}) });
   let res: Response;
   try { res = await fetch("/api/post/send", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body }); }
   catch { const followed = await follow(sendId, (t) => say("info", t)); if (!followed) throw new Error("Keine Verbindung zum Server."); res = followed; }
@@ -135,6 +136,8 @@ async function send(io: { ask: (a: Omit<Ask, "resolve">) => Promise<boolean>; as
   say("info", TEXT.sending);
   const sendId = crypto.randomUUID();
   const body: Offer = letter({ deal, recipient, document: { filename: pdfName, base64: await base64(pdf) }, attachments, bitrixDocs, docWarnings, internalNote: String(st().scratch.internalNote ?? ""), release: released, offerNumber: number, sendId, payload });
+  const variantId = sendVariantOf(st(), deal); // the variant this letter is a send of (ADR 027 A)
+  if (variantId) body.variantId = variantId;
   const post = async (): Promise<Response> => {
     try { return await fetch("/api/post/send", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
     catch { const res = await follow(sendId, (t) => say("info", t)); if (res) return res; throw new Error("Keine Verbindung zum Server."); }

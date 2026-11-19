@@ -11,7 +11,7 @@ import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { checkStep, useOfferStore, usePrice } from "../../offer/index.js";
+import { checkStep, sendVariantOf, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
 import { SignOnSite } from "./Unterschrift.js";
 import { historyChanged } from "./Verlauf.js";
@@ -133,6 +133,8 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       form.append("dealId", deal);
       form.append("contactId", String((offer.Kundendaten ?? {}).bitrixContactId ?? "").trim());
       form.append("sendId", crypto.randomUUID());
+      const variantId = sendVariantOf(st(), deal); // the variant this mail is a send of (ADR 027 A)
+      if (variantId) form.append("variantId", variantId);
       for (const f of (scratch.mailUploads as File[] | undefined) ?? []) form.append("attachments", f, f.name);
       for (const d of docs) form.append("bitrixDocs", d, d.name);
       if (edited) form.append("editedDocx", edited, edited.name);
