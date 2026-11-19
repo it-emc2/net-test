@@ -8,6 +8,8 @@ export default defineConfig({
   base: "/app/",
   server: {
     port: 5180,
+    // the photo index of today's UI (src/public/referenz-manifest.js) is imported from the repo root
+    fs: { allow: ["../../.."] },
     // API calls go to the v2 server during development
     proxy: { "/api": "http://127.0.0.1:4000" },
   },

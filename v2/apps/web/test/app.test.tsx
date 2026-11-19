@@ -190,7 +190,7 @@ describe("header and sidebar", () => {
     expect(nav).toHaveTextContent("I · Auszuführende Arbeiten");
     expect(nav).toHaveTextContent("II · Material für Badumbau");
     // narrow screens: the bar names the open step (the list is the drawer, see header.test)
-    expect(screen.getByRole("group", { name: "Schrittleiste" })).toHaveTextContent("Schritt 3/16 · Duschwanne");
+    expect(screen.getByRole("group", { name: "Schrittleiste" })).toHaveTextContent("Schritt 3/14 · Duschwanne");
   });
 
   it("Weiter and Zurück lead through the steps in order; none before the first, none after the last", async () => {

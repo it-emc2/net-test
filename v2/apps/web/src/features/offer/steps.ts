@@ -27,7 +27,12 @@ export const OFFER_TITLES: Record<NewOfferType, string> = {
 
 /** Steps that exist as React screens (phase 4 adds to this list, one screen at a time; each also
  *  needs its route in app/router.tsx). "partly": some sections of the step are still in today's UI. */
-export const BUILT_STEPS: ReadonlyMap<string, "complete" | "partly"> = new Map([["Kundendaten", "partly"], ["Arbeitszeit", "partly"], ["Arbeiten", "partly"], ["Duschwanne", "complete"], ["Fussboden", "complete"], ["Wandverkleidung", "partly"], ["DuschabtrennungNeu", "partly"], ["Duschvorhang", "complete"], ["Optional", "partly"], ["Rabatt", "complete"], ["Kosten", "partly"], ["Angebotscheck", "complete"], ["Checkliste", "complete"], ["Zusammenfassung", "partly"], ["bwt", "complete"], ["bwtArbeiten", "complete"]]);
+export const BUILT_STEPS: ReadonlyMap<string, "complete" | "partly"> = new Map([["Kundendaten", "partly"], ["Arbeitszeit", "partly"], ["Arbeiten", "partly"], ["Duschwanne", "complete"], ["Fussboden", "complete"], ["Wandverkleidung", "partly"], ["DuschabtrennungNeu", "partly"], ["Duschvorhang", "complete"], ["Optional", "partly"], ["Rabatt", "complete"], ["Kosten", "partly"], ["Angebotscheck", "complete"], ["Checkliste", "complete"], ["Zusammenfassung", "partly"], ["bwt", "complete"], ["bwtArbeiten", "complete"], ["referenzVorher", "complete"], ["referenzNachher", "complete"]]);
+
+/** Referenzbilder: reachable from the step list, but outside Weiter / Zurück (as today's getFlowSteps) */
+export const isReferenzStep = (step: string | undefined): boolean => step === "referenzVorher" || step === "referenzNachher";
+/** the steps Weiter / Zurück lead through */
+export const flowSteps = (type: NewOfferType): readonly string[] => STEPS[type].filter((s) => !isReferenzStep(s));
 
 export const isStepOf = (type: NewOfferType, step: string | undefined): step is string => !!step && STEPS[type].includes(step);
 export const firstStep = (type: NewOfferType): string => STEPS[type][0]!;
