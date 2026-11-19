@@ -80,7 +80,6 @@ export function chooseLine(wv: Fields, to: Line, parked: Partial<Record<Line, Fi
 export interface Row { code: string | null; fmt: string; qty: number; custom?: boolean; text?: string }
 export const FORMATS = [["13", "100 × 205 cm"], ["15", "100 × 250 cm"], ["16", "125 × 250 cm"], ["17", "150 × 250 cm"]] as const;
 const FORMAT_M2: Record<string, number> = { 13: 2.05, 15: 2.5, 16: 3.125, 17: 3.75 };
-const SET_FORMATS = new Set(["13", "15", "16"]); // two equal plates of these formats are ordered as a set
 const catalog = WINWALL_CATALOG as Record<string, string>;
 /** "WS 233" / "ws233" / "203" → "WS233"; anything else → null */
 export function decorCode(v: unknown): string | null {
@@ -90,11 +89,8 @@ export function decorCode(v: unknown): string | null {
 }
 const nice = (code: string) => `${code.slice(0, 2)} ${code.slice(2)}`;
 export const rowTitle = (r: Row): string => (r.code ? `${catalog[r.code] ? `${catalog[r.code]} · ` : ""}${nice(r.code)}` : r.custom && r.text ? r.text : "Dekor wählen");
-export function rowNote(rows: readonly Row[], i: number, open: boolean): string {
-  const r = rows[i]!;
-  const same = rows.filter((x) => x.code && x.code === r.code && x.fmt === r.fmt).reduce((a, x) => a + x.qty, 0);
-  return `${open ? "Dekor wählen" : "Tippen zum Ändern"}${SET_FORMATS.has(r.fmt) && same >= 2 ? " · Set (2 gleiche Platten, günstiger)" : ""}`;
-}
+/** the line under a row's title — winwall plates are always single plates, no set (main 8d04727c) */
+export const rowNote = (open: boolean): string => (open ? "Dekor wählen" : "Tippen zum Ändern");
 export function rowsOf(wv: Fields): Row[] {
   try {
     const arr: unknown = JSON.parse(String(wv.wvWwRows || "null"));

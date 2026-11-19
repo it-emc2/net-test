@@ -368,6 +368,8 @@ Merged main@eb3335de (43 commits since 1a35c453). Already done on the server sid
 | 10 | Documents | Payment-choice spacing in Angebot-BU-KK-2/BWT/HL; "Qualität und Normen" shortened (WV-WW text dropped) | 2a4c6554, f1c2d995 | — | — | none (server reads `src/templates`; text from the engine) | docs golden rebuilt | — | — |
 | 11 | Versand (number) | Renumbered sent offers in Berlin time | 495b210b | `offerNumber` value | — | none: server ported; React mints on the device clock like today's UI; `/api/offer-numbers/claim` already uses German time | — | — | — |
 
+Status items 1 + 4 (2026-11-19, branch `claude/v2-fussboden-winwall`, NOT built yet): ported in `S/fussboden/wand.ts` + `Fussboden.tsx` (plates 13/15/16/17 with − / +, "↻ Vorschlag aus Fläche", palette + "Anderes Dekor", strip rest per decor, `wallCladdingWwQty` always written with sum + main format, old offers read their one format, "Reste nicht mehr anrechnen?" question; `autoAdd` / `wallDecorChanged` as rules for item 2's simple view) and set texts removed in `S/wandverkleidung`. Open: recording 45 of 69 scenarios (Docker Desktop failed mid-run; finish with `RESUME=1 node v2/scripts/capture-fussboden-wand.cjs`), re-recording of the 8 `wandverkleidung` set scenarios (`ONLY=… node v2/scripts/capture-wandverkleidung.cjs`), price comparison (`v2/scripts/compare-fussboden-wand-prices.cjs`), iPad check.
+
 ## 4. Risks
 
 | Risk | Mitigation |

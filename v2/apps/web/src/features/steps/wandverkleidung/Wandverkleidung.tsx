@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
 import { useWallSettings } from "../fussboden/settings.js";
-import { restOf, restText, settled, takeRest } from "../fussboden/wand.js";
+import { creditOf, proposalOf, restOf, restText, settled, takeRest } from "../fussboden/wand.js";
 import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
@@ -213,7 +213,7 @@ function Rows() {
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => tap(i)} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
                 {r.code ? <img src={`/assets/winwall/${r.code}.jpg`} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
-                <span className="grid min-w-0"><b data-part="title">{rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{rowNote(rows, i, open)}</small></span>
+                <span className="grid min-w-0"><b data-part="title">{rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{rowNote(open)}</small></span>
               </button>
               <select aria-label={`Format Zeile ${i + 1}`} value={r.fmt} onChange={(e) => set(rows.map((x, j) => (j === i ? { ...x, fmt: e.target.value } : x)), ui.idx, ui.folded)} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-2 text-foreground">
                 {FORMATS.map(([c, t]) => <option key={c} value={c}>{t}</option>)}
@@ -230,7 +230,6 @@ function Rows() {
         );
       }) : <p className="m-0 text-muted-foreground">Noch keine Platten. Mit „+ Zeile hinzufügen“ beginnen.</p>}
       <div><Button variant="outline" onClick={() => { const next = addRow(rows, wvNow()); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Dekor und Format)</Button></div>
-      <p className="m-0 text-[0.9rem] text-muted-foreground">Zwei gleiche Platten (gleiches Dekor und Format) werden als Set bestellt (günstiger).</p>
     </fieldset>
   );
 }
@@ -486,7 +485,9 @@ function RestForFloor() {
     const o = offerNow(), dw = (o.duschwanne ?? {}) as Fields;
     if (dw.addFlooring === true && !sure) { setAsk(true); return; }
     const mode = setMode(dw, true, "wall"), next = { ...dw, ...mode };
-    useOfferStore.getState().patchAll(arbeitenChanges(o, { ...mode, computed: computedFor(next, unitsOf(dw)), ...settled(next, takeRest(next, rest), rest) }));
+    const floor = settled(next, takeRest(next, rest), rest), after = { ...next, ...floor };
+    useOfferStore.getState().patchAll(arbeitenChanges(o, { ...mode, computed: computedFor(next, unitsOf(dw)), ...floor }));
+    if (after.wallCladdingSupplier === "ww") useOfferStore.getState().remember("wcWwLast", proposalOf(after, creditOf(after, rest))); // the plates now follow the proposal
     void navigate("../Fussboden", { relative: "path" });
   };
   return (

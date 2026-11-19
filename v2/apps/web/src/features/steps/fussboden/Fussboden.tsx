@@ -4,8 +4,8 @@
 // stores and shows for the same inputs). The mode "Wandverkleidung als Fußboden" (wand.ts) uses
 // wall panels as the covering, with the rest of the wall cladding where there is one.
 import { useQuery } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Minus, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore, usePrice } from "../../offer/index.js";
@@ -157,76 +157,139 @@ function Floor() {
   );
 }
 
+/** width × height of each winwall plate in cm (the picture is drawn to scale) */
+const PLATE_CM: Record<string, [number, number]> = { 13: [100, 205], 15: [100, 250], 16: [125, 250], 17: [150, 250] };
+type Ask = { title: string; message: string; confirm: string; cancel: string; onCancel: () => void };
+
+/** winwall: the four plates with − / +, the total and "↻ Vorschlag aus Fläche" (wand.ts `platesOf`). */
+function Plates({ p, onStep, onResync }: { p: w.Plates; onStep: (fmt: string, d: number) => void; onResync: () => void }) {
+  return (
+    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-plates">
+      <legend className="mb-1.5 p-0 font-semibold">Platten – Vorschlag aus der Fläche, mit − / + anpassen</legend>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {p.plates.map((x) => {
+          const [cw, ch] = PLATE_CM[x.code] ?? [100, 250];
+          return (
+            <div key={x.code} data-testid="wc-plate" data-code={x.code} data-img={x.img} className={cn("grid justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center", x.qty ? "border-primary" : "border-input")}>
+              <span aria-hidden className="relative grid place-items-end rounded bg-muted bg-cover bg-center" style={{ width: cw * 0.4, height: ch * 0.4, backgroundImage: `url(/assets/winwall/${x.img}.jpg)` }}>
+                <span className="m-1 rounded-full bg-card px-2 text-sm font-semibold">{x.qty}</span>
+              </span>
+              <span data-part="size">{x.size}</span>
+              <small data-part="best" className="min-h-5 text-muted-foreground">{x.best}</small>
+              <span className="flex items-center gap-1">
+                <Button variant="outline" size="icon" aria-label={`Weniger ${x.size}`} onClick={() => onStep(x.code, -1)}><Minus aria-hidden /></Button>
+                <output data-part="qty" className="w-8 text-center font-semibold">{x.qty}</output>
+                <Button variant="outline" size="icon" aria-label={`Mehr ${x.size}`} onClick={() => onStep(x.code, 1)}><Plus aria-hidden /></Button>
+              </span>
+              <small className="text-muted-foreground">Menge</small>
+            </div>
+          );
+        })}
+      </div>
+      <p className={cn("m-0 flex flex-wrap justify-between gap-2 font-semibold", p.total.short && "text-destructive")} data-testid="wc-total" data-short={p.total.short}>
+        <span data-part="text">{p.total.text}</span><small data-part="small" className="font-normal">{p.total.small}</small>
+      </p>
+      {p.resync ? (
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="wc-resync">
+          <small data-part="hint" className="text-muted-foreground">Platten wurden angepasst.</small>
+          <Button variant="outline" onClick={onResync}>↻ Vorschlag aus Fläche</Button>
+        </div>
+      ) : null}
+    </fieldset>
+  );
+}
+
 /** The mode "Wandverkleidung als Fußboden": wall panels as the floor covering (wand.ts). */
 function Wall() {
   const dw = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne as Fields | undefined) ?? {};
   const wv = useOfferStore((s) => (s.offer as Record<string, any> | null)?.wandverkleidung as Fields | undefined) ?? {};
   const settings = useWallSettings();
   const [calcOpen, setCalcOpen] = useState(false);
+  const [ask, setAsk] = useState<Ask | null>(null); // an in-page question waiting for an answer
   const supplier = w.supplierOf(dw), ww = supplier === "ww";
   const rest = w.restOf(wv, settings.rest), credit = w.creditOf(dw, rest);
-  const sug = w.suggestion(dw, credit);
+  const sug = ww ? null : w.suggestion(dw, credit);
   const art = w.articlesOf(dw);
   const prices = useQuery({ queryKey: ["vigor-prices", art[997], art[1497]], enabled: !ww, staleTime: 10 * 60_000, retry: false, queryFn: ({ signal }) => call("vigorPrices", { query: `ids=${art[997]},${art[1497]}`, signal }).then((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Number(v) || 0]))) });
   const article = art[dw.wallCladdingPanelSize === "1497" ? 1497 : 997];
   const full = useQuery({ queryKey: ["vigor-full", article], enabled: !ww, staleTime: 10 * 60_000, retry: false, queryFn: ({ signal }) => call("vigorPrices", { query: `ids=${article}&full=1`, signal }).then((d) => (d[article] ?? null) as w.Full | null) });
   const adhesive = useQuery(price("R_4260602"));
-  /** every change also settles what follows from it (the rest's m², format and quantity) and the work-time suggestion */
-  const write = (fields: Fields) => { const o = offerNow(), now = (o.duschwanne ?? {}) as Fields; useOfferStore.getState().patchAll(arbeitenChanges(o, w.settled(now, fields, w.restOf(o.wandverkleidung ?? {}, settings.rest)))); };
-  const cards = w.cardsOf(dw, sug, prices.data), picked = String(dw.wallCladdingPanelSize ?? ""), qty = Number(dw.wallCladdingQty) || 0;
+  // an offer with only the old fields (one format + quantity): today's UI keeps its plates as the JSON once it is opened
+  const legacy = ww && !dw.wallCladdingWwQty && (w.WW_FORMATS as readonly string[]).includes(String(dw.wallCladdingPanelSize ?? "")) && Number(dw.wallCladdingQty) > 0;
+  useEffect(() => { if (legacy) useOfferStore.getState().patch("duschwanne", { wallCladdingWwQty: JSON.stringify({ [String(dwNow().wallCladdingPanelSize)]: Number(dwNow().wallCladdingQty) }) }); }, [legacy]);
+  const lastBest = () => (useOfferStore.getState().scratch.wcWwLast as w.Qty | null | undefined) ?? null;
+  /** every change also settles what follows from it (the rest's m², the plates or format and quantity) and the work-time suggestion.
+   *  `follow`: the winwall plates follow the proposal (area, rest, decor or line changed); `last` overrides the proposal they were last set to */
+  const write = (fields: Fields, follow = false, last: w.Qty | null = lastBest(), restSwitch?: boolean) => {
+    const o = offerNow(), now = (o.duschwanne ?? {}) as Fields, r = w.restOf(o.wandverkleidung ?? {}, settings.rest);
+    const out = restSwitch !== undefined ? w.useRest(now, restSwitch, r, last) : w.settled(now, fields, r, follow ? last : undefined);
+    useOfferStore.getState().patchAll(arbeitenChanges(o, out));
+    const next = { ...now, ...out };
+    if (follow && w.supplierOf(next) === "ww") remember("wcWwLast", w.proposalOf(next, w.creditOf(next, r)));
+    return next;
+  };
+  /** a decor picked or typed: the plates follow; leaving the rest's decor asks first ("Abbrechen" goes back) */
+  const changeDecor = (fields: Fields) => {
+    const prev = w.decorOf(dwNow()), r = w.restOf(offerNow().wandverkleidung ?? {}, settings.rest);
+    const next = write(fields, true);
+    const q = prev.code ? w.leavingRest(next, prev.code, r) : null;
+    if (q) setAsk({ ...q, onCancel: () => write(w.setFloorDecor(prev.code!), true) });
+  };
+  const cards = w.cardsOf(dw, sug, prices.data), picked = String(dw.wallCladdingPanelSize ?? "");
   const rows = w.selection(dw, rest, full.data, adhesive.data || 0, settings.own);
-  const note = w.restNote(sug, credit), hint = w.customHint(dw);
+  const note = w.restNote(w.restArea(dw, credit), credit), hint = w.customHint(dw);
   const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-3 py-1 text-left";
-  const tile = "grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere] has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold has-[:disabled]:cursor-default has-[:disabled]:opacity-50";
+  const tile = "grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere] has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold";
   return (
     <>
       <div className="grid gap-3 rounded-lg border-2 border-border p-3">
         <div className="grid"><strong>Produktlinie</strong><small className="text-muted-foreground">Eigene Linie für Wandverkleidung als Fußboden</small></div>
         <div className="grid grid-cols-2 gap-2" role="group" aria-label="Produktlinie wählen">
-          {w.SUPPLIERS.map((x) => <button key={x.value} type="button" aria-pressed={supplier === x.value} onClick={() => write(w.setSupplier(dwNow(), x.value))} className={cn(chip, "grid", supplier === x.value ? "border-primary bg-accent-weak" : "border-input bg-card")}><strong>{x.name}</strong><span className="text-[0.85rem] text-muted-foreground">{x.sub}</span></button>)}
+          {w.SUPPLIERS.map((x) => <button key={x.value} type="button" aria-pressed={supplier === x.value} onClick={() => write(w.setSupplier(dwNow(), x.value), true)} className={cn(chip, "grid", supplier === x.value ? "border-primary bg-accent-weak" : "border-input bg-card")}><strong>{x.name}</strong><span className="text-[0.85rem] text-muted-foreground">{x.sub}</span></button>)}
         </div>
       </div>
       <Choices legend="Umfang" name="wc-kind" options={KINDS} value={String(dw.wallCladdingKind ?? "") || undefined} onChange={(v) => write({ wallCladdingKind: v })} />
       {rest ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-border p-3" data-testid="wc-rest">
           <label htmlFor="wc-rest" className="grid min-w-0 flex-1 cursor-pointer"><strong>Reste aus Wandverkleidung anrechnen</strong><small data-part="hint" className="text-muted-foreground">{w.restHint(dw, rest)}</small></label>
-          <Switch id="wc-rest" checked={!!dw.wallCladdingUseLeftover} onChange={(on) => write(w.useRest(dwNow(), on, rest))} label="Reste aus Wandverkleidung anrechnen" />
+          <Switch id="wc-rest" checked={!!dw.wallCladdingUseLeftover} onChange={(on) => write({}, true, lastBest(), on)} label="Reste aus Wandverkleidung anrechnen" />
         </div>
       ) : null}
       <div className="grid gap-2">
-        <Field id="wc-area" label="Fläche (m²)" inputMode="decimal" placeholder="z. B. 8,5" value={String(dw.wallCladdingArea ?? "")} onChange={(e) => write({ wallCladdingArea: e.target.value })} />
+        <Field id="wc-area" label="Fläche (m²)" inputMode="decimal" placeholder="z. B. 8,5" value={String(dw.wallCladdingArea ?? "")} onChange={(e) => write({ wallCladdingArea: e.target.value }, true)} />
         <div><Button variant="outline" aria-expanded={calcOpen} onClick={() => setCalcOpen(!calcOpen)}>{calcOpen ? "Flächenrechner schließen" : "Flächenrechner öffnen"}</Button></div>
-        {calcOpen ? <Calculator store="wcCalcRows" onApply={(area) => write({ wallCladdingArea: area })} /> : null}
+        {calcOpen ? <Calculator store="wcCalcRows" onApply={(area) => write({ wallCladdingArea: area }, true)} /> : null}
       </div>
+      {ww ? <Plates p={w.platesOf(dw, credit)} onStep={(fmt, d) => write(w.stepPlate(dwNow(), fmt, d))} onResync={() => { remember("wcWwLast", null); write(w.qtyFields(w.zero()), true, null); }} /> : null}
+      {ask ? (
+        <div role="alertdialog" aria-labelledby="wc-ask-title" className="grid gap-2 rounded-lg border-2 border-destructive p-3" data-testid="wc-ask">
+          <strong id="wc-ask-title">{ask.title}</strong>
+          <p className="m-0">{ask.message}</p>
+          <div className="flex flex-wrap gap-2"><Button onClick={() => setAsk(null)}>{ask.confirm}</Button><Button variant="outline" onClick={() => { setAsk(null); ask.onCancel(); }}>{ask.cancel}</Button></div>
+        </div>
+      ) : null}
       {ww ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-decors">
           <legend className="mb-1.5 p-0 font-semibold">Dekor — winwall</legend>
-          <div className="flex flex-wrap gap-2">
-            {[...w.WW_DECORS, { value: "custom", caption: w.customCaption(dw) }].map((d) => {
-              const on = dw.wallCladdingWwDecor === d.value;
-              return (
-                <label key={d.value} data-value={d.value} className={tile}>
-                  {/* while the wall's rest is used, the decor stays the wall's */}
-                  <input type="radio" name="wc-decor" className="sr-only" checked={on} disabled={credit > 0 && !on} onChange={() => write({ wallCladdingWwDecor: d.value })} />
-                  {d.value === "custom" ? <span aria-hidden className={cn(IMG.swatch, "grid place-items-center rounded border-2 border-dashed border-input text-2xl")}>+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
-                  <span data-part="caption">{d.caption}</span>
-                </label>
-              );
-            })}
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Dekor Fußboden">
+            {w.paletteOf(dw).map((d) => (
+              <button key={d.code} type="button" role="radio" aria-checked={d.checked} data-code={d.code} onClick={() => changeDecor(w.pickDecor(d.code))} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere]", d.checked ? "border-primary bg-accent-weak font-bold" : "border-input")}>
+                <i aria-hidden data-part="label" className={cn(IMG.swatch, "grid place-items-center rounded bg-muted bg-cover bg-center not-italic text-sm")} style={d.swatch ? { backgroundImage: `url(/assets/winwall/${d.code}.jpg)` } : undefined}>{d.label}</i>
+                <span data-part="name">{d.name}</span><small data-part="small" className="text-muted-foreground">{d.small}</small>
+              </button>
+            ))}
           </div>
-          {dw.wallCladdingWwDecor === "custom" ? (
-            <div className="grid gap-1.5" data-testid="wc-custom">
-              <label htmlFor="wc-decor-number" className="font-semibold">Dekor-Nummer</label>
-              <div className="w-40"><Input id="wc-decor-number" placeholder="WS 233" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={7} value={String(dw.wallCladdingWwDecorCustom ?? "")} onChange={(e) => write({ wallCladdingWwDecorCustom: e.target.value })} /></div>
-              <small data-part="hint" data-kind={hint.kind} className={cn(hint.kind === "ok" && "text-success", hint.kind === "warn" && "text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
-            </div>
-          ) : null}
+          <div className="grid gap-1.5" data-testid="wc-custom">
+            <label htmlFor="wc-decor-number" className="font-semibold">Anderes Dekor</label>
+            <div className="w-48"><Input id="wc-decor-number" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={String(dw.wallCladdingWwDecorCustom ?? "")} onChange={(e) => changeDecor(w.typeDecor(e.target.value))} /></div>
+            <small data-part="hint" data-kind={hint.kind} className={cn(hint.kind === "ok" && "text-success", hint.kind === "warn" && "text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
+          </div>
         </fieldset>
       ) : null}
       {cards.length ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-cards">
           <legend className="mb-1.5 p-0 font-semibold">Plattenformat</legend>
-          <div className={cn("grid gap-2", ww ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+          <div className="grid gap-2 sm:grid-cols-2">
             {cards.map((c) => (
               <button key={c.size} type="button" data-testid="wc-card" data-size={c.size} data-qty={c.qty} aria-pressed={c.selected} onClick={() => write(w.pickCard(c))} className={cn("grid cursor-pointer gap-1 rounded-lg border-2 bg-card p-3 text-left text-foreground", c.selected ? "border-primary bg-accent-weak" : "border-input")}>
                 <span className="flex flex-wrap items-center justify-between gap-2"><strong data-part="title">{c.title}</strong>{c.best ? <span data-part="best" className="rounded-full bg-primary px-2 py-0.5 text-[0.8rem] font-semibold text-primary-foreground">Empfehlung</span> : null}</span>
@@ -273,6 +336,7 @@ function Wall() {
     </>
   );
 }
+
 
 export function Fussboden() {
   const dw = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne as Fields | undefined) ?? {};
