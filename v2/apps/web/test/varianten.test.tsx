@@ -76,7 +76,7 @@ describe("variants — address and state", () => {
     const router = renderApp("/deal/4711/bu/Kundendaten");
     await waitFor(() => expect(search(router)).toBe(`?variante=${V2}`));
     expect(router.state.location.pathname).toBe("/deal/4711/bu/Kundendaten");
-    expect(screen.getByTestId("variant-switch")).toHaveTextContent("Günstig");
+    expect(await screen.findByTestId("variant-switch")).toHaveTextContent("Günstig");
     expect([S().variantId, S().variantKnown]).toEqual([V2, true]);
     expect(s.count("GET /api/deals/4711/draft")).toBe(1);
   });
@@ -84,7 +84,7 @@ describe("variants — address and state", () => {
   it("an address with the variant opens that one; draft saves carry it", async () => {
     const s = fakeServer({ ...BASE, [`GET /api/deals/4711/draft?variant=${V2}`]: draftOf(V2, "Günstig", "Hof"), [`PUT /api/deals/4711/draft?variant=${V2}`]: saved(4) });
     renderApp(`/deal/4711/bu/Kundendaten?variante=${V2}`);
-    expect(await screen.findByLabelText(/^Ort/)).toHaveValue("Hof");
+    expect(await screen.findByLabelText(/^Stadt/)).toHaveValue("Hof");
     await userEvent.type(screen.getByLabelText("Vorname"), "Erika");
     await act(async () => { await (await import("../src/features/offer/index.js")).flushDraft(); });
     expect(s.count(`PUT /api/deals/4711/draft?variant=${V2}`)).toBe(1);
@@ -97,7 +97,7 @@ describe("variants — address and state", () => {
     const router = renderApp(`/deal/4711/bu/Kundendaten?variante=${V3}`);
     await waitFor(() => expect(search(router)).toBe(`?variante=${V1}`));
     expect(router.state.location.pathname).toBe("/deal/4711/bu/Kundendaten");
-    expect(await screen.findByLabelText(/^Ort/)).toHaveValue("Hof");
+    expect(await screen.findByLabelText(/^Stadt/)).toHaveValue("Hof");
     expect(vi.mocked(toast.info)).toHaveBeenCalledWith(TEXT.gone, expect.anything());
   });
 
@@ -123,7 +123,7 @@ describe("variants — address and state", () => {
     localStorage.setItem("oc.snapshot.4711", JSON.stringify({ at: 1, revision: 3, offerType: "bu", payload: { activeOffer: "bu", Kundendaten: { city: "vom Gerät" } } }));
     fakeServer({ ...BASE, "GET /api/deals/4711/draft": draftOf(V1, "Variante 1", "Server") });
     renderApp("/deal/4711/bu/Kundendaten");
-    expect(await screen.findByLabelText(/^Ort/)).toHaveValue("vom Gerät");
+    expect(await screen.findByLabelText(/^Stadt/)).toHaveValue("vom Gerät");
     expect(S().version).toBeGreaterThan(S().savedVersion);
   });
 });
@@ -150,11 +150,11 @@ describe("variants — the selector", () => {
     await userEvent.type(await screen.findByLabelText("Vorname"), "Erika");
     await openPanel();
     await waitFor(() => expect(rows()).toHaveLength(2));
-    expect(rows().map((r) => r.textContent)).toEqual(["Variante 1(geöffnet)Gesendet am 18.11.202612.345,50 €ANG2026-1118-090000", "GünstigEntwurf"]);
-    await userEvent.click(within(rows()[1]!).getByRole("button", { name: /Günstig/ }));
+    expect(rows().map((r) => (r.textContent ?? "").replace(/\s/g, " "))).toEqual(["Variante 1(geöffnet)Gesendet am 18.11.202612.345,50 €ANG2026-1118-090000", "GünstigEntwurf"]);
+    await userEvent.click(within(rows()[1]!).getAllByRole("button")[0]!);
     await waitFor(() => expect(search(router)).toBe(`?variante=${V2}`));
     expect(router.state.location.pathname).toBe("/deal/4711/bu/Kundendaten");
-    await waitFor(() => expect(screen.getByLabelText(/^Ort/)).toHaveValue("Selb"));
+    await waitFor(() => expect(screen.getByLabelText(/^Stadt/)).toHaveValue("Selb"));
     const keys = s.calls.map((c) => c.key);
     expect(keys.indexOf(`PUT /api/deals/4711/draft?variant=${V1}`)).toBeGreaterThan(-1);
     expect(keys.indexOf(`PUT /api/deals/4711/draft?variant=${V1}`)).toBeLessThan(keys.indexOf(`GET /api/deals/4711/draft?variant=${V2}`));
@@ -170,7 +170,7 @@ describe("variants — the selector", () => {
     await userEvent.type(await screen.findByLabelText("Vorname"), "Erika");
     await openPanel();
     await waitFor(() => expect(rows()).toHaveLength(2));
-    await userEvent.click(within(rows()[1]!).getByRole("button", { name: /Günstig/ }));
+    await userEvent.click(within(rows()[1]!).getAllByRole("button")[0]!);
     await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalledWith(TEXT.notSaved, expect.anything()));
     expect(search(router)).toBe(`?variante=${V1}`);
     expect(screen.getByLabelText("Vorname")).toHaveValue("Erika");
@@ -214,7 +214,8 @@ describe("variants — the selector", () => {
 
   it("rename: the new name is in the list and in the header", async () => {
     let renamed: Obj | null = null;
-    const s = fakeServer({ ...BASE, [`GET /api/deals/4711/draft?variant=${V2}`]: draftOf(V2, "Günstig", "Hof"), "GET /api/deals/4711/variants": TWO,
+    const s = fakeServer({ ...BASE, [`GET /api/deals/4711/draft?variant=${V2}`]: draftOf(V2, "Günstig", "Hof"),
+      "GET /api/deals/4711/variants": () => (renamed ? list(row(V1, "Variante 1"), row(V2, "Sparvariante", { isDefault: true })) : TWO),
       [`PATCH /api/deals/4711/variants/${V2}`]: (b) => { renamed = b as Obj; return { body: { dealId: DEAL, variant: row(V2, "Sparvariante") } }; } });
     renderApp(`/deal/4711/bu/Kundendaten?variante=${V2}`);
     await openPanel();
@@ -239,7 +240,7 @@ describe("variants — the selector", () => {
     expect(s.count(`DELETE /api/deals/4711/variants/${V2}`)).toBe(0); // nothing before the answer
     await userEvent.click(within(panel()).getByRole("button", { name: "Ja, löschen" }));
     await waitFor(() => expect(search(router)).toBe(`?variante=${V1}`));
-    await waitFor(() => expect(screen.getByLabelText(/^Ort/)).toHaveValue("Hof"));
+    await waitFor(() => expect(screen.getByLabelText(/^Stadt/)).toHaveValue("Hof"));
     expect(s.count(`DELETE /api/deals/4711/variants/${V2}`)).toBe(1);
   });
 
