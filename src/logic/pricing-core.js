@@ -223,6 +223,14 @@ export const WINWALL_CATALOG = {
   WS151: "lindgrün",
   WS132: "sand",
   WS120: "hellgrau",
+  // Plain colours on winwall.com that were missing here (2026-11-18).
+  WS023: "koralle",
+  WS046: "türkis",
+  WS081: "sand (Basics)",
+  WS110: "elfenbein",
+  WS121: "grau",
+  WS140: "hellblau (Trend)",
+  WS170: "lachs",
   WS233: "Beton",
   WS232: "Beton hell",
   WS234: "Beton dunkel",
@@ -300,11 +308,19 @@ export const WINWALL_CATALOG = {
 export const WINWALL_DECORS = ["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203", "WS219",
   "NW220", "NW222", "WS225", "NW215", "NW216", "WS210", "WS290"].map((code) => ({ code, name: WINWALL_CATALOG[code] }));
 
-/** "ws 233" / "NW220" / "233" (saved before 2026-10-30: digits only = WS) → "WS233"; else null. */
+// "ws 233" / "NW220" / digits only ("230": NW when the catalog has NW230, else WS —
+// saved before 2026-10-30 as digits = WS) / article no. from the Muster ("23013" or
+// "NW 23013" = decor 230 + format 13, ANG2026-1117-115333) → "NW230"; else null.
+const WW_TYPED = /^(WS|NW)?(\d{3})(\d{2})?$/;
 export function winwallDecorCode(v) {
-  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
-  if (/^\d{3}$/.test(s)) return "WS" + s;
-  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  if (!m || (m[3] && !WINWALL_SINGLE_FORMATS.includes(m[3]))) return null;
+  return m[1] ? m[1] + m[2] : WINWALL_CATALOG["NW" + m[2]] ? "NW" + m[2] : "WS" + m[2];
+}
+/** Format code inside a typed article no. ("23013" → "13"); else null. */
+export function winwallArticleFormat(v) {
+  const m = String(v ?? "").replace(/\s+/g, "").toUpperCase().match(WW_TYPED);
+  return m?.[3] && WINWALL_SINGLE_FORMATS.includes(m[3]) ? m[3] : null;
 }
 /** Decor of a Wandverkleidung payload: the tile, or the typed number for "Anderes Dekor". */
 export function winwallDecor(wv) {
@@ -317,9 +333,6 @@ export const WINWALL_FORMATS = [
   { code: "15", widthCm: 100, heightCm: 250, price: 132.35 },
   { code: "16", widthCm: 125, heightCm: 250, price: 173.53 },
   { code: "17", widthCm: 150, heightCm: 250, price: 217.5 },
-  { code: "23", widthCm: 100, heightCm: 205, price: 220.59, set: true, single: "13" },
-  { code: "25", widthCm: 100, heightCm: 250, price: 261.76, set: true, single: "15" },
-  { code: "26", widthCm: 125, heightCm: 250, price: 338.24, set: true, single: "16" },
 ];
 export const WINWALL_SINGLE_FORMATS = ["13", "15", "16", "17"];
 export const WINWALL_EXTRAS = [
@@ -408,9 +421,8 @@ export function winwallPanelPlan(situation, widths = {}, { heightCm = null } = {
 // Supplier codes (Kürzel) for offer, Bitrix deal and order lists, and the
 // "Qualität und Normen" text per product (wording as agreed 2026-10, SW/TR).
 export const SUPPLIER_QUALITY = {
-  "WV-WW": "Brandverhalten D-s2,d0 nach EN 13501-1 · Lack antibakteriell (in Anlehnung an DIN EN ISO 20743, Prüfgrundlage ISO 22196) · Druckfarben Greenguard Gold · Aluminium nach EN 485-4 · Maßtoleranz 0/+0,2 mm · 5 Jahre Produktgarantie",
-  "WV-HM": "Brandklasse B2 nach DIN 4102-1 · Lichtechtheit Wollblau Stufe 5 (DIN EN 15187)",
-  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097 · CE nach EN 14527",
+  "WV-HM": "Brandklasse B2 nach DIN 4102-1",
+  "DW-SL": "Rutschfestigkeit Klasse C nach DIN 51097",
   // ponytail: DW-BX (Badolux) follows once SW has the data sheet; DW-HM / WV-BX have none yet.
 };
 
@@ -444,19 +456,45 @@ export function supplierCodes(payload, lines = []) {
   return { wv: wvCode, dw: dwCode, ...(floorWw ? { fb: "WV-WW" } : {}) };
 }
 
-/** Panels per single format → order lines: two of a kind become a set (cheaper). */
+/** Panels per format → order lines, one per format at the single price. No sets
+ *  (2026-11-16: 4 panels = 4 Stk, no set discount). */
 export function winwallOrderLines(decor, qtyByFormat = {}) {
   const lines = [];
   decor = winwallDecorCode(decor) || "WS203";
   for (const code of WINWALL_SINGLE_FORMATS) {
     const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
-    if (!n) continue;
-    const set = WINWALL_FORMATS.find((f) => f.set && f.single === code);
-    const sets = set ? Math.floor(n / 2) : 0;
-    if (sets) lines.push({ productId: `${decor}${set.code}`, qty: sets, format: set, panels: sets * 2 });
-    if (n - sets * 2) lines.push({ productId: `${decor}${code}`, qty: n - sets * 2, format: wwFormat(code), panels: n - sets * 2 });
+    if (n) lines.push({ productId: `${decor}${code}`, qty: n, format: wwFormat(code), panels: n });
   }
   return lines;
+}
+
+/**
+ * Usable winwall leftover from the offcut strips: every plate is cut down to the
+ * cladding height, the strip above it (width × (plate height − height)) goes to the
+ * floor. Same usable share and minimum as winwallLeftoverM2. Plates shorter than the
+ * height give nothing. null below the minimum or without a height.
+ */
+export function winwallStripLeftoverM2(qtyByFormat = {}, heightCm = 0, usable = 0.8, min = 0.5) {
+  const h = Number(heightCm) || 0;
+  if (!(h > 0)) return null;
+  let strips = 0;
+  for (const code of WINWALL_SINGLE_FORMATS) {
+    const n = Math.max(0, Math.round(Number(qtyByFormat[code]) || 0));
+    const f = wwFormat(code);
+    strips += (n * f.widthCm * Math.max(0, f.heightCm - h)) / 10000;
+  }
+  const m2 = Math.round(strips * usable * 100) / 100;
+  return m2 >= min && m2 > 0 ? m2 : null;
+}
+
+/** Floor plates per winwall format from wallCladdingWwQty ({"13":0,"15":2,…} as JSON); null when absent/empty. */
+export function winwallFloorQty(raw) {
+  let o = raw;
+  if (typeof o === "string") { try { o = JSON.parse(o); } catch { return null; } }
+  if (!o || typeof o !== "object") return null;
+  const q = {};
+  for (const code of WINWALL_SINGLE_FORMATS) q[code] = Math.max(0, Math.round(Number(o[code]) || 0));
+  return Object.values(q).some(Boolean) ? q : null;
 }
 
 /**
@@ -486,6 +524,24 @@ export function winwallProfileSuggestion(plan) {
   const perWall = new Map();
   for (const p of plan?.pieces || []) perWall.set(p.wall, (perWall.get(p.wall) || 0) + 1);
   return { WS80113: [...perWall.values()].reduce((a, n) => a + Math.max(0, n - 1), 0) };
+}
+
+/**
+ * Area the Abdichtungsset covers (2026-11-12): a typed Wandfläche wins; else the
+ * wall area from the calculator (Σ widths × height) plus every panel beyond the
+ * wall plan (e.g. one for the WC box); without walls, what the panels cover.
+ */
+export function winwallSealingArea(wv, qtyByFormat = {}) {
+  const num = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const typed = num(wv?.wvArea);
+  if (typed > 0) return typed;
+  const m2 = (c) => (wwFormat(c).widthCm * wwFormat(c).heightCm) / 10000;
+  const q = (c) => Math.max(0, Math.round(num(qtyByFormat[c])));
+  const plan = winwallPanelPlan(wv?.wvKSituation, { links: wv?.wvKLinks, back: wv?.wvKBack, rechts: wv?.wvKRechts }, { heightCm: wv?.wvKHoehe });
+  if (!plan.pieces.length) return WINWALL_SINGLE_FORMATS.reduce((a, c) => a + q(c) * m2(c), 0);
+  const H = num(wv?.wvKHoehe) || plan.panelHeightCm;
+  const wall = (plan.walls.reduce((a, w) => a + w.cm, 0) * H) / 10000;
+  return wall + WINWALL_SINGLE_FORMATS.reduce((a, c) => a + Math.max(0, q(c) - (plan.qty[c] || 0)) * m2(c), 0);
 }
 
 /** Sealing sets for `areaM2`: one 6,25 m² set for 5–6,25 m², otherwise 5 m² sets until covered. */
@@ -1343,7 +1399,9 @@ function grossToNet(gross, taxRate) {
 
     // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
     setCat("Fußboden");
-    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    // winwall floor: plates per format (wallCladdingWwQty); older offers have one size + qty.
+    const wcWwQty = dusch.wallCladdingSupplier === "ww" ? winwallFloorQty(dusch.wallCladdingWwQty) : null;
+    const wallCladdingQty = wcWwQty ? Object.values(wcWwQty).reduce((a, b) => a + b, 0) : Number(dusch.wallCladdingQty || 0) || 0;
     // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
     // panel line then, but the adhesive is still billed for the full floor area.
     const wcLeftoverOnly =
@@ -1361,11 +1419,12 @@ function grossToNet(gross, taxRate) {
       if (wcWinwall) {
         const decor = winwallDecor({ wvWwDecor: dusch.wallCladdingWwDecor, wvWwDecorCustom: dusch.wallCladdingWwDecorCustom });
         const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
-        for (const l of winwallOrderLines(decor.code, { [wallCladdingSize]: wallCladdingQty })) {
+        for (const l of winwallOrderLines(decor.code, wcWwQty || { [wallCladdingSize]: wallCladdingQty })) {
           const f = l.format;
-          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
-          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Wandverkleidung als Fußboden ${what} — Dekor: ${decorText}`, f.price, null,
-            { name: `winwall Wandverkleidung ${decorText} ${what}` });
+          const mm = `${f.widthCm * 10}×${f.heightCm * 10} mm`;
+          // Same word as the VIGOUR floor ("Aluverbundplatte (Farbe)") — Angebot, Kosten, signing.
+          add(l.productId, l.qty, `- ${l.panels} Stk Aluverbundplatte ${mm} — Dekor: ${decorText}`, f.price, null,
+            { name: `Aluverbundplatte ${mm} — Dekor: ${decorText}` });
         }
       } else if (wallCladdingQty > 0)
         add(
@@ -1381,7 +1440,9 @@ function grossToNet(gross, taxRate) {
       const wwFmt = wcWinwall ? WINWALL_FORMATS.find((f) => f.code === wallCladdingSize) : null;
       const wcArea =
         Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) ||
-        (wwFmt
+        (wcWwQty
+          ? WINWALL_FORMATS.reduce((a, f) => a + (wcWwQty[f.code] || 0) * f.widthCm * f.heightCm, 0) / 10000
+          : wwFmt
           ? (wallCladdingQty * wwFmt.widthCm * wwFmt.heightCm) / 10000
           : wallCladdingQty * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55);
       const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
@@ -1610,7 +1671,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     let winwallPanels = 0;
     if (isWinwall) {
       // One group per decor: rows (wvWwRows, since 2026-11) or the single decor + the
-      // four quantity fields of older offers. Per decor two equal plates become a set.
+      // four quantity fields of older offers.
       const groups = new Map();
       let rowsMode = false;
       const rowsRaw = String(wv?.wvWwRows ?? "").trim();
@@ -1636,19 +1697,20 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         for (const c of WINWALL_SINGLE_FORMATS) qtyByFormat[c] = wv?.[`wvWwQty_${c}`];
         groups.set(winwallDecor(wv).code, qtyByFormat);
       }
-      let coverM2 = 0;
+      const totals = {}; // panels per format over all decors, for the sealing area
+      for (const g of groups.values()) for (const c of WINWALL_SINGLE_FORMATS) totals[c] = (totals[c] || 0) + (Number(g[c]) || 0);
       for (const [code, qtyByFormat] of groups) {
         const decor = { code, name: WINWALL_CATALOG[code] || null };
         const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
         for (const l of winwallOrderLines(decor.code, qtyByFormat)) {
           const f = l.format;
           winwallPanels += l.panels;
-          coverM2 += (l.panels * f.widthCm * f.heightCm) / 10000;
-          const what = f.set ? `Set (2 Platten) ${f.widthCm}×${f.heightCm} cm` : `${f.widthCm}×${f.heightCm} cm`;
           // Price from the price list: any decor (also a typed one) costs the same per format.
-          // name for a typed decor that has no product in the DB
-          add(l.productId, l.qty, `- ${l.qty} ${f.set ? "Set" : "Stk"} winwall Duschrückwand ${what} — Dekor: ${decorText}`, f.price, null,
-            { name: `winwall Duschrückwand ${decorText} ${what}` });
+          // Worded like VIGOUR ("Wandverkleidung 3.0 Alu 997×2550 mm — Farbe: …"), not the
+          // DB's "Duschrückwand"; the same plate on the Fußboden is "Aluverbundplatte".
+          const mm = `${f.widthCm * 10}×${f.heightCm * 10} mm`;
+          add(l.productId, l.qty, `- ${l.panels} Stk Wandverkleidung Alu ${mm} — Dekor: ${decorText}`, f.price, null,
+            { name: `Wandverkleidung Alu ${mm} — Dekor: ${decorText}` });
         }
       }
       // Profiles + adhesive: switch + quantity, like the Badolux accessories.
@@ -1661,9 +1723,9 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       // joints is in the Kleinmaterial flat rate.
       if (wwQty("R_4260602") > 0)
         add("R_4260602", wwQty("R_4260602"), `- ${wwQty("R_4260602")} Pkg Flächenkleber (Wandverkleidung)`);
-      // Sealing sets by area: the Wandfläche, else what the panels cover.
+      // Sealing sets by area: Wandfläche, else wall plan + extra panels (winwallSealingArea).
       if (wv?.wvWwSealing) {
-        const area = Number(String(wv?.wvArea ?? "").replace(",", ".")) || coverM2;
+        const area = winwallSealingArea(wv, totals);
         for (const l of sealingLines(wv, area)) add(l.productId, l.qty, undefined, WINWALL_EXTRAS.find((x) => x.id === l.productId).price);
       }
       if (wv?.wvWwCut && winwallPanels > 0) add("WS-ZUSCHNITT", winwallPanels, `- ${winwallPanels} × Zuschnitt winwall (je Platte)`);
@@ -2373,9 +2435,12 @@ if (l.source === "hl_pipe") {
       const wvBase = l.category === "Fußboden"
         ? "Aluverbundplatte"
         : `Wandverkleidung 3.0 Alu ${/^V3WVK/.test(l.id) ? "997" : "1497"}×2550 mm`;
+      // winwall plates: our own name (Wand: "Wandverkleidung Alu …", Fußboden: "Aluverbundplatte …"),
+      // never the DB's "winwall Duschrückwand …". Accessories (WS80xxx) keep the DB name.
+      const isWwPlate = /^(WS|NW)[0-7]\d{2}(13|15|16|17)$/.test(l.id) && !!l.meta?.name;
       const displayName = isWvPanel
         ? (metaColor ? `${wvBase} (${metaColor})` : wvBase)
-        : displayNameBase;
+        : isWwPlate ? l.meta.name : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`

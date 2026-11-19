@@ -1994,6 +1994,7 @@ input:focus-visible + .sec-switch__track { box-shadow: 0 0 0 3px var(--ring, rgb
   gap: 10px 16px;
   padding: 12px 18px;
 }
+.sec-settings__row[hidden] { display: none; }
 .sec-settings__row + .sec-settings__row { border-top: 1px solid var(--input-border, #e5e7eb); }
 .sec-settings__text { display: grid; gap: 2px; min-width: 0; }
 .sec-settings__text strong { font-size: 1rem; font-weight: 600; color: var(--text, #1f2937); }
@@ -7881,6 +7882,7 @@ button.pad-clear {
 
 .today-calendar-topline {
   display: flex;
+  flex-direction: row-reverse;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -7890,6 +7892,8 @@ button.pad-clear {
 .today-calendar-title-wrap {
   min-width: 0;
   display: flex;
+  flex-direction: row-reverse;
+  text-align: right;
   align-items: flex-start;
   gap: 10px;
 }
@@ -7928,7 +7932,7 @@ button.pad-clear {
 .today-calendar-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 8px;
   flex: 0 0 auto;
 }
@@ -8270,6 +8274,10 @@ button.pad-clear {
   .today-calendar-topline {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .today-calendar-title-wrap {
+    align-self: flex-end;
   }
 
   .today-calendar-right {
@@ -11974,6 +11982,8 @@ details.az-group[open] > summary.az-group-title::before {
 .wv-row-add { margin: 10px 4px 0; border: 0; background: transparent; color: #0a84ff; font: inherit; font-weight: 600; cursor: pointer; padding: 6px 0; }
 .wv-rows-empty { padding: 14px 16px; color: var(--muted, #6b7280); }
 .wv-row { position: relative; }
+.wv-row.is-bad { background: rgba(220, 38, 38, 0.1); box-shadow: inset 3px 0 0 #dc2626; }
+.wv-row.is-bad .wv-row__name small { color: #dc2626; font-weight: 600; }
 .wv-row.is-active { background: rgba(10, 132, 255, 0.1); box-shadow: inset 3px 0 0 #0a84ff; }
 .wv-row.is-active .wv-row__sw { box-shadow: 0 0 0 2px var(--panel, #fff), 0 0 0 4px #0a84ff; }
 .wv-row.is-active::after { content: "markiert · Dekor antippen"; position: absolute; top: 2px; right: 12px; background: #0a84ff; color: #fff; font-size: 0.62rem; font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 999px; pointer-events: none; }
@@ -12080,7 +12090,6 @@ body.ui-classic #page-Duschwanne .sec-settings__text strong { display: block; fo
 body.ui-classic #page-Duschwanne .tier-line { display: none; }
 body.ui-classic #page-Duschwanne .tier-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; background: none; width: 100%; }
 body.ui-classic #page-Duschwanne .tier-seg__btn { min-width: 0; align-items: flex-start; position: relative; padding-left: 42px; box-shadow: none !important; color: var(--text, #1f2937); }
-body.ui-classic #page-Duschwanne .tier-seg__btn[data-tier="premium"] { order: -1; }
 body.ui-classic #page-Duschwanne .tier-seg__btn::before {
   content: ""; position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
   border: 2px solid var(--muted, #9ca3af); border-radius: 50%; background: var(--panel, #fff); box-sizing: border-box;
@@ -12134,33 +12143,47 @@ body.ui-classic #page-Duschwanne #tray-suggestions .sc-check { display: none; }
 
 /* Farbe: rechteckige Farbfelder */
 body.ui-classic #page-Duschwanne .dw-color-grid { padding: 0; }
-body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { width: 96px; height: 64px; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-color-grid .image-check { min-width: 0; }
+/* Die Farbfotos sind quadrat (400×400): im 96×64-Rahmen wurde die Mitte abgeschnitten. */
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
 body.ui-classic #page-Duschwanne .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
 
-/* Zubehör: Bildkacheln mit Haken */
-body.ui-classic #page-Duschwanne .dw-acc-list .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
+/* Zubehör: wie winwall-Zubehör (Karten im Raster, Bild oben, Kästchen oben rechts) */
+body.ui-classic #page-Duschwanne .dw-acc-list > .sec-settings__group { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; padding: 12px; }
 body.ui-classic #page-Duschwanne .dw-acc {
-  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
-  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
+  position: relative; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; align-items: start; gap: 8px; padding: 12px;
+  border: 1px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
 }
-body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
-body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
+body.ui-classic #page-Duschwanne .dw-acc + .dw-acc { border-top: 1px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-acc:has(input:checked) { border-color: var(--cl-accent); box-shadow: inset 0 0 0 1px var(--cl-accent); background: var(--panel, #fff); }
 body.ui-classic #page-Duschwanne .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
 body.ui-classic #page-Duschwanne .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
-body.ui-classic #page-Duschwanne .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); }
-body.ui-classic #page-Duschwanne .dw-acc > .img-wrap img { object-fit: contain; }
+body.ui-classic #page-Duschwanne .dw-acc .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 120px; padding: 6px; border-radius: 10px; background: #fafafa; display: block; }
+body.ui-classic #page-Duschwanne .dw-acc .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
 body.ui-classic #page-Duschwanne .dw-acc__text { grid-column: 1; grid-row: 2; }
-body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
+body.ui-classic #page-Duschwanne .dw-acc__text .caption { font-size: 0.92rem; font-weight: 600; }
+body.ui-classic #page-Duschwanne .dw-acc__text small { font-size: 0.75rem; }
 body.ui-classic #page-Duschwanne .dw-acc .sec-switch__track {
-  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
-  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
+  position: absolute; top: 18px; right: 18px; z-index: 1; grid-column: auto; grid-row: auto; order: 0;
+  width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--muted, #9ca3af); background: var(--panel, #fff); box-sizing: border-box; display: grid; place-items: center;
 }
-body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
+body.ui-classic #page-Duschwanne .dw-acc .sec-switch__track::after {
+  position: static; width: auto; height: auto; background: none; box-shadow: none; border-radius: 0;
+  content: "\2713"; color: #fff; font-size: 13px; line-height: 1; font-weight: 700; transform: none; opacity: 0;
+}
+body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track { background: var(--cl-accent); border-color: var(--cl-accent); }
+body.ui-classic #page-Duschwanne .dw-acc input:checked + .sec-switch__track::after { opacity: 1; }
+[data-mode="dark"] body.ui-classic #page-Duschwanne .dw-acc .img-wrap { background: rgba(255, 255, 255, 0.92); }
 body.ui-classic #page-Duschwanne .stelzlager-qty-row {
   grid-column: 1; grid-row: 3; position: relative; z-index: 1; background: none; gap: 6px; justify-self: start;
 }
 body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
+
+/* Klassisch: Produktlinie ohne Beschreibung unter Badolux/Hassmann (nur Duschwanne) */
+body.ui-classic #page-Duschwanne .tier-seg__btn span { display: none; }
 
 /* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
 body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
@@ -12247,7 +12270,6 @@ body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-se
   background: var(--panel, #fff); box-shadow: none !important; color: var(--text, #1f2937); display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   font-weight: 600; white-space: nowrap;
 }
-body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn[data-tier="premium"] { order: -1; }
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn span { font-size: 0.82rem; color: var(--muted, #6b7280); }
 body.ui-classic #page-Fussboden #fbTabFloor .tier-seg__btn::before,
 body.ui-classic #page-Fussboden #fbTabFloor .sec-settings:has(.tier-seg) .ios-seg span::before {
@@ -12773,3 +12795,86 @@ body.ui-classic #page-Wandverkleidung .dw-acc .wv-seal-reset { color: var(--cl-a
 [data-mode="dark"] #form-wandverkleidung .kc-wall-sub { color: #fdba74; }
 #page-Wandverkleidung .wv-row__name small { color: #4b5563; }
 [data-mode="dark"] #page-Wandverkleidung .wv-row__name small { color: #b4bac4; }
+
+/* ---------- Wandverkleidung einfach (wvUi=simple, initWvSimple, 2026-11-18) ----------
+   Classic sections are only hidden (CSS, not [hidden]/disabled) so their fields keep
+   submitting: #wvWwRowsData and the wvWwQty_* fields are what the offer is priced from. */
+#wvLineRow, #wvSimple { display: none; }
+.wv-simple #wvLineRow { display: block; }
+.wv-simple #wvSettingsBlock { display: none; }
+.wv-simple.wv-line-open #wvSettingsBlock { display: block; }
+.wv-simple-ww #wvSimple { display: block; }
+.wv-simple-ww #wvWallsBlock, .wv-simple-ww #wvWwRowsSection,
+.wv-simple-ww #wvWwPanelsSection, .wv-simple-ww #wvWwDecorSection { display: none !important; }
+
+.wvs-disclosure { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.wvs-chev { color: #c7c7cc; font-size: 1.3rem; transition: transform .2s; }
+.wv-line-open .wvs-chev { transform: rotate(90deg); }
+.wvs-step { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 4px; border-radius: 50%; background: #0a84ff; color: #fff; font-size: .72rem; }
+
+.wvs-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 4px 10px; }
+.wvs-tab { display: flex; align-items: center; gap: 8px; border: 1px solid var(--input-border, #d0d5dd); background: var(--panel, #fff); color: inherit; border-radius: 999px; padding: 4px 12px 4px 4px; font: inherit; font-size: .88rem; cursor: pointer; }
+.wvs-tab i { width: 26px; height: 26px; border-radius: 50%; background: #d9d4cc center / cover; border: 1px solid rgba(0,0,0,.1); }
+.wvs-tab[aria-pressed="true"] { border-color: #0a84ff; box-shadow: 0 0 0 2px rgba(10,132,255,.25); font-weight: 600; }
+.wvs-tab--add { padding: 6px 14px; color: #0a84ff; border-style: dashed; }
+.wvs-tab__del { margin-left: 2px; color: var(--muted, #6b7280); font-weight: 400; }
+
+.wvs-plates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px 16px 16px; align-items: end; }
+.wvs-plate { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wvs-plate__img { position: relative; width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); border-radius: 6px; background: #d9d4cc center / cover;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.10), inset 0 0 0 1px rgba(0,0,0,.08); }
+.wvs-plate.has .wvs-plate__img { box-shadow: 0 0 0 3px #0a84ff, 0 6px 16px rgba(0,0,0,.12); }
+.wvs-plate__qty { position: absolute; top: 8px; right: 8px; display: none; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; background: #0a84ff; color: #fff; font-weight: 700; }
+.wvs-plate.has .wvs-plate__qty { display: grid; }
+.wvs-plate__size { font-weight: 600; }
+.wvs-plate__meta { margin-top: -6px; min-height: 1.1em; color: var(--muted, #6b7280); font-size: .78rem; }
+.wvs-step-ctl { display: flex; align-items: center; border-radius: 10px; background: rgba(118,118,128,.12); }
+/* padding/line-height reset: the global button padding pushed − and + below the number */
+.wvs-step-ctl button { display: flex; align-items: center; justify-content: center; width: 44px; height: 38px; margin: 0; padding: 0; border: 0; background: none; color: #0a84ff; font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.wvs-step-ctl output { min-width: 28px; text-align: center; font-weight: 600; line-height: 1; }
+.wvs-step-label { margin-top: -4px; color: var(--muted, #6b7280); font-size: .75rem; }
+.wvs-total { padding: 12px 18px; border-top: 1px solid var(--input-border, #e5e7eb); font-weight: 600; }
+
+/* Each tile spans 3 rows of the grid (subgrid): pictures, names and codes share rows,
+   so 1-, 2- or 3-line names stay aligned. */
+.wvs-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); column-gap: 12px; padding: 16px 16px 0; }
+.wvs-color { display: grid; grid-row: span 3; grid-template-rows: subgrid; align-content: start; padding: 0 0 16px; border: 0; background: none; color: inherit; font: inherit; text-align: center; cursor: pointer; }
+.wvs-color i { display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 10px; background: #d9d4cc center / cover; border: 1px solid rgba(0,0,0,.08); color: #6b7280; font-size: .7rem; font-style: normal; }
+.wvs-color span { margin-top: 6px; font-size: .78rem; line-height: 1.2; }
+.wvs-color small { color: var(--muted, #6b7280); font-size: .7rem; }
+.wvs-color[aria-checked="true"] i { box-shadow: 0 0 0 3px #0a84ff; }
+.wvs-color[aria-checked="true"] span { font-weight: 600; }
+.wvs-other { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wvs-other input { width: 170px; padding: 8px 10px; border: 1px solid var(--input-border, #d0d5dd); border-radius: 8px; font: inherit; text-transform: uppercase; }
+.wvs-hint.is-ok { color: #248a3d; font-weight: 600; }
+.wvs-hint.is-warn { color: #dc2626; font-weight: 600; }
+.wvs-classic { margin: 10px 4px 0; padding: 6px 0; border: 0; background: none; color: #0a84ff; font: inherit; font-size: .85rem; cursor: pointer; }
+@media (max-width: 720px) { .wvs-plates { grid-template-columns: repeat(2, 1fr); } }
+
+/* Höhe (Reste je Dekor) + winwall-Platten im Fußboden-Tab (2026-11-18) */
+.wvs-height { border-top: 1px solid var(--input-border, #e5e7eb); }
+.wvs-height .dw-dim-input input { width: 120px; }
+.wvs-height-hint.is-ok { color: #248a3d; }
+[data-mode="dark"] .wvs-height-hint.is-ok { color: #4ade80; }
+.wvs-plate__best { margin-top: -6px; min-height: 1.1em; color: #248a3d; font-size: .75rem; font-weight: 600; }
+[data-mode="dark"] .wvs-plate__best { color: #4ade80; }
+.wvs-total { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; }
+.wvs-total small { color: var(--muted, #6b7280); font-weight: 400; }
+.wvs-total.is-short small { color: #dc2626; font-weight: 600; }
+[data-mode="dark"] .wvs-total.is-short small { color: #f87171; }
+.wc-ww-resync { flex: none; margin: 0 0 0 auto; padding: 6px 14px; border: 1px solid #0a84ff; border-radius: 999px; background: none; color: #0a84ff; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; }
+#wcWwDecors[hidden] { display: none !important; }
+#form-fussboden #wcWwCustomRow { flex-wrap: nowrap; }
+#form-fussboden #wcWwCustomRow input { flex: none; width: 170px; max-width: 45%; margin: 0; }
+/* Classic winwall → back to the simple view */
+#wvToSimpleRow { display: none; }
+#form-wandverkleidung.wv-ww:not(.wv-simple) #wvToSimpleRow { display: block; }
+.wvs-to-simple { width: 100%; margin: 0 0 4px; padding: 12px 16px; border: 1px dashed #0a84ff; border-radius: 12px; background: rgba(10,132,255,.06); color: #0a84ff; font: inherit; font-weight: 600; cursor: pointer; }
+[data-mode="dark"] .wvs-to-simple { color: #6cb4ff; border-color: #6cb4ff; background: rgba(108,180,255,.08); }
+.wvs-bad { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 18px; border-top: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; font-size: .88rem; font-weight: 600; }
+.wvs-bad[hidden] { display: none; }
+.wvs-bad__fix { padding: 6px 12px; border: 1px solid currentColor; border-radius: 999px; background: none; color: inherit; font: inherit; font-size: .82rem; cursor: pointer; }
+[data-mode="dark"] .wvs-bad { background: rgba(220,38,38,.12); border-top-color: rgba(248,113,113,.35); color: #fca5a5; }
+/* Wandverkleidung Zubehör: pictures stay at full strength when not selected — the light
+   profile photos almost vanished at 45 % (the switch + green frame show the selection). */
+#form-wandverkleidung .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }

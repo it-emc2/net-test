@@ -1466,6 +1466,14 @@ function hasEligibleGrab(data) {
   );
 }
 
+// Live form check for the same question. A /api/price response can be stale
+// (sent before a reopened offer finished restoring its grab bar); unchecking
+// "Haltegriff gratis" off such a response silently dropped the bonus on reopen.
+function formHasEligibleGrab() {
+  const ids = window.__grabBonusIds || ["CLPESG30"];
+  return ids.some((id) => Number(document.getElementById("qty_" + id)?.value) > 0);
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch("/api/price", {
@@ -2609,7 +2617,23 @@ function resetAllForms() {
   // form.reset() keeps whatever the last restored offer set (e.g. "hm").
   const wvSupplierEl = document.getElementById("wvSupplier");
   if (wvSupplierEl) wvSupplierEl.value = "ww";
+  const wwManualEl = document.getElementById("wvWwAccManual"); // same hidden-input rule
+  if (wwManualEl) wwManualEl.value = "";
   try { syncWwCustomDecor(); } catch {} // form.reset() left the tile on WS 203
+  const wvUiEl = document.getElementById("wvUi"); // same hidden-input rule: new offers start simple
+  if (wvUiEl) wvUiEl.value = "simple";
+  // Same rule for the rows: without this the previous offer's plates come back.
+  const wwRowsEl = document.getElementById("wvWwRowsData");
+  if (wwRowsEl) wwRowsEl.value = "";
+  window.pullWwRows?.();
+  window.resetWvSimple?.();
+  for (const id of ["wallCladdingWwQty", "wallCladdingQty", "wallCladdingPanelSize", "wallCladdingLeftoverM2"]) {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  }
+  const wcSupEl = document.getElementById("wallCladdingSupplier");
+  if (wcSupEl) wcSupEl.value = "ww";
+  window.resetWcWw?.();
   if (typeof syncWvSupplierGroups === "function") syncWvSupplierGroups();
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
@@ -8110,7 +8134,7 @@ function setupWandverkleidungPage() {
       return v || null;
     }
 
-    // winwall: decor photo, panels per format (what will be ordered, sets included).
+    // winwall: decor photo, panels per format (what will be ordered).
     function winwallCardHtml() {
       const { code, name, counts } = wwPrimary();
       const core = window.__pricingCore;
@@ -8120,12 +8144,12 @@ function setupWandverkleidungPage() {
       const eur = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const total = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
       const rows = lines
-        .map((l) => `${l.qty} × ${l.format.set ? "Set " : ""}${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
+        .map((l) => `${l.qty} × ${l.format.widthCm}×${l.format.heightCm} cm (${l.productId})`)
         .join(" · ");
       return `<div class="wvc-sel">
         <img class="wvc-sel__img is-panel" src="./assets/winwall/panel/${code}.jpg" alt="" onerror="this.hidden=true" />
         <div class="wvc-sel__info">
-          <strong class="wvc-sel__name">winwall Duschrückwand ${escapeHtml(name || "Dekor laut Nummer")}</strong>
+          <strong class="wvc-sel__name">Wandverkleidung ${escapeHtml(name || "Dekor laut Nummer")}</strong>
           <span class="wvc-sel__meta">${code.slice(0, 2)} ${code.slice(2)} · WV-WW · ${rows}</span>
           <span class="wvc-sel__price">${eur(total)} € <small>Einkauf netto, ohne Zubehör</small></span>
         </div>
@@ -10845,6 +10869,13 @@ function isDaHassmannVisible() {
   if (!toggle) return;
   toggle.addEventListener("change", () => {
     setDwTrayEnabled(toggle.checked);
+    // New offer: the first time Duschwanne is switched on, Badolux is preselected.
+    // Never on a restore (absent flag = Hassmann, so old offers keep their line) and
+    // never again once the line was picked or an offer was loaded.
+    if (toggle.checked && !window.__dwLineDefaulted && !window.__RESTORING__ && !window.__restoring) {
+      window.__dwLineDefaulted = true;
+      if (getLine("duschwanne") === "premium") setLine("duschwanne", "standard");
+    }
     // Re-price: the tray and its accessories just entered or left the offer.
     toggle.form?.dispatchEvent(new Event("change", { bubbles: true }));
   });
@@ -11536,17 +11567,22 @@ const LINE_LABEL = {
 const TIER_INFO = {
   standard: {
     name: "Standard",
+    uiName: "Badolux", // Duschwanne/Fußboden show the brand, not the tier (Wand keeps Standard)
     brand: "Badolux",
     note: (key) =>
       `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Badolux-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
   premium: {
     name: "Premium",
+    uiName: "Hassmann",
     brand: "Vigour / Hassmann",
     note: (key) =>
       `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Vigour/Hassmann-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
 };
+
+// Name shown to the user: brand for Duschwanne/Fußboden, tier name for Wand (unchanged).
+const tierName = (key, tier) => (key === "wand" ? TIER_INFO[tier].name : TIER_INFO[tier].uiName);
 
 // Lagerbestand aus der Vigor-DB. stockSymbol 3/6/9 fuehren immer stockQuantity 0,
 // sind aber lieferbar — deshalb ein eigener Bernstein-Zustand statt Rot. Ohne
@@ -11770,8 +11806,8 @@ async function setLine(key, tier, { keepSelection = false } = {}) {
   // there is nothing to lose and nothing worth interrupting for.
   const atRisk = lineSelectionAtRisk(key);
   if (atRisk && !window.__restoring && !window.__RESTORING__) {
-    const from = TIER_INFO[getLine(key)].name;
-    const to = TIER_INFO[tier].name;
+    const from = tierName(key, getLine(key));
+    const to = tierName(key, tier);
     const ok = await appConfirm({
       title: `${LINE_LABEL[key]} auf „${to}" umstellen?`,
       message:
@@ -11927,7 +11963,7 @@ function syncTierSwitchUi() {
     const info = TIER_INFO[tier];
     status.dataset.tier = tier;
     const text = status.querySelector(".tier-status__text");
-    if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note(key)}`;
+    if (text) text.innerHTML = `<b>${tierName(key, tier)} aktiv</b> — ${info.note(key)}`;
   });
   // Compact form inside a settings row (Duschwanne): just which products show.
   document.querySelectorAll("[data-tier-line]").forEach((el) => {
@@ -12079,6 +12115,28 @@ if (document.readyState === "loading") {
   window.getWvLeftover = function getWvLeftover() {
     try {
       if (getLine("wand") !== "premium") return null;
+      // winwall with a cladding height (simple view): the strip above the height of
+      // every plate, per decor — byDecor says how much each wall decor leaves over.
+      const wwH = num(document.getElementById("wvWwHeight")?.value);
+      if (isWvWinwall() && wwH > 0) {
+        const core = window.__pricingCore;
+        const byCode = new Map();
+        for (const r of window.__wwRowsState?.() || []) {
+          if (!r.code) continue;
+          const q = byCode.get(r.code) || {};
+          q[r.fmt] = (q[r.fmt] || 0) + (Number(r.qty) || 0);
+          byCode.set(r.code, q);
+        }
+        const byDecor = {};
+        for (const [c, q] of byCode) {
+          const m = core?.winwallStripLeftoverM2?.(q, wwH, window.__wvLeftoverUsable, window.__wvLeftoverMin);
+          if (typeof m === "number" && m > 0) byDecor[c] = m;
+        }
+        const top = Object.entries(byDecor).sort((a, b) => b[1] - a[1])[0];
+        if (!top) return null;
+        const name = core?.WINWALL_CATALOG?.[top[0]] || null;
+        return { usableM2: top[1], color: name || top[0], supplier: "ww", decor: top[0], decorName: name, byDecor };
+      }
       // Wall area: typed (Fläche) or from the wall-width calculator (Maße × Höhe).
       let area = num(document.getElementById("wvArea")?.value);
       if (area <= 0) {
@@ -12097,7 +12155,7 @@ if (document.readyState === "loading") {
         const decor = wwPrimary();
         if (!decor.code) return null;
         const usable = window.__pricingCore?.winwallLeftoverM2?.(decor.counts, area, window.__wvLeftoverUsable, window.__wvLeftoverMin);
-        return usable ? { usableM2: usable, color: decor.code, supplier: "ww", decor: decor.code, decorName: decor.name } : null;
+        return usable ? { usableM2: usable, color: decor.name || decor.code, supplier: "ww", decor: decor.code, decorName: decor.name, byDecor: { [decor.code]: usable } } : null;
       }
       const hasExtras = [...document.querySelectorAll("#wvExtraList997 .wv-extra-qty, #wvExtraList1497 .wv-extra-qty")]
         .some((el) => num(el.value) > 0);
@@ -12232,13 +12290,15 @@ if (document.readyState === "loading") {
     const input = document.getElementById("wallCladdingWwDecorCustom");
     const hint = document.getElementById("wcWwCustomHint");
     if (!custom || !row || !input || !hint) return;
-    row.hidden = !custom.checked;
-    const { code, name } = wwDecor();
+    const typed = input.value.trim();
+    const code = wwDecorCode(typed);
+    const cat = window.__pricingCore?.WINWALL_CATALOG;
+    const name = (code && cat && typeof cat === "object" && cat[code]) || null;
     hint.classList.remove("is-ok", "is-warn");
-    if (!custom.checked || !input.value.trim()) hint.textContent = "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.";
-    else if (!code) { hint.textContent = "Bitte WS oder NW und 3 Ziffern eingeben, z. B. NW 230."; hint.classList.add("is-warn"); }
-    else if (name) { hint.textContent = `✓ ${name}`; hint.classList.add("is-ok"); }
-    else { hint.textContent = "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt."; hint.classList.add("is-warn"); }
+    if (!typed) hint.textContent = "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).";
+    else if (!code) { hint.textContent = "Nicht erkannt – Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015)."; hint.classList.add("is-warn"); }
+    else if (name) { hint.textContent = `✓ ${name} (${code.slice(0, 2)} ${code.slice(2)})`; hint.classList.add("is-ok"); }
+    else { hint.textContent = `${code.slice(0, 2)} ${code.slice(2)} ist nicht im winwall-Katalog – Nummer bitte prüfen.`; hint.classList.add("is-warn"); }
     const cap = custom.closest("label")?.querySelector(".caption");
     if (cap) cap.textContent = custom.checked && code ? `${code.slice(0, 2)} ${code.slice(2)}` : "Anderes Dekor";
     const img = document.getElementById("wcWwCustomImg");
@@ -12268,6 +12328,8 @@ if (document.readyState === "loading") {
     if (qtyEl) qtyEl.value = "";
     if (qtyInput) qtyInput.value = "";
     if (qtyRow) qtyRow.hidden = true;
+    if (wwQtyEl) wwQtyEl.value = "";
+    wwLastBest = null;
     syncSupplierUi();
     updateSuggestion();
     window.updatePricing?.();
@@ -12328,6 +12390,104 @@ if (document.readyState === "loading") {
   // same panel sizes and the same "least waste wins" rule.
   window.computeWvPanelSuggestion = computeSuggestion;
 
+  // ---- winwall: plates per format (wallCladdingWwQty), like the Wandverkleidung page ----
+  // Proposal = the cheapest set that covers the floor (price only picks, it is never shown).
+  // The plates follow the area until − / + changes them; "↻ Vorschlag" brings it back.
+  const wwQtyEl = document.getElementById("wallCladdingWwQty");
+  const wwPlatesSec = document.getElementById("wcWwPlatesSection");
+  const wwPlatesEl = document.getElementById("wcWwPlates");
+  const wwTotalEl = document.getElementById("wcWwTotal");
+  const resyncRow = document.getElementById("wcWwResyncRow");
+  const WW_ALL = ["13", "15", "16", "17"];
+  const wwZero = () => ({ 13: 0, 15: 0, 16: 0, 17: 0 });
+  const wwSum = (q) => WW_ALL.reduce((a, c) => a + (q[c] || 0), 0);
+  const wwM2 = (q) => WW_ALL.reduce((a, c) => a + (q[c] || 0) * wwPanelM2(c), 0);
+  const wwSame = (a, b) => WW_ALL.every((c) => (a[c] || 0) === (b[c] || 0));
+  const numIn = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  let wwLastBest = null; // proposal the plates were last set to; null = not known (restored offer)
+  function wwGetQty() {
+    const q = wwZero();
+    try { const o = JSON.parse(wwQtyEl?.value || "{}"); for (const c of WW_ALL) q[c] = Math.max(0, Math.round(Number(o[c]) || 0)); } catch {}
+    return q;
+  }
+  function wwSetQty(q) {
+    const n = wwSum(q);
+    if (wwQtyEl) wwQtyEl.value = n ? JSON.stringify(q) : "";
+    if (qtyEl) qtyEl.value = String(n);
+    // legacy fields: total + the format with the most plates
+    if (panelSizeEl) panelSizeEl.value = n ? WW_ALL.reduce((a, c) => ((q[c] || 0) > (q[a] || 0) ? c : a), "15") : "";
+  }
+  // ponytail: brute force over the 4 formats, ≤ 24 each (≈ 49 m²) — plenty for a bathroom floor.
+  function wwBest(area) {
+    if (!(area > 0) || !wwFormat("13")) return wwZero();
+    const P = Object.fromEntries(WW_ALL.map((c) => [c, wwFormat(c).price]));
+    const M = Object.fromEntries(WW_ALL.map((c) => [c, wwPanelM2(c)]));
+    const max = Math.min(24, Math.ceil(area / M["13"] - 1e-9));
+    let top = null;
+    for (let a = 0; a <= max; a++) for (let b = 0; b <= max; b++) for (let c = 0; c <= max; c++) for (let d = 0; d <= max; d++) {
+      const m = a * M["13"] + b * M["15"] + c * M["16"] + d * M["17"];
+      if (m + 1e-9 < area) continue;
+      const cost = a * P["13"] + b * P["15"] + c * P["16"] + d * P["17"], n = a + b + c + d;
+      if (!top || cost < top.cost - 0.005 || (Math.abs(cost - top.cost) < 0.005 && (m < top.m - 1e-9 || (Math.abs(m - top.m) < 1e-9 && n < top.n))))
+        top = { q: { 13: a, 15: b, 16: c, 17: d }, cost, m, n };
+    }
+    return top ? top.q : wwZero();
+  }
+  const wwNeed = () => Math.max(0, numIn(areaEl?.value) - leftoverCredit());
+  // Area/credit changed: follow the proposal unless the plates were changed by hand.
+  function wwFollow() {
+    if (window.__RESTORING__) { wwLastBest = null; return; } // never re-size a saved order while it loads
+    const best = wwBest(wwNeed());
+    const cur = wwGetQty();
+    const untouched = wwLastBest ? wwSame(cur, wwLastBest) : !wwSum(cur);
+    wwLastBest = best;
+    if (untouched && !wwSame(cur, best)) { wwSetQty(best); window.updatePricing?.(); }
+  }
+  let wcPrevDecor = null; // floor decor before a change (for the leftover warning)
+  function wwRender() {
+    if (!wwPlatesSec || !wwPlatesEl) return;
+    const on = isWw() && !!wwFormat("13");
+    wwPlatesSec.hidden = !on;
+    if (resyncRow) resyncRow.hidden = true;
+    if (!on) return;
+    wcPrevDecor = wwDecor().code;
+    renderWcPalette();
+    const code = wwDecor().code || "WS203";
+    const best = wwLastBest || wwBest(wwNeed());
+    const cur = wwGetQty();
+    wwPlatesEl.innerHTML = WW_ALL.map((c) => {
+      const f = wwFormat(c), q = cur[c], sz = `${f.widthCm} × ${f.heightCm} cm`;
+      return `<div class="wvs-plate${q ? " has" : ""}">
+        <div class="wvs-plate__img" style="--w:${f.widthCm * 0.8};--h:${f.heightCm * 0.8};background-image:url(./assets/winwall/${code}.jpg)"><span class="wvs-plate__qty">${q}</span></div>
+        <div class="wvs-plate__size">${sz}</div>
+        <div class="wvs-plate__best">${best[c] ? `Vorschlag: ${best[c]}` : ""}</div>
+        <div class="wvs-step-ctl"><button type="button" data-f="${c}" data-d="-1" aria-label="Weniger ${sz}">−</button><output>${q}</output><button type="button" data-f="${c}" data-d="1" aria-label="Mehr ${sz}">+</button></div>
+        <div class="wvs-step-label">Menge</div>
+      </div>`;
+    }).join("");
+    const n = wwSum(cur), m = wwM2(cur), full = numIn(areaEl?.value), need = wwNeed();
+    const short = full > 0 && m + 1e-9 < need;
+    wwTotalEl.classList.toggle("is-short", short);
+    wwTotalEl.innerHTML = `<span>${n} ${n === 1 ? "Platte" : "Platten"} · ${fmt(m)} m²</span><small>${
+      short ? `Es fehlen ${fmt(need - m)} m²` : full > 0 && n ? `Verschnitt ${fmt(m - need)} m²` : full > 0 && !need ? "Reste reichen – keine Platten nötig" : ""}</small>`;
+    if (resyncRow) resyncRow.hidden = !(full > 0 && !wwSame(cur, best));
+  }
+  wwPlatesEl?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]");
+    if (!b) return;
+    const q = wwGetQty();
+    q[b.dataset.f] = Math.max(0, (q[b.dataset.f] || 0) + Number(b.dataset.d));
+    wwSetQty(q);
+    wwRender();
+    renderWvcProductCard(selectedColor());
+    window.updatePricing?.();
+  });
+  document.getElementById("wcWwResync")?.addEventListener("click", () => {
+    wwLastBest = null;
+    wwSetQty(wwZero());
+    renderCards(null);
+  });
+
   const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
 
@@ -12344,7 +12504,7 @@ if (document.readyState === "loading") {
         </div>
         <div class="wvc-qty">${opt.qty} Platte${opt.qty === 1 ? "" : "n"}</div>
         <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
-        <div class="wvc-price-row"><span class="wvc-price">${eur(cost)}</span><span class="wvc-unit">(Listenpreis${opt.qty > 1 ? ", ab 2 gleichen als Set" : ""})</span></div>
+        <div class="wvc-price-row"><span class="wvc-price">${eur(cost)}</span><span class="wvc-unit">(Listenpreis)</span></div>
         <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
       </button>`;
   }
@@ -12383,7 +12543,7 @@ if (document.readyState === "loading") {
   function leftoverCredit() {
     const lo = window.getWvLeftover?.();
     if (!lo || !useLeftoverEl?.checked) return 0;
-    if (lo.supplier === "ww") return isWw() && wwDecor().code === lo.decor ? lo.usableM2 : 0;
+    if (lo.supplier === "ww") return isWw() ? lo.byDecor?.[wwDecor().code] || 0 : 0;
     if (isWw()) return 0;
     return selectedColor() === lo.color.toLowerCase() ? lo.usableM2 : 0;
   }
@@ -12393,16 +12553,15 @@ if (document.readyState === "loading") {
     const lo = window.getWvLeftover?.();
     if (leftoverRow) leftoverRow.hidden = !lo;
     if (!lo && useLeftoverEl?.checked) { useLeftoverEl.checked = false; credit = 0; }
-    // winwall: the decor is fixed to the wall's while the rest is credited.
-    form.querySelectorAll('input[name="wallCladdingWwDecor"]').forEach((r) => {
-      r.disabled = credit > 0 && isWw() && !!lo && r.checked === false;
-    });
+    // winwall: another floor decor is allowed, with a warning (see the change listener below).
     if (leftoverHint && lo) {
-      const same = lo.supplier === "ww" ? isWw() && wwDecor().code === lo.decor : !isWw() && selectedColor() === lo.color.toLowerCase();
+      const wwM2Here = lo.supplier === "ww" && isWw() ? lo.byDecor?.[wwDecor().code] || 0 : 0;
+      const wwNames = lo.supplier === "ww" ? Object.keys(lo.byDecor || {}).map((c) => window.__pricingCore?.WINWALL_CATALOG?.[c] || `${c.slice(0, 2)} ${c.slice(2)}`).join(", ") : "";
+      const same = lo.supplier === "ww" ? wwM2Here > 0 : !isWw() && selectedColor() === lo.color.toLowerCase();
       leftoverHint.textContent = same
-        ? `${fmtM2(lo.usableM2)} m² ${lo.color}, schon bezahlt — kostenlos für den Boden.`
+        ? `${fmtM2(lo.supplier === "ww" ? wwM2Here : lo.usableM2)} m² ${lo.supplier === "ww" ? wwDecor().name || wwDecor().label : lo.color}, schon bezahlt — kostenlos für den Boden.`
         : lo.supplier === "ww"
-          ? `Reste sind winwall ${lo.color}. Wählen Sie winwall mit demselben Dekor, um sie anzurechnen.`
+          ? `Reste gibt es in winwall ${wwNames}. Wählen Sie dasselbe Dekor, um sie anzurechnen.`
           : `Reste sind ${lo.color}. Wählen Sie dieselbe Farbe, um sie anzurechnen.`;
     }
     if (leftoverField) leftoverField.value = credit > 0 ? String(credit) : "";
@@ -12416,7 +12575,7 @@ if (document.readyState === "loading") {
           : `${fmtM2(credit)} m² kommen aus Ihrer Wand. Es fehlen ${fmtM2(missing)} m², dafür reichen die zusätzlichen Paneele oben. Der Flächenkleber wird normal berechnet.`;
       }
     }
-    if (result?.allCovered) {
+    if (result?.allCovered && !isWw()) { // winwall: wwFollow() decides
       // Nothing to order: clear any earlier size/quantity once.
       if (panelSizeEl?.value || Number(qtyEl?.value) > 0) {
         if (panelSizeEl) panelSizeEl.value = "";
@@ -12445,6 +12604,14 @@ if (document.readyState === "loading") {
     const credit = leftoverCredit();
     const result = computeSuggestion(areaEl?.value, credit);
     syncLeftoverUi(result, credit);
+    if (isWw()) {
+      suggestionBox.hidden = true;
+      wwFollow();
+      wwRender();
+      renderWvcProductCard(selectedColor());
+      return;
+    }
+    wwRender(); // hides the winwall plates
     renderWvcProductCard(selectedColor());
     if (!result || result.allCovered) { suggestionBox.hidden = true; return; }
     const colorKey = selectedColor();
@@ -12483,10 +12650,33 @@ if (document.readyState === "loading") {
       if (toggle.checked) window.updatePricing?.();
     }
   });
-  document.getElementById("wallCladdingWwDecorCustom")?.addEventListener("input", () => {
+  document.getElementById("wallCladdingWwDecorCustom")?.addEventListener("input", (e) => {
     syncWwCustom();
+    const code = wwDecorCode(e.target.value.trim());
+    if (code) {
+      const radio = form.querySelector(`input[name="wallCladdingWwDecor"][value="${code}"]`) || form.querySelector('input[name="wallCladdingWwDecor"][value="custom"]');
+      if (radio) { radio.checked = true; radio.dispatchEvent(new Event("change", { bubbles: true })); return; }
+    }
     updateSuggestion();
     if (toggle.checked) window.updatePricing?.();
+  });
+  // Palette = the Wandverkleidung simple view's (window.wvsPaletteHtml); a tap checks the hidden radio.
+  const wcColorsEl = document.getElementById("wcWwColors");
+  function renderWcPalette() {
+    if (!wcColorsEl || !isWw() || typeof window.wvsPaletteHtml !== "function") return;
+    wcColorsEl.innerHTML = window.wvsPaletteHtml(wwDecor().code);
+  }
+  wcColorsEl?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]");
+    if (!b) return;
+    const code = b.dataset.c;
+    const ci = document.getElementById("wallCladdingWwDecorCustom");
+    const tile = form.querySelector(`input[name="wallCladdingWwDecor"][value="${code}"]`);
+    const radio = tile || form.querySelector('input[name="wallCladdingWwDecor"][value="custom"]');
+    if (!radio) return;
+    if (ci) ci.value = tile ? "" : `${code.slice(0, 2)} ${code.slice(2)}`;
+    radio.checked = true;
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
   });
   document.querySelectorAll("#wcSupplierRow .wc-sup-btn").forEach((b) => b.addEventListener("click", () => window.setWcSupplier(b.dataset.sup)));
   syncSupplierUi();
@@ -12504,6 +12694,129 @@ if (document.readyState === "loading") {
   });
   document.addEventListener("wvLeftoverConfig", updateSuggestion);
   updateSuggestion();
+
+  // ---- Wandverkleidung (winwall) → Fußboden: decor follows, leftovers auto-added ----
+  // Several wall decors: the floor is tied to ONE of them (its own decor); only a change
+  // of exactly that decor on the wall asks to follow. Leftovers are per decor (byDecor).
+  const wcName = (c) => window.__pricingCore?.WINWALL_CATALOG?.[c] || (c ? `${c.slice(0, 2)} ${c.slice(2)}` : "");
+  const wcDe = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
+  let wcSilent = false; // programmatic decor change: no warning
+  let wcOptOut = false; // the user switched the floor off: no auto-add again
+  let wcAskedSwitch = false; // "Bodenbelag → winwall?" asked once per offer
+  let wcAutoArea = null; // area value set by the auto-add; follows the leftover until edited
+  const wcRest = (code) => window.getWvLeftover?.()?.byDecor?.[code] || 0;
+  function setFloorDecor(code) {
+    const tile = form.querySelector(`input[name="wallCladdingWwDecor"][value="${code}"]`);
+    const radio = tile || form.querySelector('input[name="wallCladdingWwDecor"][value="custom"]');
+    if (!radio) return;
+    if (!tile) { const ci = document.getElementById("wallCladdingWwDecorCustom"); if (ci) ci.value = `${code.slice(0, 2)} ${code.slice(2)}`; }
+    wcSilent = true;
+    try { radio.checked = true; radio.dispatchEvent(new Event("change", { bubbles: true })); } finally { wcSilent = false; }
+  }
+  // Switch the floor to "Wandverkleidung als Fußboden" (winwall) in this decor, leftovers on.
+  async function wcUseWall(code, area) {
+    wcSilent = true;
+    try {
+      document.getElementById("fbTabBtnWall")?.click(); // tab first: the master then switches on the wall data field
+      const master = document.getElementById("fbMaster");
+      if (master && !master.checked) master.click();
+      if (!toggle.checked) { toggle.checked = true; toggle.dispatchEvent(new Event("change", { bubbles: true })); }
+      window.setWcSupplier?.("ww");
+      setFloorDecor(code);
+      if (area != null && !numIn(areaEl?.value)) areaEl.value = area;
+      if (useLeftoverEl && wcRest(code) > 0) useLeftoverEl.checked = true;
+      wwLastBest = null;
+      wwSetQty(wwZero());
+    } finally { wcSilent = false; }
+    await updateSuggestion();
+    window.updatePricing?.();
+  }
+  async function wcAutoAdd(code) {
+    const m2 = wcRest(code);
+    if (!m2 || wcOptOut || window.__RESTORING__) return false;
+    if (document.getElementById("addFlooring")?.checked || toggle.checked) return false;
+    wcAutoArea = wcDe(m2);
+    await wcUseWall(code, wcAutoArea);
+    window.showToast?.(`Fußboden ergänzt: ${wcAutoArea} m² ${wcName(code)} aus den Wandresten (schon bezahlt) + Flächenkleber.`, "info");
+    return true;
+  }
+  // An auto-added area follows the leftover until the user types an area.
+  function wcRefreshAutoArea() {
+    if (wcAutoArea == null || !toggle.checked || !isWw() || areaEl?.value !== wcAutoArea) { wcAutoArea = null; return; }
+    const m2 = wcRest(wwDecor().code);
+    wcAutoArea = m2 ? wcDe(m2) : "";
+    areaEl.value = wcAutoArea;
+    if (!m2) wcAutoArea = null;
+  }
+  // Called by the Wandverkleidung simple view after plates / height / decor changes.
+  window.wcWallChanged = async (prefCode, quiet = false) => {
+    if (window.__RESTORING__) return;
+    const had = toggle.checked && isWw() ? Number(leftoverField?.value) || 0 : 0;
+    wcRefreshAutoArea();
+    await updateSuggestion();
+    if (toggle.checked) window.updatePricing?.();
+    if (!quiet && had > 0 && !(leftoverCredit() > 0))
+      window.showToast?.(`Von ${wcName(wwDecor().code)} bleiben an der Wand keine nutzbaren Reste mehr. Der Fußboden wird jetzt mit Platten berechnet.`, "info");
+    if (prefCode) await wcAutoAdd(prefCode);
+  };
+  window.wcOnWallDecor = async (oldCode, newCode) => {
+    if (window.__RESTORING__ || !newCode || oldCode === newCode) return;
+    await window.wcWallChanged(null, true); // the dialog below says it
+    if (await wcAutoAdd(newCode)) return;
+    if (toggle.checked && isWw()) {
+      if (wwDecor().code !== oldCode) return; // the floor goes with another wall decor (or its own)
+      const hasItems = numIn(areaEl?.value) > 0 || wwSum(wwGetQty()) > 0;
+      const lost = useLeftoverEl?.checked && wcRest(oldCode) === 0 && wcRest(newCode) > 0;
+      if (hasItems) {
+        const ok = await appConfirm({
+          title: "Fußboden-Dekor auch ändern?",
+          message: `An der Wand ist jetzt ${wcName(newCode)} statt ${wcName(oldCode)}. Den Fußboden auch auf ${wcName(newCode)} umstellen? Fläche und Platten bleiben.` +
+            (lost ? ` Bei „Nein“ werden die Reste aus der Wandverkleidung nicht mehr für den Boden angerechnet.` : ""),
+          confirmLabel: "Ja, ändern",
+          cancelLabel: "Nein",
+        });
+        if (!ok) return;
+      }
+      setFloorDecor(newCode);
+      if (useLeftoverEl && !useLeftoverEl.checked && wcRest(newCode) > 0 && !hasItems) useLeftoverEl.checked = true;
+      await updateSuggestion();
+      window.updatePricing?.();
+      return;
+    }
+    // Bodenbelag (or a VIGOUR floor): offer winwall once, only when there is something left over.
+    const m2 = wcRest(newCode);
+    if (!m2 || wcAskedSwitch) return;
+    wcAskedSwitch = true;
+    const ok = await appConfirm({
+      title: "Fußboden auf winwall umstellen?",
+      message: `Von ${wcName(newCode)} bleiben ca. ${wcDe(m2)} m² übrig (schon bezahlt). Den Fußboden auf „Wandverkleidung als Fußboden“ in ${wcName(newCode)} umstellen? Die Fläche bleibt.`,
+      confirmLabel: "Ja, umstellen",
+      cancelLabel: "Nein",
+    });
+    if (!ok) return;
+    const fa = document.getElementById("floorArea")?.value || "";
+    await wcUseWall(newCode, fa || wcDe(m2));
+  };
+  // Floor decor changed by hand away from the leftover's decor: warn, "Abbrechen" goes back.
+  form.addEventListener("change", (e) => {
+    if (e.target.name !== "wallCladdingWwDecor" || wcSilent || !isWw()) return;
+    const prev = wcPrevDecor;
+    const next = wwDecor().code;
+    if (!prev || !next || prev === next || !useLeftoverEl?.checked || !(wcRest(prev) > 0) || wcRest(next) > 0) return;
+    appConfirm({
+      title: "Reste nicht mehr anrechnen?",
+      message: `Reste aus der Wandverkleidung gibt es nur in ${Object.keys(window.getWvLeftover?.()?.byDecor || {}).map(wcName).join(", ")}. Mit ${wcName(next)} werden sie nicht mehr für den Boden verwendet – dafür werden Platten berechnet.`,
+      confirmLabel: "Trotzdem ändern",
+      cancelLabel: "Abbrechen",
+    }).then((ok) => { if (!ok) setFloorDecor(prev); });
+  }, true);
+  // Only the user's own tap on the Fußboden master counts as "no floor, please" (the data
+  // fields are also switched by code: restore, reset, tab sync).
+  document.getElementById("fbMaster")?.addEventListener("change", (e) => {
+    if (e.isTrusted && !e.target.checked) { wcOptOut = true; wcAutoArea = null; }
+  });
+  areaEl?.addEventListener("input", () => { wcAutoArea = null; });
+  window.resetWcWw = () => { wwLastBest = null; wcOptOut = false; wcAskedSwitch = false; wcAutoArea = null; wcPrevDecor = null; };
 
   // ---- product card for selected WVC color ----
   const wvcCardEl = document.getElementById("wvcProductCard");
@@ -12529,18 +12842,15 @@ if (document.readyState === "loading") {
     // Panels: not when the leftover alone covers the floor (nothing is ordered).
     if (isWw()) {
       const dec = wwDecor();
-      const code = panelSizeEl?.value || "";
-      const f = wwFormat(code);
-      if (f && qty > 0) {
-        const lines = wwLines(code, qty);
-        const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
-        const pic = form.querySelector('input[name="wallCladdingWwDecor"]:checked')?.closest("label")?.querySelector("img")?.getAttribute("src");
+      const q = wwGetQty();
+      const lines = window.__pricingCore?.winwallOrderLines?.(dec.code || "WS203", q) || [];
+      if (lines.length) {
         rows.push(`<div class="wvc-sel">
-      ${pic ? `<img class="wvc-sel__img" src="${pic}" alt="" />` : ""}
+      <img class="wvc-sel__img" src="./assets/winwall/${dec.code || "WS203"}.jpg" alt="" />
       <div class="wvc-sel__info">
-        <strong class="wvc-sel__name">winwall Wandverkleidung ${f.widthCm}×${f.heightCm} cm</strong>
-        <span class="wvc-sel__meta">${dec.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}${sets ? ` · ${sets} × Set` : ""}</span>
-        <span class="wvc-sel__price">${qty} Platte${qty === 1 ? "" : "n"} <small>= ${euroDe(wwCost(code, qty))} €</small></span>
+        <strong class="wvc-sel__name">Aluverbundplatte</strong>
+        <span class="wvc-sel__meta">${dec.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}</span>
+        <span class="wvc-sel__price">${lines.map((l) => `${l.qty} × ${l.format.widthCm}×${l.format.heightCm} cm`).join(" · ")}</span>
       </div>
     </div>`);
       }
@@ -12588,7 +12898,7 @@ if (document.readyState === "loading") {
       <div class="wvc-sel__info">
         <strong class="wvc-sel__name">Reste aus Wandverkleidung</strong>
         <span class="wvc-sel__meta">${isWw() ? wwDecor().label : colourInput?.value || ""} · ${euroDe(credit)} m² · schon bezahlt</span>
-        <span class="wvc-sel__price">0,00 €</span>
+        ${isWw() ? "" : `<span class="wvc-sel__price">0,00 €</span>`}
       </div>
     </div>`);
     }
@@ -12603,7 +12913,7 @@ if (document.readyState === "loading") {
       <div class="wvc-sel__info">
         <strong class="wvc-sel__name">Flächenkleber 600 ml</strong>
         <span class="wvc-sel__meta">Art.-Nr. R_4260602 · 1 Pkg je 0,60 m² · ${euroDe(areaM2)} m² Boden</span>
-        ${unit > 0 ? `<span class="wvc-sel__price">${packs} × ${euroDe(unit)} € <small>= ${euroDe(unit * packs)} €</small></span>` : `<span class="wvc-sel__price">${packs} Pkg</span>`}
+        ${unit > 0 && !isWw() ? `<span class="wvc-sel__price">${packs} × ${euroDe(unit)} € <small>= ${euroDe(unit * packs)} €</small></span>` : `<span class="wvc-sel__price">${packs} Pkg</span>`}
       </div>
     </div>`);
     }
@@ -12879,6 +13189,7 @@ function syncWvSupplierGroups() {
   // VIGOUR-only groups: the line logic has already set them for Premium/Standard.
   if (ww) for (const id of ["wvColorSection", "wvRowsSection", "wvPanelField997", "wvPanelField1497", "wvAreaSuggestion"]) setGroupActive(byId(id), false);
   updateWwSuggestions({ write: false });
+  window.syncWvSimple?.();
 }
 
 function setWvSupplier(v) {
@@ -12892,12 +13203,14 @@ function setWvSupplier(v) {
   if (!window.__restoring && !window.__RESTORING__) window.requestPricingRefresh?.({ delay: 180, reason: "wv-supplier" });
 }
 
-// Panels per format from the page; Kleber 1 Kartusche je Platte, 1,5 bei 125/150 cm
-// (winwall's recommendation); Verbindungsprofile = Platten − 1.
+// Panels per format from the page. Kleber 2 Pkg per panel; Verbindungsprofile from the
+// wall plan (extra panels, e.g. for the WC box, add none). An accessory the user set by
+// hand (listed in wvWwAccManual) is never overwritten (recording 2026-11-12).
 function wwPanelCounts() {
   const n = (c) => Math.max(0, parseInt(document.getElementById(`wvWwQty_${c}`)?.value, 10) || 0);
   return { 13: n(13), 15: n(15), 16: n(16), 17: n(17) };
 }
+const wwAccManual = () => new Set(String(document.getElementById("wvWwAccManual")?.value || "").split(",").filter(Boolean));
 function updateWwSuggestions({ write = true } = {}) {
   const std = !!document.getElementById("wvLineToggle")?.checked;
   const q = std ? { 13: 0, 15: 0, 16: 0, 17: 0 } : wwPanelCounts();
@@ -12906,23 +13219,26 @@ function updateWwSuggestions({ write = true } = {}) {
   const set = (sku, v) => {
     const qty = document.getElementById(`wvWwQty_${sku}`);
     const cb = document.getElementById(`wvWw_${sku}`);
-    if (!qty || !cb || qty.disabled) return;
+    if (!qty || !cb || qty.disabled || wwAccManual().has(sku)) return;
     qty.value = String(v);
     cb.checked = v > 0;
   };
   if (write && !window.__restoring && !window.__RESTORING__) {
     set("R_4260602", 2 * panels); // Flächenkleber, as VIGOUR: 2 Pkg per panel
     // Verbindungsprofile from the calculator's wall plan (joints on straight walls,
-    // none at corners) when it matches the panels entered, else panels − 1.
+    // none at corners); no walls entered → panels − 1.
     const plan = std ? null : window.__wwPlan;
-    const fits = plan?.qty && ["13", "15", "16", "17"].every((c) => (plan.qty[c] || 0) === q[c]);
-    const prof = fits ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
+    const prof = plan?.pieces?.length ? window.__pricingCore?.winwallProfileSuggestion?.(plan) : null;
     set("WS80113", prof ? prof.WS80113 : Math.max(0, panels - 1));
   }
   const hint = document.getElementById("wvWwSealingHint");
   if (hint) {
-    const area = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) ||
-      (std ? kPanels * 2.4225 : q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+    const typed = Number(String(document.getElementById("wvArea")?.value || "").replace(",", ".")) || 0;
+    let area = typed || (std ? kPanels * 2.4225 : q[13] * 2.05 + q[15] * 2.5 + q[16] * 3.125 + q[17] * 3.75);
+    if (!std && !typed && window.__pricingCore?.winwallSealingArea) {
+      try { area = window.__pricingCore.winwallSealingArea(formToObject(document.getElementById("form-wandverkleidung")), q); } catch {}
+    }
+    area = Math.round(area * 100) / 100;
     let sets = [];
     try { sets = window.__pricingCore?.winwallSealingSets?.(area); } catch {}
     if (!Array.isArray(sets)) sets = [];
@@ -12934,14 +13250,11 @@ function updateWwSuggestions({ write = true } = {}) {
     if (qEl) { qEl.placeholder = String(auto); qEl.dataset.auto = String(auto); }
     hint.innerHTML = manual > 0
       ? `berechnet: ${escapeHtml(txt || "–")} · <b>manuell: ${manual} × 5 m²</b> · <button type="button" class="wv-seal-reset">Automatisch</button>`
-      : `nach Plattenfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${escapeHtml(txt)}` : ""} · automatisch`;
+      : `nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${escapeHtml(txt)}` : ""} · automatisch`;
   }
   const ph = document.getElementById("wvWwPanelsHint");
   if (ph && !std) {
-    const sets = Math.floor(q[13] / 2) + Math.floor(q[15] / 2) + Math.floor(q[16] / 2);
-    ph.textContent = panels
-      ? `${panels} ${panels === 1 ? "Platte" : "Platten"}${sets ? `, davon ${sets} × als Set (2 gleiche Platten, günstiger)` : ""}.`
-      : "Zwei gleiche Platten werden als Set bestellt (günstiger).";
+    ph.textContent = panels ? `${panels} ${panels === 1 ? "Platte" : "Platten"}.` : "";
   }
 }
 // From the wall-width calculator ("In Plattenwahl übernehmen").
@@ -12956,13 +13269,23 @@ window.applyWwPanelQty = (qty) => {
 };
 /* winwall decor: a tile, or "Anderes Dekor" with a typed WS/NW number.
    Saved before 2026-10-30 as digits only ("203" = WS 203). */
+// pricing-core arrives async (and is stubbed in tests): only trust results of the right type.
 function wwDecorCode(v) {
+  const r = typeof window.__pricingCore?.winwallDecorCode === "function" ? window.__pricingCore.winwallDecorCode(v) : undefined;
+  if (r === null || typeof r === "string") return r;
   const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
   if (/^\d{3}$/.test(s)) return "WS" + s;
   return /^(WS|NW)\d{3}$/.test(s) ? s : null;
 }
 // The decor + plate counts the leftover/price card work with: the first row (rows mode),
 // else the single decor of older offers.
+/** Format code inside a typed article no. ("23013" → "13"); else null. */
+function wwArticleFormat(v) {
+  const f = typeof window.__pricingCore?.winwallArticleFormat === "function" ? window.__pricingCore.winwallArticleFormat(v) : null;
+  return typeof f === "string" ? f : null;
+}
+const wwCatalog = () => { const c = window.__pricingCore?.WINWALL_CATALOG; return c && typeof c === "object" ? c : {}; };
+const wwTileCodes = () => { const d = window.__pricingCore?.WINWALL_DECORS; return Array.isArray(d) ? d.map((x) => x.code) : []; };
 function wwPrimary() {
   const rows = window.__wwRowsState?.() || [];
   if (rows.length) {
@@ -12993,9 +13316,11 @@ function syncWwCustomDecor() {
   const tile = custom.closest("label");
   const img = document.getElementById("wvWwCustomImg");
   hint.classList.remove("is-ok", "is-warn");
-  if (!custom.checked || !raw) hint.textContent = "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.";
-  else if (!code) { hint.textContent = "Bitte WS oder NW und 3 Ziffern eingeben, z. B. NW 230."; hint.classList.add("is-warn"); }
-  else if (name) { hint.textContent = `✓ ${name}`; hint.classList.add("is-ok"); }
+  const fmt = wwArticleFormat(raw);
+  const fmtText = fmt ? { 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" }[fmt] : "";
+  if (!custom.checked || !raw) hint.textContent = "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).";
+  else if (!code) { hint.textContent = "Nicht erkannt. Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015)."; hint.classList.add("is-warn"); }
+  else if (name) { hint.textContent = `✓ ${name}${fmtText ? ` · Format ${fmtText}` : ""}`; hint.classList.add("is-ok"); }
   else { hint.textContent = "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt."; hint.classList.add("is-warn"); }
   const cap = tile?.querySelector(".caption");
   if (cap) cap.textContent = custom.checked && code ? `${code.slice(0, 2)} ${code.slice(2)}` : "Anderes Dekor";
@@ -13015,18 +13340,35 @@ function syncWwCustomDecor() {
   panels.addEventListener("input", () => updateWwSuggestions());
   panels.addEventListener("change", () => updateWwSuggestions());
   // Switch ↔ quantity, like the Badolux accessories.
+  // Any edit by the user (switch, stepper, typing) marks that accessory as manual —
+  // only real user events: page start-up and restores fire synthetic change events.
+  const markManual = (sku) => {
+    const el = document.getElementById("wvWwAccManual");
+    if (!el || !sku) return;
+    const set = wwAccManual();
+    set.add(sku);
+    el.value = [...set].join(",");
+  };
   acc.addEventListener("change", (e) => {
     const t = e.target;
+    if (e.isTrusted && t?.name?.startsWith("wvWwQty_")) markManual(t.name.slice(8));
     if (t?.type !== "checkbox" || !t.name.startsWith("wvWw_")) return;
+    if (e.isTrusted) markManual(t.name.slice(5));
     const q = document.getElementById(`wvWwQty_${t.name.slice(5)}`);
     if (q) q.value = t.checked ? (Number(q.value) > 0 ? q.value : "1") : "0";
   });
   acc.addEventListener("input", (e) => {
     const t = e.target;
     if (t?.type !== "number" || !t.name.startsWith("wvWwQty_")) return;
+    if (e.isTrusted) markManual(t.name.slice(8));
     const cb = document.getElementById(`wvWw_${t.name.slice(8)}`);
     if (cb) cb.checked = Number(t.value) > 0;
   });
+  // − / + taps (the stepper re-dispatches synthetic input events, so mark here)
+  acc.addEventListener("click", (e) => {
+    const q = e.isTrusted && e.target.closest?.(".ios-stepper button[data-step]")?.parentElement.querySelector('input[name^="wvWwQty_"]');
+    if (q) markManual(q.name.slice(8));
+  }, true);
   document.getElementById("wvArea")?.addEventListener("input", () => updateWwSuggestions({ write: false }));
   document.getElementById("wvWwSealingQty")?.addEventListener("input", () => {
     updateWwSuggestions({ write: false });
@@ -13479,7 +13821,6 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   const decors = document.getElementById("wvWwDecorSection");
   if (!section || !listEl || !addBtn || !dataEl || !decors) return;
   const FMTS = [["13", "100 × 205 cm"], ["15", "100 × 250 cm"], ["16", "125 × 250 cm"], ["17", "150 × 250 cm"]];
-  const SETTABLE = new Set(["13", "15", "16"]);
   const esc = (v) => escapeHtml(String(v ?? ""));
   let rows = []; // { code|null, fmt, qty, custom, text }
   let activeIdx = -1;
@@ -13513,11 +13854,9 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
     listEl.innerHTML = rows.length
       ? rows.map((r, i) => {
           const open = i === activeIdx && !collapsed;
-          const same = rows.filter((x) => x.code && x.code === r.code && x.fmt === r.fmt).reduce((a, x) => a + x.qty, 0);
-          const set = SETTABLE.has(r.fmt) && same >= 2 ? " · Set (2 gleiche Platten, günstiger)" : "";
-          return `<div class="wv-row" data-i="${i}">
+          return `<div class="wv-row${r.custom && !r.code ? " is-bad" : ""}" data-i="${i}">
             ${r.code ? `<img class="wv-row__sw" src="./assets/winwall/${esc(r.code)}.jpg" alt="" onerror="this.style.visibility='hidden'" />` : `<span class="wv-row__sw"></span>`}
-            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${open ? "Dekor wählen" : "Tippen zum Ändern"}${set}</small></span>
+            <span class="wv-row__name"><b>${esc(titleOf(r))}</b><small>${r.custom && !r.code ? "Dekor-Nr. ungültig (z. B. WS 233) – Zeile fehlt im Preis" : open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
             <select class="wv-row__size wv-ww-fmtsel" aria-label="Format">${FMTS.map(([c, t]) => `<option value="${c}"${c === r.fmt ? " selected" : ""}>${t}</option>`).join("")}</select>
             <span class="wv-row__step"><button type="button" data-d="-1" aria-label="Weniger">−</button><output>${r.qty}</output><button type="button" data-d="1" aria-label="Mehr">+</button></span>
             <button type="button" class="wv-row__del" aria-label="Zeile entfernen">×</button>
@@ -13625,6 +13964,13 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       r.custom = true;
       r.text = document.getElementById("wvWwDecorCustom")?.value || "";
       r.code = wwDecorCode(r.text);
+      // Article no. from the Muster ("23013") also names the format.
+      const fmt = wwArticleFormat(r.text);
+      if (fmt && fmt !== r.fmt) {
+        r.fmt = fmt;
+        const sel = listEl.querySelector(`.wv-row[data-i="${activeIdx}"] .wv-ww-fmtsel`);
+        if (sel) sel.value = fmt;
+      }
     } else { r.custom = false; r.text = ""; r.code = wwDecorCode(v); }
     const head = listEl.querySelector(`.wv-row[data-i="${activeIdx}"]`);
     const b = head?.querySelector(".wv-row__name b");
@@ -13647,6 +13993,225 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
   window.__wwRowsRefresh = render;
   window.setWwRowsList = (list) => { rows = list; activeIdx = rows.length ? 0 : -1; collapsed = true; render(); push(); };
   render();
+})();
+
+/* ========== WANDVERKLEIDUNG einfach (2026-11-18) ==========
+   New offers: the four winwall plates (drawn in the chosen decor) with a count each,
+   and the decor palette below — instead of the wall plan and the rows editor. Writes
+   the same wvWwRows (window.setWwRowsList), so price, PDF and restore are unchanged.
+   wvUi="simple" is saved with the offer; offers without it (all older offers and
+   drafts) open in the classic editor. VIGOUR / Badolux keep their classic sections. */
+(function initWvSimple() {
+  const form = document.getElementById("form-wandverkleidung");
+  const box = document.getElementById("wvSimple");
+  const ui = document.getElementById("wvUi");
+  const lineBtn = document.getElementById("wvLineBtn");
+  if (!form || !box || !ui || !lineBtn) return;
+  const tabsEl = box.querySelector(".wvs-tabs");
+  const platesEl = box.querySelector(".wvs-plates");
+  const totalEl = box.querySelector(".wvs-total");
+  const badEl = box.querySelector(".wvs-bad");
+  const colorsEl = box.querySelector(".wvs-colors");
+  const otherEl = box.querySelector(".wvs-other-input");
+  const hintEl = box.querySelector(".wvs-hint");
+  const hintText = hintEl.textContent;
+  const heightEl = document.getElementById("wvWwHeight");
+  const heightHint = box.querySelector(".wvs-height-hint");
+  const heightText = heightHint?.textContent || "";
+  const FMTS = [["13", 100, 205], ["15", 100, 250], ["16", 125, 250], ["17", 150, 250]];
+  // Swatches we have in assets/winwall; other decors show their number on a plain tile.
+  const IMGS = new Set(["NW215", "NW216", "NW218", "NW220", "NW221", "NW222", "NW230", "WS000", "WS002", "WS004", "WS005", "WS023", "WS046", "WS047", "WS081", "WS101", "WS110", "WS120", "WS121", "WS130", "WS132", "WS140", "WS151", "WS160", "WS170", "WS202", "WS203", "WS204", "WS210", "WS212", "WS213", "WS214", "WS219", "WS225", "WS226", "WS227", "WS228", "WS229", "WS232", "WS233", "WS234", "WS240", "WS241", "WS242", "WS243", "WS247", "WS248", "WS251", "WS254", "WS257", "WS258", "WS260", "WS261", "WS270", "WS271", "WS280", "WS281", "WS282", "WS289", "WS290", "WS291", "WS292", "WS293", "WS294", "WS296", "WS297", "WS298", "WS299", "WS301", "WS302", "WS309", "WS330", "WS332", "WS350", "WS351", "WS401", "WS402", "WS403", "WS405", "WS406", "WS407", "WS408", "WS409", "WS410", "WS411", "WS501", "WS502", "WS503", "WS504"]);
+  // The tiles + NW230 (Marble Copper Vein, picked from the Muster, ANG2026-1117-115333).
+  const palette = () => {
+    const list = wwTileCodes();
+    if (list.length && !list.includes("NW230")) list.splice(list.indexOf("NW216") + 1, 0, "NW230");
+    return list;
+  };
+  const nice = (c) => `${c.slice(0, 2)} ${c.slice(2)}`;
+  const nameOf = (c) => wwCatalog()[c] || nice(c);
+  const sw = (c) => (IMGS.has(c) ? `background-image:url(./assets/winwall/${c}.jpg)` : "");
+  const esc = (v) => escapeHtml(String(v ?? ""));
+  const zero = () => ({ 13: 0, 15: 0, 16: 0, 17: 0 });
+  let groups = []; // [{ code, qty: {13,15,16,17} }] — one per decor
+  let active = 0;
+
+  // Rows → one group per decor.
+  function load() {
+    const map = new Map();
+    for (const r of window.__wwRowsState?.() || []) {
+      if (!r.code) continue;
+      const g = map.get(r.code) || { code: r.code, qty: zero() };
+      g.qty[r.fmt] = (g.qty[r.fmt] || 0) + (Number(r.qty) || 0);
+      map.set(r.code, g);
+    }
+    // keep a decor that was just added and has no plates yet
+    for (const g of groups) if (!map.has(g.code) && !Object.values(g.qty).some(Boolean)) map.set(g.code, g);
+    groups = [...map.values()];
+    if (!groups.length) groups = [{ code: "WS203", qty: zero() }];
+    active = Math.min(Math.max(active, 0), groups.length - 1);
+  }
+  // Groups → rows. A typed row without a valid decor (classic editor) is kept, never dropped.
+  function save() {
+    const tiles = new Set(wwTileCodes());
+    const rows = groups.flatMap((g) =>
+      FMTS.filter(([f]) => g.qty[f] > 0).map(([f]) =>
+        tiles.has(g.code) ? { code: g.code, fmt: f, qty: g.qty[f], custom: false, text: "" } : { code: g.code, fmt: f, qty: g.qty[f], custom: true, text: nice(g.code) }));
+    const keep = (window.__wwRowsState?.() || []).filter((r) => !r.code);
+    window.setWwRowsList?.([...rows, ...keep]);
+  }
+
+  function render() {
+    const g = groups[active];
+    if (!g) return;
+    const count = (x) => Object.values(x.qty).reduce((a, b) => a + b, 0);
+    tabsEl.innerHTML = groups.map((x, i) =>
+      `<button type="button" class="wvs-tab" data-i="${i}" aria-pressed="${i === active}"><i style="${sw(x.code)}"></i>${esc(nameOf(x.code))} · ${count(x)} Stk${groups.length > 1 ? `<span class="wvs-tab__del" data-del="${i}" aria-label="Dekor entfernen">×</span>` : ""}</button>`
+    ).join("") + `<button type="button" class="wvs-tab wvs-tab--add" data-add="1">+ weiteres Dekor</button>`;
+    platesEl.innerHTML = FMTS.map(([f, w, h]) => {
+      const q = g.qty[f] || 0;
+      return `<div class="wvs-plate${q ? " has" : ""}">
+        <div class="wvs-plate__img" style="--w:${w};--h:${h};${sw(g.code)}"><span class="wvs-plate__qty">${q}</span></div>
+        <div class="wvs-plate__size">${w} × ${h} cm</div>
+        <div class="wvs-plate__meta">${f === "17" ? "Großplatte" : ""}</div>
+        <div class="wvs-step-ctl"><button type="button" data-f="${f}" data-d="-1" aria-label="Weniger ${w} × ${h} cm">−</button><output>${q}</output><button type="button" data-f="${f}" data-d="1" aria-label="Mehr ${w} × ${h} cm">+</button></div>
+        <div class="wvs-step-label">Menge</div>
+      </div>`;
+    }).join("");
+    let n = 0, m2 = 0;
+    for (const x of groups) for (const [f, w, h] of FMTS) { n += x.qty[f] || 0; m2 += ((x.qty[f] || 0) * w * h) / 1e4; }
+    totalEl.textContent = `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²${groups.length > 1 ? ` · ${groups.length} Dekore` : ""}`;
+    colorsEl.innerHTML = window.wvsPaletteHtml(g.code); // a typed decor shows as its own tile
+    // Typed rows without a valid decor (classic editor / older offers) are kept but not priced.
+    const bad = (window.__wwRowsState?.() || []).filter((r) => !r.code);
+    if (badEl) {
+      badEl.hidden = !bad.length;
+      if (bad.length) {
+        const n = bad.reduce((a, r) => a + (Number(r.qty) || 0), 0);
+        const txt = [...new Set(bad.map((r) => String(r.text || "").trim()).filter(Boolean))].join(", ");
+        badEl.innerHTML = `<span>${n} ${n === 1 ? "Platte" : "Platten"} mit ungültiger Dekor-Nr.${txt ? ` (${esc(txt)})` : ""} – fehlen im Preis.</span><button type="button" class="wvs-bad__fix">Im alten Konfigurator korrigieren</button>`;
+      }
+    }
+  }
+
+  // Height → what is left over per decor (getWvLeftover), shown under the field.
+  function syncHeightHint() {
+    if (!heightHint) return;
+    const h = Number(heightEl?.value) || 0;
+    const by = window.getWvLeftover?.()?.byDecor || {};
+    const parts = Object.entries(by).map(([c, m]) => `${String(m).replace(".", ",")} m² ${nameOf(c)}`);
+    heightHint.classList.toggle("is-ok", !!(h && parts.length));
+    heightHint.textContent = !h ? heightText
+      : h > 250 ? "Höher als die Platten (250 cm) – bitte prüfen."
+      : parts.length ? `Reste ca. ${parts.join(" · ")} – können als Fußboden verwendet werden.`
+      : "Bei dieser Höhe bleiben keine nutzbaren Reste.";
+  }
+  // Wall changed → leftovers, the Fußboden tab and the hint follow.
+  function afterChange(prefCode) {
+    window.renderWvLeftover?.();
+    syncHeightHint();
+    window.wcWallChanged?.(prefCode);
+  }
+  let ht = 0;
+  heightEl?.addEventListener("input", () => { clearTimeout(ht); ht = setTimeout(syncHeightHint, 150); });
+  // Floor follows on "change" only: while typing "230", "2" would leave 2,4 m per plate.
+  heightEl?.addEventListener("change", () => afterChange(groups[active]?.code));
+
+  // Same tiles for the Fußboden tab (winwall als Fußboden).
+  window.wvsPaletteHtml = (sel) => {
+    const pal = palette();
+    if (sel && !pal.includes(sel)) pal.push(sel);
+    return pal.map((c) =>
+      `<button type="button" class="wvs-color" role="radio" data-c="${c}" aria-checked="${c === sel}"><i style="${sw(c)}">${IMGS.has(c) ? "" : esc(nice(c))}</i><span>${esc(nameOf(c))}</span><small>${nice(c)}</small></button>`
+    ).join("");
+  };
+
+  function setHint(cls, text) {
+    hintEl.classList.remove("is-ok", "is-warn");
+    if (cls) hintEl.classList.add(cls);
+    hintEl.textContent = text || hintText;
+  }
+
+  platesEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]");
+    if (!b) return;
+    const g = groups[active];
+    g.qty[b.dataset.f] = Math.max(0, (g.qty[b.dataset.f] || 0) + Number(b.dataset.d));
+    save(); render();
+    afterChange(g.code);
+  });
+  colorsEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-c]");
+    if (!b) return;
+    const other = groups.findIndex((x, i) => i !== active && x.code === b.dataset.c);
+    if (other >= 0) { active = other; render(); return; } // that decor has its own chip already
+    const old = groups[active].code;
+    groups[active].code = b.dataset.c;
+    otherEl.value = ""; setHint();
+    save(); render();
+    window.renderWvLeftover?.(); syncHeightHint();
+    window.wcOnWallDecor?.(old, b.dataset.c);
+  });
+  tabsEl.addEventListener("click", (e) => {
+    const del = e.target.closest("[data-del]");
+    if (del) { groups.splice(Number(del.dataset.del), 1); active = Math.min(active, groups.length - 1); save(); render(); afterChange(null); return; }
+    if (e.target.closest("[data-add]")) {
+      const used = new Set(groups.map((x) => x.code));
+      groups.push({ code: palette().find((c) => !used.has(c)) || "WS000", qty: zero() });
+      active = groups.length - 1; render(); return;
+    }
+    const b = e.target.closest("[data-i]");
+    if (b) { active = Number(b.dataset.i); otherEl.value = ""; setHint(); render(); }
+  });
+  otherEl.addEventListener("input", () => {
+    const v = otherEl.value.trim();
+    if (!v) return setHint();
+    const code = wwDecorCode(v);
+    const fmt = wwArticleFormat(v);
+    if (!code) return setHint("is-warn", "Nicht erkannt – Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015).");
+    const known = !!wwCatalog()[code];
+    const f = FMTS.find(([c]) => c === fmt);
+    setHint(known ? "is-ok" : "is-warn", known ? `✓ ${nameOf(code)} (${nice(code)})${f ? ` · Format ${f[1]} × ${f[2]} cm` : ""}` : `${nice(code)} ist nicht im winwall-Katalog – Nummer bitte prüfen.`);
+    if (!known) return;
+    const g = groups[active];
+    const old = g.code;
+    g.code = code;
+    if (f && !g.qty[fmt]) g.qty[fmt] = 1; // the article no. names the format
+    save(); render();
+    window.renderWvLeftover?.(); syncHeightHint();
+    window.wcOnWallDecor?.(old, code);
+  });
+
+  function lineLabel() {
+    const b = document.querySelector('#wvSettingsBlock .tier-seg__btn[aria-pressed="true"]');
+    return b ? [...b.children].map((x) => x.textContent.trim()).join(" · ") : "";
+  }
+  lineBtn.addEventListener("click", () => {
+    const open = form.classList.toggle("wv-line-open");
+    lineBtn.setAttribute("aria-expanded", String(open));
+  });
+  // Both ways: same wvWwRows underneath, so switching never changes the order or the price.
+  const setUi = (v) => { ui.value = v; ui.dispatchEvent(new Event("change", { bubbles: true })); sync(); };
+  box.querySelector(".wvs-classic").addEventListener("click", () => setUi(""));
+  badEl?.addEventListener("click", (e) => { if (e.target.closest(".wvs-bad__fix")) setUi(""); });
+  document.getElementById("wvToSimple")?.addEventListener("click", () => { window.pullWwRows?.(); groups = []; setUi("simple"); });
+
+  function sync() {
+    const simple = ui.value === "simple";
+    form.classList.toggle("wv-simple", simple);
+    form.classList.toggle("wv-simple-ww", simple && !!window.isWvWinwall?.());
+    form.classList.toggle("wv-ww", !!window.isWvWinwall?.());
+    const t = document.getElementById("wvLineText");
+    if (t) t.textContent = lineLabel();
+    if (simple) { load(); render(); syncHeightHint(); }
+  }
+  window.syncWvSimple = sync;
+  window.resetWvSimple = () => { groups = []; active = 0; otherEl.value = ""; setHint(); };
+  document.addEventListener("wv:supplier", sync);
+  document.getElementById("wvLineToggle")?.addEventListener("change", sync);
+  window.addEventListener("hashchange", () => { if (location.hash === "#Wandverkleidung") sync(); });
+  // pricing-core (catalog, palette) arrives async
+  import("/logic/pricing-core.js").then(() => setTimeout(sync, 0)).catch(() => {});
+  sync();
 })();
 
 // Badolux-Zubehör (Keramico): closed by default, nothing in it is ever pre-selected.
@@ -14047,12 +14612,11 @@ document.getElementById("wvSketchDetails")?.addEventListener("toggle", (e) => {
       mixEl.textContent = "Wandbreiten eintragen";
       return;
     }
-    // Same price as the offer and "Ihre Auswahl": two of a kind are ordered as a set.
+    // Same price as the offer and "Ihre Auswahl" (single prices, no sets).
     const lines = core.winwallOrderLines(wwSelectedDecor().code || "WS203", plan.qty);
     const cost = lines.reduce((a, l) => a + l.qty * l.format.price, 0);
-    const sets = lines.filter((l) => l.format.set).reduce((a, l) => a + l.qty, 0);
     const eur = (n) => `${n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Platten Einkauf netto ${eur(cost)}${sets ? ` (inkl. ${sets} × Set)` : ""}`;
+    mixEl.textContent = `Günstigste Aufteilung: ${mixText(plan)} cm — Platten Einkauf netto ${eur(cost)}`;
   }
 
   // Articles of the chosen Premium colour (per-size override first); their net
@@ -14527,10 +15091,10 @@ function initSmartTraySearch() {
     lineHint.dataset.pid = alt.productId;
     lineHint.innerHTML = `
       <div class="tlh-text">
-        <strong>Diese Größe gibt es auch als Standard (Badolux) — ${euroDe(save)} € günstiger.</strong>
+        <strong>Diese Größe gibt es auch als Badolux — ${euroDe(save)} € günstiger.</strong>
         <span>${escapeHtml(badoluxTrayName(alt))} · ${euroDe(alt.price)} € statt ${euroDe(prem.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.</span>
       </div>
-      <button type="button" class="secondary" data-tray-line-switch>Auf Standard wechseln</button>`;
+      <button type="button" class="secondary" data-tray-line-switch>Auf Badolux wechseln</button>`;
     lineHint.hidden = false;
   };
   lineHint.addEventListener("click", (e) => {
@@ -14713,8 +15277,8 @@ function initSmartTraySearch() {
   // when the active one has nothing for these dimensions.
   const rowFor = (tier, lists) =>
     tier === "standard"
-      ? { list: lists.badolux, local: lists.badoluxLocal, key: "badolux", brand: "Badolux", name: "Standard" }
-      : { list: lists.hassmann, local: lists.hassmannLocal, key: "hassmann", brand: "Hassmann", name: "Premium" };
+      ? { list: lists.badolux, local: lists.badoluxLocal, key: "badolux", brand: "Badolux", name: "Badolux" }
+      : { list: lists.hassmann, local: lists.hassmannLocal, key: "hassmann", brand: "Hassmann", name: "Hassmann" };
 
   // A saved offer can hold a tray from the OTHER line: until this redesign both
   // rows were always visible, so nothing stopped a premium offer from carrying a
@@ -14764,7 +15328,7 @@ function initSmartTraySearch() {
       return `
         <div class="tray-fallback">
           <p><strong>Keine passende Duschwanne gefunden.</strong>
-          Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten
+          Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten
           als freien Posten erfassen.</p>
         </div>`;
     }
@@ -17239,7 +17803,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         bonusGrab.disabled = false;
       } else {
         if (row) row.style.display = "none";
-        if (bonusGrab.checked) {
+        if (bonusGrab.checked && !formHasEligibleGrab()) {
           bonusGrab.checked = false;
           bonusGrab.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -18614,6 +19178,9 @@ function restoreWV(wv) {
   window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
+  // Simple view (2026-11-18): saved with the offer; older offers/drafts open classic.
+  setInputByNameOrId("wvUi", wv.wvUi === "simple" ? "simple" : "");
+  setInputByNameOrId("wvWwHeight", wv.wvWwHeight ?? "");
   // winwall (additive since 2026-10): a missing wvSupplier is VIGOUR.
   setInputByNameOrId("wvSupplier", wv.wvSupplier === "ww" ? "ww" : "hm");
   if (wv.wvSupplier === "ww") {
@@ -18627,6 +19194,7 @@ function restoreWV(wv) {
     for (const c of ["13", "15", "16", "17"]) setInputByNameOrId(`wvWwQty_${c}`, wv[`wvWwQty_${c}`] || "0");
     setInputByNameOrId("wvWwRows", wv.wvWwRows || "");
     window.pullWwRows?.();
+    setInputByNameOrId("wvWwAccManual", wv.wvWwAccManual || "");
     document.querySelectorAll('#wvWwAccSection input[type="checkbox"]').forEach((cb) => {
       cb.checked = !!wv[cb.name];
       if (cb.name.startsWith("wvWw_")) setInputByNameOrId(`wvWwQty_${cb.name.slice(5)}`, wv[`wvWwQty_${cb.name.slice(5)}`] || "0");
@@ -20600,6 +21168,7 @@ function restoreDuschwanne(dw) {
   // from an earlier offer in the same tab would flip this one to Badolux pricing
   // (Siphon Bridge PR95DW001 instead of AGD9060). Set before the rest: BadoluxManager starts
   // fetching the Badolux floor/panel tiles on this change event.
+  window.__dwLineDefaulted = true; // a loaded offer keeps its saved line, no Badolux preselect
   const isOn = (v) => v === "1" || v === 1 || v === true;
   setCheckbox("budgetToggle", isOn(dw.budgetMode));
   // Fußboden has its own line since 2026-09-11. Absent in every offer saved before
@@ -20718,6 +21287,11 @@ setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(d
     }
     setHiddenById("wallCladdingPanelSize", dw.wallCladdingPanelSize);
     setHiddenById("wallCladdingQty", dw.wallCladdingQty);
+    window.resetWcWw?.();
+    setHiddenById("wallCladdingWwQty", dw.wallCladdingWwQty
+      ? (typeof dw.wallCladdingWwQty === "string" ? dw.wallCladdingWwQty : JSON.stringify(dw.wallCladdingWwQty))
+      : dw.wallCladdingSupplier === "ww" && Number(dw.wallCladdingQty) > 0 && /^(13|15|16|17)$/.test(String(dw.wallCladdingPanelSize))
+        ? JSON.stringify({ [dw.wallCladdingPanelSize]: Number(dw.wallCladdingQty) }) : "");
     const qtyInput = document.getElementById("wallCladdingQtyInput");
     if (qtyInput) qtyInput.value = dw.wallCladdingQty ?? "";
     const qtyRow = document.getElementById("wallCladdingQtyRow");
@@ -20735,6 +21309,7 @@ setHiddenById("chosenBathtubExtras", dw.wanneZubehoer?.length ? JSON.stringify(d
     };
     window.syncWvcLeftoverUi?.();
     setCheckbox("addWallCladding", !!dw.addWallCladding);
+    window.resetWcWw?.(); // restoring switched the floor on/off: that is no opt-out
   }
 
   // flooring color from payload
@@ -21885,11 +22460,9 @@ window.setPricingData = function setPricingData(data) {
         row.setAttribute("aria-hidden", String(!shouldShow));
       }
 
-      // New rule: ineligible → clear silently (pricing already dropped it;
-      // no 'change' dispatch → no race). Legacy offers keep the old behavior.
-      if (!legacy && !shouldShow && cb300 && cb300.checked) {
-        cb300.checked = false;
-      }
+      // Ineligible: pricing already drops the bonus (flags.bonus_neu), so the
+      // checkbox is left alone. Clearing it off one /api/price response lost
+      // the bonus on reopen when a stale response arrived after the restore.
     })();
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
@@ -21957,7 +22530,7 @@ window.setPricingData = function setPricingData(data) {
       row.hidden = !allow;
       row.setAttribute("aria-hidden", String(!allow));
     }
-    if (!allow && cb && cb.checked) {
+    if (!allow && cb && cb.checked && !formHasEligibleGrab()) {
       cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }

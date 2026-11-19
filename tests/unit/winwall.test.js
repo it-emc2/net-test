@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallArticleFormat, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -62,9 +62,19 @@ describe("winwallPanelPlan", () => {
 });
 
 describe("winwallOrderLines / winwallSealingSets", () => {
-  test("pairs become sets, the 150 has no set", () => {
+  test("one line per format at the single price, never a set (2026-11-16)", () => {
     expect(winwallOrderLines("203", { 15: 3, 16: 2, 17: 1 }).map((l) => [l.productId, l.qty]))
-      .toEqual([["WS20325", 1], ["WS20315", 1], ["WS20326", 1], ["WS20317", 1]]);
+      .toEqual([["WS20315", 3], ["WS20316", 2], ["WS20317", 1]]);
+    expect(WINWALL_FORMATS.map((f) => f.code)).toEqual(["13", "15", "16", "17"]);
+  });
+  test("sealing area: wall plan + extra panels; typed Wandfläche wins; no walls → panel cover", () => {
+    // ANG2026-1112-100246: U 70/161/70 × 55 cm → plan 2 panels; a 3rd (WC box) adds 2,05 m²
+    const wv = { wvKSituation: "u", wvKLinks: "70", wvKBack: "161", wvKRechts: "70", wvKHoehe: "55" };
+    expect(winwallSealingArea(wv, { 13: 2 })).toBeCloseTo(1.6555, 3);
+    expect(winwallSealingArea(wv, { 13: 3 })).toBeCloseTo(3.7055, 3);
+    expect(winwallSealingSets(winwallSealingArea(wv, { 13: 3 }))).toEqual([{ productId: "WS80301", qty: 1 }]);
+    expect(winwallSealingArea({ ...wv, wvArea: "4,5" }, { 13: 3 })).toBe(4.5);
+    expect(winwallSealingArea({}, { 13: 3 })).toBeCloseTo(6.15, 3);
   });
   test("sealing: 6,25 m² only for 5–6,25 m², otherwise 5 m² sets", () => {
     expect(winwallSealingSets(5)).toEqual([{ productId: "WS80301", qty: 1 }]);
@@ -84,6 +94,15 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallDecorCode("203")).toBe("WS203");
     expect(winwallDecorCode("nw 220")).toBe("NW220");
     expect(winwallDecorCode("WS2O3")).toBe(null);
+    // ANG2026-1117-115333: digits only find NW230, article no. from the Muster resolve
+    expect(winwallDecorCode("230")).toBe("NW230");
+    expect(winwallDecorCode("23013")).toBe("NW230");
+    expect(winwallDecorCode("NW 230 15")).toBe("NW230");
+    expect(winwallDecorCode("23014")).toBe(null); // no format 14
+    expect(winwallArticleFormat("23013")).toBe("13");
+    expect(winwallArticleFormat("230")).toBe(null);
+    // plain colours added 2026-11-18
+    expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "17015" })).toEqual({ code: "WS170", name: "lachs" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "ws 233" })).toEqual({ code: "WS233", name: "Beton" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "WS999" })).toEqual({ code: "WS999", name: null });
     expect(WINWALL_DECORS.map((d) => d.code)).toEqual(["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203",
@@ -105,7 +124,7 @@ describe("winwall pricing", () => {
       wvWw_R_4260602: "on", wvWwQty_R_4260602: "4", wvWwSealing: "on", wvArea: "6", wvWwCut: "on",
     }));
     expect(q).toEqual({
-      WS20325: 1, WS20316: 1, WS80110: 3, WS80113: 2, R_4260602: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
+      WS20315: 2, WS20316: 1, WS80110: 3, WS80113: 2, R_4260602: 4, WS80302: 1, "WS-ZUSCHNITT": 3,
     });
   });
   test("no freight per offer (collective orders); no cutting unless ticked", async () => {
@@ -115,8 +134,8 @@ describe("winwall pricing", () => {
   test("a typed NW decor is ordered and priced from the price list (no DB article)", async () => {
     const all = await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "custom", wvWwDecorCustom: "nw 230", wvWwQty_15: "3", wvWwSealing: "on", wvArea: "4" });
     const by = Object.fromEntries(all.map((l) => [l.productId, l]));
-    expect(Object.keys(by).sort()).toEqual(["NW23015", "NW23025", "WS80301"]);
-    expect([by.NW23025.unitPrice, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([261.76, 132.35, 113.5]);
+    expect(Object.keys(by).sort()).toEqual(["NW23015", "WS80301"]);
+    expect([by.NW23015.qty, by.NW23015.unitPrice, by.WS80301.unitPrice]).toEqual([3, 132.35, 113.5]);
   });
   test("adhesive is the VIGOUR Flächenkleber from stock, no separate Silikon", async () => {
     const q = ids(await lines({ wvEnabled: true, wvSupplier: "ww", wvWwDecor: "WS203", wvWwQty_15: "1", wvWw_R_4260602: "on", wvWwQty_R_4260602: "2" }));
@@ -140,7 +159,7 @@ describe("winwall pricing", () => {
 describe("winwall rows (wvWwRows): several decors and formats", () => {
   const rows = (r) => JSON.stringify(r);
   const ww = { wvEnabled: true, wvSupplier: "ww" };
-  test("one order line per decor and format; equal pairs of one decor become a set", async () => {
+  test("one order line per decor and format; equal panels add up, no sets", async () => {
     const ls = await lines({
       ...ww, wvWwRows: rows([
         { code: "WS203", fmt: "15", qty: 1 }, { code: "WS203", fmt: "15", qty: 1 },
@@ -148,12 +167,12 @@ describe("winwall rows (wvWwRows): several decors and formats", () => {
       ]),
     });
     const q = ids(ls);
-    expect(q).toEqual({ WS20325: 1, NW22016: 1, WS20317: 1 });
+    expect(q).toEqual({ WS20315: 2, NW22016: 1, WS20317: 1 });
     expect(ls.find((l) => l.productId === "NW22016").label).toContain("NW 220");
   });
   test("rows win over the old quantity fields; empty field and no rows leave old offers alone", async () => {
     expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2", wvWwRows: rows([{ code: "WS203", fmt: "13", qty: 1 }]) }))).toEqual({ WS20313: 1 });
-    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2" }))).toEqual({ WS20325: 1 });
+    expect(ids(await lines({ ...ww, wvWwDecor: "203", wvWwQty_15: "2" }))).toEqual({ WS20315: 2 });
     expect(computeFingerprint({ wandverkleidung: { wvWwRows: "", a: 1 } })).toBe(computeFingerprint({ wandverkleidung: { a: 1 } }));
   });
 });
@@ -172,10 +191,10 @@ describe("supplier codes (Kürzel)", () => {
     expect([dw("SLA12090"), dw("DW015"), dw("V2PT83LC"), dw("")]).toEqual(["DW-SL", "DW-BX", "DW-HM", "DW-FP"]);
     expect(supplierCodes({ duschwanne: { chosenTrayProductId: "SLA12090" } }, []).dw).toBe(null);
   });
-  test("quality texts exist for winwall, VIGOUR and Slate", () => {
-    expect(SUPPLIER_QUALITY["WV-WW"]).toMatch(/EN 13501-1.*Greenguard Gold.*5 Jahre/);
+  test("quality texts exist for VIGOUR and Slate (none for winwall)", () => {
+    expect(SUPPLIER_QUALITY["WV-WW"]).toBeUndefined();
     expect(SUPPLIER_QUALITY["WV-HM"]).toMatch(/DIN 4102-1/);
-    expect(SUPPLIER_QUALITY["DW-SL"]).toMatch(/DIN 51097.*EN 14527/);
+    expect(SUPPLIER_QUALITY["DW-SL"]).toBe("Rutschfestigkeit Klasse C nach DIN 51097");
   });
   test("the price result carries the codes", async () => {
     const r = await computePrices({
@@ -184,5 +203,24 @@ describe("supplier codes (Kürzel)", () => {
       optional: {}, rabatt: {}, Arbeitszeit: {},
     });
     expect(r.supplierCodes).toEqual({ wv: "WV-WW", dw: null });
+  });
+});
+
+describe("winwall plate names: Wand like VIGOUR, Fußboden Aluverbundplatte", () => {
+  test("same plate, two names (never the DB's Duschrückwand)", async () => {
+    const r = await computePrices({
+      activeOffer: "bu",
+      Kundendaten: { payer: "Selbstzahler" },
+      duschwanne: { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingWwQty: '{"16":1}', wallCladdingArea: "3" },
+      wandverkleidung: { wvEnabled: true, wvSupplier: "ww", wvWwRows: JSON.stringify([{ code: "WS203", fmt: "16", qty: 2 }]) },
+      optional: {}, rabatt: {}, Arbeitszeit: {},
+    });
+    const wall = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Wandverkleidung");
+    const floor = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Fußboden");
+    expect(wall.label).toBe("- 2 Stk Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(wall.name).toBe("Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.label).toBe("- 1 Stk Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.name).toBe("Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(JSON.stringify(r.materials.lines)).not.toMatch(/Duschrückwand/);
   });
 });
