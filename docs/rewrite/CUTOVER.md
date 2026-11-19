@@ -42,6 +42,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - Logs: `docker compose logs -f app` (every error has a request id; GlitchTip later, ADR 009).
 - Daily: Bitrix failure log (`/admin` → Bitrix-Logs), email/letter sends, signing completions.
 - `main` keeps evolving until the switch; after the switch, changes go to v2 only (see §5).
+- Signing completions (ADR 027 A, step 3): every signature of a non-AH deal now also writes the signed offer's amount, final total, offer number and offer link to Bitrix. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
 
 ## 4. Way back (rollback, ~10 minutes)
 
@@ -57,6 +58,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 ## Open items before the switch
 
 - [ ] Owner decisions D1–D5.
+- [ ] Variants step 3 on a Bitrix **test deal** with the owner (send A, send B, sign A — field checklist in the step-3 PR). New collection `deal_variant_choices` needs no migration (keyed by `_id`); the old app ignores it on the way back.
 - [x] Rollback export tool `deal_drafts → drafts` (§4.2): `node apps/server/dist/cli/migrate.js rollback-export [--apply]` — insert-only, idempotent, tested; dry run on the copy 2026-11-06: 0 (no deal drafts exist yet).
 - [ ] Staging run with staff spot-check (§1.5).
 - [ ] Fresh parallel run on a copy taken the day before (§1.4).

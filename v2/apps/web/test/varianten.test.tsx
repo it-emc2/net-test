@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { TEXT, nextVariantName, sendVariantOf, snapshotKey, statusText, variantOfSend } from "../src/features/offer/model/variants.js";
 import { historyChanged } from "../src/features/steps/versand/Verlauf.js";
+import { errorOf, movedText } from "../src/features/steps/versand/send-rules.js";
 import { usePrefs } from "../src/shared/lib/prefs.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import sign from "./fixtures/versand-unterschrift.json" with { type: "json" };
@@ -46,6 +47,13 @@ describe("variants — the rules", () => {
     expect(statusText({ status: "sent", sentAt: "2026-11-18T09:00:00Z" })).toBe("Gesendet am 18.11.2026");
     expect(statusText({ status: "signed", sentAt: "2026-11-18T09:00:00Z" })).toBe("Unterschrieben");
     expect(statusText({ status: "not-chosen", sentAt: null })).toBe("Nicht gewählt");
+  });
+  it("step 3: the move's answer when another variant is signed, and the server's refusal text is what is shown", () => {
+    expect(movedText({ ok: true })).toBe("Deal wurde auf „ANG verschickt\" verschoben.");
+    expect(movedText({ ok: true, amountKept: true, signedOfferNumber: "VA-1" })).toBe("Deal wurde auf „ANG verschickt\" verschoben. Betrag bleibt beim unterschriebenen Angebot.");
+    const message = "Diese Variante wurde nicht gewählt – zu diesem Auftrag ist bereits ein anderes Angebot unterschrieben. Sie kann nicht mehr versendet werden. Bitte erstellen Sie bei Bedarf eine neue Variante.";
+    expect(errorOf({ error: { code: "VARIANT_NOT_CHOSEN", message, requestId: "t" } })).toEqual({ code: "VARIANT_NOT_CHOSEN", message });
+    expect(errorOf({ ok: false, error: { code: "VARIANT_NOT_CHOSEN", message, requestId: "t" }, code: "VARIANT_NOT_CHOSEN" })).toEqual({ code: "VARIANT_NOT_CHOSEN", message }); // the letter's shape
   });
   it("the suggested name follows the server's fallback rule", () => {
     expect(nextVariantName([{ name: "Variante 1" }])).toBe("Variante 2");
@@ -309,6 +317,21 @@ describe("variants — Versand", () => {
     expect(screen.getByLabelText("Ansprechpartner")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Variante erstellen" })).toBeInTheDocument();
   });
+
+  it("step 3: signed elsewhere (customer link) — on window focus the page shows „Nicht gewählt“ and no way to send", async () => {
+    // the rows exactly as GET /api/deals/:dealId/variants answers after a completion (deal-variants-signing.test.ts)
+    const before = list(row(V1, "Variante 1", { status: "sent", sentAt: "2026-11-19T08:00:00Z", sentChannel: "onsite", total: 1000, offerNumber: "VA-1" }), row(V2, "Günstig", { status: "sent", sentAt: "2026-11-19T08:30:00Z", sentChannel: "onsite", total: 2000, offerNumber: "VB-1", isDefault: true }));
+    const after = list(row(V1, "Variante 1", { status: "not-chosen", sentAt: "2026-11-19T08:00:00Z", sentChannel: "onsite", total: 1000, offerNumber: "VA-1", notChosenAt: "2026-11-19T09:00:00Z" }), row(V2, "Günstig", { status: "signed", sentAt: "2026-11-19T08:30:00Z", sentChannel: "onsite", signedAt: "2026-11-19T09:00:00Z", total: 2000, offerNumber: "VB-1", isDefault: true }));
+    let signed = false;
+    const s = versand(V1, { "GET /api/deals/4711/variants": () => (signed ? after : before) });
+    await screen.findByRole("region", { name: "Versandart" });
+    signed = true;
+    await new Promise((r) => setTimeout(r, 5_100)); // older than the list's staleTime
+    act(() => { window.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("focus")); });
+    expect(await screen.findByTestId("zf-not-chosen")).toHaveTextContent(TEXT.notChosen);
+    expect(screen.queryByRole("region", { name: "Versandart" })).toBeNull();
+    expect(s.count("GET /api/deals/4711/variants")).toBeGreaterThanOrEqual(2);
+  }, 15_000);
 
   it("after a send the selector's status is asked again (no reload)", async () => {
     const s = versand(V2, { "GET /api/deals/4711/variants": TWO });

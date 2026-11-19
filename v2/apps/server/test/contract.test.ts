@@ -1328,7 +1328,14 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   };
   const stripIds = (v: any): any => Array.isArray(v) ? v.map(stripIds) : v && typeof v === "object"
     ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== "id" && k !== "_id" && k !== "__v").map(([k, x]) => [k, stripIds(x)])) : v;
-  const calls = (app: string) => bx.take(app).map((c) => ({ ...c, params: normText(decodeURIComponent(c.params.replace(/\+/g, " "))) }));
+  // Deliberate difference (ADR 027 A, step 3): v2's stage move after a completed signature also
+  // writes the signed offer's amount, final total, offer number and offer link. Those fields are
+  // taken out of v2's signing-stage update here and asserted on their own (exact field sets in
+  // deal-variants-signing.test.ts); everything else of the call must still equal the old app's.
+  const SIGNED_OFFER_FIELDS = /&fields\[(opportunity|isManualOpportunity|currencyId|UF_CRM_1768391021079|UF_CRM_1776156870205|UF_CRM_1790772236055)\]=[^&]*/g;
+  const v2Only = (app: string, c: { method: string; params: string }) =>
+    app === "v2" && c.method === "crm.item.update" && /stageId\]=C(38:UC_5DII17|38:UC_ON3GS1|52:UC_7NLTX7)/.test(c.params) ? c.params.replace(SIGNED_OFFER_FIELDS, "") : c.params;
+  const calls = (app: string) => bx.take(app).map((c) => ({ ...c, params: normText(decodeURIComponent(c.params.replace(/\+/g, " "))) })).map((c) => ({ ...c, params: v2Only(app, c) }));
   const stored = async (offerNumber: string) =>
     (await db().collection("signingrequests").find({ offerNumber }).sort({ createdAt: 1 }).toArray())
       .map((d) => JSON.parse(normText(JSON.stringify(stripIds({ ...d, createdAt: undefined, updatedAt: undefined, openedAt: !!d.openedAt, completedAt: !!d.completedAt, expiresAt: !!d.expiresAt, documents: d.documents.map((x: any) => ({ ...x, signedAt: !!x.signedAt })) })))));
