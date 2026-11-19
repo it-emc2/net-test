@@ -4779,6 +4779,10 @@ button.dm-btn-danger:focus-visible {
               <div class="sec-settings__group">
                 <label class="sec-settings__row dw-dim-row"><span class="dw-dim-name">Fläche</span><span class="dw-dim-input"><input
                       id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" /><span>m²</span></span></label>
+                <div class="sec-settings__row wc-ww-resync-row" id="wcWwResyncRow" hidden>
+                  <div class="sec-settings__text"><small id="wcWwResyncHint">Platten wurden angepasst.</small></div>
+                  <button type="button" id="wcWwResync" class="wc-ww-resync" title="Platten wieder auf den Vorschlag aus der Fläche setzen">↻ Vorschlag aus Fläche</button>
+                </div>
                 <button type="button" id="wvcCalcToggle" class="sec-settings__row ios-disclosure" aria-expanded="false"
                   aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
                 <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
@@ -4796,10 +4800,30 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
+            <!-- winwall: Platten je Format wie auf der Wandverkleidungs-Seite (initWallCladdingSection).
+                 Vorschlag = günstigste Kombination, die die Fläche deckt; − / + passt an. -->
+            <div id="wcWwPlatesSection" class="sec-settings" hidden>
+              <div class="sec-settings__label">Platten – Vorschlag aus der Fläche, mit − / + anpassen</div>
+              <div class="sec-settings__group">
+                <div class="wvs-plates" id="wcWwPlates"></div>
+                <div class="wvs-total" id="wcWwTotal"></div>
+              </div>
+            </div>
+            <input type="hidden" id="wallCladdingWwQty" name="wallCladdingWwQty" value="" />
+
             <!-- winwall (wallCladdingSupplier = ww): Dekor wie auf der Wandverkleidungs-Seite. -->
             <div id="wcWwDecorSection" class="sec-settings">
               <div class="sec-settings__label">Dekor — winwall</div>
-              <div id="wcWwDecors" class="sec-settings__group dw-color-grid is-square">
+              <!-- Same palette as the Wandverkleidung simple view (window.wvsPaletteHtml); the radios
+                   below stay as the data fields (wallCladdingWwDecor), only hidden. -->
+              <div class="sec-settings__group">
+                <div class="wvs-colors" id="wcWwColors" role="radiogroup" aria-label="Dekor Fußboden"></div>
+                <label class="sec-settings__row wvs-other" id="wcWwCustomRow" for="wallCladdingWwDecorCustom">
+                  <span class="sec-settings__text"><strong>Anderes Dekor</strong><small id="wcWwCustomHint" class="wvs-hint">Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).</small></span>
+                  <input type="text" id="wallCladdingWwDecorCustom" name="wallCladdingWwDecorCustom" placeholder="NW 230 / 23015" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="10" />
+                </label>
+              </div>
+              <div id="wcWwDecors" class="sec-settings__group dw-color-grid is-square" hidden>
                 <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS000" /><span class="img-wrap"><img src="./assets/winwall/WS000.jpg" alt="" loading="lazy" /></span><span class="caption">weiß</span></label>
                 <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS243" /><span class="img-wrap"><img src="./assets/winwall/WS243.jpg" alt="" loading="lazy" /></span><span class="caption">Beton weiß</span></label>
                 <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS503" /><span class="img-wrap"><img src="./assets/winwall/WS503.jpg" alt="" loading="lazy" /></span><span class="caption">Beton gespachtelt light</span></label>
@@ -4816,13 +4840,6 @@ button.dm-btn-danger:focus-visible {
                 <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS210" /><span class="img-wrap"><img src="./assets/winwall/WS210.jpg" alt="" loading="lazy" /></span><span class="caption">Feinsteinzeug</span></label>
                 <label class="image-check"><input type="radio" name="wallCladdingWwDecor" value="WS290" /><span class="img-wrap"><img src="./assets/winwall/WS290.jpg" alt="" loading="lazy" /></span><span class="caption">Eiche hell</span></label>
                 <label class="image-check ww-decor-custom"><input type="radio" name="wallCladdingWwDecor" value="custom" /><span class="img-wrap" aria-hidden="true"><img id="wcWwCustomImg" src="" alt="" hidden /><span class="ww-decor-custom__plus">+</span></span><span class="caption">Anderes Dekor</span></label>
-              </div>
-              <!-- "Anderes Dekor": any WS/NW number from the winwall catalogue. -->
-              <div id="wcWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
-                <label class="sec-settings__row" for="wallCladdingWwDecorCustom">
-                  <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wcWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
-                  <input type="text" id="wallCladdingWwDecorCustom" name="wallCladdingWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
-                </label>
               </div>
             </div>
 
@@ -4942,8 +4959,20 @@ button.dm-btn-danger:focus-visible {
                 class="sec-switch__text"><strong>Wandverkleidung</strong><small>Paneele, Profile und Zubehör im Angebot. Aus: nichts berechnet.</small></span></label>
           </div>
 
+          <!-- Einfache Ansicht (wvUi=simple, neue Angebote): Produktlinie nur als Zeile,
+               öffnet die Einstellungen darunter. Ältere Angebote/Entwürfe: klassisch. -->
+          <input type="hidden" id="wvUi" name="wvUi" value="simple" />
+          <div id="wvLineRow" class="full sec-settings">
+            <div class="sec-settings__group">
+              <button type="button" id="wvLineBtn" class="sec-settings__row wvs-disclosure" aria-expanded="false" aria-controls="wvSettingsBlock">
+                <span class="sec-settings__text"><strong>Produktlinie</strong><small id="wvLineText">winwall</small></span>
+                <span class="wvs-chev" aria-hidden="true">›</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Einstellungen: Produktlinie (eigene Linie, additiv) + Ausführung. -->
-          <div class="full sec-settings">
+          <div id="wvSettingsBlock" class="full sec-settings">
             <div class="sec-settings__label">Einstellungen</div>
             <div class="sec-settings__group">
               <div class="sec-settings__row">
@@ -4986,6 +5015,42 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <!-- Einfache Ansicht winwall: Platten je Format + Dekor (initWvSimple). Schreibt
+               dieselben wvWwRows wie die Zeilen – Preis, PDF und Laden bleiben gleich. -->
+          <!-- Classic winwall view (old drafts/offers, or after "Alter Konfigurator"): back to the
+               simple view. Same wvWwRows, so nothing is converted or lost. -->
+          <div id="wvToSimpleRow" class="full">
+            <button type="button" id="wvToSimple" class="wvs-to-simple">Zur neuen Ansicht wechseln (Platten + Dekor)</button>
+          </div>
+          <div id="wvSimple" class="full">
+            <div class="sec-settings">
+              <div class="sec-settings__label"><span class="wvs-step">1</span> Platten – Menge je Größe</div>
+              <div class="wvs-tabs" role="group" aria-label="Dekore"></div>
+              <div class="sec-settings__group">
+                <div class="wvs-plates"></div>
+                <div class="wvs-total"></div>
+                <!-- Rows without a valid decor (older offers, e.g. "23013"): not priced, shown in red. -->
+                <div class="wvs-bad" role="alert" hidden></div>
+                <!-- Additiv (2026-11-18): Höhe → Reste je Dekor (Streifen über der Höhe), für den Fußboden. -->
+                <label class="sec-settings__row wvs-height" for="wvWwHeight">
+                  <span class="sec-settings__text"><strong>Höhe der Verkleidung</strong><small class="wvs-height-hint">Was über dieser Höhe abgeschnitten wird, kann als Fußboden verwendet werden.</small></span>
+                  <span class="dw-dim-input"><input type="number" id="wvWwHeight" name="wvWwHeight" inputmode="numeric" min="0" max="250" step="1" placeholder="z. B. 230" /><span>cm</span></span>
+                </label>
+              </div>
+            </div>
+            <div class="sec-settings">
+              <div class="sec-settings__label"><span class="wvs-step">2</span> Dekor – gilt für die Platten oben</div>
+              <div class="sec-settings__group">
+                <div class="wvs-colors" role="radiogroup" aria-label="Dekor"></div>
+                <label class="sec-settings__row wvs-other">
+                  <span class="sec-settings__text"><strong>Anderes Dekor</strong><small class="wvs-hint">Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).</small></span>
+                  <input type="text" class="wvs-other-input" placeholder="NW 230 / 23015" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="10" form="wvsNoForm" />
+                </label>
+              </div>
+              <button type="button" class="wvs-classic">Alter Konfigurator (Wandplan, Zeilen)</button>
+            </div>
+          </div>
+
           <div id="wvPanelsSection" class="full">
             <!-- Wandfläche + Flächenrechner (makeFloorCalc). Nur Premium: schlägt 997/1497 vor.
                  wvArea ist additiv — fehlt in jedem Altangebot. -->
@@ -5017,7 +5082,7 @@ button.dm-btn-danger:focus-visible {
 
             <!-- Bedarf nach Wandbreiten (Keramico / Vigour, initKeramicoCalc) — unverändert,
                  nur im iOS-Stil gezeichnet. -->
-            <div class="sec-settings">
+            <div id="wvWallsBlock" class="sec-settings">
               <div class="sec-settings__label">Wände und Dekor</div>
               <div id="wvKeramicoCalc" class="kc">
               <div class="kc-head">
@@ -5191,7 +5256,7 @@ button.dm-btn-danger:focus-visible {
               <div id="wvWwCustomRow" class="sec-settings__group ww-decor-entry" hidden>
                 <label class="sec-settings__row" for="wvWwDecorCustom">
                   <span class="sec-settings__text"><strong>Dekor-Nummer</strong><small id="wvWwCustomHint">WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.</small></span>
-                  <input type="text" id="wvWwDecorCustom" name="wvWwDecorCustom" placeholder="WS 233" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="7" />
+                  <input type="text" id="wvWwDecorCustom" name="wvWwDecorCustom" placeholder="NW 230 / 23015" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="10" />
                 </label>
               </div>
             </div>
@@ -5370,19 +5435,19 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="wvWwAccManual" name="wvWwAccManual" value="" />
             <div class="sec-settings__group">
               <div class="dw-acc">
-                <label class="image-check"><input type="checkbox" id="wvWw_WS80110" name="wvWw_WS80110" data-product-id="WS80110" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil</span><small>WS80110 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80110" name="wvWw_WS80110" data-product-id="WS80110" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/acc/WS80110.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Abschlussprofil</span><small>WS80110 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
                 <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80110" name="wvWwQty_WS80110" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Abschlussprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
               <div class="dw-acc">
-                <label class="image-check"><input type="checkbox" id="wvWw_WS80111" name="wvWw_WS80111" data-product-id="WS80111" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Inneneckprofil</span><small>WS80111 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80111" name="wvWw_WS80111" data-product-id="WS80111" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/acc/WS80111.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Inneneckprofil</span><small>WS80111 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
                 <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80111" name="wvWwQty_WS80111" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Inneneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
               <div class="dw-acc">
-                <label class="image-check"><input type="checkbox" id="wvWw_WS80112" name="wvWw_WS80112" data-product-id="WS80112" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Außeneckprofil</span><small>WS80112 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80112" name="wvWw_WS80112" data-product-id="WS80112" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/acc/WS80112.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Außeneckprofil</span><small>WS80112 · 2550 mm, Alu eloxiert · nicht automatisch, bitte prüfen</small></span></label>
                 <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80112" name="wvWwQty_WS80112" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Außeneckprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
               <div class="dw-acc">
-                <label class="image-check"><input type="checkbox" id="wvWw_WS80113" name="wvWw_WS80113" data-product-id="WS80113" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/V3V.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil</span><small>WS80113 · 2550 mm, Alu eloxiert · Vorschlag: Stöße auf gerader Wand (nicht in Ecken)</small></span></label>
+                <label class="image-check"><input type="checkbox" id="wvWw_WS80113" name="wvWw_WS80113" data-product-id="WS80113" /><span class="sec-switch__track" aria-hidden="true"></span><span class="img-wrap"><img src="./assets/winwall/acc/WS80113.jpg" alt="" loading="lazy" /></span><span class="dw-acc__text"><span class="caption">Verbindungsprofil</span><small>WS80113 · 2550 mm, Alu eloxiert · Vorschlag: Stöße auf gerader Wand (nicht in Ecken)</small></span></label>
                 <span class="ios-stepper"><button type="button" data-step="-1" aria-label="Weniger">−</button><input id="wvWwQty_WS80113" name="wvWwQty_WS80113" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="Menge Verbindungsprofil" /><button type="button" data-step="1" aria-label="Mehr">+</button></span>
               </div>
               <div class="dw-acc">

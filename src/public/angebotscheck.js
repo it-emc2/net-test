@@ -47,6 +47,15 @@ const wvPanels = (materials) =>
     .filter((l) => /^(V3WV|WP\d)/i.test(idOf(l)) && inCategory(l, "Wandverkleidung"))
     .reduce((n, l) => n + (Number(l?.qty) || 0), 0);
 
+// winwall panels: decor + format (NW22015, WS20313). Decor numbers never start with 8,
+// so the accessories (WS80113, WS80301 …) are not counted. Counted only where any
+// panel counts — the VIGOUR-only rules below keep wvPanels.
+const winwallPanels = (materials) =>
+  lines(materials)
+    .filter((l) => /^(WS|NW)[0-7]\d{2}(13|15|16|17)$/i.test(idOf(l)) && inCategory(l, "Wandverkleidung"))
+    .reduce((n, l) => n + (Number(l?.qty) || 0), 0);
+const anyWvPanels = (materials) => wvPanels(materials) + winwallPanels(materials);
+
 /**
  * Article numbers actually in the offer (material + optional lines).
  * Waschtisch and WC read these instead of the checkboxes: after reopening an
@@ -222,8 +231,9 @@ export const RULES = [
       const missing = [];
       const kind = sel.checkedValue("wvKind");
       if (!kind || kind === "Keine") missing.push("Art der Wandverkleidung fehlt.");
-      if (!sel.checkedValue("wvColor")) missing.push("Dekor / Farbe fehlt.");
-      if (wvPanels(materials) === 0) {
+      // winwall carries its decor in the panel line, not in wvColor.
+      if (!sel.checkedValue("wvColor") && winwallPanels(materials) === 0) missing.push("Dekor / Farbe fehlt.");
+      if (anyWvPanels(materials) === 0) {
         missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner).");
       }
       return missing;
@@ -969,7 +979,7 @@ export function sendEnv(payload, win = window) {
     curtainLines: curtain.length,
     optionalLines: lines(win.__pricing?.optionalDisplayUI || {}).length,
     // Priced panels — extra colours included, which the form fields miss.
-    wvPanels: wvPanels(win.__pricing?.materialsDisplayUI || win.__pricing?.materials || {}),
+    wvPanels: anyWvPanels(win.__pricing?.materialsDisplayUI || win.__pricing?.materials || {}),
   };
 }
 

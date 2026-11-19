@@ -4,7 +4,7 @@
  * and old offers (no wvSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
+  winwallPanelPlan, winwallOrderLines, winwallSealingSets, winwallSealingArea, winwallProfileSuggestion, winwallDecorCode, winwallArticleFormat, winwallDecor, WINWALL_DECORS, WINWALL_FORMATS, WINWALL_EXTRAS, NO_MARKUP_IDS, computeFingerprint, supplierCodes, SUPPLIER_QUALITY,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -94,6 +94,15 @@ describe("winwallOrderLines / winwallSealingSets", () => {
     expect(winwallDecorCode("203")).toBe("WS203");
     expect(winwallDecorCode("nw 220")).toBe("NW220");
     expect(winwallDecorCode("WS2O3")).toBe(null);
+    // ANG2026-1117-115333: digits only find NW230, article no. from the Muster resolve
+    expect(winwallDecorCode("230")).toBe("NW230");
+    expect(winwallDecorCode("23013")).toBe("NW230");
+    expect(winwallDecorCode("NW 230 15")).toBe("NW230");
+    expect(winwallDecorCode("23014")).toBe(null); // no format 14
+    expect(winwallArticleFormat("23013")).toBe("13");
+    expect(winwallArticleFormat("230")).toBe(null);
+    // plain colours added 2026-11-18
+    expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "17015" })).toEqual({ code: "WS170", name: "lachs" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "ws 233" })).toEqual({ code: "WS233", name: "Beton" });
     expect(winwallDecor({ wvWwDecor: "custom", wvWwDecorCustom: "WS999" })).toEqual({ code: "WS999", name: null });
     expect(WINWALL_DECORS.map((d) => d.code)).toEqual(["WS000", "WS243", "WS503", "WS228", "WS229", "WS227", "WS203",
@@ -194,5 +203,24 @@ describe("supplier codes (Kürzel)", () => {
       optional: {}, rabatt: {}, Arbeitszeit: {},
     });
     expect(r.supplierCodes).toEqual({ wv: "WV-WW", dw: null });
+  });
+});
+
+describe("winwall plate names: Wand like VIGOUR, Fußboden Aluverbundplatte", () => {
+  test("same plate, two names (never the DB's Duschrückwand)", async () => {
+    const r = await computePrices({
+      activeOffer: "bu",
+      Kundendaten: { payer: "Selbstzahler" },
+      duschwanne: { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingWwQty: '{"16":1}', wallCladdingArea: "3" },
+      wandverkleidung: { wvEnabled: true, wvSupplier: "ww", wvWwRows: JSON.stringify([{ code: "WS203", fmt: "16", qty: 2 }]) },
+      optional: {}, rabatt: {}, Arbeitszeit: {},
+    });
+    const wall = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Wandverkleidung");
+    const floor = r.materials.lines.find((l) => l.productId === "WS20316" && l.category === "Fußboden");
+    expect(wall.label).toBe("- 2 Stk Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(wall.name).toBe("Wandverkleidung Alu 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.label).toBe("- 1 Stk Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(floor.name).toBe("Aluverbundplatte 1250×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(JSON.stringify(r.materials.lines)).not.toMatch(/Duschrückwand/);
   });
 });
