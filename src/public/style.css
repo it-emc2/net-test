@@ -12171,29 +12171,8 @@ body.ui-classic #page-Duschwanne .stelzlager-qty-row {
 body.ui-classic #page-Duschwanne .stelzlager-qty-btn { width: 30px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 body.ui-classic #page-Duschwanne #stelzlagerQtyInput { width: 56px; height: 30px; border: 1px solid var(--input-border, #d1d5db); border-radius: 8px; background: var(--panel, #fff); }
 
-/* winwall-Zubehör: dieselben Bildkacheln wie Duschwanne (klassisch) */
-body.ui-classic #wvWwAccSection .sec-settings__group { display: flex; flex-wrap: wrap; gap: 12px; }
-body.ui-classic #wvWwAccSection .dw-acc {
-  position: relative; width: 200px; grid-template-columns: 1fr; align-items: start; gap: 8px; padding: 12px;
-  border: 2px solid var(--cl-border); border-radius: 12px; background: var(--panel, #fff);
-}
-body.ui-classic #wvWwAccSection .dw-acc + .dw-acc { border-top: 2px solid var(--cl-border); }
-body.ui-classic #wvWwAccSection .dw-acc:has(input:checked) { border-color: var(--cl-accent); background: var(--cl-weak); }
-body.ui-classic #wvWwAccSection .dw-acc:has(input:not(:checked)) .img-wrap { opacity: 1; }
-body.ui-classic #wvWwAccSection .dw-acc .image-check::before { content: ""; position: absolute; inset: 0; z-index: 0; }
-body.ui-classic #wvWwAccSection .dw-acc > .img-wrap { grid-column: 1; grid-row: 1; width: 100%; height: 96px; border-radius: 8px; background: color-mix(in srgb, var(--text, #1f2937) 8%, var(--panel, #fff)); }
-body.ui-classic #wvWwAccSection .dw-acc > .img-wrap img { object-fit: contain; }
-body.ui-classic #wvWwAccSection .dw-acc__text { grid-column: 1; grid-row: 2; }
-body.ui-classic #wvWwAccSection .dw-acc__text .caption { font-size: 0.82rem; font-weight: 600; }
-body.ui-classic #wvWwAccSection .dw-acc .sec-switch__track {
-  position: absolute; top: 8px; right: 8px; grid-column: auto; grid-row: auto; order: 0;
-  width: 22px; height: 22px; border-radius: 50%; border-width: 0; background: transparent; visibility: hidden;
-}
-body.ui-classic #wvWwAccSection .dw-acc input:checked + .sec-switch__track { visibility: visible; background: var(--cl-accent); }
-body.ui-classic #wvWwAccSection .dw-acc > .ios-stepper { grid-column: 1; grid-row: 3; position: relative; z-index: 1; justify-self: start; }
 /* Klassisch: keine Beschreibungen unter den Zubehör-Kacheln */
-body.ui-classic #page-Duschwanne .dw-acc__text small,
-body.ui-classic #wvWwAccSection .dw-acc__text small { display: none; }
+body.ui-classic #page-Duschwanne .dw-acc__text small { display: none; }
 
 /* Freier Posten: Karte mit Kopf und beschriftetem 4-Felder-Raster */
 body.ui-classic #page-Duschwanne #dw-custom-details { border: 1px dashed #cbd5e1; border-radius: 14px; background: var(--panel, #fff); margin-top: 22px; }
