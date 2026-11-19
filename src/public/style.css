@@ -12143,7 +12143,11 @@ body.ui-classic #page-Duschwanne #tray-suggestions .sc-check { display: none; }
 
 /* Farbe: rechteckige Farbfelder */
 body.ui-classic #page-Duschwanne .dw-color-grid { padding: 0; }
-body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { width: 96px; height: 64px; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
+body.ui-classic #page-Duschwanne .dw-color-grid .image-check { min-width: 0; }
+/* Die Farbfotos sind quadrat (400×400): im 96×64-Rahmen wurde die Mitte abgeschnitten. */
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; border: 2px solid var(--cl-border); }
+body.ui-classic #page-Duschwanne .dw-color-grid .img-wrap img { width: 100%; height: 100%; object-fit: cover; }
 body.ui-classic #page-Duschwanne .dw-color-grid .image-check:has(input:checked) .img-wrap { border-color: var(--cl-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cl-accent) 18%, transparent); }
 
 /* Zubehör: wie winwall-Zubehör (Karten im Raster, Bild oben, Kästchen oben rechts) */
