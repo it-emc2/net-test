@@ -4,4 +4,4 @@ export { SaveState } from "./SaveState.js";
 export { AUTOSAVE_MS, flushDraft, flushNow, legacyAddress, newTempKey, prefillNextOffer, reloadDraft, type SaveStatus } from "./model/draft.js";
 export { useOfferField, useOfferStore, useOfferType, type OfferState } from "./model/store.js";
 export { usePrice } from "./model/usePrice.js";
-export { BUILT_STEPS, OFFER_TITLES, STEPS, checkStep, firstStep, isStepOf, setStepCheck, setStepStatuses, stepLabel, stepStatuses, type StepProblem, type StepStatus } from "./steps.js";
+export { BUILT_STEPS, OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, isReferenzStep, isStepOf, setStepCheck, setStepStatuses, stepLabel, stepStatuses, type StepProblem, type StepStatus } from "./steps.js";

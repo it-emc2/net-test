@@ -43,6 +43,8 @@ const checkliste = () => import("../features/steps/index.js").then((m) => ({ Com
 const versand = () => import("../features/steps/index.js").then((m) => ({ Component: m.Versand }));
 const bwt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badewannentuer }));
 const bwtArbeiten = () => import("../features/steps/index.js").then((m) => ({ Component: m.BwtArbeiten }));
+const referenzVorher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzVorher }));
+const referenzNachher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzNachher }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 
 export const routes: RouteObject[] = [
@@ -74,6 +76,8 @@ export const routes: RouteObject[] = [
           { path: "Angebotscheck", lazy: angebotscheck },
           { path: "Checkliste", lazy: checkliste },
           { path: "Zusammenfassung", lazy: versand },
+          { path: "referenzVorher", lazy: referenzVorher },
+          { path: "referenzNachher", lazy: referenzNachher },
           { path: ":step", lazy: stepInLegacy },
         ],
       },
