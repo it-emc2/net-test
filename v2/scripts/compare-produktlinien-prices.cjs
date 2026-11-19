@@ -25,6 +25,8 @@ const token = (() => {
 //        ["dims", w, l] · ["pick", n] · ["qty", "+"|"-"] ·
 //        ["fb"] the floor switch (then the page is Fußboden) · ["ftier", line] · ["farea", text] · ["fpick", n] n-th Badolux covering ·
 //        ["fcolor", name] a Hassmann colour · ["confirm", "yes"|"no"]
+// a stored offer with the accessories; one saved with the tray off keeps none (p10 / p11: today's page then shows the tray with NO accessory, React with all)
+const ACC = { abdichtSet: "Wannenabdichtband-Set TRWDB", drainSet: "Ablaufgarnitur TRAGD9060", stelzlager: "PLA5282", smallMaterial: "Kleinmaterial" };
 const ON = ["on"], D = ["dims", "90", "120"];
 const FLOOR = ["fb", "ftier", "farea", "fpick", "fcolor", "confirm"];
 const CASES = {
@@ -34,9 +36,11 @@ const CASES = {
   p4: ["new offer, tray on, off, on again (Badolux stays)", [ON, D, ["pick", 1], ["off"], ON]],
   p5: ["new offer, Hassmann chosen, off and on again (stays Hassmann)", [ON, ["tier", "premium"], D, ["pick", 1], ["off"], ON]],
   p6: ["new offer, Badolux tray, then Hassmann line", [ON, D, ["pick", 1], ["tier", "premium"], ["pick", 1]]],
-  p7: ["reopened: offer with a Hassmann tray", [["open", { trayEnabled: true }], D, ["pick", 1]]],
-  p8: ["reopened: no budgetMode, tray off, then on (Hassmann)", [["open", { trayEnabled: false }], ON, D, ["pick", 1]]],
-  p9: ["reopened: budgetMode 1 (Badolux), tray off, then on", [["open", { trayEnabled: false, budgetMode: "1" }], ON, D, ["pick", 1]]],
+  p7: ["reopened: offer with a Hassmann tray", [["open", { ...ACC, trayEnabled: true }], D, ["pick", 1]]],
+  p8: ["reopened: no budgetMode, tray off, then on (Hassmann)", [["open", { ...ACC, trayEnabled: false }], ON, D, ["pick", 1]]],
+  p9: ["reopened: budgetMode 1 (Badolux), tray off, then on", [["open", { ...ACC, trayEnabled: false, budgetMode: "1" }], ON, D, ["pick", 1]]],
+  p10: ["reopened: no budgetMode, tray off and NO accessories stored, then on (today: none ticked)", [["open", { trayEnabled: false }], ON, D, ["pick", 1]]],
+  p11: ["reopened: Badolux, tray off and NO accessories stored, then on (today: none ticked)", [["open", { trayEnabled: false, budgetMode: "1" }], ON, D, ["pick", 1]]],
   f1: ["floor: Hassmann colour (line unchanged)", [["fb"], ["farea", "5"], ["fcolor", "Loft-Grau"]]],
   f2: ["floor: Badolux covering 2", [["fb"], ["ftier", "standard"], ["farea", "5"], ["fpick", 2]]],
   f3: ["floor: Hassmann colour, Badolux confirmed, covering", [["fb"], ["farea", "5"], ["fcolor", "Loft-Grau"], ["ftier", "standard"], ["confirm", "yes"], ["fpick", 1]]],
