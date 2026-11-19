@@ -70,8 +70,13 @@ interface Ctx { services: Fields; materials: Fields; optionals: Fields; sel: Sel
 const lineQty = (materials: Fields, pid: string, cat?: string) => lines(materials).filter((l) => idOf(l) === pid && inCategory(l, cat)).reduce((n, l) => n + (Number(l?.qty) || 0), 0);
 /** a Wandverkleidung line — the Fußboden uses the same Flächenkleber article */
 const wvLine = (materials: Fields, pid: string) => lineQty(materials, pid, "Wandverkleidung") > 0;
-/** Wandverkleidung panels in the offer: VIGOUR (V3WV…) and Badolux (WP…) */
+/** Wandverkleidung panels in the offer: VIGOUR (V3WV…) and Badolux (WP…) — the VIGOUR-only rules count these */
 export const wvPanels = (materials: Fields) => lines(materials).filter((l) => /^(V3WV|WP\d)/i.test(idOf(l)) && inCategory(l, "Wandverkleidung")).reduce((n, l) => n + (Number(l?.qty) || 0), 0);
+/** winwall plates: decor + format (NW22015, WS20313). Decor numbers never start with 8, so the
+ *  accessories (WS80113, WS80301 …) are not counted (main 68b454a9) */
+export const winwallPanels = (materials: Fields) => lines(materials).filter((l) => /^(WS|NW)[0-7]\d{2}(13|15|16|17)$/i.test(idOf(l)) && inCategory(l, "Wandverkleidung")).reduce((n, l) => n + (Number(l?.qty) || 0), 0);
+/** any Wandverkleidung panel — where any panel counts (completeness, pre-send question) */
+export const anyWvPanels = (materials: Fields) => wvPanels(materials) + winwallPanels(materials);
 const pricedIds = ({ materials, optionals }: Pick<Ctx, "materials" | "optionals">) => new Set([...lines(materials), ...lines(optionals)].map(idOf));
 
 const WC_WALL = ["DERWWCOSVP", "DEDWWC", "CLPWWCOS5"], WC_FLOOR = ["CLPWCF10"];
@@ -114,8 +119,9 @@ export const RULES: readonly Rule[] = [
     test: ({ sel, materials }) => {
       const missing: string[] = [], kind = sel.value("wvKind");
       if (!kind || kind === "Keine") missing.push("Art der Wandverkleidung fehlt.");
-      if (!sel.value("wvColor")) missing.push("Dekor / Farbe fehlt.");
-      if (wvPanels(materials) === 0) missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner).");
+      // winwall carries its decor in the panel line, not in wvColor
+      if (!sel.value("wvColor") && winwallPanels(materials) === 0) missing.push("Dekor / Farbe fehlt.");
+      if (anyWvPanels(materials) === 0) missing.push("Keine Platten im Angebot — Plattenformat (997 / 1497) oder Menge fehlt (Standard: Wandbreiten im Bedarfsrechner).");
       return missing;
     } },
   // read from the priced lines: Silikon can sit ticked at quantity 0 (it follows the Abschlussprofil)

@@ -13378,6 +13378,441 @@
    "material_afterRabatt_and_aufschlag": 6559.799999999999,
    "bwtIncludedDisplayUI": [],
    "material_plus_aufschlag": 10333.96
+  },
+  "Kassenkunde|50%|true|0|true|false|2|0": {
+   "items": [],
+   "materials": {
+    "title": "Material für Badumbau",
+    "lines": [
+     {
+      "productId": "V3WVK09",
+      "name": "Aluverbundplatte (Marmor weiß)",
+      "color": "Marmor weiß",
+      "qty": 2,
+      "unit": null,
+      "unitPrice": 175.84,
+      "lineTotal": 351.68,
+      "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+      "labelLines": [
+       "- 2 Stk Aluverbundplatte (Marmor weiß)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": "V3WVK09",
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 8,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 94.56,
+      "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     }
+    ],
+    "sum": 446.24,
+    "vigorPriceDrift": null,
+    "grabCounts": {
+     "cl30": 0,
+     "cl40": 0,
+     "cl60": 0,
+     "cl80": 0,
+     "total": 0,
+     "freeId": null,
+     "refUnit": null
+    }
+   },
+   "productsSubtotal": 446.24,
+   "services": {
+    "title": "Auszuführende Arbeiten",
+    "lines": [
+     {
+      "key": "fahrzeug",
+      "label": "- 1,00 Stk Fahrzeugbereitstellung",
+      "qty": 1,
+      "unitPrice": 80,
+      "amount": 80
+     },
+     {
+      "key": "werkzeuge",
+      "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+      "qty": 1,
+      "unitPrice": 7.5,
+      "amount": 7.5
+     },
+     {
+      "key": "beraeumung",
+      "label": "- 1,00 Stk Beräumung der Baustelle",
+      "qty": 1,
+      "unitPrice": 4.5,
+      "amount": 4.5
+     },
+     {
+      "key": "facharbeiter",
+      "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+      "qty": 7,
+      "unit": "Std",
+      "unitPrice": 139,
+      "amount": 973,
+      "docxHide": true
+     }
+    ],
+    "sum": 1065,
+    "payer": "KK",
+    "zoneLabel": "",
+    "distanceKm": 0,
+    "laborHours": 7,
+    "reiseHours": 0,
+    "laborRate": 69.5,
+    "isBwt": false,
+    "extraAufgabeAmount": 0,
+    "travelSecondWorkerRate": 35,
+    "timeBreakdown": {
+     "workHoursOverall": 14,
+     "travelHoursOverall": 0,
+     "totalHoursOverall": 14,
+     "employees": [
+      {
+       "label": "Mitarbeiter 1 (Fahrer)",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 69.5,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      },
+      {
+       "label": "Mitarbeiter 2",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 35,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      }
+     ]
+    }
+   },
+   "Nettobetrag": 1734.36,
+   "markupPct": 0.5,
+   "markup": 223.12,
+   "markupBase": 446.24,
+   "markupExemptIds": [],
+   "vatOnNet": 329.53,
+   "taxRate": 0.19,
+   "total": 2063.89,
+   "netAfterRabatt_and_Bonus": 1734.36,
+   "netAfterRabatt": 1734.36,
+   "materialDiscountPct": 0,
+   "rabattAmount": 0,
+   "totalAfterRabatt": 2063.89,
+   "baseVat": 329.53,
+   "base_total": 2063.89,
+   "bonusGross": 0,
+   "bonusNeuNet": 0,
+   "bonusNeuGross": 250,
+   "bonusNeuThreshold": 5000,
+   "bonusNeuLegacy": false,
+   "grabBonusMaterial": 0,
+   "grabBonusArbeit": 0,
+   "grabBonusReal": 0,
+   "bonusFlags": {
+    "bonus_neu": false,
+    "bonus_Haltegriff": false
+   },
+   "flags": {
+    "bonus_neu": false,
+    "bonus_Haltegriff": false
+   },
+   "subsidyKind": "",
+   "subsidyInput": 0,
+   "subsidyAmount": 0,
+   "prior": 0,
+   "subsidyAmount_max": 0,
+   "selfPayAmount": 2063.89,
+   "selectedTray": null,
+   "supplierCodes": {
+    "wv": null,
+    "dw": null
+   },
+   "grabCounts": {
+    "cl30": 0,
+    "cl40": 0,
+    "cl60": 0,
+    "cl80": 0,
+    "total": 0,
+    "freeId": null,
+    "refUnit": null
+   },
+   "materialsDisplayUI": {
+    "title": "Material für Badumbau",
+    "sum": 446.24,
+    "lines": [
+     {
+      "productId": "V3WVK09",
+      "name": "Aluverbundplatte (Marmor weiß)",
+      "color": "Marmor weiß",
+      "qty": 2,
+      "unit": null,
+      "unitPrice": 175.84,
+      "lineTotal": 351.68,
+      "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+      "labelLines": [
+       "- 2 Stk Aluverbundplatte (Marmor weiß)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": "V3WVK09",
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 8,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 94.56,
+      "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     }
+    ]
+   },
+   "optionalDisplayUI": {
+    "sum": 0,
+    "lines": []
+   },
+   "servicesDisplayUI": {
+    "title": "Auszuführende Arbeiten",
+    "lines": [
+     {
+      "key": "fahrzeug",
+      "label": "- 1,00 Stk Fahrzeugbereitstellung",
+      "qty": 1,
+      "unitPrice": 80,
+      "amount": 80
+     },
+     {
+      "key": "werkzeuge",
+      "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+      "qty": 1,
+      "unitPrice": 7.5,
+      "amount": 7.5
+     },
+     {
+      "key": "beraeumung",
+      "label": "- 1,00 Stk Beräumung der Baustelle",
+      "qty": 1,
+      "unitPrice": 4.5,
+      "amount": 4.5
+     },
+     {
+      "key": "facharbeiter",
+      "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+      "qty": 7,
+      "unit": "Std",
+      "unitPrice": 139,
+      "amount": 973,
+      "docxHide": true
+     }
+    ],
+    "sum": 1065,
+    "payer": "KK",
+    "zoneLabel": "",
+    "distanceKm": 0,
+    "laborHours": 7,
+    "reiseHours": 0,
+    "laborRate": 69.5,
+    "isBwt": false,
+    "extraAufgabeAmount": 0,
+    "travelSecondWorkerRate": 35,
+    "timeBreakdown": {
+     "workHoursOverall": 14,
+     "travelHoursOverall": 0,
+     "totalHoursOverall": 14,
+     "employees": [
+      {
+       "label": "Mitarbeiter 1 (Fahrer)",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 69.5,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      },
+      {
+       "label": "Mitarbeiter 2",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 35,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      }
+     ]
+    }
+   },
+   "materialsDisplayDocx": {
+    "title": "Material für Badumbau",
+    "lines": [
+     {
+      "productId": "V3WVK09",
+      "name": "Aluverbundplatte (Marmor weiß)",
+      "color": "Marmor weiß",
+      "qty": 2,
+      "unit": null,
+      "unitPrice": 175.84,
+      "lineTotal": 351.68,
+      "label": "- 2 Stk Aluverbundplatte (Marmor weiß)",
+      "labelLines": [
+       "- 2 Stk Aluverbundplatte (Marmor weiß)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": "V3WVK09",
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     },
+     {
+      "productId": "R_4260602",
+      "name": "Ramsauer 645 Flächen Kleber weiß 1K Hybrid Klebstoff 975g/600ml Beutel",
+      "color": null,
+      "qty": 8,
+      "unit": null,
+      "unitPrice": 11.82,
+      "lineTotal": 94.56,
+      "label": "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)",
+      "labelLines": [
+       "- 8 Pkg Flächenkleber (1 Pkg je 0.6 m²)"
+      ],
+      "source": null,
+      "finish": null,
+      "currentNet": null,
+      "hassmannArticle": null,
+      "hassmannQty": null,
+      "docxHide": false,
+      "category": "Fußboden"
+     }
+    ]
+   },
+   "servicesDisplayDocx": {
+    "title": "Auszuführende Arbeiten",
+    "lines": [
+     {
+      "key": "fahrzeug",
+      "label": "- 1,00 Stk Fahrzeugbereitstellung",
+      "qty": 1,
+      "unitPrice": 80,
+      "amount": 80
+     },
+     {
+      "key": "werkzeuge",
+      "label": "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
+      "qty": 1,
+      "unitPrice": 7.5,
+      "amount": 7.5
+     },
+     {
+      "key": "beraeumung",
+      "label": "- 1,00 Stk Beräumung der Baustelle",
+      "qty": 1,
+      "unitPrice": 4.5,
+      "amount": 4.5
+     },
+     {
+      "key": "facharbeiter",
+      "label": "- 7,00 Std Arbeitszeit × 2 Facharbeiter × 69,50 €",
+      "qty": 7,
+      "unit": "Std",
+      "unitPrice": 139,
+      "amount": 973,
+      "docxHide": true
+     }
+    ],
+    "sum": 1065,
+    "payer": "KK",
+    "zoneLabel": "",
+    "distanceKm": 0,
+    "laborHours": 7,
+    "reiseHours": 0,
+    "laborRate": 69.5,
+    "isBwt": false,
+    "extraAufgabeAmount": 0,
+    "travelSecondWorkerRate": 35,
+    "timeBreakdown": {
+     "workHoursOverall": 14,
+     "travelHoursOverall": 0,
+     "totalHoursOverall": 14,
+     "employees": [
+      {
+       "label": "Mitarbeiter 1 (Fahrer)",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 69.5,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      },
+      {
+       "label": "Mitarbeiter 2",
+       "onSiteHours": 7,
+       "travelHours": 0,
+       "onSiteRate": 69.5,
+       "travelRate": 35,
+       "totalHours": 7,
+       "onSiteCost": 486.5,
+       "travelCost": 0,
+       "totalCost": 486.5
+      }
+     ]
+    }
+   },
+   "priceAdjustments": {
+    "services": 0,
+    "material": 0
+   },
+   "material_afterRabatt_and_aufschlag": 446.2399999999999,
+   "bwtIncludedDisplayUI": [],
+   "material_plus_aufschlag": 669.3599999999999
   }
  },
  "scenarios": [
@@ -14088,7 +14523,7 @@
      "vollmacht": false
     },
     "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152408\n2. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120234\n2. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -14267,11 +14702,6 @@
      "wallCladdingSupplier": "hm"
     }
    },
-   "elsewhere": {
-    "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152425\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
-    }
-   },
    "view": {
     "rows": [
      [
@@ -14365,11 +14795,6 @@
      "wallCladdingPanelSize": "997",
      "wallCladdingQty": "40",
      "wallCladdingSupplier": "hm"
-    }
-   },
-   "elsewhere": {
-    "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152435\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -14676,7 +15101,7 @@
      "vollmacht": false
     },
     "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152540\n2. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120405\n2. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -14839,7 +15264,7 @@
    },
    "elsewhere": {
     "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152600\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120425\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -15012,7 +15437,7 @@
    },
    "elsewhere": {
     "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152620\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120444\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -15138,7 +15563,7 @@
    },
    "elsewhere": {
     "mail": {
-     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1113-152928\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120453\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
     }
    },
    "view": {
@@ -15300,6 +15725,543 @@
     },
     "bonusTotal": "",
     "priceKey": "Kassenkunde|50%|false|0|false|false|40|1"
+   }
+  },
+  {
+   "name": "Neukundenbonus, then the total below the threshold",
+   "steps": [
+    [
+     "big"
+    ],
+    [
+     "rabatt",
+     "ja"
+    ],
+    [
+     "b300"
+    ],
+    [
+     "small"
+    ]
+   ],
+   "rabatt": {
+    "bonus300": true,
+    "rabattEnabled": true,
+    "rb-add-rabatt": "ja"
+   },
+   "pricingRules": {},
+   "setup": {
+    "duschwanne": {
+     "addWallCladding": "on",
+     "computed": {
+      "adhesive": {
+       "packs": 0,
+       "productId": "R_4260602",
+       "total": 0,
+       "unit": 0
+      },
+      "areaM2": 0,
+      "sealing": {
+       "productId": "TRBDSET7",
+       "sets": 0,
+       "total": 0,
+       "unit": 0
+      }
+     },
+     "wallCladdingArea": "4,5",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "2",
+     "wallCladdingSupplier": "hm"
+    }
+   },
+   "view": {
+    "rows": [
+     [
+      "IAuszuführende Arbeiten",
+      "1.065,00 €"
+     ],
+     [
+      "IIMaterial für Badumbau",
+      "446,24 €"
+     ],
+     [
+      "Aufschlag 50%",
+      "223,12 €"
+     ]
+    ],
+    "net": "1.734,36 €",
+    "vat": "329,53 €",
+    "total": "2.063,89 €",
+    "heading": "Rabatt für Kassenkunde",
+    "choice": "ja",
+    "controls": true,
+    "empty": "",
+    "slider": {
+     "shown": true,
+     "value": "0",
+     "text": "0,0%",
+     "min": "0",
+     "max": "9",
+     "step": "0.1"
+    },
+    "rabatt": "",
+    "after": "",
+    "b300": {
+     "shown": false,
+     "checked": true,
+     "text": "Möchten Sie den Neukundenbonus in Höhe von 250,00 € brutto hinzufügen? (ab einem Gesamtwert über 5.000 €)"
+    },
+    "bgrab": {
+     "shown": false,
+     "checked": false,
+     "text": "Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage."
+    },
+    "bonusTotal": "2.063,89 €",
+    "priceKey": "Kassenkunde|50%|true|0|true|false|2|0"
+   }
+  },
+  {
+   "name": "Neukundenbonus, reopened",
+   "steps": [
+    [
+     "big"
+    ],
+    [
+     "rabatt",
+     "ja"
+    ],
+    [
+     "b300"
+    ],
+    [
+     "reopen"
+    ]
+   ],
+   "rabatt": {
+    "bonus300": true,
+    "rabattEnabled": true,
+    "rb-add-rabatt": "ja"
+   },
+   "pricingRules": {},
+   "setup": {
+    "duschwanne": {
+     "addWallCladding": "on",
+     "wallCladdingArea": "4,5",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "40",
+     "wallCladdingSupplier": "hm"
+    }
+   },
+   "elsewhere": {
+    "wandverkleidung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     },
+     "wvSketchJson": "{\"version\":1,\"ops\":[]}"
+    },
+    "duschabtrennung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     }
+    }
+   },
+   "view": {
+    "rows": [
+     [
+      "IAuszuführende Arbeiten",
+      "1.065,00 €"
+     ],
+     [
+      "IIMaterial für Badumbau",
+      "7.128,16 €"
+     ],
+     [
+      "Aufschlag 50%",
+      "3.564,08 €"
+     ]
+    ],
+    "net": "11.757,24 €",
+    "vat": "2.233,88 €",
+    "total": "13.991,12 €",
+    "heading": "Rabatt für Kassenkunde",
+    "choice": "ja",
+    "controls": true,
+    "empty": "",
+    "slider": {
+     "shown": true,
+     "value": "0",
+     "text": "0,0%",
+     "min": "0",
+     "max": "9",
+     "step": "0.1"
+    },
+    "rabatt": "",
+    "after": "",
+    "b300": {
+     "shown": true,
+     "checked": true,
+     "text": "Möchten Sie den Neukundenbonus in Höhe von 250,00 € brutto hinzufügen? (ab einem Gesamtwert über 5.000 €)"
+    },
+    "bgrab": {
+     "shown": false,
+     "checked": false,
+     "text": "Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage."
+    },
+    "bonusTotal": "13.741,12 €",
+    "priceKey": "Kassenkunde|50%|true|0|true|false|40|0"
+   }
+  },
+  {
+   "name": "Neukundenbonus below the threshold, reopened",
+   "steps": [
+    [
+     "big"
+    ],
+    [
+     "rabatt",
+     "ja"
+    ],
+    [
+     "b300"
+    ],
+    [
+     "small"
+    ],
+    [
+     "reopen"
+    ]
+   ],
+   "rabatt": {
+    "bonus300": true,
+    "rabattEnabled": true,
+    "rb-add-rabatt": "ja"
+   },
+   "pricingRules": {},
+   "setup": {
+    "duschwanne": {
+     "addWallCladding": "on",
+     "wallCladdingArea": "4,5",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "2",
+     "wallCladdingSupplier": "hm"
+    }
+   },
+   "elsewhere": {
+    "wandverkleidung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     },
+     "wvSketchJson": "{\"version\":1,\"ops\":[]}"
+    },
+    "duschabtrennung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     }
+    }
+   },
+   "view": {
+    "rows": [
+     [
+      "IAuszuführende Arbeiten",
+      "1.065,00 €"
+     ],
+     [
+      "IIMaterial für Badumbau",
+      "446,24 €"
+     ],
+     [
+      "Aufschlag 50%",
+      "223,12 €"
+     ]
+    ],
+    "net": "1.734,36 €",
+    "vat": "329,53 €",
+    "total": "2.063,89 €",
+    "heading": "Rabatt für Kassenkunde",
+    "choice": "ja",
+    "controls": true,
+    "empty": "",
+    "slider": {
+     "shown": true,
+     "value": "0",
+     "text": "0,0%",
+     "min": "0",
+     "max": "9",
+     "step": "0.1"
+    },
+    "rabatt": "",
+    "after": "",
+    "b300": {
+     "shown": false,
+     "checked": true,
+     "text": "Möchten Sie den Neukundenbonus in Höhe von 250,00 € brutto hinzufügen? (ab einem Gesamtwert über 5.000 €)"
+    },
+    "bgrab": {
+     "shown": false,
+     "checked": false,
+     "text": "Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage."
+    },
+    "bonusTotal": "2.063,89 €",
+    "priceKey": "Kassenkunde|50%|true|0|true|false|2|0"
+   }
+  },
+  {
+   "name": "free grab bar, reopened",
+   "steps": [
+    [
+     "grab",
+     "1"
+    ],
+    [
+     "rabatt",
+     "ja"
+    ],
+    [
+     "bgrab"
+    ],
+    [
+     "reopen"
+    ]
+   ],
+   "rabatt": {
+    "bonusGrab": true,
+    "rabattEnabled": true,
+    "rb-add-rabatt": "ja"
+   },
+   "pricingRules": {
+    "grabBonusIds": [
+     "CLPESG30",
+     "CLPESG40",
+     "CLPESG60",
+     "CLPESG80"
+    ],
+    "grabBonusRefId": "CLPESG30"
+   },
+   "setup": {
+    "duschwanne": {
+     "computed": {
+      "adhesive": {
+       "packs": 0,
+       "productId": "R_4260602",
+       "total": 0,
+       "unit": 0
+      },
+      "areaM2": 0,
+      "sealing": {
+       "effM2": 0,
+       "productId": "TRBDSET7",
+       "rolls": 0,
+       "sets": 0,
+       "total": 0,
+       "unitRoll": 0,
+       "unitSet": 0
+      }
+     }
+    },
+    "optional": {
+     "optGrab[]": [
+      "Haltegriff clivia V2 plus 300mm m. Ros. Edelstahl glatt poliert,VIGOUR CLPESG30"
+     ],
+     "qty_CLPESG30": "1"
+    }
+   },
+   "elsewhere": {
+    "wandverkleidung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     },
+     "wvSketchJson": "{\"version\":1,\"ops\":[]}"
+    },
+    "duschabtrennung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     }
+    },
+    "mail": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120606\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    }
+   },
+   "view": {
+    "rows": [
+     [
+      "IAuszuführende Arbeiten",
+      "1.065,00 €"
+     ],
+     [
+      "IIMaterial für Badumbau",
+      "0,00 €"
+     ],
+     [
+      "IIIOptionale Produkte",
+      "37,46 €"
+     ],
+     [
+      "Aufschlag 50%",
+      "0,00 €"
+     ]
+    ],
+    "net": "1.102,46 €",
+    "vat": "209,47 €",
+    "total": "1.311,93 €",
+    "heading": "Rabatt für Kassenkunde",
+    "choice": "ja",
+    "controls": true,
+    "empty": "",
+    "slider": {
+     "shown": true,
+     "value": "0",
+     "text": "0,0%",
+     "min": "0",
+     "max": "9",
+     "step": "0.1"
+    },
+    "rabatt": "",
+    "after": "",
+    "b300": {
+     "shown": false,
+     "checked": false,
+     "text": "Möchten Sie den Neukundenbonus in Höhe von 250,00 € brutto hinzufügen? (ab einem Gesamtwert über 5.000 €)"
+    },
+    "bgrab": {
+     "shown": true,
+     "checked": true,
+     "text": "Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage."
+    },
+    "bonusTotal": "1.267,35 €",
+    "priceKey": "Kassenkunde|50%|true|0|false|true|0|1"
+   }
+  },
+  {
+   "name": "everything, reopened",
+   "steps": [
+    [
+     "big"
+    ],
+    [
+     "grab",
+     "1"
+    ],
+    [
+     "rabatt",
+     "ja"
+    ],
+    [
+     "slider",
+     "5"
+    ],
+    [
+     "b300"
+    ],
+    [
+     "bgrab"
+    ],
+    [
+     "reopen"
+    ]
+   ],
+   "rabatt": {
+    "bonus300": true,
+    "bonusGrab": true,
+    "materialDiscountPct": 0.05,
+    "rabattEnabled": true,
+    "rb-add-rabatt": "ja"
+   },
+   "pricingRules": {
+    "grabBonusIds": [
+     "CLPESG30",
+     "CLPESG40",
+     "CLPESG60",
+     "CLPESG80"
+    ],
+    "grabBonusRefId": "CLPESG30"
+   },
+   "setup": {
+    "duschwanne": {
+     "addWallCladding": "on",
+     "wallCladdingArea": "4,5",
+     "wallCladdingPanelSize": "997",
+     "wallCladdingQty": "40",
+     "wallCladdingSupplier": "hm"
+    },
+    "optional": {
+     "optGrab[]": [
+      "Haltegriff clivia V2 plus 300mm m. Ros. Edelstahl glatt poliert,VIGOUR CLPESG30"
+     ],
+     "qty_CLPESG30": "1"
+    }
+   },
+   "elsewhere": {
+    "wandverkleidung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     },
+     "wvSketchJson": "{\"version\":1,\"ops\":[]}"
+    },
+    "duschabtrennung": {
+     "sketch": {
+      "dataUrl": "",
+      "json": "{\"version\":1,\"ops\":[]}"
+     }
+    },
+    "mail": {
+     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.\n• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1119-120620\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    }
+   },
+   "view": {
+    "rows": [
+     [
+      "IAuszuführende Arbeiten",
+      "1.065,00 €"
+     ],
+     [
+      "IIMaterial für Badumbau",
+      "7.128,16 €"
+     ],
+     [
+      "IIIOptionale Produkte",
+      "37,46 €"
+     ],
+     [
+      "Aufschlag 50%",
+      "3.564,08 €"
+     ]
+    ],
+    "net": "11.794,70 €",
+    "vat": "2.240,99 €",
+    "total": "14.035,69 €",
+    "heading": "Rabatt für Kassenkunde",
+    "choice": "ja",
+    "controls": true,
+    "empty": "",
+    "slider": {
+     "shown": true,
+     "value": "5",
+     "text": "5,0%",
+     "min": "0",
+     "max": "9",
+     "step": "0.1"
+    },
+    "rabatt": "358,28 €",
+    "after": "13.609,34 €",
+    "b300": {
+     "shown": true,
+     "checked": true,
+     "text": "Möchten Sie den Neukundenbonus in Höhe von 250,00 € brutto hinzufügen? (ab einem Gesamtwert über 5.000 €)"
+    },
+    "bgrab": {
+     "shown": true,
+     "checked": true,
+     "text": "Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage."
+    },
+    "bonusTotal": "13.314,77 €",
+    "priceKey": "Kassenkunde|50%|true|0.05|true|true|40|1"
    }
   }
  ]

@@ -7,8 +7,8 @@
 import { FileCheck, FilePen, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { Check, DropZone, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
-import { useOfferStore } from "../../offer/index.js";
-import { attachments, ccDefault, countText, mailChanges, previewHtml, touchedOf, type MailField, type Touched } from "./mail-rules.js";
+import { useOfferStore, usePrice } from "../../offer/index.js";
+import { attachments, bonusKey, bonusNeuFor, ccDefault, countText, mailChanges, previewHtml, touchedOf, type MailField, type Touched } from "./mail-rules.js";
 import { TEXT, addFiles, fileSize, isDocx } from "./send-rules.js";
 
 type Offer = Record<string, unknown>;
@@ -24,16 +24,21 @@ export function Mail() {
   const removed = (useOfferStore((s) => s.scratch.mailRemoved) as string[] | undefined) ?? [];
   const uploads = (useOfferStore((s) => s.scratch.mailUploads) as File[] | undefined) ?? [];
   const dealMissing = useOfferStore((s) => s.scratch.dealMissing) === true; // a send was refused for want of it
+  // the Neukundenbonus is advertised only while the price grants it (main d0528418); no answer yet: as ticked
+  const live = ((usePrice().data as { flags?: { bonus_neu?: unknown } } | null)?.flags?.bonus_neu);
+  const at = useOfferStore((s) => s.scratch.mailBonusNeuAt) as { flag?: unknown; key?: string } | undefined;
+  const bonusNeu = bonusNeuFor(live, at, bonusKey(offer, applied));
+  useEffect(() => { if (st().scratch.mailBonusNeu !== bonusNeu) st().remember("mailBonusNeu", bonusNeu); }, [bonusNeu]); // a new number elsewhere writes the text too (number.ts)
   // an opened offer: what differs from what the offer would write by itself was changed by hand
-  const touched = useMemo(() => remembered ?? touchedOf(offerNow()), [remembered]);
+  const touched = useMemo(() => remembered ?? touchedOf(offerNow(), bonusNeu), [remembered]); // eslint-disable-line react-hooks/exhaustive-deps -- decided once, on opening
   const mail = (offer.mail ?? {}) as Record<string, unknown>;
   useEffect(() => { if (!remembered) st().remember("mailTouched", touched); }, [remembered, touched]); // other parts of the step read it (a new offer number)
 
   // fields not changed by hand follow the offer; a text changed by hand keeps its list, bonus line and number
   useEffect(() => {
-    const change = mailChanges(offer, touched, applied);
+    const change = mailChanges(offer, touched, applied, bonusNeu);
     if (Object.keys(change).length) st().patch("mail" as never, change as never);
-  }, [offer, touched, applied]);
+  }, [offer, touched, applied, bonusNeu]);
 
   const type = (field: MailField, value: string) => { st().remember("mailTouched", { ...touched, [field]: true }); st().patch("mail" as never, { [field]: value } as never); };
   const deal = String(offer.auftragId ?? mail.auftragId ?? "");

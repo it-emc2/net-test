@@ -6,13 +6,19 @@
 //
 //   bash v2/scripts/preview.sh &
 //   node v2/scripts/capture-wv-badolux.cjs   → v2/apps/web/test/fixtures/wv-badolux.json
+// New offers open the winwall simple view (main 2026-11-18, item 2 of the main sync — not in React yet):
+// the recorder switches to the classic editor ("Alter Konfigurator"), which React's step is, and
+// leaves that switch (wvUi "") out of what the scenario stores. ONLY="name|name" re-records these
+// scenarios into the existing file (the others stay); OUT=<file> writes elsewhere.
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
-const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "wv-badolux.json");
+const FIXTURE = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "wv-badolux.json");
+const OUT = process.env.OUT || FIXTURE;
+const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split("|")) : null;
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
 const B = [["on"], ["line", "standard"]];
@@ -75,9 +81,10 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
   // RESUME=1: keep what an interrupted run already recorded (this machine crashes at random)
   const kept = [OUT + ".part", OUT].find((f) => fs.existsSync(f)); // …or add scenarios to a finished recording
   if (process.env.RESUME && kept) Object.assign(out, JSON.parse(fs.readFileSync(kept, "utf8")));
-  const have = new Set(out.scenarios.map((x) => x.name));
+  else if (ONLY) Object.assign(out, JSON.parse(fs.readFileSync(fs.existsSync(OUT) ? OUT : FIXTURE, "utf8")));
+  const have = new Set(ONLY && !process.env.RESUME ? [] : out.scenarios.map((x) => x.name));
   for (const [name, steps] of Object.entries(SCENARIOS)) {
-    if (have.has(name)) continue;
+    if (have.has(name) || (ONLY && !ONLY.has(name))) continue;
     const record = async () => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
       await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
@@ -100,7 +107,11 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       let next = null;
       const krow = (n) => `#wvKRows .wv-row:nth-child(${n})`;
       for (const [kind, a, b] of steps) {
-        if (kind === "on" || kind === "off") await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+        if (kind === "on" || kind === "off") {
+          await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+          await page.waitForTimeout(500);
+          if (await page.locator("#wvSimple .wvs-classic").isVisible()) await page.locator("#wvSimple .wvs-classic").click(); // the classic editor (React's)
+        }
         else if (kind === "line") await page.locator(`${P} .tier-seg__btn[data-tier="${a}"]`).first().click();
         else if (kind === "row+") await page.locator("#wvKRowAdd").click();
         else if (kind === "row") await page.locator(`${krow(a)} > .wv-row__name`).click();
@@ -158,7 +169,9 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       if (!out.tiles || !out.tiles.length) out.tiles = await page.evaluate(() => [...document.querySelectorAll('#wvBudgetColors input[name="wvColor"]')].map((i) => ({ value: i.value, caption: (i.closest("label").querySelector(".caption")?.textContent || "").trim(), img: i.closest("label").querySelector("img")?.getAttribute("src") || "" })));
       await ctx.close();
       console.log(name);
-      return { name, steps, wandverkleidung: sortKeys(changed(base.wandverkleidung, now.wandverkleidung)), duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), view, ...(next ? { next } : {}) };
+      const wvChanged = changed(base.wandverkleidung, now.wandverkleidung);
+      if (wvChanged.wvUi === "") delete wvChanged.wvUi; // the switch to the classic editor (see top)
+      return { name, steps, wandverkleidung: sortKeys(wvChanged), duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), view, ...(next ? { next } : {}) };
     };
     let entry;
     for (let attempt = 1; !entry; attempt++) {
@@ -170,7 +183,8 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
         browser = await chromium.launch({ headless: true });
       }
     }
-    out.scenarios.push(entry);
+    const at = out.scenarios.findIndex((x) => x.name === name);
+    if (at >= 0) out.scenarios[at] = entry; else out.scenarios.push(entry);
     fs.writeFileSync(OUT + ".part", JSON.stringify(out));
   }
   await browser.close();

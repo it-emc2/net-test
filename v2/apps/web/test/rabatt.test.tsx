@@ -1,7 +1,7 @@
 // Aufschlag / Rabatt, the discount part, must store and show what today's UI does for the same
 // inputs. Reference: fixtures/rabatt.json, recorded from today's UI by v2/scripts/capture-rabatt.cjs
 // (with every price answer, keyed by the part of the request that decides it).
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
@@ -20,8 +20,10 @@ const PRICES = reference.prices as Record<string, Record<string, unknown>>;
 const keyOf = (p: any) => [p?.Kundendaten?.payer, p?.Kundendaten?.aufschlag, !!p?.rabatt?.rabattEnabled, Number(p?.rabatt?.materialDiscountPct) || 0, !!p?.rabatt?.bonus300, !!p?.rabatt?.bonusGrab, Number(p?.duschwanne?.wallCladdingQty) || 0, Number(p?.optional?.qty_CLPESG30) || 0].join("|");
 const GRAB_IDS = ["CLPESG30", "CLPESG40", "CLPESG60", "CLPESG80"];
 
+const handlers = (draft?: unknown) => ({ ...BASE, "GET /admin/api/config/public": { body: { ...arbeiten.config, GRAB_BONUS_IDS: GRAB_IDS } }, "POST /api/price": (body: unknown) => ({ body: PRICES[keyOf(body)] ?? { total: 0 } }),
+  ...(draft ? { "GET /api/deals/*/draft": { body: { dealId: "4711", revision: 3, offerType: "bu", payload: draft, updatedAt: "2026-11-19T10:00:00.000Z", updatedBy: "ap@example.test" } } } : {}) });
 async function open(setup: Record<string, Record<string, unknown>> = {}) {
-  const server = fakeServer({ ...BASE, "GET /admin/api/config/public": { body: { ...arbeiten.config, GRAB_BONUS_IDS: GRAB_IDS } }, "POST /api/price": (body) => ({ body: PRICES[keyOf(body)] ?? { total: 0 } }) });
+  const server = fakeServer(handlers());
   renderApp(`/deal/${KEY}/bu/Rabatt`);
   await screen.findByRole("heading", { name: "Übersicht" });
   // what the scenario set on other steps (payer, material, a grab bar)
@@ -30,10 +32,21 @@ async function open(setup: Record<string, Record<string, unknown>> = {}) {
   if (Object.keys(clean).length) useOfferStore.getState().patchAll(clean);
   return { base: structuredClone(offer()), server };
 }
-async function play(steps: (string | number)[][]) {
+/** the offer as it is now is saved and opened again (as a draft of a deal): a new page, nothing remembered */
+async function reopen() {
+  const saved = structuredClone(offer());
+  cleanup();
+  useOfferStore.getState().close();
+  fakeServer(handlers(saved));
+  renderApp("/deal/4711/bu/Rabatt");
+  await screen.findByRole("heading", { name: "Übersicht" });
+}
+async function play(steps: (string | number)[][], setup: Record<string, Record<string, unknown>> = {}) {
   const user = userEvent.setup();
   for (const [kind, a] of steps) {
     if (kind === "payer" || kind === "big" || kind === "grab") continue; // set up on other steps
+    if (kind === "small") { useOfferStore.getState().patchAll({ duschwanne: { wallCladdingQty: setup.duschwanne!.wallCladdingQty } }); continue; } // the panels on the Fußboden step, down to what the recording ends with
+    if (kind === "reopen") { await reopen(); continue; }
     if (kind === "auf") fireEvent.change(screen.getByLabelText("Aufschlag in Prozent"), { target: { value: a } });
     else if (kind === "rabatt") await user.click(screen.getByRole("radio", { name: a === "ja" ? "Rabatt hinzufügen" : "Kein Rabatt" }));
     else if (kind === "slider") fireEvent.change(await screen.findByLabelText("Rabatt in Prozent (0–9%)"), { target: { value: a } });
@@ -54,8 +67,10 @@ interface View {
 
 describe("Rabatt stores and shows what today's UI does", () => {
   it.each(reference.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
-    const { base } = await open(scenario.setup as Record<string, Record<string, unknown>>);
-    await play(scenario.steps as (string | number)[][]);
+    const setup = scenario.setup as Record<string, Record<string, unknown>>, steps = scenario.steps as (string | number)[][];
+    // with ["small"] the offer starts with the 40 panels of ["big"]; "small" brings them down to the recording's end
+    const { base } = await open(steps.some(([k]) => k === "small") ? { ...setup, duschwanne: { ...setup.duschwanne, wallCladdingQty: "40" } } : setup);
+    await play(steps, setup);
     const v = scenario.view as unknown as View;
     await waitFor(() => expect([changed(base.rabatt, offer().rabatt), changed(base.pricingRules, offer().pricingRules)]).toEqual([scenario.rabatt, scenario.pricingRules]));
 
@@ -77,7 +92,21 @@ describe("Rabatt stores and shows what today's UI does", () => {
     if (bonus) expect([bonus.checked, flat(bonus.closest("label")!.textContent)]).toEqual([v.b300.checked, v.b300.text]);
     if (grab) expect([grab.checked, flat(grab.closest("label")!.textContent)]).toEqual([v.bgrab.checked, v.bgrab.text]);
     expect(screen.queryByTestId("rb-after-bonus")?.textContent ?? "").toBe(v.bonusTotal);
-  });
+  }, 20000);
+});
+
+describe("Rabatt — the mail text after a tick (main d0528418, legacy ported as is)", () => {
+  it("ticking the Neukundenbonus remembers the price answer from before the tick for the mail text (flags.bonus_neu false there)", async () => {
+    const sc = reference.scenarios.find((x) => x.name === "Neukundenbonus")!;
+    await open(sc.setup as Record<string, Record<string, unknown>>);
+    await play([["rabatt", "ja"]]);
+    const box = await screen.findByRole("checkbox", { name: /Neukundenbonus/ });
+    await waitFor(() => expect((PRICES[keyOf(offer())] as any)?.flags?.bonus_neu).toBe(false)); // the answer there before the tick
+    await new Promise((r) => setTimeout(r, 400)); // that answer is on the page
+    await userEvent.setup().click(box);
+    expect((useOfferStore.getState().scratch.mailBonusNeuAt as { flag?: unknown }).flag).toBe(false);
+    await waitFor(() => expect(offer().rabatt.bonus300).toBe(true));
+  }, 20000);
 });
 
 describe("Aufschlag — the switch for offers stored under the old rule", () => {
@@ -121,11 +150,14 @@ describe("Rabatt — rules", () => {
     expect([r.grabOffered(price, GRAB_IDS), r.grabOffered(price, ["CLPESG30"]), r.grabOffered(null, GRAB_IDS)]).toEqual([true, false, false]);
   });
 
-  it("what no longer applies is taken back; offers from before the setting keep their Neukundenbonus", () => {
+  it("what no longer applies is taken back — never the Neukundenbonus (main d0528418), the free grab bar only without an eligible bar in price AND offer (main b806c0e8)", () => {
     const kk = { payer: "Kassenkunde", aufschlag: "50%" }, on = { rabattEnabled: true, materialDiscountPct: 0.05, bonus300: true, bonusGrab: true };
     const rules = { bonusNeuGross: 250, bonusNeuThreshold: 5000 }, low = { totalAfterRabatt: 1200, materials: { lines: [] } };
     expect(r.corrections({ rabatt: on, Kundendaten: { ...kk, aufschlag: "40%" }, pricingRules: rules }, null, {})).toEqual({ rabatt: { materialDiscountPct: 0 } }); // without a price only what needs none
-    expect(r.corrections({ rabatt: on, Kundendaten: kk, pricingRules: rules }, low, {})).toEqual({ rabatt: { bonus300: false, bonusGrab: false }, pricingRules: { grabBonusIds: undefined, grabBonusRefId: undefined } });
+    // recorded: "Neukundenbonus, then the total below the threshold" keeps bonus300 true in today's UI
+    expect(r.corrections({ rabatt: on, Kundendaten: kk, pricingRules: rules }, low, {})).toEqual({ rabatt: { bonusGrab: false }, pricingRules: { grabBonusIds: undefined, grabBonusRefId: undefined } });
+    expect(r.corrections({ rabatt: { ...on, materialDiscountPct: 0 }, Kundendaten: kk, pricingRules: rules, optional: { qty_CLPESG30: "1" } }, low, {})).toBeNull(); // a stale price: the bar is in the offer
+    expect([r.grabInOffer({ qty_CLPESG40: "2" }, GRAB_IDS), r.grabInOffer({ qty_CLPESG40: "2" }, ["CLPESG30"]), r.grabInOffer(undefined, GRAB_IDS)]).toEqual([true, false, false]);
     expect(r.corrections({ rabatt: on, Kundendaten: kk, pricingRules: {} }, { ...low, materials: { lines: [{ productId: "CLPESG30", qty: 1 }] } }, {})).toBeNull(); // legacy bonus stays, the bar is there
     expect(r.corrections({ rabatt: { ...on, rabattEnabled: false }, Kundendaten: { payer: "Selbstzahler" } }, low, {})).toBeNull();
   });

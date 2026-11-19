@@ -41,6 +41,10 @@ const ALL = ["hp", "all"]; // tick every main item and send
 //   ["answer", path, status, body] the next request to this route is answered so · ["deal" | "to" | "note", text] ·
 //   ["file", "attachments" | "bitrix" | "docx", name] a file chosen · ["untile", name] / ["unbitrix", name] / ["undocx"] removed ·
 //   ["doc", id] a tick of "Mitgesendete Unterlagen" · ["tile", name] an attachment taken off the list
+// wall cladding (`wv`, on the step Wandverkleidung, classic editor): ["wall"] a winwall wall of 170 cm with a decor ·
+//   ["wwrow", text] a winwall row more with a typed decor number (main 81f73fc7: an invalid one is asked before sending).
+//   With `wv` the scenario also keeps the last price answer (`price`), which the main items are read from.
+// RESUME=1 ONLY="name|name" adds these scenarios to the finished recording.
 const SCENARIOS = {
   "nothing entered on Kundendaten": { acts: [["send"]] },
   "no deal number": { setup: KUNDE, acts: [["send"]] },
@@ -67,6 +71,10 @@ const SCENARIOS = {
   "documents taken out": { setup: KUNDE, pre: [...READY, ["doc", "abtretung"], ["tile", "Vollmacht.pdf"]], acts: [["send"], ALL, ["close"]] },
   "Badewannentür": { type: "bwt", setup: KUNDE, pre: READY, acts: [["send"], ["close"]] },
   "Alltagshilfe": { type: "ah", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
+  // main 81f73fc7 / 68b454a9: winwall plates count as wall cladding; rows with an invalid decor are asked
+  "winwall plates: no question about the wall cladding": { setup: KUNDE, wv: [["wall"]], pre: READY, acts: [["send"], ALL, ["close"]] },
+  "winwall row with an invalid decor: back": { setup: KUNDE, wv: [["wwrow", "23014"]], pre: READY, acts: [["send"], ["hp", "back"]] },
+  "winwall plates and a row with an invalid decor": { setup: KUNDE, wv: [["wall"], ["wwrow", "23014"]], pre: READY, acts: [["send"], ALL, ["close"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;
@@ -106,8 +114,9 @@ if (require.main !== module) { module.exports = { SCENARIOS }; return; } // the 
   const kept = [OUT + ".part", OUT].find((f) => fs.existsSync(f));
   if (process.env.RESUME && kept) Object.assign(out, JSON.parse(fs.readFileSync(kept, "utf8")));
   const have = new Set(out.scenarios.map((x) => x.name));
-  for (const [name, { type = "bu", setup = [], pre = [], acts = [] }] of Object.entries(SCENARIOS)) {
-    if (have.has(name) || (process.env.ONLY && name !== process.env.ONLY)) continue;
+  const only = process.env.ONLY ? new Set(process.env.ONLY.split("|")) : null;
+  for (const [name, { type = "bu", setup = [], wv = [], pre = [], acts = [] }] of Object.entries(SCENARIOS)) {
+    if (have.has(name) || (only && !only.has(name))) continue;
     const record = async () => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block", locale: "de-DE", timezoneId: "Europe/Berlin" });
       await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
@@ -151,6 +160,8 @@ if (require.main !== module) { module.exports = { SCENARIOS }; return; } // the 
       });
       await page.route("**/api/planning/**", (r) => r.abort());
       await page.route("**/v2/addons/**", (r) => (r.request().url().endsWith("/error-compat.js") ? r.continue() : r.abort()));
+      let lastPrice = null;
+      page.on("response", async (res) => { if (res.ok() && new URL(res.url()).pathname === "/api/price" && res.request().method() === "POST") { try { lastPrice = await res.json(); } catch {} } });
       await page.addInitScript(() => { window.__toasts = []; });
       const alerts = [];
       page.on("dialog", (d) => { alerts.push(d.message()); d.accept().catch(() => {}); });
@@ -171,6 +182,22 @@ if (require.main !== module) { module.exports = { SCENARIOS }; return; } // the 
         await page.waitForTimeout(80);
       }
       await page.waitForTimeout(600);
+      if (wv.length) {
+        const P = "#page-Wandverkleidung";
+        await go("Wandverkleidung");
+        await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+        await page.waitForTimeout(500);
+        if (await page.locator("#wvSimple .wvs-classic").isVisible()) await page.locator("#wvSimple .wvs-classic").click(); // the classic editor (React's)
+        await page.locator(`${P} label.ios-check-row:has(input[name="wvKind"][value="Deckenhoch"])`).click();
+        for (const [kind, a] of wv) {
+          if (kind === "wall") { await page.locator("#wvKBack").fill("170"); await page.locator("#wvKBack").blur(); await page.waitForTimeout(600); await page.locator('#wvKeramicoCalc .kc-row[data-wall="back"] .kc-decor').click(); await page.locator('#wvKeramicoCalc .kc-wall-body[data-body="back"] label.image-check:has(input[value="WS229"])').click(); }
+          else if (kind === "wwrow") { await page.locator("#wvWwRowAdd").click(); await page.locator('#wvWwDecors label.image-check:has(input[value="custom"])').click(); await page.locator("#wvWwDecorCustom").fill(a); await page.locator("#wvWwDecorCustom").blur(); }
+          else throw new Error(`wv step not handled: ${kind}`);
+          await page.waitForTimeout(800);
+        }
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await page.waitForTimeout(800);
+      }
       await go("Zusammenfassung");
       await page.waitForTimeout(1000);
       const act = async (kind, a, b, c) => {
@@ -223,7 +250,7 @@ if (require.main !== module) { module.exports = { SCENARIOS }; return; } // the 
         };
       });
       const offer = await page.evaluate(() => window.buildPayload());
-      const entry = { name, type, setup, pre, answers: acts.filter(([k]) => k === "answer").map(([, p, st, body]) => [p, st, body]), offer: changed(base, offer), view: mask(await viewOf()), acts: [] };
+      const entry = { name, type, setup, ...(wv.length ? { wv, price: lastPrice } : {}), pre, answers: acts.filter(([k]) => k === "answer").map(([, p, st, body]) => [p, st, body]), offer: changed(base, offer), view: mask(await viewOf()), acts: [] };
       for (const [kind, a, b, c] of acts) {
         if (kind === "answer") { await act(kind, a, b, c); continue; }
         seen.length = 0; alerts.length = 0;

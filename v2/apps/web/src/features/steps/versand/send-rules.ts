@@ -1,6 +1,8 @@
 // Sending the offer — the rules of today's UI (src/public/EmailManager.js send(), angebotscheck.js
 // confirmHauptpunkte; reference: test/fixtures/versand-senden.json, v2/scripts/capture-versand-senden.cjs):
 //  - before sending: Kundendaten and markup complete, a deal number, a recipient, and for Badumbau one confirmation per main item that is not in the offer
+//    (a winwall plate counts as a panel); plus one confirmation when a winwall row has no valid decor
+//    number — those plates are missing in price and offer (main 81f73fc7, 68b454a9). Never a block.
 //  - the documents for Bitrix are made first (DOCX of the offer, Hassmann CSV, Kalkulation, the
 //    carts and the note on online orders); a missing optional cart never stops the send, any
 //    other missing document does — no partial set goes out
@@ -8,7 +10,7 @@
 //  - afterwards: the dialog with the move of the deal to "ANG verschickt"
 //  - the send guard of v2 (ADR 023): a `sendId`, no time limit, and if the connection drops the
 //    send is followed on the server until it is finished
-import { selectionOf, wvPanels, type Price } from "../angebotscheck/rules.js";
+import { anyWvPanels, selectionOf, type Price } from "../angebotscheck/rules.js";
 import { isOn as curtainOn } from "../duschvorhang/rules.js";
 
 type Fields = Record<string, unknown>;
@@ -36,13 +38,21 @@ function envOf(offer: Fields, price: Price | null | undefined): Env {
   const daIds = new Set(daLines.map((l) => str(l?.articleNumber))), curtainIds = new Set(curtain.map((l) => str(l?.articleNumber)));
   // picks of the older Duschabtrennung page share quickAdd with the configurator and curtain lines
   const daOldPicks = (list(da.quickAdd) as Fields[]).filter((q) => !daIds.has(str(q?.productId)) && !curtainIds.has(str(q?.productId))).length;
-  return { daLines: daLines.length, daOldPicks, curtainLines: curtain.length, optionalLines: lines(price?.optionalDisplayUI).length, wvPanels: wvPanels(obj(price?.materialsDisplayUI ?? price?.materials)) };
+  return { daLines: daLines.length, daOldPicks, curtainLines: curtain.length, optionalLines: lines(price?.optionalDisplayUI).length, wvPanels: anyWvPanels(obj(price?.materialsDisplayUI ?? price?.materials)) };
 }
-/** the main items not in this offer (Badumbau only) */
+/** winwall rows with a typed decor that is no decor number ("23013"): priced as nothing, left out of PDF and offer */
+export function invalidDecorRows(offer: Fields): MainItem[] {
+  const wv = obj(offer.wandverkleidung);
+  if (!wv.wvEnabled) return [];
+  try {
+    const bad = (list(JSON.parse(String(wv.wvWwRows || "[]"))) as Fields[]).some((r) => !r?.code && Number(r?.qty) > 0);
+    return bad ? [{ key: "wvDekorUngueltig", page: "Wandverkleidung", question: "In der Wandverkleidung gibt es Platten-Zeilen mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot." }] : [];
+  } catch { return []; }
+}
+/** the main items not in this offer (Badumbau only), then the winwall rows without a valid decor (any offer, as today) */
 export function missingMain(offer: Fields, price: Price | null | undefined): MainItem[] {
-  if (str(offer.activeOffer).toLowerCase() !== "bu") return [];
-  const env = envOf(offer, price);
-  return MAIN.filter((m) => { try { return !m.selected(offer, env); } catch { return false; } }).map(({ selected: _s, ...m }) => m);
+  const main = str(offer.activeOffer).toLowerCase() !== "bu" ? [] : (() => { const env = envOf(offer, price); return MAIN.filter((m) => { try { return !m.selected(offer, env); } catch { return false; } }).map(({ selected: _s, ...m }) => m); })();
+  return [...main, ...invalidDecorRows(offer)];
 }
 
 // ---- the documents for Bitrix ----

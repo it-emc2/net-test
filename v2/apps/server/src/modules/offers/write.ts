@@ -29,13 +29,26 @@ export async function resolveAnsprechpartner(kundendaten: any, reqUser: { email?
   return { ...k, ansprechpartner: user.email, emc2_contact: user.name || user.email };
 }
 
+/**
+ * ANG<YYYY>-<MMDD>-<HHmmss> in Europe/Berlin wall-clock time (DST-aware), like the client —
+ * the server runs in UTC (main 495b210b, src/routes/drafts.js berlinOfferNumber).
+ */
+export function berlinOfferNumber(d: Date = new Date()): string {
+  const s = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).format(d); // "2026-11-16 13:33:15"
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  if (!m) throw new Error(`berlinOfferNumber: unexpected date format "${s}"`);
+  const [, y, mo, da, h, mi, se] = m;
+  return `ANG${y}-${mo}${da}-${h}${mi}${se}`;
+}
+
 /** A sent (locked) offer number gets a fresh one so the edited copy never overwrites it. */
 export async function freshNumberIfSent(offerNumber: string, now = () => new Date()): Promise<string | null> {
   if (!offerNumber) return null;
   if (!(await Offer.exists({ offerNumber, locked: true }))) return null;
-  const d = now();
-  const p2 = (n: number) => String(n).padStart(2, "0");
-  const base = `ANG${d.getFullYear()}-${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+  const base = berlinOfferNumber(now());
   for (let i = 0; i < 10; i++) {
     const candidate = i === 0 ? base : `${base}-${i}`;
     const taken = (await Offer.exists({ offerNumber: candidate })) || (await Draft.exists({ offerNumber: candidate }));

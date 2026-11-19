@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { cutList, planOf, wallDecorOf, wallRows } from "../src/features/steps/wandverkleidung/calc.js";
-import { fromRows } from "../src/features/steps/wandverkleidung/rules.js";
+import { ACCESSORIES, fromRows } from "../src/features/steps/wandverkleidung/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wandrechner.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
@@ -36,6 +36,7 @@ async function play(steps: (string | number)[][]) {
     else if (kind === "same") await user.click(screen.getByRole("button", { name: "Alle Wände gleiches Dekor" }));
     else if (kind === "row+") await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Dekor und Format)" }));
     else if (kind === "qty") await user.click(screen.getByRole("button", { name: `Zeile ${a}: ${b === "+" ? "mehr" : "weniger"}` }));
+    else if (kind === "accqty") await user.click(screen.getByRole("button", { name: `Menge ${ACCESSORIES.find((x) => x.id === a)!.caption}: ${b === "+" ? "mehr" : "weniger"}` }));
     else throw new Error(`step not handled: ${kind}`);
   }
 }
@@ -74,7 +75,9 @@ describe("the wall calculator stores and shows what today's UI does", () => {
 
     // the rows the walls wrote
     expect(screen.queryAllByTestId("wv-row").map((r) => ({ title: part(r, "title"), fmt: r.querySelector("select")!.value, qty: part(r, "qty"), open: r.dataset.open === "true" }))).toEqual(v.rows);
-  });
+    // the sealing hint: by wall area (main ca43ed48)
+    expect(squeeze(part(screen.getByTestId("wv-acc-sealing"), "small"))).toBe(squeeze(v.sealing));
+  }, 20000);
 });
 
 describe("the wall calculator — rules", () => {
@@ -83,10 +86,16 @@ describe("the wall calculator — rules", () => {
     expect(cutList(planOf({}))).toBeNull();
   });
 
-  it("connecting profiles: the joints of the plan while the rows match it, else plates − 1", () => {
+  it("connecting profiles: the joints of the plan whenever there are walls (extra plates add none), else plates − 1 (main ca43ed48)", () => {
     const u = { wvKSituation: "u", wvKLinks: "90", wvKBack: "170", wvKRechts: "90" };
     const rows = [{ code: "WS203", fmt: "15", qty: 4 }];
-    expect([fromRows(rows, planOf(u)).wvWwQty_WS80113, fromRows(rows, planOf({ wvKBack: "180" })).wvWwQty_WS80113, fromRows(rows).wvWwQty_WS80113]).toEqual(["1", "3", "3"]);
+    expect([fromRows(rows, planOf(u)).wvWwQty_WS80113, fromRows(rows, planOf({ wvKBack: "180" })).wvWwQty_WS80113, fromRows(rows, planOf({})).wvWwQty_WS80113, fromRows(rows).wvWwQty_WS80113]).toEqual(["1", "1", "3", "3"]);
+  });
+
+  it("accessories set by hand stay when the rows change (wvWwAccManual, main ca43ed48)", () => {
+    const rows = [{ code: "WS203", fmt: "15", qty: 4 }];
+    const f = fromRows(rows, null, { wvWwAccManual: "WS80113", wvWwQty_WS80113: "7" });
+    expect(["wvWwQty_WS80113" in f, "wvWw_WS80113" in f, f.wvWwQty_R_4260602]).toEqual([false, false, "8"]);
   });
 
   it("walls without a decor or without a width write no rows; a row added by hand stays", () => {

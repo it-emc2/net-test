@@ -5,13 +5,18 @@
 //
 //   bash v2/scripts/preview.sh &
 //   node v2/scripts/capture-wv-vigour.cjs   → v2/apps/web/test/fixtures/wv-vigour.json
+// New offers open the winwall simple view (main 2026-11-18, item 2 of the main sync — not in React yet):
+// the recorder switches to the classic editor ("Alter Konfigurator"), which React's step is, and
+// leaves that switch (wvUi "") out of what the scenario stores. OUT=<file> writes elsewhere.
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
-const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "wv-vigour.json");
+const FIXTURE = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "wv-vigour.json");
+const OUT = process.env.OUT || FIXTURE;
+const KNOWN = (() => { try { return JSON.parse(fs.readFileSync(FIXTURE, "utf8")).vigorPrices || {}; } catch { return {}; } })();
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
 const V = [["on"], ["line", "premium"]];
@@ -85,6 +90,9 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       await page.route("**/api/auth/me", (r) => r.fulfill(json({ user: { email: "capture@local.test", name: "Capture", role: "user" } })));
       await page.route("**/api/planning/**", (r) => r.abort());
       await page.route("**/v2/addons/**", (r) => (r.request().url().endsWith("/error-compat.js") ? r.continue() : r.abort()));
+      // the purchase prices come from an outside shop, which the preview cannot reach: answered with the
+      // prices of the earlier recording (the fixture), so the cheapest mix is the same as then
+      await page.route("**/api/vigor-prices**", (r) => { const ids = new URL(r.request().url()).searchParams.get("ids"); return KNOWN[ids] ? r.fulfill(json(KNOWN[ids])) : r.continue(); });
       page.on("response", async (res) => { // the purchase prices the calculator asks for
         const u = new URL(res.url());
         if (u.pathname === "/api/vigor-prices") { try { out.vigorPrices[u.searchParams.get("ids")] = res.ok() ? await res.json() : { status: res.status() }; } catch {} }
@@ -103,7 +111,11 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       let next = null;
       const vrow = (n) => `#wvRows .wv-row:nth-child(${n})`;
       for (const [kind, a, b] of steps) {
-        if (kind === "on" || kind === "off") await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+        if (kind === "on" || kind === "off") {
+          await page.locator(`${P} label.sec-switch:has(#wvEnabled)`).click();
+          await page.waitForTimeout(500);
+          if (await page.locator("#wvSimple .wvs-classic").isVisible()) await page.locator("#wvSimple .wvs-classic").click(); // the classic editor (React's)
+        }
         else if (kind === "line") await page.locator(`${P} .tier-seg__btn[data-tier="${a}"]`).first().click();
         else if (kind === "row+") await page.locator("#wvRowAdd").click();
         else if (kind === "row") await page.locator(`${vrow(a)} > .wv-row__name`).click();
@@ -156,7 +168,9 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       if (!out.colors) out.colors = await page.evaluate(() => [...document.querySelectorAll('#wvColors input[name="wvColor"]')].map((i) => ({ value: i.value, caption: (i.closest("label").querySelector(".caption")?.textContent || "").trim(), img: i.closest("label").querySelector("img")?.getAttribute("src") || "" })));
       await ctx.close();
       console.log(name);
-      return { name, steps, wandverkleidung: sortKeys(changed(base.wandverkleidung, now.wandverkleidung)), duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), view, ...(next ? { next } : {}) };
+      const wvChanged = changed(base.wandverkleidung, now.wandverkleidung);
+      if (wvChanged.wvUi === "") delete wvChanged.wvUi; // the switch to the classic editor (see top)
+      return { name, steps, wandverkleidung: sortKeys(wvChanged), duschwanne: sortKeys(changed(base.duschwanne, now.duschwanne)), arbeitszeit: sortKeys(changed(base.Arbeitszeit, now.Arbeitszeit)), view, ...(next ? { next } : {}) };
     };
     let entry;
     for (let attempt = 1; !entry; attempt++) {

@@ -4,7 +4,7 @@
  * and old offers (no wallCladdingSupplier) stay VIGOUR, priced exactly as before.
  */
 import pricingCore, {
-  winwallLeftoverM2, WINWALL_FORMATS, WINWALL_EXTRAS, supplierCodes,
+  winwallLeftoverM2, winwallStripLeftoverM2, WINWALL_FORMATS, WINWALL_EXTRAS, supplierCodes,
 } from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
@@ -37,10 +37,12 @@ const ids = (ls) => Object.fromEntries(ls.map((l) => [l.productId || l.id, l.qty
 const wwFloor = { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingKind: "Gesamtes-Bad" };
 
 describe("winwall floor lines", () => {
-  test("three 100×250: one set + one single, adhesive for the whole area", async () => {
+  test("three 100×250: three singles (no sets), adhesive for the whole area", async () => {
     const l = await floorLines({ ...wwFloor, wallCladdingPanelSize: "15", wallCladdingQty: "3", wallCladdingArea: "7,5" });
-    expect(ids(l)).toEqual({ WS20325: 1, WS20315: 1, R_4260602: 13 }); // 7,5 / 0,6 = 12,5 → 13
-    expect(l.find((x) => x.productId === "WS20325").unitPrice).toBe(261.76);
+    expect(ids(l)).toEqual({ WS20315: 3, R_4260602: 13 }); // 7,5 / 0,6 = 12,5 → 13
+    expect(l.find((x) => x.productId === "WS20315").unitPrice).toBe(132.35);
+    expect(l.find((x) => x.productId === "WS20315").name).toBe("Aluverbundplatte 1000×2500 mm — Dekor: Marmor weiß (WS 203)");
+    expect(l.find((x) => x.productId === "WS20315").label).toMatch(/^- 3 Stk Aluverbundplatte 1000×2500 mm — Dekor: Marmor weiß \(WS 203\)$/);
   });
   test("a typed decor is billed at the same list price", async () => {
     const l = await floorLines({ ...wwFloor, wallCladdingWwDecor: "custom", wallCladdingWwDecorCustom: "ws 203", wallCladdingPanelSize: "17", wallCladdingQty: "1", wallCladdingArea: "3" });
@@ -94,5 +96,36 @@ describe("supplier Kürzel for the Fußboden", () => {
   });
   test("old/VIGOUR floor: unchanged shape", () => {
     expect(supplierCodes({ duschwanne: { addWallCladding: true } }, L)).toEqual({ wv: null, dw: null });
+  });
+});
+
+describe("floor plates per format (wallCladdingWwQty)", () => {
+  test("mixed formats: one line per format, adhesive from the area", async () => {
+    const l = await floorLines({ ...wwFloor, wallCladdingWwQty: '{"13":1,"15":1,"16":0,"17":0}', wallCladdingQty: "2", wallCladdingPanelSize: "15", wallCladdingArea: "4,2" });
+    expect(ids(l)).toEqual({ WS20313: 1, WS20315: 1, R_4260602: 7 });
+  });
+  test("no area: adhesive from the plates' m²", async () => {
+    const l = await floorLines({ ...wwFloor, wallCladdingWwQty: { 15: 1, 17: 1 } });
+    expect(ids(l)).toEqual({ WS20315: 1, WS20317: 1, R_4260602: 11 }); // 2,5 + 3,75 = 6,25 / 0,6 = 10,4 → 11
+  });
+  test("empty map falls back to the old size + qty", async () => {
+    const l = await floorLines({ ...wwFloor, wallCladdingWwQty: '{"15":0}', wallCladdingPanelSize: "16", wallCladdingQty: "1", wallCladdingArea: "3" });
+    expect(ids(l)).toEqual({ WS20316: 1, R_4260602: 5 });
+  });
+  test("ignored for VIGOUR", async () => {
+    const l = await floorLines({ addWallCladding: true, wallCladdingWwQty: '{"15":3}', wallCladdingPanelSize: "997", wallCladdingQty: "2", wallCladdingColor: "Marmor weiß", wallCladdingArea: "4" });
+    expect(ids(l)).toEqual({ V3WVK09: 2, R_4260602: 7 });
+  });
+});
+
+describe("winwallStripLeftoverM2", () => {
+  test("strips above the cladding height × 0,8", () => {
+    // 2 × 100 × (250 − 200) + 1 × 125 × 50 = 1 + 0,625 = 1,625 × 0,8 = 1,30
+    expect(winwallStripLeftoverM2({ 15: 2, 16: 1 }, 200)).toBe(1.3);
+  });
+  test("plates shorter than the height give nothing; min 0,5", () => {
+    expect(winwallStripLeftoverM2({ 13: 4 }, 230)).toBe(null);
+    expect(winwallStripLeftoverM2({ 15: 1 }, 220)).toBe(null); // 0,3 × 0,8 = 0,24
+    expect(winwallStripLeftoverM2({ 15: 2 }, 0)).toBe(null);
   });
 });

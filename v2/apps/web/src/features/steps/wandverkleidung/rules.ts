@@ -7,10 +7,16 @@
 //    while a line is not chosen, and are back when it is chosen again
 //  - winwall: one row = decor + format + number of plates (`wvWwRows`, a JSON text). The rows
 //    give the plates per format (`wvWwQty_13` …), and with every change of the rows the
-//    suggestions: 2 bags of adhesive per plate, connecting profiles = plates − 1
+//    suggestions: 2 bags of adhesive per plate; connecting profiles from the wall plan whenever
+//    walls are entered (joints on straight walls, none at corners; extra plates add none), else
+//    plates − 1 (main ca43ed48)
+//  - an accessory set by hand (switch, − / +, typing) is listed in `wvWwAccManual` (comma-separated
+//    SKUs) and the suggestions leave it alone from then on (main ca43ed48)
 //  - an accessory is in the offer while its quantity is above 0 (`wvWw_<id>: "on"`)
-//  - the sealing sets follow the area of the plates unless a number is typed
-import { WINWALL_CATALOG, winwallProfileSuggestion, winwallSealingSets } from "@oc/pricing";
+//  - the sealing sets follow the wall area unless a number is typed: a typed Wandfläche, else the
+//    calculator's walls × height plus every plate beyond the wall plan, without walls the area of
+//    the plates (`winwallSealingArea`, main ca43ed48)
+import { WINWALL_CATALOG, winwallArticleFormat, winwallDecorCode, winwallProfileSuggestion, winwallSealingArea, winwallSealingSets } from "@oc/pricing";
 import { WW_DECORS } from "./decors.js";
 
 type Fields = Record<string, unknown>;
@@ -30,9 +36,9 @@ export const LINES: Record<Line, { name: string; sub: string; brand: string }> =
 };
 export const lineOf = (wv: Fields): Line => (wv.wvBudgetMode ? "standard" : wv.wvSupplier === "ww" ? "ww" : "premium");
 const WW_PLATES = ["wvWwDecor", "wvWwDecorCustom", "wvWwQty_13", "wvWwQty_15", "wvWwQty_16", "wvWwQty_17", "wvWwRows"];
-const WW_ACCESSORIES = ["wvWwQty_R_4260602", "wvWwQty_WS80110", "wvWwQty_WS80111", "wvWwQty_WS80112", "wvWwQty_WS80113", "wvWwSealing", "wvWwSealingQty",
+const WW_ACCESSORIES = ["wvWwAccManual", "wvWwQty_R_4260602", "wvWwQty_WS80110", "wvWwQty_WS80111", "wvWwQty_WS80112", "wvWwQty_WS80113", "wvWwSealing", "wvWwSealingQty",
   "wvWw_R_4260602", "wvWw_WS80110", "wvWw_WS80111", "wvWw_WS80112", "wvWw_WS80113", "wvWwCut"];
-const WW_FIRST: Fields = { wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" };
+const WW_FIRST: Fields = { wvWwAccManual: "", wvWwDecor: "WS203", wvWwDecorCustom: "", wvWwQty_13: "0", wvWwQty_15: "0", wvWwQty_16: "0", wvWwQty_17: "0", wvWwRows: "", wvWwQty_R_4260602: "0", wvWwQty_WS80110: "0", wvWwQty_WS80111: "0", wvWwQty_WS80112: "0", wvWwQty_WS80113: "0", wvWwSealing: "on", wvWwSealingQty: "" };
 /** VIGOUR: stored only while the line is chosen */
 const HM_ONLY = ["wvCorners", "wvCornersCount", "wvEndProfileQty", "wvFlachenQty", "wvQty1497", "wvQty997", "wvSilikonQty", "wvV3VQty", "flechenkleber", "wvSealing", "wvSilikon", "wvEndProfile", "wvPanels[]"];
 const HM_FIRST: Fields = { wvCorners: "0", wvCornersCount: "0", wvEndProfileQty: "0", wvFlachenQty: "0", wvQty1497: "", wvQty997: "", wvSilikonQty: "0", wvV3VQty: "0" };
@@ -80,21 +86,19 @@ export function chooseLine(wv: Fields, to: Line, parked: Partial<Record<Line, Fi
 export interface Row { code: string | null; fmt: string; qty: number; custom?: boolean; text?: string }
 export const FORMATS = [["13", "100 × 205 cm"], ["15", "100 × 250 cm"], ["16", "125 × 250 cm"], ["17", "150 × 250 cm"]] as const;
 const FORMAT_M2: Record<string, number> = { 13: 2.05, 15: 2.5, 16: 3.125, 17: 3.75 };
-const SET_FORMATS = new Set(["13", "15", "16"]); // two equal plates of these formats are ordered as a set
 const catalog = WINWALL_CATALOG as Record<string, string>;
-/** "WS 233" / "ws233" / "203" → "WS233"; anything else → null */
-export function decorCode(v: unknown): string | null {
-  const s = String(v ?? "").replace(/\s+/g, "").toUpperCase();
-  if (/^\d{3}$/.test(s)) return `WS${s}`;
-  return /^(WS|NW)\d{3}$/.test(s) ? s : null;
-}
+/** the engine's reading of a typed decor (as today's UI, main 64a75e08 / ff9f81c4): "WS 233" / "ws233" → "WS233";
+ *  three digits → NW when the catalogue has it, else WS; an article number from the Muster ("23015", "NW 23013")
+ *  → its decor, with a format 13/15/16/17 only; anything else → null */
+export const decorCode = (v: unknown): string | null => (winwallDecorCode(v) as string | null) ?? null;
+/** the format inside a typed article number ("23013" → "13"), else null */
+export const articleFormat = (v: unknown): string | null => (winwallArticleFormat(v) as string | null) ?? null;
 const nice = (code: string) => `${code.slice(0, 2)} ${code.slice(2)}`;
 export const rowTitle = (r: Row): string => (r.code ? `${catalog[r.code] ? `${catalog[r.code]} · ` : ""}${nice(r.code)}` : r.custom && r.text ? r.text : "Dekor wählen");
-export function rowNote(rows: readonly Row[], i: number, open: boolean): string {
-  const r = rows[i]!;
-  const same = rows.filter((x) => x.code && x.code === r.code && x.fmt === r.fmt).reduce((a, x) => a + x.qty, 0);
-  return `${open ? "Dekor wählen" : "Tippen zum Ändern"}${SET_FORMATS.has(r.fmt) && same >= 2 ? " · Set (2 gleiche Platten, günstiger)" : ""}`;
-}
+/** a row with a typed number that is no decor: its plates are missing in price and offer (red, main 81f73fc7) */
+export const isBadRow = (r: Row): boolean => !!r.custom && !r.code;
+/** the line under a row's title — winwall plates are always single plates, no set (main 8d04727c) */
+export const rowNote = (bad: boolean, open: boolean): string => (bad ? "Dekor-Nr. ungültig (z. B. WS 233) – Zeile fehlt im Preis" : open ? "Dekor wählen" : "Tippen zum Ändern");
 export function rowsOf(wv: Fields): Row[] {
   try {
     const arr: unknown = JSON.parse(String(wv.wvWwRows || "null"));
@@ -106,19 +110,24 @@ const isTile = (code: string | null) => !!code && WW_DECORS.some((d) => d.value 
 /** what the decor tiles show for a row: its tile, or "Anderes Dekor" with the typed number */
 export const decorOf = (r: Row | undefined): Fields => (r ? (!r.custom && isTile(r.code) ? { wvWwDecor: r.code, wvWwDecorCustom: "" } : { wvWwDecor: "custom", wvWwDecorCustom: r.custom ? r.text || "" : "" }) : {});
 const accessory = (id: string, qty: number): Fields => ({ [`wvWwQty_${id}`]: String(qty), [`wvWw_${id}`]: qty > 0 ? "on" : undefined });
+/** the accessories set by hand (`wvWwAccManual`) — the suggestions do not touch them */
+export const manualOf = (wv: Fields | undefined): Set<string> => new Set(String(wv?.wvWwAccManual ?? "").split(",").filter(Boolean));
+const markManual = (wv: Fields, id: string): Fields => ({ wvWwAccManual: [...new Set([...manualOf(wv), id])].join(",") });
+/** a suggestion for an accessory — nothing when it was set by hand */
+export const suggest = (wv: Fields | undefined, id: string, qty: number): Fields => (manualOf(wv).has(id) ? {} : accessory(id, qty));
 
 /** The fields the rows give: the rows themselves, the plates per format and the suggestions.
- *  `plan`: the wall calculator's plan — while the rows match it, the connecting profiles are its
- *  joints on straight walls (none at corners); otherwise plates − 1. */
-export function fromRows(rows: readonly Row[], plan?: { qty?: Record<string, number>; pieces?: unknown[] } | null): Fields {
+ *  `plan`: the wall calculator's plan — with walls entered, the connecting profiles are its
+ *  joints on straight walls (none at corners); without walls plates − 1. `wv`: the section as it
+ *  is (its hand-set accessories stay). */
+export function fromRows(rows: readonly Row[], plan?: { qty?: Record<string, number>; pieces?: unknown[] } | null, wv?: Fields): Fields {
   const perFormat = Object.fromEntries(FORMATS.map(([c]) => [c, rows.filter((r) => r.fmt === c && r.code).reduce((a, r) => a + r.qty, 0)]));
   const plates = Object.values(perFormat).reduce((a, n) => a + n, 0);
-  const fits = !!plan?.qty && FORMATS.every(([c]) => (plan.qty![c] || 0) === perFormat[c]);
-  const profiles = fits ? Number((winwallProfileSuggestion(plan) as { WS80113: number }).WS80113) || 0 : Math.max(0, plates - 1);
+  const profiles = plan?.pieces?.length ? Number((winwallProfileSuggestion(plan) as { WS80113: number }).WS80113) || 0 : Math.max(0, plates - 1);
   return {
     wvWwRows: JSON.stringify(rows.map((r) => ({ code: r.code, fmt: r.fmt, qty: r.qty, ...(r.custom ? { custom: true, text: r.text || "" } : {}) }))),
     ...Object.fromEntries(FORMATS.map(([c]) => [`wvWwQty_${c}`, String(perFormat[c])])),
-    ...accessory("R_4260602", 2 * plates), ...accessory("WS80113", profiles),
+    ...suggest(wv, "R_4260602", 2 * plates), ...suggest(wv, "WS80113", profiles),
   };
 }
 export function addRow(rows: readonly Row[], wv: Fields): Row[] {
@@ -127,15 +136,16 @@ export function addRow(rows: readonly Row[], wv: Fields): Row[] {
   return [...rows, { code: last ? last.code : picked || "WS203", fmt: last?.fmt || "15", qty: 1, custom: !!last?.custom, text: last?.text || "" }];
 }
 /** a decor tile, or a typed number, for one row */
-export const withDecor = (r: Row, value: string, text = ""): Row => (value === "custom" ? { ...r, custom: true, text, code: decorCode(text) } : { ...r, custom: false, text: "", code: decorCode(value) });
+export const withDecor = (r: Row, value: string, text = ""): Row => (value === "custom" ? { ...r, custom: true, text, code: decorCode(text), fmt: articleFormat(text) || r.fmt } : { ...r, custom: false, text: "", code: decorCode(value) });
 
-/** the hint under the number field of "Anderes Dekor" */
+const FORMAT_TEXT: Record<string, string> = { 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" };
+/** the hint under the number field of "Anderes Dekor" (today's syncWwCustomDecor) */
 export function customHint(wv: Fields): { text: string; kind: "" | "ok" | "warn" } {
   const raw = String(wv.wvWwDecorCustom ?? "").trim();
-  if (wv.wvWwDecor !== "custom" || !raw) return { text: "WS oder NW und 3 Ziffern, z. B. WS 233 – steht im winwall Katalog.", kind: "" };
-  const code = decorCode(raw);
-  if (!code) return { text: "Bitte WS oder NW und 3 Ziffern eingeben, z. B. NW 230.", kind: "warn" };
-  return catalog[code] ? { text: `✓ ${catalog[code]}`, kind: "ok" } : { text: "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt.", kind: "warn" };
+  if (wv.wvWwDecor !== "custom" || !raw) return { text: "Dekor-Nr. (z. B. NW 230) oder Artikel-Nr. vom Muster (z. B. 23015).", kind: "" };
+  const code = decorCode(raw), fmt = articleFormat(raw);
+  if (!code) return { text: "Nicht erkannt. Dekor-Nr. (NW 230) oder Artikel-Nr. mit Format 13/15/16/17 (23015).", kind: "warn" };
+  return catalog[code] ? { text: `✓ ${catalog[code]}${fmt ? ` · Format ${FORMAT_TEXT[fmt]}` : ""}`, kind: "ok" } : { text: "Nicht im winwall Katalog 2026 – Nummer bitte prüfen. Wird so bestellt.", kind: "warn" };
 }
 export const customCaption = (wv: Fields): string => { const code = wv.wvWwDecor === "custom" ? decorCode(wv.wvWwDecorCustom) : null; return code ? nice(code) : "Anderes Dekor"; };
 
@@ -148,20 +158,23 @@ export const ACCESSORIES = [
   { id: "R_4260602", caption: "Flächenkleber Ramsauer 645", small: "R_4260602 · Beutel 600 ml · aus dem Lager, wie VIGOUR · Vorschlag: 2 je Platte" },
 ] as const;
 export const accessoryQty = (wv: Fields, id: string): number => Math.max(0, Math.round(Number(wv[`wvWwQty_${id}`]) || 0));
-/** the switch: on gives one (or keeps the number), off gives none */
-export const toggleAccessory = (wv: Fields, id: string, on: boolean): Fields => accessory(id, on ? accessoryQty(wv, id) || 1 : 0);
-export const setAccessoryQty = (id: string, qty: number): Fields => accessory(id, Math.max(0, Math.round(qty) || 0));
+/** the switch: on gives one (or keeps the number), off gives none — and marks it as set by hand */
+export const toggleAccessory = (wv: Fields, id: string, on: boolean): Fields => ({ ...accessory(id, on ? accessoryQty(wv, id) || 1 : 0), ...markManual(wv, id) });
+/** − / + or a typed number — marks it as set by hand */
+export const setAccessoryQty = (wv: Fields, id: string, qty: number): Fields => ({ ...accessory(id, Math.max(0, Math.round(qty) || 0)), ...markManual(wv, id) });
 
 /** m² of the winwall plates */
 export const areaOf = (rows: readonly Row[]): number => rows.filter((r) => r.code).reduce((a, r) => a + r.qty * (FORMAT_M2[r.fmt] ?? 0), 0);
-/** the sealing sets: by the area of the plates (`plates` m²), or the typed number of 5 m² sets */
-export function sealing(wv: Fields, plates: number): { auto: number; hint: string } {
-  const area = Number(String(wv.wvArea ?? "").replace(",", ".")) || plates;
+/** winwall: the area the sealing sets cover — typed Wandfläche, else walls × height + plates beyond the plan, else the plates */
+export const wallAreaOf = (wv: Fields): number => Number(winwallSealingArea(wv, Object.fromEntries(FORMATS.map(([c]) => [c, wv[`wvWwQty_${c}`]])))) || 0;
+/** the sealing sets: by `m2` (or the typed Wandfläche), rounded to two decimals as today, or the typed number of 5 m² sets */
+export function sealing(wv: Fields, m2: number): { auto: number; hint: string } {
+  const area = Math.round((Number(String(wv.wvArea ?? "").replace(",", ".")) || m2) * 100) / 100;
   const sets = winwallSealingSets(area) as { productId: string; qty: number }[];
   const txt = sets.map((l) => `${l.qty} × ${l.productId === "WS80302" ? "6,25" : "5"} m²`).join(" + ");
   const manual = Math.round(Number(wv.wvWwSealingQty) || 0);
   return {
     auto: sets.reduce((a, l) => a + l.qty, 0),
-    hint: manual > 0 ? `berechnet: ${txt || "–"} · manuell: ${manual} × 5 m² ·` : `nach Plattenfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${txt}` : ""} · automatisch`,
+    hint: manual > 0 ? `berechnet: ${txt || "–"} · manuell: ${manual} × 5 m² ·` : `nach Wandfläche${area ? ` ${area.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m²` : ""}${txt ? ` → ${txt}` : ""} · automatisch`,
   };
 }

@@ -4,12 +4,14 @@
 //    data (`wvKRows`, a JSON text). The first row's decor is also the offer's `wvColor`, and
 //    the panel table of the line VIGOUR carries it as its colour
 //  - with every change of the rows: 2 bags of adhesive per panel, connecting profiles =
-//    panels − 1 (winwall's accessories are used for Keramico as well)
+//    panels − 1 (winwall's accessories are used for Keramico as well); an accessory set by hand
+//    (`wvWwAccManual`, see rules.ts) is left alone (main ca43ed48)
 //  - the first panel switches the four consumables of the offer on, the last one going
 //    switches them off — as on the line VIGOUR
 //  - a Badolux accessory is in the offer while its quantity is above 0 (`wvBx_<id>: "on"`)
 import { keramicoPanelPlan } from "@oc/pricing";
 import type { Plan, Situation, WallKey } from "./calc.js";
+import { suggest } from "./rules.js";
 
 type Fields = Record<string, unknown>;
 export interface KRow { pid: string; name: string; qty: number }
@@ -45,7 +47,6 @@ export const totalPanels = (rows: readonly KRow[]): number => rows.reduce((a, r)
 export const areaOf = (rows: readonly KRow[]): number => totalPanels(rows) * 2.4225;
 
 const NO_PANELS = { "1497x2550": { color: "", enabled: false, overrideColor: "", qty: 0 }, "997x2550": { color: "", enabled: false, overrideColor: "", qty: 0 } };
-const accessory = (id: string, qty: number): Fields => ({ [`wvWwQty_${id}`]: String(qty), [`wvWw_${id}`]: qty > 0 ? "on" : undefined });
 const CONSUMABLES = ["wvSealingSelected", "wvFlachenSelected", "wvSilikonSelected", "wvEndProfileSelected"];
 
 /** Rows → fields. `wv`: the offer's section before the change (for what stays). */
@@ -58,7 +59,7 @@ export function fromRows(wv: Fields, rows: readonly KRow[]): Fields {
     wvKRows: JSON.stringify(rows.map((r) => ({ pid: r.pid, name: r.name, qty: r.qty }))),
     ...(first ? { wvColor: first.value, panelConfigs: Object.fromEntries(Object.entries(table).map(([k, c]) => [k, { ...c, color: first.value }])) } : {}),
     ...(edge === null ? {} : Object.fromEntries(CONSUMABLES.map((k) => [k, edge]))),
-    ...accessory("R_4260602", 2 * total), ...accessory("WS80113", Math.max(0, total - 1)),
+    ...suggest(wv, "R_4260602", 2 * total), ...suggest(wv, "WS80113", Math.max(0, total - 1)),
   };
 }
 export const addRow = (rows: readonly KRow[]): KRow[] => { const c = rows[rows.length - 1] ?? DECORS[0]!; return [...rows, { pid: c.pid, name: c.name, qty: 1 }]; };

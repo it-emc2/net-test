@@ -4,6 +4,9 @@
 //    subject and text fill themselves from the offer until they are changed by hand
 //  - a text changed by hand is kept; only three things in it still follow the offer: the
 //    numbered list of documents, the line about the Neukundenbonus, and the offer number
+//  - the Neukundenbonus is advertised only while it is ticked AND the price says it applies
+//    (`flags.bonus_neu` of the last price answer; no answer yet counts as applies) — a ticked
+//    bonus below the threshold stays ticked but is not priced (main d0528418)
 //  - the attachments: the offer PDF (always), then the enclosed documents — for Alltagshilfe its
 //    own set, of which a Selbstzahler gets neither Abtretung nor Vollmacht
 //  - stored: `mail` { auftragId, to, subject, body } and `auftragId`
@@ -49,6 +52,18 @@ const numberOr = (offer: Fields) => str(offer.offerNumber) || "ANG-2025-_____";
 export const documentLines = (offer: Fields): string[] => [`Ihr Angebot ${numberOr(offer)}`, ...DOC_LINES.filter((d) => enclosed(offer, d.id)).map((d) => d.line)].map((l, i) => `${i + 1}. ${l}`);
 
 const bonus = (offer: Fields, key: string) => obj(offer.rabatt).rabattEnabled === true && obj(offer.rabatt)[key] === true;
+/** What today's text is rewritten on besides the bonus ticks: Kundendaten, the documents, "Antrag gestellt". */
+export const bonusKey = (offer: Fields | null | undefined, applied: boolean): string => JSON.stringify([obj(offer?.Kundendaten), obj(offer?.docSelection), applied]);
+/** The Neukundenbonus flag the text is written with: the one seen when a discount / bonus tick last
+ *  wrote the text (`at`, the price answer from before that tick), until something else rewrote it;
+ *  else the last price answer's `flags.bonus_neu` (main d0528418). Legacy, ported as is: ticking the
+ *  bonus in a new offer leaves the bullet out of an untouched text (the answer before the tick says false). */
+export function bonusNeuFor(live: unknown, at: { flag?: unknown; key?: string } | null | undefined, key: string): boolean | undefined {
+  const f = at && at.key === key ? at.flag : live;
+  return f === false ? false : f === undefined || f === null ? undefined : true;
+}
+/** `bonusNeu`: `flags.bonus_neu` of the last price answer (undefined: no answer yet) */
+const bonusNeuOn = (offer: Fields, bonusNeu?: boolean) => bonus(offer, "bonus300") && bonusNeu !== false;
 export const BONUS_LINE = "• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.";
 const ANCHOR = "Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:";
 const SIGN = `Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
@@ -59,8 +74,8 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 const CLOSING = "Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.";
 const EXPERIENCE = "Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.";
 
-/** The text the mail starts with. `applied`: "Antrag bei Pflegekasse bereits gestellt" is ticked. */
-export function bodyDefault(offer: Fields, applied = false): string {
+/** The text the mail starts with. `applied`: "Antrag bei Pflegekasse bereits gestellt" is ticked; `bonusNeu`: the price's `flags.bonus_neu`. */
+export function bodyDefault(offer: Fields, applied = false, bonusNeu?: boolean): string {
   const sz = kdOf(offer).payer === "Selbstzahler", nr = numberOr(offer);
   if (typeOf(offer) === "ah") {
     const list = (sz
@@ -89,7 +104,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 
 ${sz ? "" : "• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n"}• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
-${sz ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}${bonus(offer, "bonus300") ? `${BONUS_LINE}\n` : ""}${bonus(offer, "bonusGrab") ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
+${sz ? "" : "• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n"}${bonusNeuOn(offer, bonusNeu) ? `${BONUS_LINE}\n` : ""}${bonus(offer, "bonusGrab") ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 ${ANCHOR}
@@ -117,9 +132,9 @@ export function withDocumentList(body: string, offer: Fields): string {
   return lines.join("\n");
 }
 /** A text changed by hand: the line about the Neukundenbonus comes and goes with the bonus. */
-export function withBonusLine(body: string, offer: Fields): string {
+export function withBonusLine(body: string, offer: Fields, bonusNeu?: boolean): string {
   if (typeOf(offer) === "ah") return body;
-  const lines = body.split("\n"), at = lines.findIndex((l) => l.trim() === BONUS_LINE), want = bonus(offer, "bonus300");
+  const lines = body.split("\n"), at = lines.findIndex((l) => l.trim() === BONUS_LINE), want = bonusNeuOn(offer, bonusNeu);
   if (want === (at !== -1)) return body;
   if (!want) lines.splice(at, 1);
   else {
@@ -137,7 +152,7 @@ export function withBonusLine(body: string, offer: Fields): string {
 /** an offer number written in a text follows the offer's number */
 export const withNumber = (text: string, offer: Fields): string => (str(offer.offerNumber) ? text.replace(/ANG\d{4}-\d{4}-\d{6}/g, str(offer.offerNumber)) : text);
 /** what still follows the offer in a text changed by hand */
-export const keptBody = (body: string, offer: Fields): string => withNumber(withBonusLine(withDocumentList(body, offer), offer), offer);
+export const keptBody = (body: string, offer: Fields, bonusNeu?: boolean): string => withNumber(withBonusLine(withDocumentList(body, offer), offer, bonusNeu), offer);
 
 // ---- attachments ----
 export interface Attachment { id: string; name: string; meta: string; fixed: boolean }
@@ -223,18 +238,18 @@ export interface Touched { to?: boolean; cc?: boolean; subject?: boolean; body?:
 /** The stored mail fields as they should be now: a field not changed by hand is the default, a
  *  text changed by hand keeps following documents, bonus and number, a subject the number.
  *  Returns only what differs from what is stored. */
-export function mailChanges(offer: Fields, touched: Touched, applied: boolean): Fields {
+export function mailChanges(offer: Fields, touched: Touched, applied: boolean, bonusNeu?: boolean): Fields {
   const mail = obj(offer.mail), out: Fields = {};
   const want: Record<MailField, string> = {
     to: touched.to ? String(mail.to ?? "") : toDefault(offer) || String(mail.to ?? ""), // an emptied customer e-mail leaves the recipient as it is
     subject: touched.subject ? withNumber(String(mail.subject ?? ""), offer) : subjectDefault(offer),
-    body: touched.body ? keptBody(String(mail.body ?? ""), offer) : bodyDefault(offer, applied),
+    body: touched.body ? keptBody(String(mail.body ?? ""), offer, bonusNeu) : bodyDefault(offer, applied, bonusNeu),
   };
   for (const k of ["to", "subject", "body"] as const) if (String(mail[k] ?? "") !== want[k]) out[k] = want[k];
   return out;
 }
 /** An opened offer: a stored field that is not what the offer would write by itself was changed by hand. */
-export function touchedOf(offer: Fields): Touched {
+export function touchedOf(offer: Fields, bonusNeu?: boolean): Touched {
   const mail = obj(offer.mail), differs = (stored: unknown, def: string) => !!String(stored ?? "") && String(stored) !== def;
-  return { to: differs(mail.to, toDefault(offer)), subject: differs(mail.subject, subjectDefault(offer)), body: differs(mail.body, bodyDefault(offer)) && differs(mail.body, bodyDefault(offer, true)) };
+  return { to: differs(mail.to, toDefault(offer)), subject: differs(mail.subject, subjectDefault(offer)), body: differs(mail.body, bodyDefault(offer, false, bonusNeu)) && differs(mail.body, bodyDefault(offer, true, bonusNeu)) };
 }

@@ -26,7 +26,8 @@ export const numberTaken = (was: string, now: string): string => `Die Angebotsnu
 /** the number goes into the offer, with the mail texts that name it */
 function put(number: string): void {
   const st = useOfferStore.getState(), before = (st.offer ?? {}) as Offer, offer: Offer = { ...before, offerNumber: number };
-  const mail = mailChanges(offer, (st.scratch.mailTouched as Touched | undefined) ?? touchedOf(before), st.scratch.mailAntrag === true);
+  const bonusNeu = st.scratch.mailBonusNeu as boolean | undefined; // the price's flags.bonus_neu, as the mail form last saw it
+  const mail = mailChanges(offer, (st.scratch.mailTouched as Touched | undefined) ?? touchedOf(before, bonusNeu), st.scratch.mailAntrag === true, bonusNeu);
   st.setTop({ offerNumber: number, ...(Object.keys(mail).length ? { mail: { ...((offer.mail ?? {}) as Offer), ...mail } } : {}) });
 }
 const numberNow = () => String((useOfferStore.getState().offer as Offer | null)?.offerNumber ?? "");
