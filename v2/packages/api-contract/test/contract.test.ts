@@ -41,4 +41,18 @@ describe("api contract", () => {
     // today's routes: /api/…, and the public business settings under /admin/api/…
     expect(Object.values(endpoints).every((e) => /^\/(admin\/)?api\//.test(e.path))).toBe(true);
   });
+
+  it("variants (ADR 027 A): ids, list answer, create/rename requests, error codes", async () => {
+    const { isVariantId, DealVariantsResponseSchema, CreateVariantRequestSchema, RenameVariantRequestSchema, ERROR_CODES } = await import("../src/index.js");
+    expect(["v1", "v-0123456789ab", "v-0123456789AB", "v2", "v-123"].map(isVariantId)).toEqual([true, true, false, false, false]);
+    const v = { variantId: "v1", name: "Variante 1", offerType: "bu", offerNumber: "", status: "draft", sentAt: null, sentChannel: null, signedAt: null, total: null, revision: 1, updatedAt: "2026-11-19T10:00:00.000Z", notChosenAt: null, isDefault: true };
+    expect(DealVariantsResponseSchema.safeParse({ dealId: "4711", defaultVariantId: "v1", variants: [v] }).success).toBe(true);
+    expect(DealVariantsResponseSchema.safeParse({ dealId: "4711", defaultVariantId: "v1", variants: [{ ...v, status: "lost" }] }).success).toBe(false);
+    expect(CreateVariantRequestSchema.safeParse({}).success).toBe(true);
+    expect(CreateVariantRequestSchema.safeParse({ from: "x" }).success).toBe(false);
+    expect(RenameVariantRequestSchema.safeParse({ name: "" }).success).toBe(false);
+    expect(RenameVariantRequestSchema.safeParse({ name: "x".repeat(61) }).success).toBe(false);
+    expect(ERROR_CODES.VARIANT_SENT).toBe("VARIANT_SENT");
+    expect(pathOf("renameDealVariant", { dealId: "4711", variantId: "v1" })).toBe("/api/deals/4711/variants/v1");
+  });
 });

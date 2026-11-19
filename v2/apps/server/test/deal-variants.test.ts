@@ -10,7 +10,7 @@ import { buildApp } from "../src/app.js";
 import { createToken } from "../src/platform/auth.js";
 import { connectDb, disconnectDb } from "../src/platform/db.js";
 import { registerDealDrafts } from "../src/modules/deal-drafts/routes.js";
-import { DealDraft, DealDraftRevision, migrateDealDraftIndexes } from "../src/modules/deal-drafts/store.js";
+import { DealDraft, DealDraftRevision, migrateDealDraftIndexes, SNAPSHOT_EVERY } from "../src/modules/deal-drafts/store.js";
 import { markOthersNotChosen, resolveSendVariant } from "../src/modules/deal-drafts/index.js";
 import { exportDealDraftsToLegacy, m005DealDraftVariants } from "../src/migrations/index.js";
 import { claimNumber } from "../src/modules/sends/numbers.js";
@@ -138,6 +138,22 @@ describe("variants", () => {
     const rs = (await post(`/api/deals/6002/draft/restore?variant=v1`, { revision: ha[1], baseRevision: cur.revision })).json();
     expect(rs.changed).toBe(true);
     expect((await get("/api/deals/6002/draft?variant=v1")).json().payload).toEqual(OFFER("ANG-A"));
+  });
+
+  it("interleaved saves of two variants: every version of each reconstructs exactly (across snapshots)", async () => {
+    await put("6010", { offerType: "bu", payload: { v: "A", i: -1 }, baseRevision: 0 });
+    const B = (await post("/api/deals/6010/variants", {})).json().variant.variantId as string;
+    const saved: Record<string, Record<number, unknown>> = { v1: {}, [B]: {} };
+    const rev: Record<string, number> = { v1: 1, [B]: (await get(`/api/deals/6010/draft?variant=${B}`)).json().revision };
+    for (let i = 0; i < SNAPSHOT_EVERY * 2 + 3; i++) {
+      const v = i % 3 === 0 ? B : "v1";
+      const payload = { v, i, sec: { [`k${i % 4}`]: String(i) } };
+      const r = (await put("6010", { offerType: "bu", payload, baseRevision: rev[v] }, v)).json();
+      rev[v] = r.revision; saved[v]![r.revision] = payload;
+    }
+    for (const v of ["v1", B]) for (const [n, payload] of Object.entries(saved[v]!)) {
+      expect((await get(`/api/deals/6010/draft/revisions/${n}?variant=${v}`)).json().payload, `${v} @${n}`).toEqual(payload);
+    }
   });
 
   it("all variants have the same offer type", async () => {

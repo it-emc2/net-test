@@ -289,7 +289,7 @@ Tests: `tests/e2e/parity/v2-local-first.spec.cjs` (5), `tests/e2e/offline-sync/v
 
 **Not part of this decision.** Session recording (main PR #325) stays unported until a later phase (owner, 2026-11-12).
 
-## ADR 027 — Variants of an offer, and a second offer type for the same customer (owner, 2026-11-19; not built yet)
+## ADR 027 — Variants of an offer, and a second offer type for the same customer (owner, 2026-11-19; A: step 1 of 3 built, B not built)
 
 Two features the owner asked for on 2026-11-19, with the answers to the open questions. Nothing is built; this entry is the brief. Both are built in the new app.
 
@@ -316,3 +316,29 @@ Working assumption (not yet confirmed by a design): variants are separate offers
 Open for the design: the new deal's title and responsible person; which fields of the first deal are copied to the new deal in Bitrix itself (contact link at least); how the two offers show their relation in the app.
 
 **Order agreed:** (1) sync with main, (2) the React steps take over main's changes, (3) variants, (4) second offer type, (5) B3 and the remaining small gaps.
+
+### ADR 027 A — design (owner 2026-11-19)
+
+**Owner decisions.** (1) "Neue Version" and "Variante" both exist: a *version* is a correction of the same variant (renumbered in place, as today); a *variant* is an alternative beside the others. (2) When one variant is fully signed, the open signing links of the other variants are closed automatically. (3) The variant name is internal only — never on customer documents or mails.
+
+**Model.** A variant is a separate offer under the same deal: its own draft and history, its own offer number (given at its first send, as today), its own sends. A deal has 1..n variants of the same offer type (a save with another type is refused while there are several: `VARIANT_TYPE_MISMATCH`). Id: the first variant is `v1`, later ones `v-` + 12 hex; name user-given, fallback „Variante N“ (the first one „Variante 1“ until renamed).
+
+| Item | As built (step 1) |
+|---|---|
+| Storage | `deal_drafts` documents gain `variantId`, `variantName`, `notChosenAt`, `openedAt`, `deletedAt`, `copiedFrom`, `snapshotRev`. **Absent `variantId` = the first variant** — drafts saved before variants are not rewritten. Unique index `uniq_deal_variant {dealId, variantId}` (absent indexes as null) |
+| History | `deal_draft_revisions` records gain `variantId` and `prev`. Revision numbers stay **unique per deal** (one sequence for all variants; `uniq_deal_revision` unchanged); the history of a variant is its own records, so its numbers have gaps when several variants are edited. Reconstruction checks the chain (`prev`; old records follow revision − 1) |
+| Copy | Everything of the source variant except: offer number (none until the first send), `zusammenfassung.versand`, date (today, Berlin) and contact person (the creating user, via the server's Ansprechpartner rule). One shared rule with „Neue Version“: `@oc/domain` `newOfferPatch` / `variantCopyPayload`; the web's `newVersion` uses `newOfferPatch` |
+| Rename | Any time, 1–60 characters |
+| Delete | Only when never sent: no done send record, no legacy log (`emaillogs`, posted `postalsends` row) and no signing request for any of its numbers (`VARIANT_SENT`); never the only variant (`VARIANT_LAST`). Soft delete (`deletedAt`): hidden, kept |
+| Status | Derived on read, never stored: `draft` / `sent` (date + channel of the last send that reached the customer; filing in Bitrix alone does not count; or `zusammenfassung.versand` of an old offer) / `signed` (a completed signing request or a signed send record) / `not-chosen` (`notChosenAt`, unless signed). Send records without `variantId` (older) belong to the variant whose current number they carry, else to the first variant |
+| Not chosen | Field and read side now; `markOthersNotChosen(dealId, signedVariantId)` exists and is tested but is wired into signing in step 3 |
+
+**Today's UI (no selector).** Its calls without `variant` act on the **variant opened last**: the live variant with the latest `openedAt`, which is set when a variant is created or opened with an explicit `?variant=` (React app); none set → the first variant. Reading without `variant` never moves it. Why `openedAt` and not the latest `updatedAt`: an autosave of another tab must not switch what today's UI edits. The revision check still protects two editors: because revision numbers are unique per deal, a save from today's UI that loaded variant A cannot match the revision of variant B if B became "opened last" in between — it is refused as `REVISION_CONFLICT` (the add-on reloads), never written into the wrong variant. Adopting a temporary draft carries every variant over under its id; the one opened last there becomes the one opened last in the deal.
+
+**Send lock per variant, legacy index kept.** `emailsends` / `postalsends` keep their unique `dealId` index (the old app on `main` uses it until cutover). The lock row's key is the deal number for the **first** variant — exactly today's row, so the old app and today's behaviour are unchanged — and `<deal>#<variantId>` for every other variant. The index then locks per variant: B after A passes, A again within 24 h is refused (`ALREADY_SENT`). The variant of a send: the request's `variantId` (React app), else the variant whose current number is sent, else the variant opened last. Send records (`offer_sends`, also the signing hand-over record) carry `variantId`. Nothing has to be dropped or migrated in the legacy collections; after cutover a cleaner shape is possible, not needed.
+
+**Build steps.** (1) Server — this PR: storage, API (`GET/POST /api/deals/:dealId/variants`, `PATCH/DELETE …/variants/:variantId`, `?variant=` on every draft call), migration 005, per-variant send lock, `markOthersNotChosen`. (2) React: variant selector, create / rename / delete, status per variant, device copies keyed by deal + variant. (3) Signature: mark the others not chosen, close their open signing links, the server sets the Bitrix amount / offer number / link to the signed variant, else to the last sent one.
+
+**At cutover.** Run migration 005 (after 001–004, dry run first): it creates `uniq_deal_variant` and `deal_variant_revision`, then drops `uniq_dealId`; no document is rewritten, idempotent. Before it runs, a second variant is refused with `VARIANT_CREATE_FAILED` (503). The rollback export (`exportDealDraftsToLegacy`) writes one legacy draft per live variant.
+
+**Deviations from the brief (step 1).** The deal number on the payload (`auftragId`, `mail.auftragId`, `postal.auftragId`) is **kept** in a copy: it is the Bitrix deal the variant belongs to, and the send and filing read it; resetting it would detach the variant from its deal. The first variant may be deleted when other variants exist and it was never sent.

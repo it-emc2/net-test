@@ -176,8 +176,10 @@ async function saveCore(input: SaveInput, session?: mongoose.ClientSession) {
   const nextRev = await nextRevisionNumber(dealId, opt);
   const ops: PatchOp[] = diff(current?.payload ?? {}, payload);
   const at = new Date();
+  // drafts from before variants have no snapshotRev: the multiple-of-20 rule holds while their
+  // numbers are consecutive; the first gap (another variant saved in between) takes a snapshot
   const snapshot = !current || nextRev % SNAPSHOT_EVERY === 0 ||
-    (typeof current.snapshotRev === "number" && nextRev - current.snapshotRev >= SNAPSHOT_EVERY);
+    (typeof current.snapshotRev === "number" ? nextRev - current.snapshotRev >= SNAPSHOT_EVERY : nextRev - currentRev > 1);
 
   // 1) claim the revision number for the deal (unique {dealId, revision})
   let revDoc: any;
