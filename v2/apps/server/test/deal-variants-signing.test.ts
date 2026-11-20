@@ -100,6 +100,13 @@ const flat = (o: Record<string, unknown>) => fieldsOf({ http: "POST", method: "x
 const updates = (calls: RecordedCall[]) => calls.filter((c) => c.method === "crm.item.update").map((c) => ({ id: new URLSearchParams(c.params).get("id"), fields: fieldsOf(c) }));
 const comments = (calls: RecordedCall[]) => calls.filter((c) => c.method === "crm.timeline.comment.add").map((c) => fieldsOf(c).COMMENT ?? "");
 const errorCodes = async (dealId: string) => (await db().collection("error_events").find({ dealId }).toArray()).map((e: any) => e.code);
+/** error events and failure logs are written without being awaited — poll up to 3 s instead of a fixed wait (flaky on a busy machine) */
+const eventually = async <T,>(read: () => Promise<T>, ok: (v: T) => boolean): Promise<T> => {
+  let v = await read();
+  for (let i = 0; i < 60 && !ok(v); i++) { await wait(50); v = await read(); }
+  return v;
+};
+const codesOf = (dealId: string, code: string) => eventually(() => errorCodes(dealId), (c) => c.includes(code));
 
 // ---- deals, variants, hand-overs, signatures ----
 async function firstVariant(dealId: string, nr: string, payload: any) {
@@ -219,8 +226,7 @@ describe("one variant: today's completion plus the signed offer's amount fields"
     const calls = await signAll(tok);
     expect(updates(calls)).toEqual([{ id: DEAL, fields: { ...AH_STAGE, UF_CRM_1790772236055: LINK("S2-AH") } }]);
     // the event is written without waiting for it (reportError) — give it up to 2 s
-    for (let i = 0; i < 40 && !(await errorCodes(DEAL)).includes("SIGNING_AMOUNT_MISSING"); i++) await wait(50);
-    expect(await errorCodes(DEAL)).toContain("SIGNING_AMOUNT_MISSING");
+    expect(await codesOf(DEAL, "SIGNING_AMOUNT_MISSING")).toContain("SIGNING_AMOUNT_MISSING");
   });
 });
 
@@ -366,7 +372,7 @@ describe("two signatures", () => {
       "⚠️ Zweite Unterschrift: Variante „Zweite“ wurde unterschrieben, obwohl bereits Variante „Variante 1“ (RA-1) unterschrieben ist. Betrag, Angebotsnummer und Angebotslink im Deal bleiben bei Variante „Variante 1“. Bitte mit dem Kunden klären.",
     ].join("\n"));
     await wait();
-    expect(await errorCodes(DEAL)).toContain("VARIANT_SECOND_SIGNATURE");
+    expect(await codesOf(DEAL, "VARIANT_SECOND_SIGNATURE")).toContain("VARIANT_SECOND_SIGNATURE");
     const l = (await call("GET", `/api/deals/${DEAL}/variants`)).body.variants;
     expect(l.map((v: any) => [v.variantId, v.status, v.notChosenAt === null])).toEqual([["v1", "signed", true], [B, "signed", false]]);
     expect((await db().collection("signing_completions").findOne({ token: tokB }))!.result).toMatchObject({ ok: true, dealMove: "kept-first", variant: "second" });
@@ -410,8 +416,8 @@ describe("Bitrix fails during the completion", () => {
     expect((await db().collection("signingrequests").findOne({ token: tok }))!.status).toBe("completed");
     expect((await db().collection("signing_completions").findOne({ token: tok }))!.result).toMatchObject({ ok: true, dealMove: "failed" });
     await wait();
-    expect(await errorCodes(DEAL)).toContain("SIGNING_DEAL_UPDATE_FAILED");
-    const log: any = await db().collection("bitrixlogs").findOne({ method: "crm.item.update", "params.id": Number(DEAL) });
+    expect(await codesOf(DEAL, "SIGNING_DEAL_UPDATE_FAILED")).toContain("SIGNING_DEAL_UPDATE_FAILED");
+    const log: any = await eventually(() => db().collection("bitrixlogs").findOne({ method: "crm.item.update", "params.id": Number(DEAL) }), (l) => !!l);
     expect(log.params.fields).toMatchObject({ opportunity: 4321, UF_CRM_1776156870205: "BF-1", UF_CRM_1790772236055: LINK("BF-1") });
   });
 });
