@@ -156,7 +156,8 @@ export const priceOf = (offer: F, cfg: AhConfig): AhPricingResult => computeAhPr
 /**
  * The summary of Leistungen AND Finanzierung (one function — both pages show the same block; ADR 028):
  *  - Kassenkunde (also no payer): „Leistungen und Anfahrt pro Monat“ net, one minus line per applied
- *    source (capped so the lines add up to the Eigenanteil), „Eigenanteil pro Monat“; a note
+ *    source (capped so the lines add up to the Eigenanteil; none for a source nothing is left for),
+ *    „Eigenanteil pro Monat“; a note
  *    „Steuerlich absetzbar: etwa … pro Jahr“ (§ 35a, today's rule) or „Vollständig gedeckt“
  *  - Selbstzahler: net, „zzgl. 7 % MwSt.“, „Gesamt pro Monat“ gross
  *  - both: the Servicepauschale (HnD) as a note only, in today's words of the Kosten page
@@ -176,7 +177,8 @@ export function summaryOf(t: AhOfferTotals, fmt: (n: number) => string): Summary
   }
   const lines: Summary["lines"] = [{ label: "Leistungen und Anfahrt pro Monat", value: t.net }];
   let rest = t.net;
-  const take = (label: string, amount: number) => { const v = Math.round(Math.min(amount, rest) * 100) / 100; if (amount > 0) { lines.push({ label, value: v, minus: true }); rest = Math.round((rest - v) * 100) / 100; } };
+  // a source that nothing is left for (the others already cover the total) gets no „− 0,00 €“ line
+  const take = (label: string, amount: number) => { const v = Math.round(Math.min(amount, rest) * 100) / 100; if (amount > 0 && v > 0) { lines.push({ label, value: v, minus: true }); rest = Math.round((rest - v) * 100) / 100; } };
   take("Entlastungsbetrag", t.deductions.entlastungsbetrag);
   take("Verhinderungspflege", t.deductions.verhinderungspflege);
   take("Umwidmung", t.deductions.umwidmung);

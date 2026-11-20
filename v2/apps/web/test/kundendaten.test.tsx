@@ -132,6 +132,10 @@ function outsideChanges(type: string): Record<string, unknown> {
   };
   const now = offer();
   for (const k of new Set([...Object.keys(fresh), ...Object.keys(now)])) if (k !== "Kundendaten") walk(fresh[k], now[k], k);
+  // DOCUMENTED DEVIATION (UX-CHANGES U-050, owner 2026-11-20): an Alltagshilfe offer starts with nothing
+  // ticked on Finanzierung, and a Pflegegrad answer with a level ticks the Entlastungsbetrag — today it
+  // is ticked from the start, so today's recording sees no change there
+  if (type === "ah" && out["Finanzierung.ahEntlastungsbetragNutzen"] === "on" && now.Kundendaten?.hasPflegegrad === "Ja") delete out["Finanzierung.ahEntlastungsbetragNutzen"];
   return out;
 }
 const stored = () => { const kd: Record<string, unknown> = { ...offer().Kundendaten }; for (const k of CONTEXT) kd[k] = ""; return kd; };

@@ -80,7 +80,7 @@ describe("Finanzierung stores what today's page stores; Kassenkunde: today's Eig
     const sc = s as unknown as F;
     const server = await open({ ah: { ahServicesJson: sc.ah.ahServicesJson, services: sc.ah.services }, Arbeitszeit: sc.Arbeitszeit, Kundendaten: { ...sc.Kundendaten, ...(sc.Kundendaten.payer === "Kassenkunde" ? { hasPflegegrad: "Ja", pflegegrad: "3", p2Pflegegrad: "2" } : {}) }, Finanzierung: TODAY_NEW });
     const u = user();
-    for (const [kind, a] of sc.steps as string[][]) {
+    for (const [kind, a = ""] of sc.steps as [string, string?][]) {
       if (["travel", "payer", "zwei", "svc"].includes(kind)) continue; // set up above
       if (sc.Kundendaten.payer === "Selbstzahler") continue; // no funding cards for a Selbstzahler
       if (kind === "eb") await u.click(tick(EB));

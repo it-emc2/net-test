@@ -101,7 +101,7 @@ function UmwidmungCard({ x }: { x: Fin }) {
               <input id="ah-fin-um-input" inputMode="decimal" autoComplete="off" value={shown} placeholder="0" aria-invalid={bad} aria-describedby={bad ? "ah-fin-um-error" : undefined}
                 onChange={(e) => { const t = e.target.value; setDraft(t); const n = parseEuroInput(t); if (n !== null) write({ umBetrag: t.trim() ? amountText(n) : "" }); }}
                 onBlur={() => { if (!bad) setDraft(null); }}
-                className="w-24 min-w-0 border-0 bg-transparent p-0 text-right text-[1.1rem] font-semibold tabular-nums text-foreground outline-none" />
+                className="w-24 min-w-0 self-stretch border-0 bg-transparent p-0 text-right text-[1.1rem] font-semibold tabular-nums text-foreground outline-none" />
               <span aria-hidden className="font-semibold">€</span>
             </label>
           </Stepper>
