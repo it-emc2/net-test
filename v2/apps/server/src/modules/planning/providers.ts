@@ -10,6 +10,8 @@ export interface RoutingConfig {
   orsApiKey?: string | undefined;
   photonUrl: string; nominatimUrl: string; orsUrl: string; osrmUrl: string;
   companyAddress: string; companyLat: number | null; companyLng: number | null;
+  /** Alltagshilfe: its own start of the route (offer type "ah"); unset → the company address is used */
+  companyAddressAh?: string | undefined; companyAhLat?: number | null | undefined; companyAhLng?: number | null | undefined;
   fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void>;
   log?: { info(o: object, m: string): void; warn(o: object, m: string): void };
 }
@@ -90,9 +92,18 @@ export class RoutingService {
     throw new Error(`All address variants failed: ${allErrors.join("; ")}`);
   }
 
-  async companyCoords(): Promise<GeoPoint> {
-    if (this.c.companyLat && this.c.companyLng) return { lat: this.c.companyLat, lng: this.c.companyLng, displayName: this.c.companyAddress, provider: "env" };
-    return this.geocodeSingle(this.c.companyAddress);
+  /** where the route starts: Alltagshilfe has its own address, every other offer type (and no type) the company address */
+  originFor(offerType?: unknown): { address: string; lat: number | null; lng: number | null } {
+    if (offerType === "ah" && this.c.companyAddressAh) return { address: this.c.companyAddressAh, lat: this.c.companyAhLat ?? null, lng: this.c.companyAhLng ?? null };
+    return { address: this.c.companyAddress, lat: this.c.companyLat, lng: this.c.companyLng };
+  }
+
+  // Nothing is cached here: every request geocodes its own origin and customer address, so one
+  // origin's result can never answer another's.
+  async companyCoords(offerType?: unknown): Promise<GeoPoint> {
+    const o = this.originFor(offerType);
+    if (o.lat && o.lng) return { lat: o.lat, lng: o.lng, displayName: o.address, provider: "env" };
+    return this.geocodeSingle(o.address);
   }
 
   private async osrm(a: GeoPoint, b: GeoPoint) {

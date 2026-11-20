@@ -71,3 +71,13 @@ describe("api contract", () => {
     expect(pathOf("createSecondOffer", { dealId: "4711" })).toBe("/api/deals/4711/second-offer");
   });
 });
+
+describe("suggest-distance request", () => {
+  it("offerType is optional text; today's body (no type) stays valid", async () => {
+    const { SuggestDistanceRequestSchema } = await import("../src/index.js");
+    expect(endpoints.suggestDistance.request).toBe(SuggestDistanceRequestSchema);
+    expect(SuggestDistanceRequestSchema.safeParse({ Kundendaten: { street: "x" } }).success).toBe(true);
+    expect(SuggestDistanceRequestSchema.safeParse({ Kundendaten: { street: "x" }, offerType: "ah" }).success).toBe(true);
+    expect(SuggestDistanceRequestSchema.safeParse({ offerType: 5 }).success).toBe(false);
+  });
+});

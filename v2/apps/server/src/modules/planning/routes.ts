@@ -19,16 +19,18 @@ export async function registerRouting(app: FastifyInstance, d: { routing: Routin
       const body = (req.body ?? {}) as any;
       const k = body.Kundendaten || body.bereich || body || {};
       const street = k.street || "", postalCode = k.postalCode || k.PLZ || "", city = k.city || k.Stadt || "";
+      const offerType = typeof body.offerType === "string" ? body.offerType : undefined;
+      const origin = routing.originFor(offerType); // "ah" starts at its own address; anything else as before
       const state = k.state || k.Bundesland || "", country = k.country || k.Land || "Deutschland";
       if (!street && !city && !postalCode) return fail(req, reply, 400, "BAD_REQUEST", "Missing address fields in Kundendaten.");
       const customerAddress = buildCustomerAddress({ street, postalCode, city, state, country });
       if (!customerAddress.trim()) return fail(req, reply, 400, "BAD_REQUEST", "Customer address could not be built.");
-      if (!routing.c.companyAddress) return fail(req, reply, 500, "CONFIG", "COMPANY_ADDRESS missing on server.");
+      if (!origin.address) return fail(req, reply, 500, "CONFIG", "COMPANY_ADDRESS missing on server.");
       // One deadline for the whole lookup (main PR #332, audit S-07): a slow or hanging provider
       // ends the request with a clear 504 after ~5 s instead of holding it open. The fallback
       // chains keep going after the deadline and unwind on their own.
       const lookup = (async () => {
-        const start = await routing.companyCoords();
+        const start = await routing.companyCoords(offerType);
         const dest = await routing.geocodeWithVariants({ street, postalCode, city, state, country });
         const { km, seconds, provider } = await routing.roadDistance(start, dest);
         return { start, dest, km, seconds, routeProvider: provider };
@@ -51,7 +53,7 @@ export async function registerRouting(app: FastifyInstance, d: { routing: Routin
       req.log.info({ geocodeProvider: dest.provider, routeProvider, oneWayKm }, "distance suggested");
       return {
         ok: true, oneWayKm, roundTripKm, oneWaySeconds, roundTripSeconds: oneWaySeconds * 2,
-        from: { address: routing.c.companyAddress, geocoded: start.displayName, lat: start.lat, lng: start.lng },
+        from: { address: origin.address, geocoded: start.displayName, lat: start.lat, lng: start.lng },
         to: { address: customerAddress, geocoded: dest.displayName, usedVariant: dest.usedAddress, lat: dest.lat, lng: dest.lng },
         geocodeProvider: dest.provider, routeProvider,
       };
