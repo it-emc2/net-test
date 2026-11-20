@@ -6,22 +6,11 @@
 //  - an amount that is not a positive number counts as 0; the text is stored trimmed
 //  - the internal list is `Kundendaten["internalTodos[]"]`; with no entry the key is not stored
 type Fields = Record<string, unknown>;
-export interface AmountRow { amount: string; fuerWas: string }
+import { NO_MEASURES, TODOS, storedWohnumfeld, type AmountRow } from "@oc/domain";
 
-export const NO_MEASURES = { done: false, amount: 0, entries: [] as { amount: number; fuerWas: string }[] };
+// NO_MEASURES, storedWohnumfeld, TODOS live in @oc/domain (customer-data.ts, one rule with the server)
+export { NO_MEASURES, TODOS, storedWohnumfeld, type AmountRow };
 export const EMPTY_ROW: AmountRow = { amount: "", fuerWas: "" };
-
-const amountOf = (raw: string) => {
-  const n = parseFloat(String(raw ?? "").replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? n : 0;
-};
-
-/** what is stored for these rows */
-export function storedWohnumfeld(done: unknown, rows: readonly AmountRow[]) {
-  if (done !== "Ja") return { ...NO_MEASURES, entries: [] };
-  const entries = rows.map((r) => ({ amount: amountOf(r.amount), fuerWas: r.fuerWas.trim() }));
-  return { done: true, amount: entries.reduce((sum, e) => sum + e.amount, 0), entries };
-}
 
 /** the rows on the page: what was entered while the offer is open, else what is stored, else one empty row */
 export function amountRows(kd: Fields, remembered: unknown): AmountRow[] {
@@ -36,7 +25,6 @@ export function usedText(rows: readonly AmountRow[]): string {
   return rows.reduce((sum, r) => sum + (Number(String(r.amount || "").replace(",", ".")) || 0), 0).toLocaleString("de-DE") + " €";
 }
 
-export const TODOS = "internalTodos[]";
 /** the internal list as stored (older offers may hold it as `internalTodos`, or as one text) */
 export function todosOf(kd: Fields): string[] {
   const v = kd[TODOS] ?? kd.internalTodos;

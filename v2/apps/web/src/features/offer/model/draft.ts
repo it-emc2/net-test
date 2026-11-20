@@ -87,6 +87,7 @@ export function useOpenOffer(dealId: string, type: NewOfferType, variant?: strin
       pendingStart = null; // an existing draft is never overwritten by an appointment
       const v: OpenVariant = { id: d.variantId ?? asked ?? FIRST_VARIANT_ID, name: d.variantName, known: !!(d.variantId || asked) };
       if (!applySnapshot(dealId, v, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision, v);
+      useOfferStore.getState().setRelated(d.related ?? []); // ADR 027 B: the header marks related offers without another request
       if (variant && v.id !== variant) return say({ status: "moved", variantId: v.id });
       say({ status: "ready" });
     };
@@ -167,6 +168,7 @@ export async function reloadDraft(): Promise<boolean> {
     if (useOfferStore.getState().dealId !== dealId || useOfferStore.getState().variantId !== variantId || d.offerType !== offer.activeOffer) return false;
     dropSnapshot(snapshotKey(dealId, variantId));
     useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision, { id: d.variantId ?? variantId ?? FIRST_VARIANT_ID, name: d.variantName ?? variantName, known: variantKnown || !!d.variantId });
+    useOfferStore.getState().setRelated(d.related ?? []);
     tell({ state: "idle" });
     return true;
   } catch { return false; }

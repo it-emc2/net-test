@@ -150,3 +150,17 @@ describe("a new offer from this one (Neue Version / Variante, ADR 027 A)", () =>
   });
 });
 
+
+describe("customer data (ADR 027 B: one rule for web and server)", () => {
+  it("applyChanges merges per section like the web store's patchAll; dealNumberTop sets all three places", async () => {
+    const { applyChanges, dealNumberTop, emptyOffer, restoreChanges } = await import("../src/index.js");
+    const o = { Kundendaten: { a: 1, b: 2 }, mail: { to: "x" } } as Record<string, any>;
+    expect(applyChanges(o, { Kundendaten: { b: undefined, c: 3 }, postal: { z: 1 } })).toEqual({ Kundendaten: { a: 1, c: 3 }, mail: { to: "x" }, postal: { z: 1 } });
+    expect(o).toEqual({ Kundendaten: { a: 1, b: 2 }, mail: { to: "x" } }); // not changed
+    expect(dealNumberTop(o, "4711")).toEqual({ auftragId: "4711", mail: { to: "x", auftragId: "4711" }, postal: { auftragId: "4711" } });
+    const e = emptyOffer("ah", { date: "2026-11-20" }) as Record<string, any>;
+    const ch = restoreChanges(e, { firstName: "Erika", lastName: "Muster", email: "kunde@example.test", wohnumfeldDone: "Ja" }, "ah");
+    expect(ch.Kundendaten).toMatchObject({ firstName: "Erika", lastName: "Muster", email: "kunde@example.test", wohnumfeldDone: undefined });
+    expect(ch.mail).toEqual({ to: "kunde@example.test" });
+  });
+});

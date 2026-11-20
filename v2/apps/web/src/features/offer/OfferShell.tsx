@@ -16,6 +16,7 @@ import { useOfferStore } from "./model/store.js";
 import { StepDrawer } from "./StepDrawer.js";
 import { TEXT as VARIANT, variantInSearch, variantSearch } from "./model/variants.js";
 import { usePrice } from "./model/usePrice.js";
+import { TEXT as SECOND } from "./model/second-offer.js";
 import { OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, groupStartingAt, isReferenzStep, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
 
 function Total() {
@@ -187,6 +188,9 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     if (open.status === "ready" && !asked && variantId && isStepOf(type, step)) navigate({ pathname: location.pathname, search: variantSearch(variantId) }, { replace: true });
   }, [open.status, asked, variantId, location.pathname, navigate, type, step]);
   useEffect(() => { if (open.status === "moved") toast.info(VARIANT.gone, { id: "variant-gone" }); }, [open.status]);
+  // ADR 027 B: a deal has one offer type; an address with another type opens the deal's own offer — said in one line, never created from a URL
+  const otherType = open.status === "other-type" ? open.type : null;
+  useEffect(() => { if (otherType) toast.info(SECOND.otherTypeNotice(dealId, OFFER_TITLES[otherType], OFFER_TITLES[type]), { id: "other-type", duration: 10_000 }); }, [otherType, dealId, type]);
   const setOfferType = usePrefs((p) => p.setOfferType);
   useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
   useAutosave();

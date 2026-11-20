@@ -1,7 +1,7 @@
 // The offer being edited: ONE typed object in one store (ADR 026). Screens read single fields
 // through narrow selectors and write through `patch`; nothing is read back from the page.
 // Starting an offer and leaving it are one assignment each — no field is reset one by one.
-import { FIRST_VARIANT_ID } from "@oc/api-contract";
+import { FIRST_VARIANT_ID, type DealRelation } from "@oc/api-contract";
 import { emptyOffer, type NewOfferType, type Offer, type OfferContext, type SectionKey } from "@oc/domain";
 import { create } from "zustand";
 
@@ -18,6 +18,8 @@ export interface OfferState {
    *  only then do draft calls and sends carry it — else they act on the server's default, which
    *  for a deal without variants is the same draft */
   variantKnown: boolean;
+  /** the other deals of the same customer made with „Weiteres Angebot“ (ADR 027 B), as the draft GET answered them */
+  related: DealRelation[];
   /** counts every change — cheap "has it changed?" for autosave and the price request */
   version: number;
   /** revision of the draft on the server this offer is based on (0: nothing saved yet) */
@@ -29,6 +31,7 @@ export interface OfferState {
   load(offer: Offer, dealId?: string | null, revision?: number, variant?: OpenVariant): void;
   /** the open variant was renamed */
   setVariantName(name: string): void;
+  setRelated(related: DealRelation[]): void;
   /** back to the Hauptmenü */
   close(): void;
   /** change fields of one section; a field set to `undefined` is removed (today's UI stores
@@ -48,7 +51,7 @@ export interface OfferState {
 
 /** which variant an offer that is opened is */
 export interface OpenVariant { id: string; name?: string | undefined; known: boolean }
-const CLOSED = { offer: null, dealId: null, variantId: null, variantName: "", variantKnown: false, version: 0, revision: 0, savedVersion: 0, scratch: {} };
+const CLOSED = { offer: null, dealId: null, variantId: null, variantName: "", variantKnown: false, related: [] as DealRelation[], version: 0, revision: 0, savedVersion: 0, scratch: {} };
 const variantOf = (dealId: string | null, v: OpenVariant | undefined) =>
   dealId ? { variantId: v?.id ?? FIRST_VARIANT_ID, variantName: v?.name ?? "", variantKnown: !!v?.known } : {};
 
@@ -66,6 +69,7 @@ export const useOfferStore = create<OfferState>()((set) => ({
   // only a NEW offer (`start`) gets Badolux preselected — see steps/duschwanne `LINE_DEFAULTED`
   load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, offer, dealId, revision, scratch: { dwLineDefaulted: true }, ...variantOf(dealId, variant) }),
   setVariantName: (variantName) => set({ variantName }),
+  setRelated: (related) => set({ related }),
   close: () => set({ ...CLOSED }),
   patch: (section, fields) =>
     set((s) => (s.offer ? { offer: { ...s.offer, [section]: merged((s.offer as any)[section], fields as Record<string, unknown>) } as Offer, version: s.version + 1 } : s)),

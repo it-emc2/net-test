@@ -8,22 +8,14 @@
 //  - when another option replaces "2 Personen", the (empty) fields of the second person stay stored
 type Fields = Record<string, unknown>;
 
-export const MAIN_OPTIONS = {
-  budgetMax: { value: "4180 MAXIMAL", label: "4.180 € MAXIMAL" },
-  twoPersons: { value: "Zwei Personen mit Pflegegrad", label: "2 Personen mit Pflegegrad (+ 4.180 €)" },
-  premium: { value: "Premium", label: "Premium" },
-} as const;
-export type MainOption = keyof typeof MAIN_OPTIONS;
+import { MAIN_OPTIONS, budgetPanelOf, parseEuro, type MainOption } from "@oc/domain";
+
+// MAIN_OPTIONS, budgetPanelOf and parseEuro live in @oc/domain (customer-data.ts, one rule with the server)
+export { MAIN_OPTIONS, budgetPanelOf, parseEuro, type MainOption };
 const MAINS = Object.keys(MAIN_OPTIONS) as MainOption[];
 const COPAY_VALUE = "4180 mit Zuzahlung";
 /** the second person's fields, stored (empty) as soon as "2 Personen" is ticked */
 export const PARTNER_FIELDS = ["partnerFirstName", "partnerLastName", "partnerGeburtsdatum", "partnerKassenkundeName", "partnerKrankenkasseAdresse", "partnerKvnr", "partnerPflegegradSeit"] as const;
-
-/** `budgetOptionsPanel`: the ticked main option in capitals, as today's UI derives it */
-export const budgetPanelOf = (kd: Fields): string => {
-  const main = MAINS.find((m) => !!kd[m]);
-  return main ? MAIN_OPTIONS[main].value.toUpperCase() : "";
-};
 
 // ---- name and greeting for two persons (today: Zusammenfassung fields, filled automatically) ----
 const nameFrag = (sal: unknown, name: string) => [sal, name].filter(Boolean).join(" ").trim();
@@ -86,12 +78,6 @@ export function toggleMainOption(kd: Fields, option: MainOption, on: boolean, re
 export function toggleCopay(kd: Fields, on: boolean): Fields {
   if (on && !MAINS.some((m) => !!kd[m])) return {};
   return on ? { budgetCopay: COPAY_VALUE } : { budgetCopay: undefined, copayAmount: 0 };
-}
-
-/** "1.250,50" / "1250" → number; anything else → 0 (today's parseEuroToNumber) */
-export function parseEuro(v: unknown): number {
-  const n = parseFloat(String(v ?? "").trim().replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
 }
 
 /** The "Anrechenbares Budget" readout: display only, never stored. */

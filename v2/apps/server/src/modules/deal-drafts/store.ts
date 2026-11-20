@@ -43,6 +43,8 @@ export const DealDraft = model("DealDraft", new Schema({
   payload: { type: Schema.Types.Mixed, required: true },
   revision: { type: Number, required: true },
   updatedBy: { type: String, default: "" },
+  /** other deals of the same customer made with „Weiteres Angebot“ (ADR 027 B): { dealId, offerType, role, createdAt, creationId } */
+  related: { type: [Schema.Types.Mixed], default: undefined },
   /** temporary drafts (started without a deal number): the deal they were attached to */
   adoptedInto: { type: String, default: undefined },
 }, { timestamps: true, minimize: false, collection: "deal_drafts" }));

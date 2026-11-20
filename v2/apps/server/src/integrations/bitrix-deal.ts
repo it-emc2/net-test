@@ -2,7 +2,7 @@
 // updateDealAfterSigning, addTimelineComment, ensurePartnerContact, setDealOfferLink, AH fields).
 // Field ids, enum ids, stage ids and the exact request shapes are unchanged: the contract test
 // records the outgoing calls of legacy and v2 against the same stub and requires them identical.
-import type { BitrixClient } from "./bitrix.js";
+import { buildQS, type BitrixBatchResult, type BitrixClient } from "./bitrix.js";
 
 export const DEAL_ENTITY_TYPE_ID = 2;
 export const STAGES = {
@@ -173,6 +173,17 @@ export interface SignedOffer {
  *  move, which reads the deal for it — reading it here would cost a second Bitrix call. */
 const AH_ZONE_KEEP = "keep";
 
+/** a NEW deal (ADR 027 B, a second offer type for the same customer) */
+export interface NewDeal {
+  categoryId: number; stageId: string; title: string; sourceId: string; contactId: number;
+  /** external id of the creation: lets a later retry find a deal whose create answer was lost */
+  originatorId: string; originId: string;
+  /** user fields by their original names (UF_CRM_…) */
+  ufFields: Record<string, unknown>;
+}
+/** the create call returned without an error but also without an id — the deal may exist (outcome unknown) */
+export class DealCreateNoIdError extends Error { override name = "DealCreateNoIdError"; }
+
 export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
   async function updateDealStage(u: DealStageUpdate) {
     const numericId = Number(u.dealId);
@@ -312,8 +323,43 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     }
   }
 
+  /**
+   * A NEW deal in ONE call (ADR 027 B): crm.item.add (entityTypeId 2, original UF names) sets pipeline,
+   * stage, title, source, the contact, the external id and the user fields together; Bitrix runs the
+   * automation rules of the stage after saving. No responsible person is sent (the stage's rule sets it).
+   * Returns the new deal's id; an answer without one throws DealCreateNoIdError (outcome unknown).
+   */
+  async function createDeal(d: NewDeal): Promise<number> {
+    if (!(Number.isInteger(d.contactId) && d.contactId > 0)) throw new Error("contactId must be a positive number");
+    const fields: Record<string, unknown> = {
+      categoryId: d.categoryId, stageId: d.stageId, title: d.title, sourceId: d.sourceId,
+      contactId: d.contactId, contactIds: [d.contactId],
+      originatorId: d.originatorId, originId: d.originId,
+      ...d.ufFields,
+    };
+    const r = await bx.post("crm.item.add", { entityTypeId: DEAL_ENTITY_TYPE_ID, fields, useOriginalUfNames: "Y" });
+    const id = Number(r?.result?.item?.id);
+    if (!Number.isFinite(id) || id <= 0) throw new DealCreateNoIdError("crm.item.add returned no id");
+    return id;
+  }
+
+  /** the deal made with this external id (originatorId + originId), or null — one crm.item.list call */
+  async function findDealByOrigin(originatorId: string, originId: string): Promise<number | null> {
+    const r = await bx.post("crm.item.list", { entityTypeId: DEAL_ENTITY_TYPE_ID, filter: { originatorId, originId }, select: ["id"] });
+    const items: any[] = Array.isArray(r?.result?.items) ? r.result.items : [];
+    const id = Number(items[0]?.id);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+
+  /** several timeline notes on deals in ONE request (batch); per-note failures are in `result_error` */
+  async function addTimelineComments(notes: { dealId: number; comment: string }[]): Promise<BitrixBatchResult> {
+    const cmd: Record<string, string> = {};
+    notes.forEach((n, i) => { cmd[`c${i}`] = `crm.timeline.comment.add?${buildQS({ fields: { ENTITY_ID: n.dealId, ENTITY_TYPE: "deal", COMMENT: n.comment } })}`; });
+    return bx.batch(cmd);
+  }
+
   /** a Bitrix task (main PR #321: "Neuen Link anfordern" on an expired signing link) */
   const addTask = (fields: Record<string, unknown>) => bx.post("tasks.task.add", { fields });
-  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, setDealOfferLink, addTask };
+  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, setDealOfferLink, addTask, createDeal, findDealByOrigin, addTimelineComments };
 }
 export type DealWrites = ReturnType<typeof dealWrites>;

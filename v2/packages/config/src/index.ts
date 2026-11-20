@@ -53,6 +53,16 @@ const EnvSchema = z.object({
   BITRIX_WEBHOOK_BASE: z.string().url().optional(),
   /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */
   BITRIX_MIN_GAP_MS: z.coerce.number().int().min(0).default(1000),
+  /** A second offer type for the same customer (ADR 027 B): the pipeline (category) and stage a NEW deal is
+   *  created in — „Neue Anfragen“ / „[VI] Neu“; a test system points these at a test pipeline. */
+  SECOND_OFFER_CATEGORY_ID: z.coerce.number().int().min(0).default(72),
+  SECOND_OFFER_STAGE_ID: z.string().trim().min(1).default("C72:NEW"),
+  /** the deal's source (SOURCE_ID); "WEBFORM" is named „Bestandskunde“ in this Bitrix */
+  SECOND_OFFER_SOURCE_ID: z.string().trim().min(1).default("WEBFORM"),
+  /** provisional title; the automation rule of the entry stage writes the real one */
+  SECOND_OFFER_TITLE: z.string().trim().min(1).default("Neuanfrage"),
+  /** optional JSON override of SECOND_OFFER_DEAL_VALUES (merged per key), e.g. {"byType":{"bl":{"taetigkeiten":["4158"]}}} */
+  SECOND_OFFER_VALUES_JSON: z.string().trim().optional().transform((v) => v || undefined),
   /** Optional deal field for "Material-Kürzel" (legacy: skipped until set). */
   BITRIX_FIELD_MATERIAL_CODES: z.string().trim().optional(),
   /** Base of the deal field "Angebotslink-oc" (not a secret; legacy default kept). */
@@ -112,6 +122,68 @@ const EnvSchema = z.object({
 
 export type AppConfig = Readonly<z.infer<typeof EnvSchema>>;
 
+// ---------------- a second offer type for the same customer (ADR 027 B) ----------------
+/**
+ * The values a new deal gets in Bitrix, per offer type (owner-confirmed 2026-11-20; enum ids of the
+ * live deal fields). ONE table: change values here (or with SECOND_OFFER_VALUES_JSON), not in code.
+ */
+export const SECOND_OFFER_DEAL_VALUES = {
+  fields: {
+    /** „Kategorie Neu“ (enumeration, multiple, required) */
+    kategorieNeu: "UF_CRM_1725458507816",
+    /** „Auszuführende Tätigkeiten“ (enumeration, multiple, required) */
+    taetigkeiten: "UF_CRM_1725521281342",
+    /** „Zugehörigkeit“ (enumeration, single, required) */
+    zugehoerigkeit: "UF_CRM_1764764902076",
+    /** plain text, used by the title rule („von …“) */
+    vonText: "UF_CRM_1736426014",
+  },
+  /** „Eigener Auftrag“ — always (owner), never copied from the first deal */
+  zugehoerigkeit: "8158",
+  byType: {
+    /** Handwerkliche Dienstleistungen (Barrierefrei) / [HD] Badumbau */
+    bu: { kategorieNeu: ["4334"], taetigkeiten: ["7730"] },
+    /** … / [HD] Badewannentüre */
+    bwt: { kategorieNeu: ["4334"], taetigkeiten: ["4704"] },
+    /** … / [HD] Handläufe */
+    hl: { kategorieNeu: ["4334"], taetigkeiten: ["4034"] },
+    /** … / Sonstige (assumption: no own entry for Barrierefreies Leben) */
+    bl: { kategorieNeu: ["4334"], taetigkeiten: ["4158"] },
+    /** Alltagshilfe / [AH] Haushaltsnahe Dienstleistungen */
+    ah: { kategorieNeu: ["4002"], taetigkeiten: ["4566"] },
+  } as Record<string, { kategorieNeu: string[]; taetigkeiten: string[] }>,
+};
+export type SecondOfferDealValues = typeof SECOND_OFFER_DEAL_VALUES;
+
+export interface SecondOfferSettings {
+  categoryId: number; stageId: string; sourceId: string; title: string; values: SecondOfferDealValues;
+}
+const IdList = z.array(z.string().regex(/^\d+$/)).min(1);
+const ValuesOverride = z.object({
+  fields: z.object({ kategorieNeu: z.string(), taetigkeiten: z.string(), zugehoerigkeit: z.string(), vonText: z.string() }).partial().optional(),
+  zugehoerigkeit: z.string().regex(/^\d+$/).optional(),
+  byType: z.record(z.string(), z.object({ kategorieNeu: IdList, taetigkeiten: IdList }).partial()).optional(),
+}).strict();
+
+/** the settings of a second offer: env (pipeline, stage, source, title) + the value table with its optional JSON override */
+export function secondOfferSettings(cfg: Pick<AppConfig, "SECOND_OFFER_CATEGORY_ID" | "SECOND_OFFER_STAGE_ID" | "SECOND_OFFER_SOURCE_ID" | "SECOND_OFFER_TITLE" | "SECOND_OFFER_VALUES_JSON">): SecondOfferSettings {
+  const values: SecondOfferDealValues = structuredClone(SECOND_OFFER_DEAL_VALUES);
+  if (cfg.SECOND_OFFER_VALUES_JSON) {
+    let raw: unknown;
+    try { raw = JSON.parse(cfg.SECOND_OFFER_VALUES_JSON); } catch { throw new Error("SECOND_OFFER_VALUES_JSON is not valid JSON"); }
+    const o = ValuesOverride.safeParse(raw);
+    if (!o.success) throw new Error(`SECOND_OFFER_VALUES_JSON: ${o.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+    Object.assign(values.fields, o.data.fields ?? {});
+    if (o.data.zugehoerigkeit) values.zugehoerigkeit = o.data.zugehoerigkeit;
+    for (const [t, v] of Object.entries(o.data.byType ?? {})) {
+      const cur = values.byType[t];
+      if (!cur && !(v.kategorieNeu && v.taetigkeiten)) throw new Error(`SECOND_OFFER_VALUES_JSON: byType.${t} needs kategorieNeu and taetigkeiten`);
+      values.byType[t] = { ...(cur ?? { kategorieNeu: [], taetigkeiten: [] }), ...(v as object) } as { kategorieNeu: string[]; taetigkeiten: string[] };
+    }
+  }
+  return { categoryId: cfg.SECOND_OFFER_CATEGORY_ID, stageId: cfg.SECOND_OFFER_STAGE_ID, sourceId: cfg.SECOND_OFFER_SOURCE_ID, title: cfg.SECOND_OFFER_TITLE, values };
+}
+
 export class UnsafeDatabaseError extends Error {
   override name = "UnsafeDatabaseError";
 }
@@ -151,6 +223,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       );
     }
   }
+  secondOfferSettings(cfg); // a broken SECOND_OFFER_VALUES_JSON stops the start, not the first creation
   if (cfg.NODE_ENV === "production" && (cfg.AUTH_SECRET.startsWith("dev-only") || cfg.AUTH_SECRET.length < 32)) {
     throw new Error("Refusing to start: AUTH_SECRET must be set (≥ 32 chars) in production — no insecure fallback.");
   }
