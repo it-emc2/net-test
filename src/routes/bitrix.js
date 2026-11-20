@@ -9,9 +9,10 @@ import { notifyTerminNotHeld } from "./planning.js";
 
 const router = express.Router();
 
-const BITRIX_WEBHOOK_BASE =
-  process.env.BITRIX_WEBHOOK_BASE ||
-  "https://emczwei.bitrix24.de/rest/2594/na0pingesg144c5z";
+const BITRIX_WEBHOOK_BASE = process.env.BITRIX_WEBHOOK_BASE || "";
+if (!BITRIX_WEBHOOK_BASE) {
+  console.error("[bitrix] BITRIX_WEBHOOK_BASE is not set — Bitrix calls will fail until it is configured.");
+}
 
 // Bitrix constants (from your script)
 const OWNER_TYPE = { contact: 3, company: 4 };
