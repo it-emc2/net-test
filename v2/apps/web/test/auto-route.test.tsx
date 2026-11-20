@@ -49,7 +49,7 @@ describe("the automatic route — on the pages", () => {
     await waitFor(() => expect([az().distanceKm, az().travelTimeHHMM]).toEqual(["12.3", "0:20"]));
     await quiet();
     expect(server.count(ROUTE)).toBe(1);
-    expect(server.calls.find((c) => c.key === ROUTE)!.body).toEqual({ Kundendaten: { ...ADDRESS, state: "", country: "" } });
+    expect(server.calls.find((c) => c.key === ROUTE)!.body).toEqual({ Kundendaten: { ...ADDRESS, state: "", country: "" }, offerType: "bu" });
     expect(typeof az().totalHoursNumeric).toBe("number"); // what follows from the entries is kept up to date in the same change
   });
 
@@ -105,5 +105,18 @@ describe("the automatic route — on the pages", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Strecke aus Adresse vorschlagen" }));
     await waitFor(() => expect(az().distanceKm).toBe("12.3"));
     expect(server.count(ROUTE)).toBe(1);
+  });
+});
+
+describe("the route asks with the offer's type (Alltagshilfe starts at its own address)", () => {
+  it.each(["ah", "bu"])("Arbeitszeit of a %s offer sends offerType and shows the start the server names", async (type) => {
+    const start = type === "ah" ? "Waldstraße 5, 95030 Hof" : "Kornhausacker 10, Hof";
+    const server = fakeServer({
+      ...BASE, "GET /api/deals/*/draft": { body: { ...draft({ Kundendaten: ADDRESS }).body as Obj, offerType: type, payload: { activeOffer: type, Kundendaten: ADDRESS } } },
+      [ROUTE]: { body: { ...(FOUND.body as Obj), from: { address: start } } },
+    });
+    renderApp(`/deal/${KEY}/${type}/Arbeitszeit`);
+    await waitFor(() => expect(screen.getByTestId("az-routing").textContent).toContain(`Basis: Strecke von ${start} zu`));
+    expect(server.calls.find((c) => c.key === ROUTE)!.body).toMatchObject({ offerType: type });
   });
 });

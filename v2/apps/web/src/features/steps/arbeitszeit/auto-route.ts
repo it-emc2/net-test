@@ -46,9 +46,10 @@ export async function askRoute(byHand: boolean, signal?: AbortSignal): Promise<v
   const kd = (offerNow().Kundendaten ?? {}) as Fields, address = routeAddress(kd), key = addressKey(kd);
   if (byHand && !address.street && !address.city && !address.postalCode) { hint({ text: NO_ADDRESS }); return; }
   if (byHand) hint({ text: "Berechne Routenvorschlag …" });
+  const offerType = str(offerNow().activeOffer); // Alltagshilfe starts its route at another address
   const moved = st().scratch.routeFor !== undefined; // the way on the page belongs to another address
   try {
-    const route = await call("suggestDistance", { body: { Kundendaten: address }, ...(signal ? { signal } : {}) });
+    const route = await call("suggestDistance", { body: { Kundendaten: address, ...(offerType ? { offerType } : {}) }, ...(signal ? { signal } : {}) });
     const found = route.ok ? fromRoute(route) : null;
     if (!found) { if (byHand) hint({ text: route.ok ? "Keine sinnvolle Strecke ermittelt." : "Routenvorschlag fehlgeschlagen." }); else if (moved) hint({ text: STALE }); return; }
     writeArbeitszeit(found.fields);
