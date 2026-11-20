@@ -7,3 +7,4 @@ export {
   variantNumbers, variantOfNumber, variantWasSent,
 } from "./variants.js";
 export type { VariantChoice, VariantNumbers } from "./variants.js";
+export { SECOND_OFFER_ORIGINATOR, customerNameText, newDealOf, secondOfferPayload } from "./second-offer.js";

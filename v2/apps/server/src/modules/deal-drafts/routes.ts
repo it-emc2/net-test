@@ -4,7 +4,7 @@
 // opened last (store.ts defaultOf) — for a deal with one variant that is the one draft, as before.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
-import { ERROR_AREAS, ERROR_CODES, FIRST_VARIANT_ID, isVariantId, type ErrorCode } from "@oc/api-contract";
+import { CREATION_ID_RE, ERROR_AREAS, ERROR_CODES, FIRST_VARIANT_ID, isVariantId, type ErrorCode } from "@oc/api-contract";
 import { reportError } from "../../platform/error-events.js";
 import { Draft, Offer } from "../../platform/models.js";
 import {
@@ -12,6 +12,7 @@ import {
   touchOpened, VariantIndexMissingError,
 } from "./store.js";
 import { createVariant, deleteVariant, listVariants, renameVariant, VariantError, variantNameOf } from "./variants.js";
+import { relatedOf, relationsOf, secondOffer, SecondOfferError, type SecondOfferDeps } from "./second-offer.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -24,6 +25,8 @@ const OFFER_TYPES = new Set(["bu", "bwt", "hl", "bl", "ah"]); // HMS/WD dropped 
 export interface DealDraftDeps {
   /** the contact person of a new variant: the signed-in user, as "Neue Version" does (offers resolveAnsprechpartner) */
   resolveContact?: (kundendaten: Record<string, unknown>, user: { email?: string } | undefined) => Promise<Record<string, unknown>>;
+  /** a second offer type for the same customer (ADR 027 B): Bitrix deal writes + settings; absent → the route is not registered */
+  secondOffer?: Omit<SecondOfferDeps, "resolveContact">;
 }
 
 async function guarded<T>(req: FastifyRequest, reply: FastifyReply, fn: () => Promise<T>) {
@@ -33,6 +36,11 @@ async function guarded<T>(req: FastifyRequest, reply: FastifyReply, fn: () => Pr
     if (e instanceof VariantError) {
       reportError(req, { area: ERROR_AREAS.dealVariants, code: e.code as ErrorCode, severity: "warn", message: `variant refused (${e.code})`, dealId });
       return fail(req, reply, e.status, e.code, e.message);
+    }
+    if (e instanceof SecondOfferError) {
+      // the error log gets warn-level refusals here; Bitrix failures were reported where they happened (with the upstream call)
+      if (e.severity === "warn" && e.code !== ERROR_CODES.SECOND_OFFER_COMMENT_FAILED) reportError(req, { area: ERROR_AREAS.secondOffer, code: e.code, severity: "warn", message: `second offer refused (${e.code})`, dealId });
+      return fail(req, reply, e.status, e.code, e.message, e.extra);
     }
     if (e instanceof VariantIndexMissingError) {
       reportError(req, { area: ERROR_AREAS.dealVariants, code: ERROR_CODES.VARIANT_CREATE_FAILED, message: "variant create failed: migration 005 not run", dealId });
@@ -97,6 +105,7 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
     return {
       dealId, offerType: d.offerType, payload: d.payload, revision: d.revision, updatedAt: d.updatedAt, updatedBy: d.updatedBy,
       variantId: publicVariantId(d), variantName: variantNameOf(d),
+      related: await relationsOf(dealId),
     };
   });
 
@@ -179,6 +188,26 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
       });
     });
   });
+
+  // ---------- a second offer type for the same customer (ADR 027 B) ----------
+  app.get("/api/deals/:dealId/related", async (req) => {
+    const { dealId } = req.params as { dealId: string };
+    return TEMP_KEY.test(dealId) ? { dealId, related: [] } : relatedOf(dealId);
+  });
+
+  if (deps.secondOffer) {
+    const so = secondOffer({ ...deps.secondOffer, resolveContact: deps.resolveContact });
+    app.post("/api/deals/:dealId/second-offer", async (req, reply) => {
+      const { dealId } = req.params as { dealId: string };
+      const b = (req.body ?? {}) as { offerType?: unknown; creationId?: unknown; variantId?: unknown; checkBitrix?: unknown };
+      if (typeof b.creationId !== "string" || !CREATION_ID_RE.test(b.creationId)) return fail(req, reply, 400, "BAD_REQUEST", "Anfrage-Kennung fehlt oder ist ungültig");
+      if (b.variantId !== undefined && !isVariantId(b.variantId)) return fail(req, reply, 400, "BAD_REQUEST", "Ungültige Varianten-Kennung");
+      return guarded(req, reply, () => so.create({
+        dealId, offerType: b.offerType, creationId: b.creationId as string, variantId: b.variantId as string | undefined,
+        checkBitrix: b.checkBitrix === true, by: req.user!.email, user: req.user,
+      }, req));
+    });
+  }
 
   // ---------- variants (ADR 027 A) ----------
   app.get("/api/deals/:dealId/variants", async (req) => listVariants((req.params as { dealId: string }).dealId));

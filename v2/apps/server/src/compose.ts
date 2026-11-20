@@ -1,10 +1,11 @@
 // Composition root (ADR 026): builds the shared services (pricing engine, Bitrix client, mailers,
 // PDF engine) and registers every module. No routes live here.
 import type { FastifyInstance } from "fastify";
-import type { AppConfig as Cfg } from "@oc/config";
+import { secondOfferSettings, type AppConfig as Cfg } from "@oc/config";
+import { pricingRulesOf } from "@oc/domain";
 import { registerAuth } from "./modules/auth/index.js";
 import { registerPricing, registerSubmissions } from "./modules/pricing/index.js";
-import { BusinessConfig } from "./platform/business-config.js";
+import { BusinessConfig, CONFIG_SCHEMA } from "./platform/business-config.js";
 import { AppConfig, Draft, Offer, Product } from "./platform/models.js";
 import { vigorPriceFetcher } from "./integrations/vigor.js";
 import { registerOffersExternal, registerOffersRead, registerOffersWrite, resolveAnsprechpartner } from "./modules/offers/index.js";
@@ -104,12 +105,6 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerSubmissions(app, { computePrices: (p) => pricing.computePrices(p) });
   await registerOffersExternal(app, { externalApiKey: cfg.EXTERNAL_API_KEY });
   await registerOffersWrite(app, pricing, { apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "" });
-  await registerDealDrafts(app, {
-    // a new variant is the signed-in user's document, like "Neue Version" (ADR 027 A)
-    resolveContact: (kd, user) => resolveAnsprechpartner({ ...kd, ansprechpartner: user?.email ?? "" }, user, cfg.AP_DEFAULT_EMAIL ?? ""),
-  });
-  await registerCustomers(app);
-  await registerAdmin(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   const bitrix = deps.bitrix ?? new BitrixClient({
     baseUrl: cfg.BITRIX_WEBHOOK_BASE,
     minGapMs: cfg.BITRIX_MIN_GAP_MS,
@@ -118,9 +113,20 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
       await BitrixLog.create(entry);
     },
   });
+  const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
+  await registerDealDrafts(app, {
+    // a new variant is the signed-in user's document, like "Neue Version" (ADR 027 A)
+    resolveContact: (kd, user) => resolveAnsprechpartner({ ...kd, ansprechpartner: user?.email ?? "" }, user, cfg.AP_DEFAULT_EMAIL ?? ""),
+    // a second offer type for the same customer: a new deal in „Neue Anfragen“ (ADR 027 B)
+    secondOffer: {
+      deals, bitrixConfigured: () => bitrix.configured, settings: secondOfferSettings(cfg),
+      pricingRules: () => pricingRulesOf(Object.fromEntries(CONFIG_SCHEMA.map((d) => [d.key, businessConfig.get(d.key)]))),
+    },
+  });
+  await registerCustomers(app);
+  await registerAdmin(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   await registerBitrixRead(app, bitrix);
   await registerDealCustomer(app, bitrix);
-  const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   await registerSends(app, { deals });
   await registerOfferNumbers(app);
   const ensureSentOffer = sentOfferRecorder(unpinnedPricing, app.log);

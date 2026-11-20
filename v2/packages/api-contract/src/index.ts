@@ -61,10 +61,32 @@ export const ERROR_CODES = {
   SIGNING_AMOUNT_MISSING: "SIGNING_AMOUNT_MISSING",
   /** signing: the Bitrix deal update after a completed signature failed (the signature is kept) */
   SIGNING_DEAL_UPDATE_FAILED: "SIGNING_DEAL_UPDATE_FAILED",
+  /** second offer (ADR 027 B): the target type is the type of the open offer — that is a variant */
+  SECOND_OFFER_SAME_TYPE: "SECOND_OFFER_SAME_TYPE",
+  /** second offer: the target type is not one of NEW_OFFER_TYPES */
+  SECOND_OFFER_TYPE_INVALID: "SECOND_OFFER_TYPE_INVALID",
+  /** second offer: the open offer has no deal number yet (temporary key) — there is no first deal */
+  SECOND_OFFER_TEMP_DEAL: "SECOND_OFFER_TEMP_DEAL",
+  /** second offer: neither the offer nor the first deal names a Bitrix contact */
+  SECOND_OFFER_NO_CONTACT: "SECOND_OFFER_NO_CONTACT",
+  /** second offer: the deal (or the given variant) has no draft to copy the customer from */
+  SECOND_OFFER_SOURCE_MISSING: "SECOND_OFFER_SOURCE_MISSING",
+  /** second offer: Bitrix is not configured, not reachable or refused the call — no deal was created, a retry is allowed */
+  SECOND_OFFER_BITRIX_FAILED: "SECOND_OFFER_BITRIX_FAILED",
+  /** second offer: the create call's outcome is unknown (timeout, connection lost) — check Bitrix before a retry */
+  SECOND_OFFER_UNCLEAR: "SECOND_OFFER_UNCLEAR",
+  /** second offer: the deal was created in Bitrix but its draft could not be written — a repeat finishes it without a new deal */
+  SECOND_OFFER_DRAFT_FAILED: "SECOND_OFFER_DRAFT_FAILED",
+  /** second offer: the same creation id is being processed right now */
+  SECOND_OFFER_RUNNING: "SECOND_OFFER_RUNNING",
+  /** second offer: the creation id was used before for another deal or type */
+  SECOND_OFFER_ID_MISMATCH: "SECOND_OFFER_ID_MISMATCH",
+  /** second offer: the timeline notes (one batch) failed — the creation itself succeeded (warn) */
+  SECOND_OFFER_COMMENT_FAILED: "SECOND_OFFER_COMMENT_FAILED",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
-export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion" } as const;
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion", secondOffer: "deals.second-offer" } as const;
 export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
 
 // ---------- the customer of a Bitrix deal (Kundendaten) ----------
@@ -151,6 +173,8 @@ export const DealDraftResponseSchema = z.object({
   /** the variant this draft is (ADR 027 A); older servers did not send it */
   variantId: z.string().optional(),
   variantName: z.string().optional(),
+  /** the other deals of the same customer made with „Weiteres Angebot“ (ADR 027 B), all variants of this deal; older servers did not send it */
+  related: z.array(z.lazy(() => DealRelationSchema)).optional(),
 });
 export type DealDraftResponse = z.infer<typeof DealDraftResponseSchema>;
 
@@ -216,6 +240,56 @@ export const RenameVariantRequestSchema = z.object({ name: z.string().min(1).max
 export type RenameVariantRequest = z.infer<typeof RenameVariantRequestSchema>;
 export const RenameVariantResponseSchema = z.object({ dealId: z.string(), variant: DealVariantSchema });
 export const DeleteVariantResponseSchema = z.object({ ok: z.literal(true), dealId: z.string(), variantId: z.string(), defaultVariantId: z.string().nullable() });
+
+// ---------- a second offer type for the same customer (ADR 027 B) ----------
+// From an open offer the user starts an offer of ANOTHER type for the same customer: the server
+// creates a new Bitrix deal („Neue Anfragen“) and a draft under it with the customer data copied.
+// `creationId` (client-generated, 8–64 of [A-Za-z0-9_-]) makes it exactly-once: a repeat answers the
+// stored result without a Bitrix call.
+export const CREATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+export const SecondOfferRequestSchema = z.object({
+  offerType: z.string(),
+  creationId: z.string().regex(CREATION_ID_RE),
+  /** the source variant (default: the variant opened last) */
+  variantId: z.string().regex(VARIANT_ID_RE).optional(),
+  /** after SECOND_OFFER_UNCLEAR: look in Bitrix for a deal made by this creation id first, create only if there is none */
+  checkBitrix: z.boolean().optional(),
+});
+export type SecondOfferRequest = z.infer<typeof SecondOfferRequestSchema>;
+export const SecondOfferResponseSchema = z.object({
+  ok: z.literal(true),
+  creationId: z.string(),
+  sourceDealId: z.string(),
+  sourceVariantId: z.string(),
+  /** the NEW deal's number; its draft is its first variant */
+  dealId: z.string(),
+  offerType: z.string(),
+  variantId: z.string(),
+  revision: z.number().int(),
+  /** the two timeline notes (one batch); "failed" does not undo the creation */
+  comments: z.enum(["ok", "failed"]),
+  /** true: answered from the stored result of an earlier request with the same creationId */
+  repeated: z.boolean(),
+});
+export type SecondOfferResponse = z.infer<typeof SecondOfferResponseSchema>;
+/** one relation, stored on both drafts (outside the payload); symmetric, not transitive */
+export const DealRelationSchema = z.object({
+  dealId: z.string(),
+  offerType: z.string(),
+  /** "created": this deal's offer started the other one; "source": this deal was started from the other one */
+  role: z.enum(["created", "source"]),
+  createdAt: When,
+  creationId: z.string(),
+});
+export type DealRelation = z.infer<typeof DealRelationSchema>;
+export const DealRelatedResponseSchema = z.object({
+  dealId: z.string(),
+  related: z.array(DealRelationSchema.extend({
+    /** the other deal's state from its variants: signed > sent > draft; null when it has no draft (yet) */
+    status: VariantStatusSchema.nullable(),
+  })),
+});
+export type DealRelatedResponse = z.infer<typeof DealRelatedResponseSchema>;
 
 // ---------- route suggestion (distance and travel time to the customer's address) ----------
 export const SuggestDistanceResponseSchema = z.looseObject({
@@ -301,6 +375,10 @@ export const endpoints = {
   renameDealVariant: { method: "PATCH", path: "/api/deals/:dealId/variants/:variantId", request: RenameVariantRequestSchema, response: RenameVariantResponseSchema },
   /** only a variant that was never sent; never the only one (VARIANT_SENT, VARIANT_LAST) */
   deleteDealVariant: { method: "DELETE", path: "/api/deals/:dealId/variants/:variantId", response: DeleteVariantResponseSchema },
+  /** a second offer type for the same customer (ADR 027 B): a NEW Bitrix deal + its draft with the customer data; exactly once per creationId */
+  createSecondOffer: { method: "POST", path: "/api/deals/:dealId/second-offer", request: SecondOfferRequestSchema, response: SecondOfferResponseSchema },
+  /** the other deals of the same customer made with „Weiteres Angebot“, with their status */
+  dealRelated: { method: "GET", path: "/api/deals/:dealId/related", response: DealRelatedResponseSchema },
   /** the state of one send (ADR 023): status running | done | failed, and the answer of a finished send */
   send: { method: "GET", path: "/api/sends/:sendId", response: z.looseObject({ send: z.looseObject({ status: z.string() }).nullish(), result: z.unknown().nullish() }) },
   /** files a sent offer again in Bitrix from the stored files — nothing is sent again */
