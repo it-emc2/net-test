@@ -10,8 +10,7 @@ import { openVariantPanel, useOfferStore } from "../src/features/offer/index.js"
 import { BUILT_STEPS } from "../src/features/offer/steps.js";
 import { euro } from "../src/shared/lib/format.js";
 import { TASKS, summaryOf } from "../src/features/steps/ah/rules.js";
-import payloads from "../../../../tests/golden/fixtures/ah/payloads.json" with { type: "json" };
-import restored from "../../../../tests/golden/fixtures/ah/restore.json" with { type: "json" };
+import oldOffers from "./fixtures/ah-old-offers.json" with { type: "json" };
 import reference from "./fixtures/ah-leistungen.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -19,8 +18,8 @@ type F = Record<string, any>;
 const KEY = "t-0123456789abcdef01234567";
 const CONFIG = { ENTLASTUNGSBETRAG_MONAT: 131, STEUERABSETZ_PCT: 20, STEUERABSETZ_CAP_JAHR: 4000 };
 const CFG = { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
-const PAYLOADS = payloads as unknown as { id: string; payload: F }[];
-const RESTORED = restored as unknown as { id: string; expected: F }[];
+const PAYLOADS = oldOffers.payloads as unknown as { id: string; payload: F }[];
+const RESTORED = oldOffers.restored as unknown as { id: string; expected: F }[];
 
 const offer = () => useOfferStore.getState().offer as F;
 const ah = () => offer().ah as F;
