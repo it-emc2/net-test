@@ -99,3 +99,64 @@ describe("one total: documents = screen for the real offers", () => {
     expect(doc.deductions).toEqual(screen.deductions);
   });
 });
+
+describe("one total: screen = DOCX data = signing page = send-record amount (table)", () => {
+  const CFG = { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
+  const HND = (dauer: string, r: string) => ({ type: "Haushaltsnahedienstleistungen", schedules: [{ dauer, regelmaessigkeit: r }], tasks: ["wohnungsreinigung"], combinedVisit: false });
+  const AB = (dauer: string, r: string, combinedVisit = false) => ({ type: "Alltagsbegleitung", schedules: [{ dauer, regelmaessigkeit: r }], tasks: ["arzttermine"], combinedVisit });
+  const offer = (payer: string, services: any[], fin: Record<string, string>, kd: Record<string, string> = {}) => ({
+    activeOffer: "ah", ah: { services, ahServicesJson: JSON.stringify(services) }, Arbeitszeit: { travelTimeHHMM: "0:25", ahTravelZone: "3" },
+    Kundendaten: { payer, ...kd }, Finanzierung: { ahVerhinderungspflegeMonat: "0", ahUmwidmungBetrag: "", ...fin },
+  });
+  const EB = { ahEntlastungsbetragNutzen: "on" };
+  const TABLE: [string, any][] = [
+    ["Kasse, HnD, no source", offer("Kassenkunde", [HND("2:00", "Wöchentlich")], {})],
+    ["Kasse, HnD, Entlastungsbetrag", offer("Kassenkunde", [HND("2:00", "Wöchentlich")], EB)],
+    ["Kasse, HnD, Verhinderungspflege 100", offer("Kassenkunde", [HND("2:00", "Wöchentlich")], { ahVerhinderungspflegeMonat: "100" })],
+    ["Kasse, HnD, Umwidmung 80", offer("Kassenkunde", [HND("2:00", "Wöchentlich")], { ahUmwidmungBeantragt: "on", ahUmwidmungBetrag: "80" })],
+    ["Kasse, all three", offer("Kassenkunde", [HND("2:00", "Wöchentlich")], { ...EB, ahVerhinderungspflegeMonat: "50", ahUmwidmungBeantragt: "on", ahUmwidmungBetrag: "30" })],
+    ["Kasse, two persons", offer("Kassenkunde", [HND("3:00", "Wöchentlich")], EB, { ahZweiPersonen: "on" })],
+    ["Kasse, covered completely", offer("Kassenkunde", [HND("1:00", "Monatlich")], { ...EB, ahVerhinderungspflegeMonat: "201.5" })],
+    ["Kasse, two services, separate visits", offer("Kassenkunde", [HND("2:00", "14-tägig"), AB("1:30", "Wöchentlich")], EB)],
+    ["Kasse, two services, combined visit", offer("Kassenkunde", [HND("2:00", "Wöchentlich"), AB("1:00", "Wöchentlich", true)], EB)],
+    ["no payer, Entlastungsbetrag (= Kasse)", offer("", [HND("2:00", "Wöchentlich")], EB)],
+    ["no payer, no source", offer("", [AB("2:00", "14-tägig")], {})],
+    ["Selbstzahler, HnD", offer("Selbstzahler", [HND("2:00", "Wöchentlich")], {})],
+    ["Selbstzahler, ticks stored (not deducted)", offer("Selbstzahler", [HND("2:00", "Wöchentlich")], { ...EB, ahVerhinderungspflegeMonat: "100" })],
+    ["Selbstzahler, AB only", offer("Selbstzahler", [AB("3:00", "Monatlich")], {})],
+    ["Selbstzahler, two services, combined visit", offer("Selbstzahler", [HND("1:30", "Wöchentlich"), AB("1:00", "Wöchentlich", true)], {})],
+  ];
+  it.each(TABLE)("%s", async (_n, payload) => {
+    setConfig(CFG);
+    const sign = await import("../src/modules/documents/ported/signing-docs.js");
+    const screen = ahOfferTotals(ahInputFromPayload(payload, CFG));
+    const data = mine.buildAhOfferData(structuredClone(payload), { fmtCurrency: tpl.fmtCurrency, haushaltTasks: tpl.AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: tpl.AH_GENERIC_BEGLEITUNG_TASKS });
+    const html: string = sign.buildAhAngebotHtml(data, { mode: "pdf" });
+    const totalsBlock = html.slice(html.indexOf('<table class="totals">'), html.indexOf("</table>", html.indexOf('<table class="totals">')));
+    const rows = [...totalsBlock.matchAll(/<tr[^>]*><td>([^<]*)<\/td><td class="num">([^<]*)<\/td><\/tr>/g)].map((m) => [m[1]!.replace(/&amp;/g, "&"), m[2]!.replace(/ /g, " ")]);
+    const f = (n: number) => tpl.fmtCurrency(n).replace(/ /g, " ");
+    expect(screen.net).toBeGreaterThan(0);
+    expect(data.AhGesamtbetrag).toBe(tpl.fmtCurrency(screen.net));
+    // the send record's total and the Bitrix deal amount (email route: AhBetragNum; move/signature: ahTotalsOfPayload)
+    expect(data.AhBetragNum).toBe(screen.customerAmount);
+    expect(mine.ahTotalsOfPayload(payload, CFG).customerAmount).toBe(screen.customerAmount);
+    if (screen.payer === "Selbstzahler") {
+      expect(data.AhIsSZ).toBe(true);
+      expect(data.AhBrutto).toBe(tpl.fmtCurrency(screen.gross));
+      expect(data.AhMwst).toBe(tpl.fmtCurrency(screen.vat));
+      expect(rows).toEqual([["Nettobetrag", f(screen.net)], ["zzgl. 7 % MwSt.", f(screen.vat)], ["Gesamtbetrag brutto", f(screen.gross)]]);
+      expect(screen.customerAmount).toBe(screen.gross);
+    } else {
+      expect(data.AhIsSZ).toBe(false);
+      expect(screen.customerAmount).toBe(screen.net);
+      if (screen.deductions.total > 0) {
+        expect(data.AhEigenanteil).toBe(tpl.fmtCurrency(screen.eigenanteil));
+        expect(data.AhEigenanteilNum).toBe(screen.eigenanteil);
+        expect(rows).toEqual([["Gesamtbetrag", f(screen.net)], [data.AhAbzugLabel, `–${f(screen.deductions.total)}`], ["Ihr Eigenanteil", f(screen.eigenanteil)]]);
+      } else {
+        expect(data.AhHasEigenanteil).toBe(false);
+        expect(rows).toEqual([["Gesamtbetrag", f(screen.net)]]);
+      }
+    }
+  });
+});
