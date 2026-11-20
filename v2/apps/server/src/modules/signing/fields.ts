@@ -7,8 +7,8 @@ const OPTIONAL_DOCS = ["vollmacht", "abtretung"] as const;
 
 export const DOC_LABELS: Record<string, string> = {
   angebot: "Angebot",
-  vollmacht: "Vollmacht für die Krankenkasse",
-  abtretung: "Abtretungserklärung",
+  vollmacht: "Vollmacht für Krankenkasse",
+  abtretung: "Abtretungserklärung § 40 SGB XI",
   zusatzblatt: "Zusatzblatt – Wichtige Hinweise",
   abtretung_ah: "Abtretungserklärung § 45b SGB XI",
 };
@@ -93,7 +93,7 @@ export function hasPartner(payload: any) {
   return !!k.twoPersons && !!String(k.partnerFirstName || "").trim() && !!String(k.partnerLastName || "").trim();
 }
 
-/** "Vollmacht für die Krankenkasse – Person 2 (Name)" only on two-person requests. */
+/** "Vollmacht für Krankenkasse – Person 2 (Name)" only on two-person requests. */
 export function docLabel(sr: SrLike, key: string) {
   const base = DOC_LABELS[baseDocKey(key)] || key;
   if (!(sr.documents || []).some((d) => isPartnerKey(d.key))) return base;
