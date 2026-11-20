@@ -11,7 +11,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ERROR_AREAS, ERROR_CODES, type ErrorCode } from "@oc/api-contract";
 import { Offer, SigningRequest } from "../../platform/models.js";
 import { reportError } from "../../platform/error-events.js";
-import type { DealWrites } from "../../integrations/bitrix-deal.js";
+import type { DealWrites, SignedOffer } from "../../integrations/bitrix-deal.js";
 import { STAGES } from "../../integrations/bitrix-deal.js";
 import type { Mailer } from "../../integrations/mail.js";
 import { buildEmailHtml } from "../email/index.js";
@@ -297,6 +297,20 @@ export function signingService(d: SigningDeps) {
     return ok(t) ? t : null;
   }
 
+  /** the signed offer's payload AS SENT (AH fields): its send record → another done send of the
+   *  same number → the offer stored at the send/hand-over; never the signing request's working copy */
+  async function sentPayload(sr: any): Promise<unknown | null> {
+    const has = (p: unknown) => !!p && typeof p === "object";
+    const rec = await sendForSigning(sr.token);
+    if (has(rec?.payload)) return rec.payload;
+    const nr = String(sr.offerNumber || "").trim();
+    if (!nr) return null;
+    const other: any = await OfferSend.findOne({ offerNumber: nr, status: "done", payload: { $type: "object" } }, { payload: 1 }).sort({ startedAt: -1 }).lean();
+    if (has(other?.payload)) return other.payload;
+    const stored: any = await Offer.findOne({ offerNumber: nr }, { payload: 1 }).lean();
+    return has(stored?.payload) ? stored.payload : null;
+  }
+
   /** the lines the completion note gets for a deal with several variants (internal timeline only) */
   function variantLines(dec: Decision): string[] {
     if (dec.kind === "single" || dec.kind === "unknown") return [];
@@ -379,11 +393,16 @@ export function signingService(d: SigningDeps) {
         }
         // ADR 027 A: the signed offer's sent total, number and link (not AH — its field set stays
         // as today; not when the variant could not be found among several)
-        let signedOffer: { total: number | null; offerNumber: string } | undefined;
-        if (!isAhOffer(sr) && dec.kind !== "unknown") {
+        let signedOffer: SignedOffer | undefined;
+        if (dec.kind !== "unknown" && !isAhOffer(sr)) {
           const total = await sentTotal(sr).catch(() => null);
           if (total === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "no sent total for the signed offer — amount left as it was", dealId);
           signedOffer = { total, offerNumber: String(sr.offerNumber || "") };
+        } else if (dec.kind !== "unknown") {
+          // AH (owner 2026-11-20): the AH fields of the signed offer AS SENT + its link
+          const ahPayload = await sentPayload(sr).catch(() => null);
+          if (ahPayload === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "AH: no sent payload for the signed offer — AH fields left as they were", dealId);
+          signedOffer = { ah: true, ahPayload, offerNumber: String(sr.offerNumber || "") };
         }
         await d.deals.updateDealAfterSigning({
           dealId: sr.bitrixEntityId, customerType: sr.customerType, selfPayAmount,

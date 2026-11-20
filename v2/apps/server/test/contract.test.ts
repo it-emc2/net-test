@@ -1329,10 +1329,12 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   const stripIds = (v: any): any => Array.isArray(v) ? v.map(stripIds) : v && typeof v === "object"
     ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== "id" && k !== "_id" && k !== "__v").map(([k, x]) => [k, stripIds(x)])) : v;
   // Deliberate difference (ADR 027 A, step 3): v2's stage move after a completed signature also
-  // writes the signed offer's amount, final total, offer number and offer link. Those fields are
+  // writes the signed offer's amount, final total, offer number and offer link (non-AH), and for AH
+  // (owner 2026-11-20) the AH fields of the „ANG verschickt“ move and the link. Those fields are
   // taken out of v2's signing-stage update here and asserted on their own (exact field sets in
   // deal-variants-signing.test.ts); everything else of the call must still equal the old app's.
-  const SIGNED_OFFER_FIELDS = /&fields\[(opportunity|isManualOpportunity|currencyId|UF_CRM_1768391021079|UF_CRM_1776156870205|UF_CRM_1790772236055)\]=[^&]*/g;
+  const AH_IDS = "UF_CRM_1711019061|UF_CRM_1711017420|UF_CRM_1737548607|UF_CRM_1711092227|UF_CRM_1711019214|UF_CRM_1737557386|UF_CRM_1737557868|UF_CRM_1737644914|UF_CRM_1738336465|UF_CRM_1738336847|UF_CRM_1711092423";
+  const SIGNED_OFFER_FIELDS = new RegExp(`&fields\\[(opportunity|isManualOpportunity|currencyId|UF_CRM_1768391021079|UF_CRM_1776156870205|UF_CRM_1790772236055|${AH_IDS})\\](\\[\\d+\\])?=[^&]*`, "g");
   const v2Only = (app: string, c: { method: string; params: string }) =>
     app === "v2" && c.method === "crm.item.update" && /stageId\]=C(38:UC_5DII17|38:UC_ON3GS1|52:UC_7NLTX7)/.test(c.params) ? c.params.replace(SIGNED_OFFER_FIELDS, "") : c.params;
   const calls = (app: string) => bx.take(app).map((c) => ({ ...c, params: normText(decodeURIComponent(c.params.replace(/\+/g, " "))) })).map((c) => ({ ...c, params: v2Only(app, c) }));

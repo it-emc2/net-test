@@ -311,6 +311,19 @@ export async function signedVariantOf(dealId: string): Promise<{ variantId: stri
 }
 
 /**
+ * Is any offer of this deal signed? (owner 2026-11-20: then a send moves the deal no more.)
+ * The recorded choice, a signed variant, or — deals signed before variants existed, without
+ * drafts — a completed signing request filed on the deal (read through the `status` index).
+ */
+export async function dealSignature(dealId: string): Promise<{ offerNumber: string } | null> {
+  if (!dealId) return null;
+  const s = await signedVariantOf(dealId);
+  if (s) return { offerNumber: s.offerNumber };
+  const sr: any = await SigningRequest.findOne({ status: "completed", bitrixEntityType: "deal", bitrixEntityId: dealId }, { offerNumber: 1 }).sort({ completedAt: 1 }).lean();
+  return sr ? { offerNumber: str(sr.offerNumber) } : null;
+}
+
+/**
  * "Signed wins": another variant than `variantId` is signed on the deal — then a send of this one
  * must not change the deal's amount, offer number or offer link. A failing read answers null
  * (the send goes on as before).

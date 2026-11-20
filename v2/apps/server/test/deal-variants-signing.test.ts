@@ -11,6 +11,8 @@ import type { FastifyInstance } from "fastify";
 import { loadConfig } from "@oc/config";
 import { DealVariantsResponseSchema } from "@oc/api-contract";
 import { buildApp } from "../src/app.js";
+import { buildQS } from "../src/integrations/bitrix.js";
+import { buildAhBitrixFields } from "../src/integrations/bitrix-deal.js";
 import { hashPassword } from "../src/platform/auth.js";
 import { connectDb, disconnectDb } from "../src/platform/db.js";
 import { registerApi } from "../src/compose.js";
@@ -89,9 +91,11 @@ const rand = () => Math.random().toString(36).slice(2, 10);
 // ---- Bitrix calls as data ----
 const fieldsOf = (c: RecordedCall) => {
   const f: Record<string, string> = {};
-  for (const [k, v] of new URLSearchParams(c.params)) { const m = /^fields\[([^\]]+)\]$/.exec(k); if (m) f[m[1]!] = v; }
+  for (const [k, v] of new URLSearchParams(c.params)) { const m = /^fields\[([^\]]+)\](.*)$/.exec(k); if (m) f[m[1]! + m[2]!] = v; }
   return f;
 };
+/** an object as the Bitrix client encodes it, read back like fieldsOf */
+const flat = (o: Record<string, unknown>) => fieldsOf({ http: "POST", method: "x", params: buildQS({ fields: o }) });
 const updates = (calls: RecordedCall[]) => calls.filter((c) => c.method === "crm.item.update").map((c) => ({ id: new URLSearchParams(c.params).get("id"), fields: fieldsOf(c) }));
 const comments = (calls: RecordedCall[]) => calls.filter((c) => c.method === "crm.timeline.comment.add").map((c) => fieldsOf(c).COMMENT ?? "");
 const errorCodes = async (dealId: string) => (await db().collection("error_events").find({ dealId }).toArray()).map((e: any) => e.code);
@@ -176,12 +180,34 @@ describe("one variant: today's completion plus the signed offer's amount fields"
     expect(Number(u!.fields.UF_CRM_1757490052931)).toBeGreaterThanOrEqual(0);
   });
 
-  it("AH: exactly today's field set (AH stage only — no amount, number or link)", async () => {
+  const AH_STAGE = { categoryId: "52", stageId: "C52:UC_7NLTX7" };
+  /** the AH fields the „ANG verschickt“ move writes, from the payload as sent — without the Anfahrtszone (filled once by the move) */
+  const ahFields = (payload: unknown, nr: string) => flat({ ...buildAhBitrixFields(payload, "keep"), UF_CRM_1790772236055: LINK(nr) });
+
+  it("AH (owner 2026-11-20): stage + the AH fields of the offer as sent + its link — no amount, no number; one update", async () => {
     const DEAL = "9612";
     await firstVariant(DEAL, "S1-AH", AH);
     const tok = await handOver(DEAL, "S1-AH", AH, { total: 999 });
     const calls = await signAll(tok);
-    expect(updates(calls)).toEqual([{ id: DEAL, fields: { categoryId: "52", stageId: "C52:UC_7NLTX7" } }]);
+    expect(calls.filter((c) => c.method === "crm.item.update")).toHaveLength(1);
+    const [u] = updates(calls);
+    expect(u).toEqual({ id: DEAL, fields: { ...AH_STAGE, ...ahFields(AH, "S1-AH") } });
+    expect(Object.keys(u!.fields).length).toBeGreaterThan(4); // the AH fields really are there
+    expect(u!.fields).not.toHaveProperty("opportunity");
+    expect(u!.fields).not.toHaveProperty("UF_CRM_1776156870205");
+    expect(u!.fields).not.toHaveProperty("UF_CRM_1711019971"); // zone: never at a signature
+  });
+
+  it("AH without the sent data: stage + link only, warning event", async () => {
+    const DEAL = "9613";
+    await firstVariant(DEAL, "S2-AH", AH);
+    const tok = await handOver(DEAL, "S2-AH", AH);
+    await db().collection("offer_sends").updateMany({ offerNumber: "S2-AH" }, { $set: { payload: null } });
+    await db().collection("offers").deleteMany({ offerNumber: "S2-AH" });
+    const calls = await signAll(tok);
+    expect(updates(calls)).toEqual([{ id: DEAL, fields: { ...AH_STAGE, UF_CRM_1790772236055: LINK("S2-AH") } }]);
+    await wait();
+    expect(await errorCodes(DEAL)).toContain("SIGNING_AMOUNT_MISSING");
   });
 });
 
@@ -233,7 +259,7 @@ describe("two variants: the signed one decides", () => {
     expect(await db().collection("offer_sends").countDocuments({ sendId: /-nc-/ })).toBe(0); // nothing recorded, nothing sent
   });
 
-  it("signed wins: a later send of a NEW variant moves the deal but keeps amount, number and link of the signed one", async () => {
+  it("signed wins: a later send of a NEW variant keeps the link; the move changes nothing in Bitrix (stage, amount, number stay)", async () => {
     C = await addVariant(DEAL, "Günstig", "VC-1", SZ);
     bx.take("v2");
     const m = await mail({ to: "kunde@example.test", subject: "Ihr Angebot", offerNumber: "VC-1", offerType: "bu", body: "Hallo {{SIGN_LINK}}", payload: JSON.stringify({ ...SZ, offerNumber: "VC-1" }), dealId: DEAL, variantId: C, sendId: `mail-c-${rand()}` });
@@ -241,13 +267,25 @@ describe("two variants: the signed one decides", () => {
     await wait();
     expect(bx.take("v2").map((c) => c.method)).not.toContain("crm.deal.update"); // the link stays at VA-1
     const mv = await call("POST", `/api/bitrix/deal/${DEAL}/move-ang-verschickt`, { opportunity: 3000, finalTotal: 3000, workDays: 2, offerType: "bu", offerNumber: "VC-1", variantId: C });
-    expect(mv.body).toMatchObject({ ok: true, amountKept: true, signedOfferNumber: "VA-1" });
-    const [u] = updates(bx.take("v2"));
-    expect(u!.fields).toEqual({ categoryId: "38", stageId: "C38:UC_2ZDNEZ", UF_CRM_1775019866756: "8440" });
-    // the move for the signed variant itself writes its amount as before
+    expect(mv.body).toEqual({ ok: true, dealId: Number(DEAL), stageKept: true, amountKept: true, signedOfferNumber: "VA-1" });
+    await wait();
+    expect(bx.take("v2")).toEqual([]); // no Bitrix call at all (owner 2026-11-20: no stage fall-back)
+    // a resend of the signed variant itself: the same — the deal stays where it is
     const own = await call("POST", `/api/bitrix/deal/${DEAL}/move-ang-verschickt`, { opportunity: 1000, offerType: "bu", offerNumber: "VA-1", variantId: "v1" });
-    expect(own.body.amountKept).toBeUndefined();
-    expect(updates(bx.take("v2"))[0]!.fields).toMatchObject({ opportunity: "1000", UF_CRM_1776156870205: "VA-1" });
+    expect(own.body).toMatchObject({ ok: true, stageKept: true, amountKept: true });
+    await wait();
+    expect(bx.take("v2")).toEqual([]);
+  });
+
+  it("a deal signed before variants existed (no draft, no choice; a completed signing request): the move keeps it too", async () => {
+    const DEAL = "9614";
+    const tok = await handOver(DEAL, "PRE-1", SZ, { total: 50 });
+    await signAll(tok);
+    expect(await db().collection("deal_variant_choices").countDocuments({ _id: DEAL as any })).toBe(0);
+    const mv = await call("POST", `/api/bitrix/deal/${DEAL}/move-ang-verschickt`, { opportunity: 60, offerType: "bu", offerNumber: "PRE-2" });
+    expect(mv.body).toMatchObject({ ok: true, stageKept: true, signedOfferNumber: "PRE-1" });
+    await wait();
+    expect(bx.take("v2")).toEqual([]);
   });
 
   it("before any signature the move writes the variant just sent (last sent wins)", async () => {
@@ -258,6 +296,23 @@ describe("two variants: the signed one decides", () => {
     const mv = await call("POST", `/api/bitrix/deal/${D}/move-ang-verschickt`, { opportunity: 777, offerType: "bu", offerNumber: "LS-B", variantId: V });
     expect(mv.body.amountKept).toBeUndefined();
     expect(updates(bx.take("v2"))[0]!.fields).toMatchObject({ opportunity: "777", UF_CRM_1768391021079: "777", UF_CRM_1776156870205: "LS-B" });
+  });
+});
+
+describe("AH, two variants", () => {
+  it("the older variant signed: ITS AH fields and link, not the last sent one's", async () => {
+    const DEAL = "9615";
+    const AH_B = structuredClone(AH);
+    for (const svc of AH_B.ah?.services ?? []) for (const sch of svc.schedules ?? []) sch.dauer = "05:00";
+    const fa = buildAhBitrixFields(AH, "keep"), fb = buildAhBitrixFields(AH_B, "keep");
+    expect(fb).not.toEqual(fa); // the two variants really differ in Bitrix
+    await firstVariant(DEAL, "AHA-1", AH);
+    const B = await addVariant(DEAL, "Mehr Stunden", "AHB-1", AH_B);
+    const tokA = await handOver(DEAL, "AHA-1", AH, { variantId: "v1" });
+    await handOver(DEAL, "AHB-1", AH_B, { variantId: B }); // B is the last sent
+    const calls = await signAll(tokA);
+    expect(updates(calls)).toEqual([{ id: DEAL, fields: { categoryId: "52", stageId: "C52:UC_7NLTX7", ...flat({ ...fa, UF_CRM_1790772236055: LINK("AHA-1") }) } }]);
+    expect((await call("GET", `/api/deals/${DEAL}/variants`)).body.variants.map((v: any) => v.status)).toEqual(["signed", "not-chosen"]);
   });
 });
 

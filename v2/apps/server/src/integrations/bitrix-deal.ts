@@ -163,6 +163,16 @@ export const buildInternalNoteComment = (note: unknown) => {
   return text ? `🔒 INTERNE NOTIZ (nicht für Kunden)\n\n${text}` : null;
 };
 
+/** the signed offer for the stage move after a signature (ADR 027 A, step 3) */
+export interface SignedOffer {
+  total?: number | null; offerNumber?: string; currencyId?: string;
+  /** AH: the payload AS SENT gives the AH fields (buildAhBitrixFields); null = not available → left out */
+  ah?: boolean; ahPayload?: unknown;
+}
+/** At a signature the Anfahrtszone is never written: it is filled once, by the first „ANG verschickt“
+ *  move, which reads the deal for it — reading it here would cost a second Bitrix call. */
+const AH_ZONE_KEEP = "keep";
+
 export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
   async function updateDealStage(u: DealStageUpdate) {
     const numericId = Number(u.dealId);
@@ -195,7 +205,7 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
    */
   async function updateDealAfterSigning(a: {
     dealId: unknown; customerType?: unknown; categoryId?: number; stageId?: string; selfPayAmount?: unknown;
-    signedOffer?: { total?: number | null; offerNumber?: string; currencyId?: string } | undefined;
+    signedOffer?: SignedOffer | undefined;
   }) {
     const numericId = Number(a.dealId);
     if (!Number.isFinite(numericId) || numericId <= 0) throw new Error("dealId must be a positive number");
@@ -211,9 +221,16 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     return bx.post("crm.item.update", { entityTypeId: DEAL_ENTITY_TYPE_ID, id: numericId, fields, useOriginalUfNames: "Y" });
   }
 
-  /** amount (as „ANG verschickt“ writes it), final total, offer number and offer link of one offer */
-  function signedOfferFields(o: { total?: number | null; offerNumber?: string; currencyId?: string }): Record<string, unknown> {
+  /** amount (as „ANG verschickt“ writes it), final total, offer number and offer link of one offer;
+   *  AH (owner 2026-11-20): the AH fields of the „ANG verschickt“ move + the link — no amount, no number, as the move */
+  function signedOfferFields(o: SignedOffer): Record<string, unknown> {
     const f: Record<string, unknown> = {};
+    if (o.ah) {
+      if (o.ahPayload) Object.assign(f, buildAhBitrixFields(o.ahPayload, AH_ZONE_KEEP));
+      const n = String(o.offerNumber || "").trim();
+      if (n) f[OFFER_LINK_FIELD] = `${opts.offerLinkBase}/?offer=${encodeURIComponent(n)}`;
+      return f;
+    }
     const total = Number(o.total);
     if (Number.isFinite(total) && total > 0) {
       f.opportunity = total;

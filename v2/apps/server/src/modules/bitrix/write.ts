@@ -6,7 +6,7 @@ import type { BitrixClient } from "../../integrations/bitrix.js";
 import { AH_FIELD, DEAL_ENTITY_TYPE_ID, DEAL_UPLOADS, INVOICE_COPY_ENUM, STAGES, buildAhBitrixFields, type DealWrites } from "../../integrations/bitrix-deal.js";
 import type { PlanningClient } from "../../integrations/planning.js";
 import { BitrixLog, User, UserActionLog } from "../../platform/models.js";
-import { resolveSendVariant, signedElsewhere } from "../deal-drafts/index.js";
+import { dealSignature } from "../deal-drafts/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });
@@ -75,6 +75,16 @@ export async function registerBitrixWrite(app: FastifyInstance, d: BitrixWriteDe
     const b = (req.body ?? {}) as Record<string, any>;
     try {
       if (!dealId) return fail(req, reply, 400, "BAD_REQUEST", "id is required");
+      // ADR 027 A, step 3 (owner 2026-11-20) — no stage fall-back after a signature: a deal with a
+      // signed offer is not moved at all by a send — neither for another variant nor for a resend
+      // of the signed one. No Bitrix call; the answer says so (stage, amount, number, link stay).
+      let signed: { offerNumber: string } | null = null;
+      try { signed = await dealSignature(dealId); }
+      catch (e) { req.log.warn({ err: e, dealId }, "signature check failed — move as before"); }
+      if (signed) {
+        req.log.info({ dealId, offerNumber: b.offerNumber, signedOfferNumber: signed.offerNumber }, "move-ang-verschickt: deal kept (offer signed)"); // the user-action log's event list is the old app's
+        return { ok: true, dealId: Number(dealId), stageKept: true, amountKept: true, signedOfferNumber: signed.offerNumber };
+      }
       const deal = (await bx.get("crm.deal.get", { id: dealId }))?.result;
       if (!deal) return fail(req, reply, 404, "NOT_FOUND", "Deal not found");
       const isAh = String(b.offerType || "").toLowerCase() === "ah";
@@ -93,25 +103,15 @@ export async function registerBitrixWrite(app: FastifyInstance, d: BitrixWriteDe
       if (!isAh && d.materialCodesField && materialCodes) extra = { ...(extra || {}), [d.materialCodesField]: materialCodes };
       const invoice = Object.hasOwn(INVOICE_COPY_ENUM, String(b.invoiceCopy)) ? INVOICE_COPY_ENUM[String(b.invoiceCopy)] : undefined;
 
-      // ADR 027 A, step 3 — signed wins: another variant of the deal is signed → the move does not
-      // touch the amount, the final total, the offer number or the Eigenanteil (they stay the
-      // signed offer's); the answer says so. The variant: the body's variantId, else by number.
-      let signed: { offerNumber: string } | null = null;
-      try {
-        const v = await resolveSendVariant(dealId, { variantId: b.variantId, offerNumber: b.offerNumber });
-        signed = await signedElsewhere(dealId, v.variantId);
-      } catch (e) { req.log.warn({ err: e, dealId }, "signed-variant check failed — move as before"); }
-
       const target = isAh ? STAGES.AH_ANG_VERSCHICKT : STAGES.ANG_VERSCHICKT;
       const data = await deals.updateDealStage({
-        dealId, stageId: target.stageId, categoryId: target.categoryId,
-        ...(signed ? {} : { opportunity: amount, currencyId, offerNumber: b.offerNumber, finalTotal: b.finalTotal ?? amount, selfPayAmount: b.selfPayAmount }),
-        workDays: b.workDays, offerType: b.offerType,
-        // signed: also the AH amounts and the material codes of the other offer stay out
-        extraFields: signed ? (invoice ? { UF_CRM_1721218585: invoice } : undefined) : invoice ? { ...extra, UF_CRM_1721218585: invoice } : extra,
+        dealId, stageId: target.stageId, categoryId: target.categoryId, opportunity: amount, currencyId,
+        workDays: b.workDays, offerType: b.offerType, offerNumber: b.offerNumber, finalTotal: b.finalTotal ?? amount,
+        selfPayAmount: b.selfPayAmount,
+        extraFields: invoice ? { ...extra, UF_CRM_1721218585: invoice } : extra,
       });
       auditLog(req, { event: "move_succeeded", dealId, offerNumber: b.offerNumber, offerType: b.offerType });
-      return { ok: true, dealId: Number(dealId), result: data?.result ?? data, ...(signed ? { amountKept: true, signedOfferNumber: signed.offerNumber } : {}) };
+      return { ok: true, dealId: Number(dealId), result: data?.result ?? data };
     } catch (err) {
       req.log.error({ err, dealId }, "move-ang-verschickt failed");
       auditLog(req, { event: "move_failed", dealId, offerNumber: b.offerNumber, offerType: b.offerType, message: msg(err) });

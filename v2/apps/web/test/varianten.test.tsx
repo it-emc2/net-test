@@ -1,13 +1,14 @@
 // Variants of a deal's offer (ADR 027 A, step 2: the React app; UX-CHANGES U-044). A NEW feature —
 // there is no recording of today's UI for it; the server is stubbed with the shapes of
 // @oc/api-contract (dealVariants, createDealVariant, renameDealVariant, deleteDealVariant, ?variant=).
-import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { TEXT, nextVariantName, sendVariantOf, snapshotKey, statusText, variantOfSend } from "../src/features/offer/model/variants.js";
 import { historyChanged } from "../src/features/steps/versand/Verlauf.js";
 import { errorOf, movedText } from "../src/features/steps/versand/send-rules.js";
+import { SentDialog } from "../src/features/steps/versand/Senden.js";
 import { usePrefs } from "../src/shared/lib/prefs.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import sign from "./fixtures/versand-unterschrift.json" with { type: "json" };
@@ -50,10 +51,18 @@ describe("variants — the rules", () => {
   });
   it("step 3: the move's answer when another variant is signed, and the server's refusal text is what is shown", () => {
     expect(movedText({ ok: true })).toBe("Deal wurde auf „ANG verschickt\" verschoben.");
-    expect(movedText({ ok: true, amountKept: true, signedOfferNumber: "VA-1" })).toBe("Deal wurde auf „ANG verschickt\" verschoben. Betrag bleibt beim unterschriebenen Angebot.");
+    expect(movedText({ ok: true, stageKept: true, amountKept: true, signedOfferNumber: "VA-1" })).toBe("Der Deal bleibt in seiner Phase, weil bereits ein Angebot unterschrieben ist. Betrag bleibt beim unterschriebenen Angebot.");
     const message = "Diese Variante wurde nicht gewählt – zu diesem Auftrag ist bereits ein anderes Angebot unterschrieben. Sie kann nicht mehr versendet werden. Bitte erstellen Sie bei Bedarf eine neue Variante.";
     expect(errorOf({ error: { code: "VARIANT_NOT_CHOSEN", message, requestId: "t" } })).toEqual({ code: "VARIANT_NOT_CHOSEN", message });
     expect(errorOf({ ok: false, error: { code: "VARIANT_NOT_CHOSEN", message, requestId: "t" }, code: "VARIANT_NOT_CHOSEN" })).toEqual({ code: "VARIANT_NOT_CHOSEN", message }); // the letter's shape
+  });
+  it("step 3: the dialog after a send says the deal stays when an offer is signed (server answer stageKept)", async () => {
+    const s = fakeServer({ "POST /api/bitrix/deal/4711/move-ang-verschickt": { body: { ok: true, dealId: 4711, stageKept: true, amountKept: true, signedOfferNumber: "VA-1" } } });
+    render(<SentDialog s={{ dealId: DEAL, offerNumber: "VC-1", offer: { activeOffer: "bu", Kundendaten: {} } as never, result: { offerTotal: 3000 } }} codes="" onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /ANG verschickt/ }));
+    expect(await screen.findByText("Der Deal bleibt in seiner Phase, weil bereits ein Angebot unterschrieben ist. Betrag bleibt beim unterschriebenen Angebot.")).toBeInTheDocument();
+    expect(s.count("POST /api/bitrix/deal/4711/move-ang-verschickt")).toBe(1);
+    expect(screen.queryByRole("button", { name: /ANG verschickt/ })).toBeNull();
   });
   it("the suggested name follows the server's fallback rule", () => {
     expect(nextVariantName([{ name: "Variante 1" }])).toBe("Variante 2");
