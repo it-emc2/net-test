@@ -47,9 +47,32 @@ const GROUP: Record<string, string> = {
 const onPage = (field: string) => (GROUP[field] ? !!screen.queryByRole("group", { name: GROUP[field] }) : !!screen.queryByLabelText(LABEL[field]!, { exact: true }));
 const CONTEXT = ["date", "ansprechpartner", "emc2_contact"]; // the day and the user — not input
 const KEY = "t-0123456789abcdef01234567";
+// B3 (U-047): follow-up fields are on the page only after the question is answered "Ja". The recorded
+// steps of today's UI type into them without ever answering, so the replay answers like a user would —
+// and `revealed` remembers it: that one answer is the only thing stored beyond the recording.
+const INSURANCE = ["kassenkundeName", "kk_krankenkasseAdresse", "kk_pflegegradSeit", "kk_geburtsdatum", "kk_versichertennr"];
+let revealed = false;
+async function reveal(user: ReturnType<typeof userEvent.setup>, field: string) {
+  if (field === "deployment") return void (await user.click(Array.from(screen.getByRole("group", { name: "Abweichender Einsatzort vorhanden?" }).querySelectorAll("input")).find((i) => i.value === "Ja")!)); // page-only answer
+  if (!INSURANCE.includes(field) || screen.queryByLabelText(LABEL[field]!, { exact: true }) || !screen.queryByRole("group", { name: GROUP.hasPflegegrad! })) return;
+  revealed = true;
+  await user.click(Array.from(screen.getByRole("group", { name: GROUP.hasPflegegrad! }).querySelectorAll("input")).find((i) => i.value === "Ja")!);
+}
+/** what the recording says is stored — plus the one answer the replay gave to open the insurance block (it may be gone again
+ *  when the recording ends as Selbstzahler) */
+function expectedKd(type: string, kd: Record<string, unknown>) {
+  if (!revealed) return kd;
+  const now = stored();
+  expect([kd.hasPflegegrad, "Ja"]).toContain(now.hasPflegegrad);
+  const out: Record<string, unknown> = { ...kd, hasPflegegrad: now.hasPflegegrad };
+  if (type === "ah" && now.hasPflegegrad === "Ja") delete out.wohnumfeldDone; // answering the care level in Alltagshilfe drops it (as today)
+  return out;
+}
+
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
 
 async function open(type: string) {
+  revealed = false;
   fakeServer(BASE);
   const router = renderApp(`/deal/${KEY}/${type}/Kundendaten`);
   await screen.findByRole("heading", { name: "Kontaktdaten des Kunden" });
@@ -80,6 +103,7 @@ async function play(steps: [string, string, string][], skipped: string[] = []) {
       }
       continue;
     }
+    if (kind === "select" || kind === "text") await reveal(user, field);
     if (kind === "select") {
       await user.selectOptions(screen.getByLabelText(LABEL[field]!, { exact: true }), value);
     } else if (kind === "radio") {
@@ -140,12 +164,13 @@ describe("Kundendaten stores what today's UI stores — payer and insurance deta
   it.each(payer.scenarios.map((s) => [`${s.type}: ${s.name}`, s] as const))("%s", async (_name, scenario) => {
     await open(scenario.type);
     await play(scenario.steps as [string, string, string][]);
-    expect(stored()).toEqual(scenario.kundendaten);
+    expect(stored()).toEqual(expectedKd(scenario.type, scenario.kundendaten));
 
     // what the payer changes outside Kundendaten: the selected documents and the letter's attachments
     expect(outsideChanges(scenario.type)).toEqual(scenario.outside);
 
-    // the same parts are on the page
+    // the same parts are on the page (B3: the insurance block after the user answered "Pflegegrad: Ja")
+    if (scenario.shown.kassenkundeDetails) await reveal(userEvent.setup(), "kassenkundeName");
     expect(!!screen.queryByLabelText("Name der Krankenkasse")).toBe(scenario.shown.kassenkundeDetails);
     expect(!!screen.queryByLabelText("Geburtsdatum")).toBe(scenario.shown.kk_geburtsdatum);
     expect(!!screen.queryByLabelText("Versicherungsnummer")).toBe(scenario.shown.kk_versichertennr);
@@ -245,6 +270,11 @@ describe.each([
       // Also left out: after that switch today's UI stores the approval answer but hides its
       // question until the application answer is touched again; the React page shows it.
       if (scenario.name.includes("back to Kassenkunde") && field === "pflegekasseGenehmigung") continue;
+      // B3 (U-047): for an own home (stored "Nein" of "erforderlich") the landlord question is no longer on the page
+      if (field === "vermieterGenehmigungErforderlich" && shown && !onPage(field)) {
+        expect([offer().Kundendaten.wohnsituation, offer().Kundendaten.vermieterGenehmigungErforderlich]).toEqual(["Eigentum", "Nein"]);
+        continue;
+      }
       expect([field, onPage(field)]).toEqual([field, shown]);
     }
   }, 20000); // the longest recordings type some 40 fields: 3.5 s alone on a fast machine, over the default 5 s on a loaded CI runner
