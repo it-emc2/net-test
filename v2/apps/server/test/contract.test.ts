@@ -858,6 +858,12 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
   it("AH offer: AH footer, AH preset set (Selbstzahler without Abtretung/Vollmacht), AH totals", async () => {
     const o = await sendBoth({ to: "ah@example.invalid", subject: "Alltagshilfe", offerNumber: "ANG-AH-1", offerType: "ah", payload: JSON.stringify(AH), contactId: "101", body: "Guten Tag" });
     expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
+    // Deliberate difference (ADR 028, owner decision 4): the total of an AH send is the customer-facing
+    // monthly amount — for this Selbstzahler the gross (net + 7 % MwSt); legacy answers the net
+    expect(AH.Kundendaten.payer).toBe("Selbstzahler");
+    const net = o.legacy.res.body.offerTotal, vat = Math.round(net * 0.07 * 100) / 100;
+    expect(o.v2.res.body.offerTotal).toBe(Math.round((net + vat) * 100) / 100);
+    o.v2.res.body.offerTotal = net;
     expectSameResult(o);
   }, 60000);
 
@@ -1346,8 +1352,17 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
     if (app === "legacy" && !body && r.type.includes("html") && /<head/i.test(r.text)) r = { ...r, text: injectHead(r.text) };
     if (body && app === "v2" && body.error && typeof body.error === "object") body = { ...body, error: body.error.message };
     if (r.status === 401) body = { error: "<login required>" }; // auth-gate wording differs by design (see security section)
-    return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(r.text) };
+    const text = app === "v2" && !body ? ahTotalsAsLegacy(r.text) : r.text;
+    return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(text) };
   };
+  // Deliberate difference (ADR 028, owner decision 3, 2026-11-20): the AH signing page shows the DOCX's
+  // total block — „Nettobetrag“, MwSt and „Gesamtbetrag brutto“ (Selbstzahler) or the deduction and
+  // „Ihr Eigenanteil“ (Kassenkunde); legacy shows „Gesamtbetrag“ only. Taken back to the legacy block
+  // here (the rows are asserted in ah-offer-data.test.ts); everything else must equal the old page.
+  const ahTotalsAsLegacy = (html: string) => html.includes('<table class="totals">') && html.includes("Anfahrtspauschale Alltagshilfe")
+    ? html.replace(/<tr class="alt"><td>Nettobetrag<\/td>/g, '<tr class="alt"><td>Gesamtbetrag</td>')
+      .replace(/\n\s*<tr( class="(gesamtsumme|eigenanteil)")?><td>(zzgl\. 7 % MwSt\.|Gesamtbetrag brutto|abzgl\. [^<]*|Ihr Eigenanteil)<\/td><td class="num">[^<]*<\/td><\/tr>/g, "")
+    : html;
   const stripIds = (v: any): any => Array.isArray(v) ? v.map(stripIds) : v && typeof v === "object"
     ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== "id" && k !== "_id" && k !== "__v").map(([k, x]) => [k, stripIds(x)])) : v;
   // Deliberate difference (ADR 027 A, step 3): v2's stage move after a completed signature also
@@ -1385,10 +1400,15 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   const step = async (app: "legacy" | "v2", ctx: { log: any[] }, name: string, p: Promise<Res>) => {
     const r = await p;
     await new Promise((res) => setTimeout(res, 50));
-    ctx.log.push({ step: name, res: view(r, app), calls: calls(app), mails: smtp.take().map((m) => mailView(m, normText)) });
+    ctx.log.push(maskAhOffer({ step: name, res: view(r, app), calls: calls(app), mails: smtp.take().map((m) => mailView(m, normText)) }));
     return r;
   };
   const create = (app: "legacy" | "v2", body: Record<string, unknown>) => send(app, "POST", "/api/signing", body);
+  // ADR 028: the signed AH offer PDF holds the new total block (see ahTotalsAsLegacy) → its bytes differ
+  // from the old app's on purpose; masked in both (the page's HTML itself is compared above)
+  const maskAhOffer = (entry: Record<string, unknown>) => JSON.parse(JSON.stringify(entry)
+    .replace(/(angebot_T-AH-[A-Za-z]+\.pdf&fields\[FILES\]\[\d+\]\[1\]=)[A-Za-z0-9+/=]+/g, "$1<AH-ANGEBOT-PDF>")
+    .replace(/("filename":"angebot_T-AH-[A-Za-z]+\.pdf"[^}]*?"sha256":")[0-9a-f]+/g, "$1<AH-ANGEBOT-PDF>"));
 
   it("Selbstzahler: create + email link, open, view, payment-term rule, sign → completion (mail, Bitrix, stage)", async () => {
     const v = await scenario("T-SZ-1", () => {}, async (app, ctx) => {

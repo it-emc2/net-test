@@ -15,7 +15,7 @@
 // then in today's format (as today's page rewrites them on its first change, too).
 import {
   AH_CONSTANTS, ahDauer, ahInputFromPayload, computeAhPricing, fitAhToBudget, parseDurationMinutes,
-  type AhPricingInput, type AhPricingResult, type AhService,
+  type AhOfferTotals, type AhPricingInput, type AhPricingResult, type AhService,
 } from "@oc/pricing";
 import type { AhConfig } from "../../offer/index.js";
 
@@ -153,20 +153,37 @@ export const isActive = (offer: F, cfg: AhConfig) => autoStored(offer) && budget
 export const pricingInput = (offer: F, cfg: AhConfig): AhPricingInput => ahInputFromPayload(offer, cfg);
 export const priceOf = (offer: F, cfg: AhConfig): AhPricingResult => computeAhPricing(pricingInput(offer, cfg));
 
-/** the summary lines; the minus lines always add up to the Eigenanteil */
-export interface Summary { lines: { label: string; value: number; minus?: boolean }[]; total: { label: string; value: number } }
-export function summaryOf(p: AhPricingResult): Summary {
-  if (p.isSelbstzahler) {
-    const pauschale = p.gesamt !== p.allBase ? p.gesamt - p.allBase : 0;
-    return { lines: pauschale ? [{ label: "Leistungen und Anfahrt", value: p.allBase }, { label: "Servicepauschale", value: Math.round(pauschale * 100) / 100 }] : [], total: { label: "Gesamt pro Monat", value: p.gesamt } };
+/**
+ * The summary of Leistungen AND Finanzierung (one function — both pages show the same block; ADR 028):
+ *  - Kassenkunde (also no payer): „Leistungen und Anfahrt pro Monat“ net, one minus line per applied
+ *    source (capped so the lines add up to the Eigenanteil), „Eigenanteil pro Monat“; a note
+ *    „Steuerlich absetzbar: etwa … pro Jahr“ (§ 35a, today's rule) or „Vollständig gedeckt“
+ *  - Selbstzahler: net, „zzgl. 7 % MwSt.“, „Gesamt pro Monat“ gross
+ *  - both: the Servicepauschale (HnD) as a note only, in today's words of the Kosten page
+ */
+export interface Summary {
+  lines: { label: string; value: number; minus?: boolean }[];
+  total: { label: string; value: number };
+  notes: { kind: "steuer" | "gedeckt" | "pauschale"; text: string }[];
+}
+export const PAUSCHALE_NOTE = (amount: string) => `Separate Direktrechnung — nicht im Gesamtbetrag. Servicepauschale Reinigungsutensilien für HnD: ${amount} / Monat · inkl. MwSt. Jährliche Abrechnung, direkt mit dem Kunden.`;
+export function summaryOf(t: AhOfferTotals, fmt: (n: number) => string): Summary {
+  const notes: Summary["notes"] = [];
+  const pauschale = () => { if (t.servicepauschaleNote.show) notes.push({ kind: "pauschale", text: PAUSCHALE_NOTE(fmt(t.servicepauschaleNote.amount)) }); };
+  if (t.payer === "Selbstzahler") {
+    pauschale();
+    return { lines: [{ label: "Leistungen und Anfahrt pro Monat", value: t.net }, { label: "zzgl. 7 % MwSt.", value: t.vat }], total: { label: "Gesamt pro Monat", value: t.gross }, notes };
   }
-  const lines: Summary["lines"] = [{ label: "Leistungen und Anfahrt", value: p.gesamt }];
-  let rest = p.gesamt;
+  const lines: Summary["lines"] = [{ label: "Leistungen und Anfahrt pro Monat", value: t.net }];
+  let rest = t.net;
   const take = (label: string, amount: number) => { const v = Math.round(Math.min(amount, rest) * 100) / 100; if (amount > 0) { lines.push({ label, value: v, minus: true }); rest = Math.round((rest - v) * 100) / 100; } };
-  if (p.entlastungsbetragNutzen) take("Entlastungsbetrag", p.entlastungsbetragMonat);
-  take("Verhinderungspflege", p.verhinderungspflegeMonat);
-  take("Umwidmung Pflegesachleistungen", p.umwidmungMonat);
-  return { lines, total: { label: "Eigenanteil pro Monat", value: p.eigenanteil } };
+  take("Entlastungsbetrag", t.deductions.entlastungsbetrag);
+  take("Verhinderungspflege", t.deductions.verhinderungspflege);
+  take("Umwidmung", t.deductions.umwidmung);
+  if (t.net > 0 && t.eigenanteil === 0) notes.push({ kind: "gedeckt", text: "Vollständig gedeckt" });
+  else if (t.steuerabsetzJahr > 0) notes.push({ kind: "steuer", text: `Steuerlich absetzbar: etwa ${fmt(t.steuerabsetzJahr)} pro Jahr` });
+  pauschale();
+  return { lines, total: { label: "Eigenanteil pro Monat", value: t.eigenanteil }, notes };
 }
 
 // ---- budget mode: settle the durations after a change ----

@@ -11,8 +11,9 @@ import { CHIP, CHIP_OFF, Card, ChipGroup, Label, Stepper, TickRow, cn } from "..
 import { useAhConfig, useAhPrice, useOfferStore } from "../../offer/index.js";
 import {
   KINDS, RATE, RHYTHMS_MAIN, RHYTHMS_MORE, TASKS, TITLE, autoShown, budgetOf, canStep, dauerText, hasAnyService, isActive, isMoreRhythm,
-  isOtherRhythm, itemsOf, newItem, servicesFields, stepDauer, summaryOf, type Base, type Item, type Items, type Kind,
+  isOtherRhythm, itemsOf, newItem, servicesFields, stepDauer, type Base, type Item, type Items, type Kind,
 } from "./rules.js";
+import { AhSummary } from "./Summary.js";
 import { BASE_KEY } from "./settle.js";
 
 type F = Record<string, any>;
@@ -158,24 +159,6 @@ function ServiceCard({ kind, item, auto }: { kind: Kind; item: Item | undefined;
   );
 }
 
-function Summary({ price }: { price: NonNullable<ReturnType<typeof useAhPrice>> }) {
-  const s = summaryOf(price);
-  return (
-    <Card data-testid="ah-summary" className="gap-2">
-      <dl className="m-0 grid gap-2 tabular-nums">
-        {s.lines.map((l) => (
-          <div key={l.label} className="flex items-baseline justify-between gap-4" data-part="line">
-            <dt>{l.label}</dt><dd className="m-0 whitespace-nowrap">{l.minus ? `− ${euro(l.value)}` : euro(l.value)}</dd>
-          </div>
-        ))}
-        <div className={cn("flex items-baseline justify-between gap-4 text-[1.15rem] font-bold", s.lines.length && "border-t border-border pt-2")} data-part="total">
-          <dt>{s.total.label}</dt><dd className="m-0 whitespace-nowrap">{euro(s.total.value)}</dd>
-        </div>
-      </dl>
-    </Card>
-  );
-}
-
 function Note() {
   const note = useOfferStore((s) => String((s.offer as F | null)?.ah?.ahNote ?? ""));
   const [open, setOpen] = useState(false);
@@ -197,16 +180,16 @@ export function AhLeistungen() {
   const any = KINDS.some((k) => its[k]);
   const { budget } = budgetOf(offer, cfg);
   // budget mode shows the computed durations — unless nothing fits, then the user's own (with − / +)
-  const auto = isActive(offer, cfg) && budget !== null && price.allBase <= budget;
+  const auto = isActive(offer, cfg) && budget !== null && price.net <= budget;
   return (
     <div className="grid gap-4" data-testid="ah-leistungen">
       <h2 className="sr-only">Leistungen</h2>
-      <BudgetCard offer={offer} used={price.gesamt} any={any} />
+      <BudgetCard offer={offer} used={price.gross} any={any} />
       {KINDS.map((k) => <ServiceCard key={k} kind={k} item={its[k]} auto={auto} />)}
       {its.hnd && its.ab ? (
         <Card className="py-3"><TickRow id="ah-combined" checked={its.ab.combinedVisit} onChange={setCombined} suffix="– nur eine Anfahrt" data-testid="ah-combined">Beides im selben Termin</TickRow></Card>
       ) : null}
-      {any ? <Summary price={price} /> : null}
+      {any ? <AhSummary price={price} /> : null}
       <Note />
     </div>
   );

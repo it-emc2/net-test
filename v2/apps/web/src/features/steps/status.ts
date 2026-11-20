@@ -12,6 +12,7 @@ import { check, type Price } from "./angebotscheck/rules.js";
 import { isOn as isDa } from "./duschabtrennung/rules.js";
 import { trayOn } from "./duschwanne/rules.js";
 import { hasContent as ahHasContent } from "./ah/rules.js";
+import { finOf, touched as finTouched, vpValue, warningsOf as finWarnings } from "./ah/fin-rules.js";
 import { isOn as isDv } from "./duschvorhang/rules.js";
 
 type F = Record<string, any>;
@@ -39,6 +40,8 @@ function content(step: string, o: F): boolean | undefined {
     case "Arbeitszeit": return pos(obj(o.Arbeitszeit).totalHoursNumeric) || pos(obj(o.Arbeitszeit).ArbeitHoursNumeric);
     case "Arbeiten": return arr(obj(o.duschwanne).workTasks).length > 0;
     case "ah": return ahHasContent(obj(o.ah)); // Alltagshilfe: a service with a duration and a rhythm (over budget is a choice, not a warning)
+    // Alltagshilfe: done once the page was used or a source is ticked (Selbstzahler: nothing to do → not counted)
+    case "Finanzierung": { if (String(obj(o.Kundendaten).payer || "") === "Selbstzahler") return undefined; const x = finOf(o.Finanzierung); return finTouched(o.Finanzierung) || x.eb || x.um || vpValue(x) > 0; }
     case "Optional": { const op = obj(o.optional); return Object.keys(op).some((k) => (k.startsWith("qty_") && pos(op[k])) || (k.startsWith("opt_") && op[k] === true)); }
     default: return undefined;
   }
@@ -47,7 +50,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }
@@ -57,6 +60,9 @@ export function statuses(type: NewOfferType, offer: unknown, price: unknown): Re
     }
     const m = material(step, o);
     if (m && !m[0]) { out[step] = { kind: "off" }; continue; }
+    // Alltagshilfe · Finanzierung: a ticked source without a qualifying Pflegegrad is a warning (never blocks)
+    const finWarn = step === "Finanzierung" ? finWarnings(o) : [];
+    if (finWarn.length) { out[step] = { kind: "warn", reason: finWarn.join(" · ") }; continue; }
     const problem = checkStep(step);
     if (problem) { out[step] = { kind: "warn", reason: problem.message }; continue; }
     const has = m ? m[1] : content(step, o);

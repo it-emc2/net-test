@@ -51,16 +51,19 @@ export const CHIP = "inline-flex min-h-12 cursor-pointer select-none items-cente
 export const CHIP_ON = "border-primary bg-primary text-primary-foreground";
 export const CHIP_OFF = "border-control bg-card text-foreground";
 
-/** − value + ; buttons 48 px. `label` names the value for screen readers. */
-export function Stepper({ label, value, onStep, canDown, canUp, className, "data-testid": testId }: {
-  label: string; value: string; onStep: (dir: 1 | -1) => void; canDown: boolean; canUp: boolean; className?: string; "data-testid"?: string;
+/** − value + ; buttons 48 px. `label` names the value for screen readers; `words` the two buttons
+ *  (default „kürzer“ / „länger“ for a duration; amounts use „weniger“ / „mehr“). */
+export function Stepper({ label, value, onStep, canDown, canUp, className, words = ["kürzer", "länger"], children, "data-testid": testId }: {
+  label: string; value: ReactNode; onStep: (dir: 1 | -1) => void; canDown: boolean; canUp: boolean; className?: string; words?: readonly [string, string];
+  /** replaces the shown value (e.g. an input for a typed amount) */
+  children?: ReactNode; "data-testid"?: string;
 }) {
   const btn = "grid size-12 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-control bg-card text-foreground disabled:cursor-default disabled:opacity-40";
   return (
     <div role="group" aria-label={label} className={cn("flex items-center gap-2", className)} data-testid={testId}>
-      <button type="button" className={btn} aria-label={`${label} kürzer`} disabled={!canDown} onClick={() => onStep(-1)}><Minus aria-hidden className="size-5" /></button>
-      <output aria-live="polite" className="min-w-[6.5rem] text-center text-[1.1rem] font-semibold tabular-nums" data-part="value">{value}</output>
-      <button type="button" className={btn} aria-label={`${label} länger`} disabled={!canUp} onClick={() => onStep(1)}><Plus aria-hidden className="size-5" /></button>
+      <button type="button" className={btn} aria-label={`${label} ${words[0]}`} disabled={!canDown} onClick={() => onStep(-1)}><Minus aria-hidden className="size-5" /></button>
+      {children ?? <output aria-live="polite" className="min-w-[6.5rem] text-center text-[1.1rem] font-semibold tabular-nums" data-part="value">{value}</output>}
+      <button type="button" className={btn} aria-label={`${label} ${words[1]}`} disabled={!canUp} onClick={() => onStep(1)}><Plus aria-hidden className="size-5" /></button>
     </div>
   );
 }
