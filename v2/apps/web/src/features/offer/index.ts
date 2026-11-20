@@ -10,3 +10,4 @@ export { useVariants } from "./model/useVariants.js";
 export { TEXT as VARIANT_TEXT, sendVariantOf, statusText as variantStatusText, variantOfSend, variantSearch } from "./model/variants.js";
 export { SecondOfferButton, SecondOfferHost, openSecondOffer, relatedKey, useRelated, type SecondOfferSource } from "./SecondOffer.js";
 export { TEXT as SECOND_OFFER_TEXT, customerName, relatedOfType, typeTitle } from "./model/second-offer.js";
+export { AH_CONFIG_DEFAULT, ahConfigOf, getAhConfig, useAhConfig, useAhPrice, type AhConfig } from "./model/ah-price.js";

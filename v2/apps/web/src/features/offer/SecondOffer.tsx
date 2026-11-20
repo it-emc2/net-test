@@ -85,7 +85,7 @@ export function SecondOfferButton({ place, onOpen }: { place: string; onOpen?: (
   return (
     <span className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1" data-testid="second-offer-entry" data-place={place}>
       {/* may wrap: in the 400 px panel the label is wider than one line */}
-      <Button variant="outline" className="h-auto min-h-12 whitespace-normal py-2 text-center" data-action="second-offer" data-place={place} disabled={temp} aria-describedby={temp ? `second-offer-reason-${place}` : undefined}
+      <Button variant="outline" aria-label={TEXT.button} className="h-auto min-h-12 whitespace-normal py-2 text-center" data-action="second-offer" data-place={place} disabled={temp} aria-describedby={temp ? `second-offer-reason-${place}` : undefined}
         onClick={() => { const src = sourceOfOpenOffer(); if (!src) return; onOpen?.(); openSecondOffer(src); }}>
         <FilePlus2 aria-hidden className="size-4" /><span data-part="label">{TEXT.button}</span>
       </Button>

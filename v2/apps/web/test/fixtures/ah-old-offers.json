@@ -1,0 +1,1624 @@
+{
+ "source": "tests/golden/fixtures/ah/{payloads,restore}.json — the cases this test uses (copied so the web tests build without files outside v2/)",
+ "payloads": [
+  {
+   "id": "ah-offer-b6e37653",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "emailCc": "",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95233",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "ansprechpartner": "ANON_ansprechpartner",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "ANON_kk_geburtsdatum",
+     "kk_versichertennr": "",
+     "kassenkundeName": "ANON_kassenkundeName",
+     "kk_krankenkasseAdresse": "ANON_kk_krankenkasseAdresse",
+     "kk_pflegegradSeit": "ANON_kk_pflegegradSeit",
+     "sonderaufschlagValue": "ANON_sonderaufschlagValue",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "pflegegrad": "2",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "ah_mobilitaet_choice": "ANON_ah_mobilitaet_choice",
+     "ah_mobilitaet": "ANON_ah_mobilitaet",
+     "ah_allergien_choice": "ANON_ah_allergien_choice",
+     "ah_allergien": "ANON_ah_allergien",
+     "ah_demenz_choice": "ANON_ah_demenz_choice",
+     "ah_demenz": "ANON_ah_demenz",
+     "ah_sprache_choice": "ANON_ah_sprache_choice",
+     "ah_sprache": "ANON_ah_sprache",
+     "ah_sonstiges": "",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "",
+     "notes": "",
+     "ah_alleinLebend": "ANON_ah_alleinLebend",
+     "ah_haustiere": "ANON_ah_haustiere",
+     "ah_schluessel": "ANON_ah_schluessel",
+     "ah_bestehendeHilfe": "ANON_ah_bestehendeHilfe",
+     "aufschlag": "ANON_aufschlag",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahEntlastungAuto": "on",
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"1:30\",\"regelmaessigkeit\":\"alle drei Wochen\"}],\"tasks\":[],\"combinedVisit\":false}]",
+     "ahNote": "ANON_text",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "1:30",
+         "regelmaessigkeit": "alle drei Wochen"
+        }
+       ],
+       "tasks": [],
+       "combinedVisit": false
+      }
+     ]
+    },
+    "Finanzierung": {
+     "ahEntlastungsbetragNutzen": "on",
+     "ahVerhinderungspflegeMonat": "0",
+     "ahUmwidmungBetrag": ""
+    },
+    "hms": {},
+    "wd": {},
+    "pricingRules": {
+     "kleinInAufschlag": true,
+     "bwtKmFreeThreshold": 0,
+     "bwtTravelTimeFreeHours": 0,
+     "bonusNeuGross": 250,
+     "bonusNeuThreshold": 5000
+    },
+    "bl": {},
+    "offerNumber": "ANG2026-1021-151657",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:50",
+     "totalHoursNumeric": 7.84,
+     "ReiseHoursNumeric": 0.84,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:25",
+     "distanceKm": "28.5",
+     "ahTravelZone": 3,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 58.379999999999995,
+      "travelSecondWorkerCost": 29.4,
+      "totalCost": 1060.7800000000002
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true,
+    "auftragId": "0",
+    "docSelection": {
+     "abtretung": true,
+     "vollmacht": true,
+     "barrierefrei": true
+    }
+   }
+  },
+  {
+   "id": "ah-offer-97ca8e12",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Herr",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95032",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "ansprechpartner": "ANON_ansprechpartner",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "sonderaufschlagValue": "ANON_sonderaufschlagValue",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "copayAmount": 0,
+     "wohnumfeldDone": "ANON_wohnumfeldDone",
+     "partnerSalutation": "",
+     "pflegekasseAntrag": "ANON_pflegekasseAntrag",
+     "pflegekasseEmc2Antrag": "ANON_pflegekasseEmc2Antrag",
+     "wohnsituation": "ANON_wohnsituation",
+     "vermieterGenehmigung": "ANON_vermieterGenehmigung",
+     "zugangWohnung": "ANON_zugangWohnung",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "",
+     "aufschlag": "ANON_aufschlag",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahEntlastungAuto": "on",
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"0:25\",\"regelmaessigkeit\":\"Wöchentlich\"}],\"tasks\":[\"wohnungsreinigung\",\"fensterputzen\"]}]",
+     "ahNote": "",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "0:25",
+         "regelmaessigkeit": "Wöchentlich"
+        }
+       ],
+       "tasks": [
+        "wohnungsreinigung",
+        "fensterputzen"
+       ]
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0717-114948",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:10",
+     "totalHoursNumeric": 7.16,
+     "ReiseHoursNumeric": 0.16,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:05",
+     "distanceKm": "2.5",
+     "ahTravelZone": 1,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "Silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 11.120000000000001,
+      "travelSecondWorkerCost": 5.6000000000000005,
+      "totalCost": 989.72
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-offer-20b197e6",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Herr",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95032",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "ansprechpartner": "ANON_ansprechpartner",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "sonderaufschlagValue": "ANON_sonderaufschlagValue",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "copayAmount": 0,
+     "wohnumfeldDone": "ANON_wohnumfeldDone",
+     "partnerSalutation": "",
+     "pflegekasseAntrag": "ANON_pflegekasseAntrag",
+     "pflegekasseEmc2Antrag": "ANON_pflegekasseEmc2Antrag",
+     "wohnsituation": "ANON_wohnsituation",
+     "vermieterGenehmigung": "ANON_vermieterGenehmigung",
+     "zugangWohnung": "ANON_zugangWohnung",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "",
+     "aufschlag": "ANON_aufschlag",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Alltagsbegleitung\",\"schedules\":[{\"dauer\":\"1:00\",\"regelmaessigkeit\":\"alle drei Wochen\"}],\"tasks\":[\"spaziergaenge\",\"gesellschaft\"]},{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"1:00\",\"regelmaessigkeit\":\"Monatlich\"}],\"tasks\":[\"wohnungsreinigung\",\"waeschewaschen\",\"kochen\",\"geschirrspuelen\"]}]",
+     "ahNote": "",
+     "services": [
+      {
+       "type": "Alltagsbegleitung",
+       "schedules": [
+        {
+         "dauer": "1:00",
+         "regelmaessigkeit": "alle drei Wochen"
+        }
+       ],
+       "tasks": [
+        "spaziergaenge",
+        "gesellschaft"
+       ]
+      },
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "1:00",
+         "regelmaessigkeit": "Monatlich"
+        }
+       ],
+       "tasks": [
+        "wohnungsreinigung",
+        "waeschewaschen",
+        "kochen",
+        "geschirrspuelen"
+       ]
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0715-152124",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:10",
+     "totalHoursNumeric": 7.16,
+     "ReiseHoursNumeric": 0.16,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:05",
+     "distanceKm": "2.5",
+     "ahTravelZone": 1,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 11.120000000000001,
+      "travelSecondWorkerCost": 5.6000000000000005,
+      "totalCost": 989.72
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-offer-20b18d79",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Herr",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95032",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "ansprechpartner": "ANON_ansprechpartner",
+     "payer": "Selbstzahler",
+     "sonderaufschlagValue": "ANON_sonderaufschlagValue",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "hasPflegegrad": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "pflegekasseAntrag": "",
+     "pflegekasseEmc2Antrag": "",
+     "wohnsituation": "ANON_wohnsituation",
+     "vermieterGenehmigung": "ANON_vermieterGenehmigung",
+     "zugangWohnung": "ANON_zugangWohnung",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "",
+     "aufschlag": "ANON_aufschlag",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "pflegegrad": "",
+     "budgetMax": false,
+     "budgetCopay": false,
+     "twoPersons": false,
+     "premium": false,
+     "pflegekasseGenehmigung": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"1:00\",\"regelmaessigkeit\":\"Wöchentlich\"}],\"tasks\":[\"wohnungsreinigung\",\"waeschereinigung\",\"post\"]}]",
+     "ahNote": "",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "1:00",
+         "regelmaessigkeit": "Wöchentlich"
+        }
+       ],
+       "tasks": [
+        "wohnungsreinigung",
+        "waeschereinigung",
+        "post"
+       ]
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0715-111546",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:10",
+     "totalHoursNumeric": 7.16,
+     "ReiseHoursNumeric": 0.16,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:05",
+     "distanceKm": "2.5",
+     "ahTravelZone": 1,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 59.5,
+      "secondWorkerRate": 35,
+      "workCost": 833,
+      "travelDriverCost": 9.52,
+      "travelSecondWorkerCost": 5.6000000000000005,
+      "totalCost": 848.12
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-offer-114dbb2e",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "ANON_bitrixContactId",
+     "salutation": "Herr",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "ah_geburtsdatum": "",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "ah_mobilitaet": "ANON_ah_mobilitaet",
+     "ah_allergien": "ANON_ah_allergien",
+     "ah_demenz": "ANON_ah_demenz",
+     "ah_sprache": "ANON_ah_sprache",
+     "ah_sonstiges": "ANON_ah_sonstiges",
+     "emc2_contact": "ANON_emc2_contact",
+     "payer": "Kassenkunde",
+     "kassenkundeName": "ANON_kassenkundeName",
+     "ah_versichertenr": "",
+     "aufschlag": "ANON_aufschlag",
+     "sonderaufschlagValue": "",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "pflegegrad": "3",
+     "copayAmount": 0,
+     "wohnumfeldDone": "ANON_wohnumfeldDone",
+     "partnerSalutation": "",
+     "pflegekasseAntrag": "ANON_pflegekasseAntrag",
+     "zugangWohnung": "ANON_zugangWohnung",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "",
+     "ah_alleinLebend": "ANON_ah_alleinLebend",
+     "ah_haustiere": "ANON_ah_haustiere",
+     "ah_schluessel": "ANON_ah_schluessel",
+     "ah_bestehendeHilfe": "ANON_ah_bestehendeHilfe",
+     "customerNumber": "ANON_customerNumber",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"\",\"regelmaessigkeit\":\"Wöchentlich\"}],\"tasks\":[]}]",
+     "ahNote": "",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "",
+         "regelmaessigkeit": "Wöchentlich"
+        }
+       ],
+       "tasks": []
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0626-155701",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:16",
+     "totalHoursNumeric": 7.26,
+     "ReiseHoursNumeric": 0.26,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:08",
+     "distanceKm": "3.5",
+     "ahTravelZone": 1,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 18.07,
+      "travelSecondWorkerCost": 9.1,
+      "totalCost": 1000.1700000000001
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-offer-114d7198",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "ah_geburtsdatum": "ANON_ah_geburtsdatum",
+     "phone": "0000000000",
+     "email": "",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "ANON_state",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "payer": "Selbstzahler",
+     "ah_versichertenr": "",
+     "aufschlag": "ANON_aufschlag",
+     "sonderaufschlagValue": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "parkDetails": "",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "hasPflegegrad": "",
+     "pflegegrad": "",
+     "budgetMax": false,
+     "budgetCopay": false,
+     "twoPersons": false,
+     "premium": false,
+     "pflegekasseAntrag": "",
+     "pflegekasseGenehmigung": "",
+     "pflegekasseEmc2Antrag": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Alltagsbegleitung\",\"schedules\":[{\"dauer\":\"1:00\",\"regelmaessigkeit\":\"Wöchentlich\"}],\"tasks\":[\"arzttermine\",\"behoerdengaenge\"]},{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"1:30\",\"regelmaessigkeit\":\"14-tägig\"},{\"dauer\":\"1:00\",\"regelmaessigkeit\":\"Wöchentlich\"}],\"tasks\":[\"fensterputzen\",\"waeschewaschen\",\"einkaufen\"]}]",
+     "ahNote": "ANON_text",
+     "services": [
+      {
+       "type": "Alltagsbegleitung",
+       "schedules": [
+        {
+         "dauer": "1:00",
+         "regelmaessigkeit": "Wöchentlich"
+        }
+       ],
+       "tasks": [
+        "arzttermine",
+        "behoerdengaenge"
+       ]
+      },
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "1:30",
+         "regelmaessigkeit": "14-tägig"
+        },
+        {
+         "dauer": "1:00",
+         "regelmaessigkeit": "Wöchentlich"
+        }
+       ],
+       "tasks": [
+        "fensterputzen",
+        "waeschewaschen",
+        "einkaufen"
+       ]
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0625-093802",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:30",
+     "totalHoursNumeric": 7.5,
+     "ReiseHoursNumeric": 0.5,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:15",
+     "distanceKm": "3",
+     "ahTravelZone": 2,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 59.5,
+      "secondWorkerRate": 35,
+      "workCost": 833,
+      "travelDriverCost": 29.75,
+      "travelSecondWorkerCost": 17.5,
+      "totalCost": 880.25
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-offer-4cfe26f6",
+   "source": "offer",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "ANON_bitrixContactId",
+     "salutation": "Frau",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "ah_geburtsdatum": "",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95180",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "payer": "Selbstzahler",
+     "ah_versichertenr": "",
+     "aufschlag": "ANON_aufschlag",
+     "sonderaufschlagValue": "",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "copayAmount": 0,
+     "wohnumfeldAmount": "",
+     "partnerSalutation": "",
+     "zugangWohnung": "ANON_zugangWohnung",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "ANON_parkDetails",
+     "customerNumber": "ANON_customerNumber",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {},
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"schedules\":[{\"dauer\":\"4:00\",\"regelmaessigkeit\":\"Monatlich\",\"bevorzugteUhrzeit\":\"\"},{\"dauer\":\"0:30\",\"regelmaessigkeit\":\"Vierteljährlich\",\"bevorzugteUhrzeit\":\"\"}],\"tasks\":[]}]",
+     "ahNote": "ANON_text",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "schedules": [
+        {
+         "dauer": "4:00",
+         "regelmaessigkeit": "Monatlich",
+         "bevorzugteUhrzeit": ""
+        },
+        {
+         "dauer": "0:30",
+         "regelmaessigkeit": "Vierteljährlich",
+         "bevorzugteUhrzeit": ""
+        }
+       ],
+       "tasks": []
+      }
+     ]
+    },
+    "hms": {},
+    "wd": {},
+    "bl": {},
+    "offerNumber": "ANG2026-0619-151254",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:28",
+     "totalHoursNumeric": 7.46,
+     "ReiseHoursNumeric": 0.46,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:14",
+     "distanceKm": "9.0",
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 59.5,
+      "secondWorkerRate": 35,
+      "workCost": 833,
+      "travelDriverCost": 27.37,
+      "travelSecondWorkerCost": 16.1,
+      "totalCost": 876.47
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  },
+  {
+   "id": "ah-draft-e8fb9bc8",
+   "source": "draft",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "phone": "0000000000",
+     "email": "",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95030",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "ansprechpartner": "ANON_ansprechpartner",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "sonderaufschlagValue": "ANON_sonderaufschlagValue",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "ANON_aufschlag",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "ah": {
+     "ahServicesJson": "[]",
+     "ahNote": "",
+     "services": []
+    },
+    "Finanzierung": {
+     "ahVerhinderungspflegeMonat": "0",
+     "ahUmwidmungBetrag": ""
+    },
+    "offerNumber": "ANG2026-0723-135328",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:08",
+     "totalHoursNumeric": 7.14,
+     "ReiseHoursNumeric": 0.14,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:04",
+     "distanceKm": "1.0",
+     "ahTravelZone": 1,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "Silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 9.73,
+      "travelSecondWorkerCost": 4.9,
+      "totalCost": 987.63
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true,
+    "auftragId": "0"
+   }
+  },
+  {
+   "id": "ah-draft-91fcd12b",
+   "source": "draft",
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "ANON_bitrixContactId",
+     "salutation": "Frau",
+     "date": "2026-01-01",
+     "firstName": "ANON_firstName",
+     "lastName": "ANON_lastName",
+     "ah_geburtsdatum": "",
+     "phone": "0000000000",
+     "email": "anon@example.invalid",
+     "street": "ANON_street",
+     "city": "ANON_city",
+     "state": "",
+     "postalCode": "95180",
+     "deployment": "",
+     "customerType": "ANON_customerType",
+     "hasContactPerson": "ANON_hasContactPerson",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "emc2_contact": "ANON_emc2_contact",
+     "payer": "Selbstzahler",
+     "ah_versichertenr": "",
+     "aufschlag": "ANON_aufschlag",
+     "sonderaufschlagValue": "",
+     "hasPflegegrad": "ANON_hasPflegegrad",
+     "copayAmount": 0,
+     "wohnumfeldAmount": "",
+     "partnerSalutation": "",
+     "badStockwerk": "ANON_badStockwerk",
+     "parkenMoeglich": "ANON_parkenMoeglich",
+     "parkDetails": "ANON_parkDetails",
+     "ah_alleinLebend": "ANON_ah_alleinLebend",
+     "ah_haustiere": "ANON_ah_haustiere",
+     "ah_schluessel": "ANON_ah_schluessel",
+     "ah_bestehendeHilfe": "ANON_ah_bestehendeHilfe",
+     "customerNumber": "ANON_customerNumber",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0
+     }
+    },
+    "ah": {
+     "ahServicesJson": "[{\"type\":\"Haushaltsnahedienstleistungen\",\"tasks\":[{\"id\":\"wohnungsreinigung\",\"label\":\"Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)\",\"schedules\":[{\"dauer\":\"4:00\",\"regelmaessigkeit\":\"Monatlich\",\"bevorzugteTage\":\"Di,Mi,Do\",\"bevorzugteUhrzeit\":\"\"}]}]}]",
+     "ahNote": "ANON_text",
+     "services": [
+      {
+       "type": "Haushaltsnahedienstleistungen",
+       "tasks": [
+        {
+         "id": "wohnungsreinigung",
+         "label": "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)",
+         "schedules": [
+          {
+           "dauer": "4:00",
+           "regelmaessigkeit": "Monatlich",
+           "bevorzugteTage": "Di,Mi,Do",
+           "bevorzugteUhrzeit": ""
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "offerNumber": "ANG2026-0616-151944",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:28",
+     "totalHoursNumeric": 7.46,
+     "ReiseHoursNumeric": 0.46,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:14",
+     "distanceKm": "9.0",
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 59.5,
+      "secondWorkerRate": 35,
+      "workCost": 833,
+      "travelDriverCost": 27.37,
+      "travelSecondWorkerCost": 16.1,
+      "totalCost": 876.47
+     }
+    },
+    "activeOffer": "ah",
+    "includeOurSignature": true
+   }
+  }
+ ],
+ "restored": [
+  {
+   "id": "ah-offer-b6e37653",
+   "expected": {
+    "gesamt": 128.67,
+    "eigenanteil": 0,
+    "entlastungsbetragNutzen": true,
+    "entlastungsbetragMonat": 131,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 128.67,
+    "anfahrtTotal": 11.5,
+    "leistungenTotal": 117.17,
+    "totalEinsaetze": 1.4444444444444444,
+    "totalMonatlichH": 2.888888888888889,
+    "tasks": [],
+    "isSelbstzahler": false,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 3,
+     "billMin": 30
+    },
+    "schedRows": [
+     {
+      "dauer": "1:30",
+      "regelmaessigkeit": "alle drei Wochen",
+      "dauerMin": 90,
+      "reiseRoundMin": 30,
+      "perVisitMin": 120,
+      "freq": 1.4444444444444444,
+      "monthlyH": 2.888888888888889
+     }
+    ],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 128.67
+   }
+  },
+  {
+   "id": "ah-offer-97ca8e12",
+   "expected": {
+    "gesamt": 137.02,
+    "eigenanteil": 137.02,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 328.85,
+    "gesamtBase": 137.02,
+    "anfahrtTotal": 34.49,
+    "leistungenTotal": 102.53,
+    "totalEinsaetze": 4.333333333333333,
+    "totalMonatlichH": 2.5277777777777777,
+    "tasks": [
+     "wohnungsreinigung",
+     "fensterputzen"
+    ],
+    "isSelbstzahler": false,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [
+     {
+      "dauer": "0:25",
+      "regelmaessigkeit": "Wöchentlich",
+      "dauerMin": 25,
+      "reiseRoundMin": 10,
+      "perVisitMin": 35,
+      "freq": 4.333333333333333,
+      "monthlyH": 2.5277777777777777
+     }
+    ],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 137.02
+   }
+  },
+  {
+   "id": "ah-offer-20b197e6",
+   "expected": {
+    "gesamt": 156.16,
+    "eigenanteil": 156.16,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 374.78,
+    "gesamtBase": 55.28,
+    "anfahrtTotal": 7.96,
+    "leistungenTotal": 47.32,
+    "totalEinsaetze": 1,
+    "totalMonatlichH": 1.1666666666666667,
+    "tasks": [
+     "wohnungsreinigung",
+     "waeschewaschen",
+     "kochen",
+     "geschirrspuelen"
+    ],
+    "isSelbstzahler": false,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [
+     {
+      "dauer": "1:00",
+      "regelmaessigkeit": "Monatlich",
+      "dauerMin": 60,
+      "reiseRoundMin": 10,
+      "perVisitMin": 70,
+      "freq": 1,
+      "monthlyH": 1.1666666666666667
+     }
+    ],
+    "hasAb": true,
+    "abTotalEinsaetze": 1.4444444444444444,
+    "abAnfahrtEinsaetze": 1.4444444444444444,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 1.6851851851851853,
+    "abAnfahrtTotal": 11.5,
+    "abLeistungenTotal": 89.38,
+    "abGesamtBase": 100.88,
+    "abTasks": [
+     "spaziergaenge",
+     "gesellschaft"
+    ],
+    "abSchedRows": [
+     {
+      "dauer": "1:00",
+      "regelmaessigkeit": "alle drei Wochen",
+      "dauerMin": 60,
+      "reiseRoundMin": 10,
+      "perVisitMin": 70,
+      "freq": 1.4444444444444444,
+      "monthlyH": 1.6851851851851853
+     }
+    ],
+    "abKmRate": 0.35,
+    "allBase": 156.16
+   }
+  },
+  {
+   "id": "ah-offer-20b18d79",
+   "expected": {
+    "gesamt": 240.74,
+    "eigenanteil": 240.74,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 239.54,
+    "anfahrtTotal": 34.49,
+    "leistungenTotal": 205.05,
+    "totalEinsaetze": 4.333333333333333,
+    "totalMonatlichH": 5.055555555555555,
+    "tasks": [
+     "wohnungsreinigung",
+     "waeschereinigung",
+     "post"
+    ],
+    "isSelbstzahler": true,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [
+     {
+      "dauer": "1:00",
+      "regelmaessigkeit": "Wöchentlich",
+      "dauerMin": 60,
+      "reiseRoundMin": 10,
+      "perVisitMin": 70,
+      "freq": 4.333333333333333,
+      "monthlyH": 5.055555555555555
+     }
+    ],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 239.54
+   }
+  },
+  {
+   "id": "ah-offer-114dbb2e",
+   "expected": {
+    "gesamt": 0,
+    "eigenanteil": 0,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 0,
+    "anfahrtTotal": 0,
+    "leistungenTotal": 0,
+    "totalEinsaetze": 0,
+    "totalMonatlichH": 0,
+    "tasks": [],
+    "isSelbstzahler": false,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 0
+   }
+  },
+  {
+   "id": "ah-offer-114d7198",
+   "expected": {
+    "gesamt": 707.1,
+    "eigenanteil": 707.1,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 403.26,
+    "anfahrtTotal": 51.74,
+    "leistungenTotal": 351.52,
+    "totalEinsaetze": 6.5,
+    "totalMonatlichH": 8.666666666666666,
+    "tasks": [
+     "fensterputzen",
+     "waeschewaschen",
+     "einkaufen"
+    ],
+    "isSelbstzahler": true,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [
+     {
+      "dauer": "1:30",
+      "regelmaessigkeit": "14-tägig",
+      "dauerMin": 90,
+      "reiseRoundMin": 10,
+      "perVisitMin": 100,
+      "freq": 2.1666666666666665,
+      "monthlyH": 3.611111111111111
+     },
+     {
+      "dauer": "1:00",
+      "regelmaessigkeit": "Wöchentlich",
+      "dauerMin": 60,
+      "reiseRoundMin": 10,
+      "perVisitMin": 70,
+      "freq": 4.333333333333333,
+      "monthlyH": 5.055555555555555
+     }
+    ],
+    "hasAb": true,
+    "abTotalEinsaetze": 4.333333333333333,
+    "abAnfahrtEinsaetze": 4.333333333333333,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 5.055555555555555,
+    "abAnfahrtTotal": 34.49,
+    "abLeistungenTotal": 268.15,
+    "abGesamtBase": 302.64,
+    "abTasks": [
+     "arzttermine",
+     "behoerdengaenge"
+    ],
+    "abSchedRows": [
+     {
+      "dauer": "1:00",
+      "regelmaessigkeit": "Wöchentlich",
+      "dauerMin": 60,
+      "reiseRoundMin": 10,
+      "perVisitMin": 70,
+      "freq": 4.333333333333333,
+      "monthlyH": 5.055555555555555
+     }
+    ],
+    "abKmRate": 0.35,
+    "allBase": 705.9
+   }
+  },
+  {
+   "id": "ah-offer-4cfe26f6",
+   "expected": {
+    "gesamt": 198.84,
+    "eigenanteil": 198.84,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 197.64,
+    "anfahrtTotal": 10.61,
+    "leistungenTotal": 187.03,
+    "totalEinsaetze": 1.3333333333333333,
+    "totalMonatlichH": 4.611111111111111,
+    "tasks": [],
+    "isSelbstzahler": true,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 2,
+     "billMin": 20
+    },
+    "schedRows": [
+     {
+      "dauer": "4:00",
+      "regelmaessigkeit": "Monatlich",
+      "dauerMin": 240,
+      "reiseRoundMin": 20,
+      "perVisitMin": 260,
+      "freq": 1,
+      "monthlyH": 4.333333333333333
+     },
+     {
+      "dauer": "0:30",
+      "regelmaessigkeit": "Vierteljährlich",
+      "dauerMin": 30,
+      "reiseRoundMin": 20,
+      "perVisitMin": 50,
+      "freq": 0.3333333333333333,
+      "monthlyH": 0.27777777777777773
+     }
+    ],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 197.64
+   }
+  },
+  {
+   "id": "ah-draft-e8fb9bc8",
+   "expected": {
+    "gesamt": 0,
+    "eigenanteil": 0,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 0,
+    "anfahrtTotal": 0,
+    "leistungenTotal": 0,
+    "totalEinsaetze": 0,
+    "totalMonatlichH": 0,
+    "tasks": [],
+    "isSelbstzahler": false,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 1,
+     "billMin": 10
+    },
+    "schedRows": [],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 0
+   }
+  },
+  {
+   "id": "ah-draft-91fcd12b",
+   "expected": {
+    "gesamt": 0,
+    "eigenanteil": 0,
+    "entlastungsbetragNutzen": false,
+    "entlastungsbetragMonat": 0,
+    "verhinderungspflegeMonat": 0,
+    "umwidmungMonat": 0,
+    "steuerabsetzJahr": 0,
+    "gesamtBase": 0,
+    "anfahrtTotal": 0,
+    "leistungenTotal": 0,
+    "totalEinsaetze": 0,
+    "totalMonatlichH": 0,
+    "tasks": [],
+    "isSelbstzahler": true,
+    "servicepauschale": 1.2,
+    "zoneData": {
+     "zone": 2,
+     "billMin": 20
+    },
+    "schedRows": [],
+    "hasAb": false,
+    "abTotalEinsaetze": 0,
+    "abAnfahrtEinsaetze": 0,
+    "abSharedEinsaetze": 0,
+    "abSharedReiseH": 0,
+    "abCombinedVisit": false,
+    "abTotalMonatlichH": 0,
+    "abAnfahrtTotal": 0,
+    "abLeistungenTotal": 0,
+    "abGesamtBase": 0,
+    "abTasks": [],
+    "abSchedRows": [],
+    "abKmRate": 0.35,
+    "allBase": 0
+   }
+  }
+ ]
+}

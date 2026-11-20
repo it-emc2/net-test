@@ -18,6 +18,12 @@
   --input: #d1d5db;
   --destructive: #dc2626;
   --success: #16a34a;
+  /* boundary of a tick box, chip or stepper button (≥ 3:1 on card and page) and status pills */
+  --control: #6b7280;
+  --success-weak: #dcfce7;
+  --success-strong: #166534;
+  --warning-weak: #fef3c7;
+  --warning-strong: #92400e;
   /* accent (today's default: purple) */
   --accent: #7c3aed;         /* marks, borders */
   --accent-weak: #ede9fe;    /* active / hover background */
@@ -46,6 +52,11 @@
   --input: #334155;
   --destructive: #f87171;
   --success: #22c55e;
+  --control: #7d8ba1;
+  --success-weak: #0b2e1b;
+  --success-strong: #86efac;
+  --warning-weak: #3a2306;
+  --warning-strong: #fcd34d;
   --accent-weak: color-mix(in srgb, var(--accent) 18%, transparent);
   --step-idle: #334155;
 }
@@ -61,6 +72,11 @@
   --color-input: var(--input);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
+  --color-control: var(--control);
+  --color-success-weak: var(--success-weak);
+  --color-success-strong: var(--success-strong);
+  --color-warning-weak: var(--warning-weak);
+  --color-warning-strong: var(--warning-strong);
   --color-accent: var(--accent);
   --color-accent-weak: var(--accent-weak);
   --color-primary: var(--primary);

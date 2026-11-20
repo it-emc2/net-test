@@ -30,5 +30,8 @@ export function usePrice() {
     staleTime: Infinity,
     retry: false,
   });
+  // a client-priced offer (Alltagshilfe: model/ah-price.ts) never shows a server price — not even
+  // one cached for the same key by another offer opened before (the key counts changes, not offers)
+  if (clientPriced) return { data: null, total: null, selfPay: null, pending: false, error: null };
   return { data: query.data ?? null, total: query.data?.total ?? null, selfPay: query.data?.selfPayAmount ?? null, pending: query.isFetching || version !== settled, error: query.error };
 }
