@@ -270,11 +270,6 @@ describe.each([
       // Also left out: after that switch today's UI stores the approval answer but hides its
       // question until the application answer is touched again; the React page shows it.
       if (scenario.name.includes("back to Kassenkunde") && field === "pflegekasseGenehmigung") continue;
-      // B3 (U-047): for an own home (stored "Nein" of "erforderlich") the landlord question is no longer on the page
-      if (field === "vermieterGenehmigungErforderlich" && shown && !onPage(field)) {
-        expect([offer().Kundendaten.wohnsituation, offer().Kundendaten.vermieterGenehmigungErforderlich]).toEqual(["Eigentum", "Nein"]);
-        continue;
-      }
       expect([field, onPage(field)]).toEqual([field, shown]);
     }
   }, 20000); // the longest recordings type some 40 fields: 3.5 s alone on a fast machine, over the default 5 s on a loaded CI runner

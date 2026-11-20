@@ -76,17 +76,13 @@ describe("B3 — Pflegegrad: the insurance block", () => {
 
 describe("B3 — Wohnsituation: the landlord", () => {
   const LIVING = "Angabe zur Wohnsituation", NEEDED = "Genehmigung des Vermieters erforderlich?", HERE = "Genehmigung des Vermieters liegt vor?";
-  it("Miete: both questions; Eigentum: none (the answer „erforderlich“ is Nein by itself)", async () => {
+  it("„erforderlich?“ is always asked (as before); „liegt vor?“ only for Miete", async () => {
     await open("bu");
-    expect([hasGroup(NEEDED), hasGroup(HERE)]).toEqual([true, false]); // not answered yet: "Weiter" asks for it
+    expect([hasGroup(NEEDED), hasGroup(HERE)]).toEqual([true, false]);
     await pick(LIVING, "Miete");
     expect([hasGroup(NEEDED), hasGroup(HERE)]).toEqual([true, true]);
     await pick(LIVING, "Eigentum");
-    expect([hasGroup(NEEDED), hasGroup(HERE), offer().Kundendaten.vermieterGenehmigungErforderlich]).toEqual([false, false, "Nein"]);
-  });
-  it("a manual „Ja“ for an own home keeps the question on the page", async () => {
-    await open("bu", (kd) => { kd.wohnsituation = "Eigentum"; kd.vermieterGenehmigungErforderlich = "Ja"; });
-    expect(hasGroup(NEEDED)).toBe(true);
+    expect([hasGroup(NEEDED), hasGroup(HERE), offer().Kundendaten.vermieterGenehmigungErforderlich]).toEqual([true, false, "Nein"]);
   });
   it("Miete → answer → Eigentum → Miete stores what it stored before", async () => {
     await open("bu");

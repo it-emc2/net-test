@@ -3,8 +3,8 @@
 // hidden fields keep their values and are there again when the answer switches back.
 //  - insurance block (Name/Adresse der Krankenkasse, Geburtsdatum, Versicherungsnummer, Pflegegrad
 //    seit) after "Kunde hat Pflegegrad?" = Ja (a Kassenkunde only, as before)
-//  - the landlord's questions after "Wohnsituation" = Miete; they stay on the page while the answer is
-//    still missing, because "Weiter" asks for "Genehmigung des Vermieters erforderlich?" then
+//  - "Genehmigung des Vermieters liegt vor?" after "Wohnsituation" = Miete ("erforderlich?" and its
+//    upload are unchanged: always on the page for Badumbau, Badewannentür, Handlauf)
 //  - the contact person's fields after "Ansprechpartner vorhanden?" = Ja
 //  - the other place of deployment after "Abweichender Einsatzort vorhanden?" = Ja (the answer is
 //    a page-only choice: today's offer has just the one text field)
@@ -22,10 +22,6 @@ export const hasInsuranceData = (kd: Fields) => filled(kd, INSURANCE_FIELDS);
 export const hasContactData = (kd: Fields) => filled(kd, CONTACT_FIELDS);
 export const hasDeploymentData = (kd: Fields) => filled(kd, ["deployment"]);
 
-/** "Genehmigung des Vermieters erforderlich?" (Badumbau, Badewannentür, Handlauf): "Weiter" asks for the
- *  answer, so it stays while the living situation is open. Own home with the stored "Nein" (what
- *  choosing "Eigentum" stores): nothing left to ask. */
-export const showLandlordNeeded = (kd: Fields) => !(kd.wohnsituation === "Eigentum" && kd.vermieterGenehmigungErforderlich === "Nein");
 /** "Genehmigung des Vermieters liegt vor?": for a rented home, or when an answer is stored */
 export const showLandlordAnswer = (kd: Fields) => kd.wohnsituation === "Miete" || filled(kd, ["vermieterGenehmigung"]);
 

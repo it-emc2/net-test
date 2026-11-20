@@ -15,7 +15,7 @@ import { Camera, CircleAlert, CircleCheck, LoaderCircle, Plus, Trash2, X } from 
 import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
-import { hasContactData, hasDeploymentData, hasInsuranceData, showLandlordAnswer, showLandlordNeeded, useFollowUp } from "./follow-ups.js";
+import { hasContactData, hasDeploymentData, hasInsuranceData, showLandlordAnswer, useFollowUp } from "./follow-ups.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
 import { BitrixCustomer, CustomerSearch } from "./CustomerSources.js";
 import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
@@ -336,8 +336,8 @@ function Property() {
         </>
       ) : null}
       {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd({ ...chooseLivingSituation(v), ...landlordAnswer(v, confirmed()) })} /> : null}
-      {(type === "bu" || type === "bwt" || type === "hl") && showLandlordNeeded(kd) ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
-      {showVermieter(type, needed) && showLandlordNeeded(kd) ? <DealUpload kind="vermieter" onDone={landlordDone} /> : null}
+      {(type === "bu" || type === "bwt" || type === "hl") ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
+      {showVermieter(type, needed) ? <DealUpload kind="vermieter" onDone={landlordDone} /> : null}
       {notAh && showLandlordAnswer(kd) ? (
         <OfferChoice
           section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]}
