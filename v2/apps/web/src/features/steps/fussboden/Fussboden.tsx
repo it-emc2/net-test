@@ -10,6 +10,7 @@ import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore, usePrice } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
+import { LINE_TEXT } from "../duschwanne/rules.js";
 import {
   EMPTY_CALC_ROW, KINDS, PREMIUM, adhesiveHint, calcTotal, computedFor, coveringOf, de2, hasAdhesive, hasSealing, isOn, lineOf, modeOf, panelsFrom, pickCovering,
   removeCalcRow, rowArea, sealingHint, setArea, setLine, setMode, standardTiles, summary, toggleAdhesive, toggleSealing, unitsOf, type CalcRow, type Line, type Tile, type Units,
@@ -22,10 +23,7 @@ type Fields = Record<string, unknown>;
 const offerNow = () => (useOfferStore.getState().offer ?? {}) as Record<string, any>;
 const dwNow = (): Fields => offerNow().duschwanne ?? {};
 const remember = (key: string, value: unknown) => useOfferStore.getState().remember(key, value);
-const LINES: Record<Line, { name: string; brand: string; sub: string }> = {
-  standard: { name: "Standard", brand: "Badolux", sub: "Badolux · günstig" },
-  premium: { name: "Premium", brand: "Vigour / Hassmann", sub: "Vigour · Hassmann" },
-};
+const LINES = LINE_TEXT; // the same two lines, the same names as on the Duschwanne step
 
 const price = (id: string) => ({ queryKey: ["product", id], staleTime: 10 * 60_000, retry: false, queryFn: ({ signal }: { signal: AbortSignal }) => call("product", { params: { productId: id }, signal }).then((p) => Number(p.price) || 0) });
 /** the unit prices the quantities are valued with: from the price list, until then as stored */
@@ -129,7 +127,7 @@ function Floor() {
       <fieldset className="m-0 grid min-w-0 gap-1.5 border-0 p-0">
         <legend className="mb-1.5 p-0 font-semibold">{line === "standard" ? "Belag — Hydroträgerplatte (Badolux)" : "Belag — Fußboden individ. 5.0 V5FB02"}</legend>
         <Tiles tiles={tiles} picked={picked} onPick={(v) => { remember("floorPicked", true); write(pickCovering(dwNow(), v, standard)); }} />
-        {line === "standard" && !standard.length ? <p className="m-0 text-muted-foreground">Keine Standard-Fußbodenoptionen verfügbar.</p> : null}
+        {line === "standard" && !standard.length ? <p className="m-0 text-muted-foreground">Keine Badolux-Fußbodenoptionen verfügbar.</p> : null}
       </fieldset>
       <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
         <legend className="mb-1.5 p-0 font-semibold">Zubehör (automatisch berechnet)</legend>

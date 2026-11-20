@@ -18,5 +18,7 @@ export default defineConfig({
     environment: "jsdom",
     include: ["test/**/*.test.{ts,tsx}"],
     setupFiles: ["./test/setup.ts"],
+    // replay tests type whole recorded forms: 3–5 s each on a loaded CI runner, over the default 5 s now and then
+    testTimeout: 20000,
   },
 });

@@ -14,45 +14,59 @@ const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "duschwanne.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const ON = ["on"], D = ["dims", "90", "120"];
+// a stored offer with the accessories (an offer saved with the tray off keeps none of them: today's page then shows the tray with NO accessory ticked, React with all — see the plan notes)
+const ACC = { abdichtSet: "Wannenabdichtband-Set TRWDB", drainSet: "Ablaufgarnitur TRAGD9060", stelzlager: "PLA5282", smallMaterial: "Kleinmaterial" };
+const ON = ["on"], HM = ["tier", "premium"], D = ["dims", "90", "120"];
 // steps: ["on"] / ["off"] the tray switch · ["tier", "standard"|"premium"] ·
 //        ["dims", width, length] · ["pick", n] the n-th result · ["color", value] · ["acc", name] ·
-//        ["qty", "+"|"-"] · ["hint"] the cost-hint switch · ["cheaper"] the "also as Standard" button ·
+//        ["qty", "+"|"-"] · ["hint"] the cost-hint switch · ["cheaper"] the "also as Badolux" button ·
+//        ["open", duschwanne fields] the stored offer with these fields is opened again (restoreConfiguratorFromOffer) ·
 //        ["restore"] previous dimensions · ["other"] switch to the other line (banner / pinned) ·
 //        ["custom", field, text] · ["kind", umbauart] · ["task", value] (both on Arbeiten)
 const SCENARIOS = {
   "nothing chosen": [],
-  "tray switched on": [ON],
-  "size entered, nothing picked": [ON, D],
-  "first Premium tray picked": [ON, D, ["pick", 1]],
-  "second Premium tray picked": [ON, D, ["pick", 2]],
-  "Premium tray in Anthrazit": [ON, D, ["pick", 1], ["color", "Anthrazit"]],
-  "Standard line, first tray picked": [ON, ["tier", "standard"], D, ["pick", 1]],
-  "Premium tray picked, then the Standard line": [ON, D, ["pick", 1], ["tier", "standard"]],
-  "Premium tray picked, Standard line and back": [ON, D, ["pick", 1], ["tier", "standard"], ["tier", "premium"]],
-  "Premium tray picked, then the cheaper Standard one taken": [ON, D, ["pick", 1], ["cheaper"]],
-  "the cheaper Standard one taken, then the Premium line": [ON, D, ["pick", 1], ["cheaper"], ["tier", "premium"]],
-  "tray picked, then another size": [ON, D, ["pick", 1], ["dims", "75", "170"]],
-  "tray picked, another size, previous size back": [ON, D, ["pick", 1], ["dims", "75", "170"], ["restore"]],
-  "a size nobody has": [ON, ["dims", "300", "300"]],
-  "a size nobody has, free item entered": [ON, ["dims", "300", "300"], ["custom", "dwCustomName", "Duschwanne geschwungen 100x100"], ["custom", "dwCustomPrice", "799,00"], ["custom", "dwCustomQty", "2"], ["custom", "dwCustomId", "DW-CUS-001"]],
-  "size emptied again": [ON, D, ["pick", 1], ["dims", "", ""]],
-  "accessories changed": [ON, D, ["pick", 1], ["acc", "abdichtSet"], ["qty", "+"], ["qty", "+"], ["acc", "smallMaterial"]],
-  "no Stelzlager": [ON, D, ["pick", 1], ["acc", "stelzlager"]],
-  "Standard line: accessories": [ON, ["tier", "standard"], D, ["pick", 1], ["qty", "-"]],
-  "cost hint switched off": [ON, ["hint"]],
-  "tray picked, then switched off": [ON, D, ["pick", 1], ["off"]],
-  "tray picked, switched off and on again": [ON, D, ["pick", 1], ["off"], ON],
-  "Ohne Rückbau, then a tray picked": [["kind", "ohne_rueckbau"], ON, D, ["pick", 1]],
-  "Badewanne → Badewanne, then a tray picked": [["kind", "wanne_wanne"], ON, D, ["pick", 1]],
-  "Ohne Rückbau, tray picked, then switched off": [["kind", "ohne_rueckbau"], ON, D, ["pick", 1], ["off"]],
-  "Ohne Rückbau, installation unticked by hand, tray picked": [["kind", "wanne_dusche"], ["task", "install_tray"], ON, D, ["pick", 1]],
-  "no Umbauart, tray picked": [ON, D, ["pick", 1]],
-  "Ohne Rückbau, tray switched on without a tray": [["kind", "ohne_rueckbau"], ON],
-  "Ohne Rückbau, free item instead of a tray": [["kind", "ohne_rueckbau"], ON, ["custom", "dwCustomName", "Duschwanne Sonderform"], ["custom", "dwCustomPrice", "500"]],
-  "Ohne Rückbau, tray picked, then the Standard line": [["kind", "ohne_rueckbau"], ON, D, ["pick", 1], ["tier", "standard"]],
-  "Premium tray in Anthrazit, then switched off": [ON, D, ["pick", 1], ["color", "Anthrazit"], ["off"]],
-  "no Stelzlager, quantity changed before": [ON, ["qty", "+"], ["acc", "stelzlager"]],
+  "new offer, tray on, then Hassmann": [ON, HM],
+  "new offer, Badolux preselected, first tray picked": [ON, D, ["pick", 1]],
+  "Hassmann chosen, switched off and on again: stays Hassmann": [ON, HM, ["off"], ON],
+  "Badolux preselected, switched off and on again": [ON, ["off"], ON],
+  "reopened offer with Badolux, tray on (stays Badolux)": [["open", { ...ACC, trayEnabled: true, budgetMode: "1" }]],
+  "reopened offer with Hassmann, tray on (stays Hassmann)": [["open", { ...ACC, trayEnabled: true }]],
+  "reopened offer without budgetMode, tray on: Hassmann": [["open", { ...ACC }], ON],
+  "reopened offer with Hassmann, tray off, tray on": [["open", { ...ACC, trayEnabled: false }], ON],
+  "reopened offer with Badolux, tray off, tray on": [["open", { ...ACC, trayEnabled: false, budgetMode: "1" }], ON],
+  "reopened offer with a Hassmann tray picked, off and on": [ON, HM, D, ["pick", 1], ["open", {}], ["off"], ON],
+  "reopened offer with a Badolux tray picked, tray off and on": [ON, D, ["pick", 1], ["open", {}], ["off"], ON],
+  "new offer, tray switched on: Badolux preselected": [ON],
+  "size entered, nothing picked": [ON, HM, D],
+  "first Hassmann tray picked": [ON, HM, D, ["pick", 1]],
+  "second Hassmann tray picked": [ON, HM, D, ["pick", 2]],
+  "Hassmann tray in Anthrazit": [ON, HM, D, ["pick", 1], ["color", "Anthrazit"]],
+  "Badolux line, first tray picked": [ON, ["tier", "standard"], D, ["pick", 1]],
+  "Hassmann tray picked, then the Badolux line": [ON, HM, D, ["pick", 1], ["tier", "standard"]],
+  "Hassmann tray picked, Badolux line and back": [ON, HM, D, ["pick", 1], ["tier", "standard"], ["tier", "premium"]],
+  "Hassmann tray picked, then the cheaper Badolux one taken": [ON, HM, D, ["pick", 1], ["cheaper"]],
+  "the cheaper Badolux one taken, then the Hassmann line": [ON, HM, D, ["pick", 1], ["cheaper"], ["tier", "premium"]],
+  "tray picked, then another size": [ON, HM, D, ["pick", 1], ["dims", "75", "170"]],
+  "tray picked, another size, previous size back": [ON, HM, D, ["pick", 1], ["dims", "75", "170"], ["restore"]],
+  "a size nobody has": [ON, HM, ["dims", "300", "300"]],
+  "a size nobody has, free item entered": [ON, HM, ["dims", "300", "300"], ["custom", "dwCustomName", "Duschwanne geschwungen 100x100"], ["custom", "dwCustomPrice", "799,00"], ["custom", "dwCustomQty", "2"], ["custom", "dwCustomId", "DW-CUS-001"]],
+  "size emptied again": [ON, HM, D, ["pick", 1], ["dims", "", ""]],
+  "accessories changed": [ON, HM, D, ["pick", 1], ["acc", "abdichtSet"], ["qty", "+"], ["qty", "+"], ["acc", "smallMaterial"]],
+  "no Stelzlager": [ON, HM, D, ["pick", 1], ["acc", "stelzlager"]],
+  "Badolux line: accessories": [ON, ["tier", "standard"], D, ["pick", 1], ["qty", "-"]],
+  "cost hint switched off": [ON, HM, ["hint"]],
+  "tray picked, then switched off": [ON, HM, D, ["pick", 1], ["off"]],
+  "tray picked, switched off and on again": [ON, HM, D, ["pick", 1], ["off"], ON],
+  "Ohne Rückbau, then a tray picked": [["kind", "ohne_rueckbau"], ON, HM, D, ["pick", 1]],
+  "Badewanne → Badewanne, then a tray picked": [["kind", "wanne_wanne"], ON, HM, D, ["pick", 1]],
+  "Ohne Rückbau, tray picked, then switched off": [["kind", "ohne_rueckbau"], ON, HM, D, ["pick", 1], ["off"]],
+  "Ohne Rückbau, installation unticked by hand, tray picked": [["kind", "wanne_dusche"], ["task", "install_tray"], ON, HM, D, ["pick", 1]],
+  "no Umbauart, tray picked": [ON, HM, D, ["pick", 1]],
+  "Ohne Rückbau, tray switched on without a tray": [["kind", "ohne_rueckbau"], ON, HM],
+  "Ohne Rückbau, free item instead of a tray": [["kind", "ohne_rueckbau"], ON, HM, ["custom", "dwCustomName", "Duschwanne Sonderform"], ["custom", "dwCustomPrice", "500"]],
+  "Ohne Rückbau, tray picked, then the Badolux line": [["kind", "ohne_rueckbau"], ON, HM, D, ["pick", 1], ["tier", "standard"]],
+  "Hassmann tray in Anthrazit, then switched off": [ON, HM, D, ["pick", 1], ["color", "Anthrazit"], ["off"]],
+  "no Stelzlager, quantity changed before": [ON, HM, ["qty", "+"], ["acc", "stelzlager"]],
 };
 
 const token = (() => {
@@ -94,6 +108,12 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
       const base = await page.evaluate(() => window.buildPayload());
       const P = "#page-Duschwanne";
       for (const [kind, a, b] of steps) {
+        if (kind === "open") { // the offer as it is, plus these fields, is opened again: a stored offer, nothing remembered from before
+          await page.evaluate(async (f) => { const p = window.buildPayload(); p.duschwanne = { ...p.duschwanne, ...f }; await window.restoreConfiguratorFromOffer({ payload: p }); }, a);
+          await page.waitForTimeout(2000);
+          await go("Duschwanne");
+          continue;
+        }
         if (kind === "kind" || kind === "task") {
           await go("Arbeiten");
           await page.evaluate(() => document.querySelectorAll("#page-Arbeiten details").forEach((d) => { d.open = true; }));
@@ -127,7 +147,9 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
         const page = el("page-Duschwanne");
         return {
           on: el("dwTrayToggle").checked,
+          tierButtons: [...page.querySelectorAll(".tier-seg__btn")].map((b) => txt(b)),
           tier: page.querySelector('.tier-seg__btn[aria-pressed="true"]')?.dataset.tier || "",
+          tierButtons: [...page.querySelectorAll(".tier-seg__btn")].map((b) => txt(b)),
           tierLine: txt(page.querySelector("[data-tier-line]")),
           settingsShown: vis(page.querySelector(".tier-seg")),
           hint: el("ebenerdigeToggle").checked,

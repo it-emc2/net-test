@@ -17,8 +17,8 @@ const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
 const ON = ["on"];
 // steps: ["on"] / ["off"] the switch · ["tab", "floor"|"wall"] · ["tier", "standard"|"premium"] ·
-//        ["confirm", "yes"|"no"] · ["kind", value] · ["area", text] · ["color", name] a Premium colour ·
-//        ["budget", n] the n-th Standard covering · ["acc", "adhesive"|"sealing"] ·
+//        ["confirm", "yes"|"no"] · ["kind", value] · ["area", text] · ["color", name] a Hassmann colour ·
+//        ["budget", n] the n-th Badolux covering · ["acc", "adhesive"|"sealing"] ·
 //        ["calc"] opens/closes the calculator · ["row", n, length, width] · ["row+"] · ["sign", n] ·
 //        ["row-", n] · ["apply"] · ["next"] presses Weiter
 const SCENARIOS = {
@@ -37,13 +37,15 @@ const SCENARIOS = {
   "calculator: room minus a recess": [ON, ["calc"], ["row", 1, "3.2", "1.8"], ["row+"], ["row", 2, "1", "0.5"], ["sign", 2], ["apply"]],
   "calculator: rows removed": [ON, ["calc"], ["row", 1, "3.2", "1.8"], ["row+"], ["row", 2, "2", "2"], ["row-", 1], ["row-", 1]],
   "calculator opened and closed": [ON, ["calc"], ["calc"]],
-  "Standard line": [ON, ["tier", "standard"]],
-  "Standard line, area 5": [ON, ["tier", "standard"], ["area", "5"]],
-  "Standard line, second covering": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2]],
-  "Premium colour picked, then Standard confirmed": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "yes"]],
-  "Premium colour picked, then Standard declined": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "no"]],
-  "default colour only, then Standard": [ON, ["area", "5"], ["tier", "standard"]],
-  "Standard covering picked, then Premium confirmed": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2], ["tier", "premium"], ["confirm", "yes"]],
+  "Badolux line": [ON, ["tier", "standard"]],
+  "Badolux line, area 5": [ON, ["tier", "standard"], ["area", "5"]],
+  "Badolux line, second covering": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2]],
+  "Hassmann colour picked, then Badolux confirmed": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "yes"]],
+  "Hassmann colour picked, then Badolux declined": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"], ["confirm", "no"]],
+  "Hassmann colour picked, Badolux asked, still open": [ON, ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"]],
+  "Badolux covering picked, Hassmann asked, still open": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2], ["tier", "premium"]],
+  "default colour only, then Badolux": [ON, ["area", "5"], ["tier", "standard"]],
+  "Badolux covering picked, then Hassmann confirmed": [ON, ["tier", "standard"], ["area", "5"], ["budget", 2], ["tier", "premium"], ["confirm", "yes"]],
   "filled in, then switched off": [ON, ["kind", "Gesamtes-Bad"], ["area", "12,5"], ["color", "Loft-Grau"], ["acc", "sealing"], ["off"]],
   "filled in, switched off and on again": [ON, ["kind", "Gesamtes-Bad"], ["area", "12,5"], ["color", "Loft-Grau"], ["off"], ON],
   "the other mode chosen": [ON, ["tab", "wall"]],
@@ -134,6 +136,8 @@ const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(ba
           on: el("fbMaster").checked, tabs: vis(el("fbModeWrap")),
           tab: el("fbTabBtnWall").getAttribute("aria-selected") === "true" ? "wall" : "floor",
           floorShown: vis(panel),
+          tierButtons: [...panel.querySelectorAll(".tier-seg__btn")].map((b) => txt(b)),
+          standardEmpty: vis(el("flooringBudgetEmpty")) ? txt(el("flooringBudgetEmpty")) : "",
           tier: panel.querySelector('.tier-seg__btn[aria-pressed="true"]')?.dataset.tier || "", tierLine: txt(panel.querySelector("[data-tier-line]")),
           kind: document.querySelector('input[name="floorKind"]:checked')?.value || "",
           area: el("floorArea").value,

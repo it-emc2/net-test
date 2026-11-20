@@ -2,7 +2,10 @@
 // v2/scripts/capture-duschwanne.cjs):
 //  - the switch: off stores no tray, no accessories and no free item (`trayEnabled: false`);
 //    the page keeps what was chosen and it is all there again when switched on
-//  - product line: Standard (Badolux) is `budgetMode: "1"`, Premium stores no `budgetMode`.
+//  - product line: Badolux is `budgetMode: "1"`, Hassmann stores no `budgetMode` (the names the user reads
+//    are the brands; "standard" / "premium" stay the internal keys, as today's `data-tier`). A NEW offer
+//    preselects Badolux the first time the tray is switched on (`LINE_DEFAULTED`, `defaultLine`); an opened
+//    offer never does (absent `budgetMode` = Hassmann, so older offers keep their line).
 //    Changing the line drops the picked tray (the other line has other products)
 //  - the size is searched in both lines; the active line's three best are offered
 //  - a picked tray stores its id (`chosenTrayProductId`, `traySuggestion`) and its size label
@@ -48,10 +51,14 @@ export function switchTray(dw: Fields, on: boolean, parked: Fields | null): { ch
 
 // ---- product line ----
 export const lineOf = (dw: Fields): Line => (dw.budgetMode ? "standard" : "premium");
+/** the line below the name: today's UI says "guenstig" / "Vigour · Markenqualitaet" there — left out on purpose, the names alone (UX-CHANGES U-042) */
 export const LINE_TEXT: Record<Line, { name: string; brand: string; sub: string }> = {
-  standard: { name: "Standard", brand: "Badolux", sub: "Badolux · günstig" },
-  premium: { name: "Premium", brand: "Vigour / Hassmann", sub: "Vigour · Hassmann" },
+  standard: { name: "Badolux", brand: "Badolux", sub: "" },
+  premium: { name: "Hassmann", brand: "Vigour / Hassmann", sub: "" },
 };
+/** scratch flag (not part of the offer): the first-switch-on default was used up. The store sets it when an offer is
+ *  opened (today's restore sets `__dwLineDefaulted`); a new offer starts without it. */
+export const LINE_DEFAULTED = "dwLineDefaulted";
 /** `keep`: the picked tray belongs to the line being switched to (the cheaper-offer button) */
 export const chooseLine = (line: Line, keep = false): Fields =>
   ({ budgetMode: line === "standard" ? "1" : undefined, ...(keep ? {} : { chosenTrayProductId: null, traySuggestion: undefined }) });
@@ -117,7 +124,7 @@ export function cheaper(picked: Tray | undefined, standard: readonly Tray[]): { 
   const save = alt ? Number(picked.price) - Number(alt.price) : 0;
   if (!alt || !(save >= 0.01)) return null;
   return {
-    tray: alt, text: `Diese Größe gibt es auch als Standard (Badolux) — ${euro(save)} € günstiger.`,
+    tray: alt, text: `Diese Größe gibt es auch als Badolux — ${euro(save)} € günstiger.`,
     detail: `${badoluxTrayName(alt)} · ${euro(alt.price)} € statt ${euro(picked.price)} € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90.`,
   };
 }
