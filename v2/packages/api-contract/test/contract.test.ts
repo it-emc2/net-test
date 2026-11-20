@@ -55,4 +55,19 @@ describe("api contract", () => {
     expect(ERROR_CODES.VARIANT_SENT).toBe("VARIANT_SENT");
     expect(pathOf("renameDealVariant", { dealId: "4711", variantId: "v1" })).toBe("/api/deals/4711/variants/v1");
   });
+
+  it("second offer (ADR 027 B): request, answer, relations, error codes", async () => {
+    const { SecondOfferRequestSchema, SecondOfferResponseSchema, DealRelatedResponseSchema, DealDraftResponseSchema, ERROR_CODES, ERROR_AREAS } = await import("../src/index.js");
+    expect(SecondOfferRequestSchema.safeParse({ offerType: "ah", creationId: "abc-DEF_1234" }).success).toBe(true);
+    expect(SecondOfferRequestSchema.safeParse({ offerType: "ah", creationId: "short" }).success).toBe(false);
+    expect(SecondOfferRequestSchema.safeParse({ offerType: "ah", creationId: "abc-DEF_1234", variantId: "x" }).success).toBe(false);
+    const ok = { ok: true, creationId: "abc-DEF_1234", sourceDealId: "4711", sourceVariantId: "v1", dealId: "4712", offerType: "ah", variantId: "v1", revision: 1, comments: "ok", repeated: false };
+    expect(SecondOfferResponseSchema.safeParse(ok).success).toBe(true);
+    const rel = { dealId: "4712", offerType: "ah", role: "created", createdAt: "2026-11-20T10:00:00.000Z", creationId: "abc-DEF_1234" };
+    expect(DealRelatedResponseSchema.safeParse({ dealId: "4711", related: [{ ...rel, status: null }] }).success).toBe(true);
+    expect(DealDraftResponseSchema.safeParse({ dealId: "4711", offerType: "bu", payload: {}, revision: 1, updatedAt: "x", related: [rel] }).success).toBe(true);
+    expect(DealDraftResponseSchema.safeParse({ dealId: "4711", offerType: "bu", payload: {}, revision: 1, updatedAt: "x", related: [{ ...rel, role: "x" }] }).success).toBe(false);
+    expect([ERROR_CODES.SECOND_OFFER_UNCLEAR, ERROR_AREAS.secondOffer]).toEqual(["SECOND_OFFER_UNCLEAR", "deals.second-offer"]);
+    expect(pathOf("createSecondOffer", { dealId: "4711" })).toBe("/api/deals/4711/second-offer");
+  });
 });
