@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useSession } from "../auth/index.js";
 import { call, ApiFailure } from "../../shared/api/index.js";
-import { OFFER_TITLES, useOfferStore } from "../offer/index.js";
+import { OFFER_TITLES, SecondOfferHost, useOfferStore } from "../offer/index.js";
 import { Alert, Button, Card, Field, Page, Tile } from "../../shared/ui/index.js";
 import { OfferPicker, PlanningToday } from "./Planning.js";
 import { WeekCalendar } from "./WeekCalendar.js";
@@ -60,6 +60,7 @@ export function HomePage() {
       <WeekCalendar onPick={setPick} />
       <DeviceDrafts />
       {pick ? <OfferPicker entry={pick} onClose={() => setPick(null)} /> : null}
+      <SecondOfferHost />
       <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href="/">Zur bisherigen Ansicht</a>
         {admin ? <> · <a className="text-primary underline" href="/" data-testid="debug-link">Debug-Ansicht Planung (bisherige Ansicht)</a></> : null}</p>
     </Page>

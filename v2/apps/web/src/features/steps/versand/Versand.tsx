@@ -11,7 +11,7 @@
 import { CircleCheck, Mail as MailIcon, Mailbox } from "lucide-react";
 import { useEffect } from "react";
 import { Card, CardTitle, Check, Collapsible, Field, SelectField, TabsList, TabsPanel, TextAreaField, cn } from "../../../shared/ui/index.js";
-import { CreateVariantButton, VARIANT_TEXT, useOfferStore, useOfferType, useVariants } from "../../offer/index.js";
+import { CreateVariantButton, SecondOfferButton, VARIANT_TEXT, useOfferStore, useOfferType, useVariants } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
 import { Mail } from "./Mail.js";
@@ -75,9 +75,10 @@ export function Versand() {
         <div className="flex flex-wrap items-center gap-3" data-testid="zf-new-version">
           <NewVersionButton place="status" />
           <CreateVariantButton place="status" />
+          <SecondOfferButton place="status" />
           <p className="m-0 min-w-[16rem] flex-1 text-[0.95rem] text-muted-foreground" data-part="hint">{VERSION.sentHint}</p>
         </div>
-      ) : <div className="flex flex-wrap items-center gap-3" data-testid="zf-variant"><CreateVariantButton place="status" /></div>}
+      ) : <div className="flex flex-wrap items-start gap-3" data-testid="zf-variant"><CreateVariantButton place="status" /><SecondOfferButton place="status" /></div>}
 
       {docs ? (
         <section className="grid gap-2" aria-labelledby="zf-docs-title" data-testid="zf-docs">

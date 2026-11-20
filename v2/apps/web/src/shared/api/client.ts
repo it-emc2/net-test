@@ -8,7 +8,8 @@ type ResponseOf<N extends EndpointName> = Endpoint<N> extends { response: infer 
 
 /** A failed call: the server's message in German (shown to the user as it is) plus status and code. */
 export class ApiFailure extends Error {
-  constructor(message: string, readonly status: number, readonly code: string, readonly requestId: string = "") {
+  /** `detail`: further fields of the server's error object (e.g. `newDealId` of SECOND_OFFER_DRAFT_FAILED) */
+  constructor(message: string, readonly status: number, readonly code: string, readonly requestId: string = "", readonly detail: Record<string, unknown> = {}) {
     super(message);
     this.name = "ApiFailure";
   }
@@ -39,7 +40,7 @@ export async function call<N extends EndpointName>(name: N, opts: CallOptions = 
   }
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    if (isApiError(data)) throw new ApiFailure(data.error.message, res.status, data.error.code, data.error.requestId);
+    if (isApiError(data)) { const { code, message, requestId, ...detail } = data.error as Record<string, unknown> & { code: string; message: string; requestId: string }; throw new ApiFailure(message, res.status, code, requestId, detail); }
     throw new ApiFailure(`Der Server hat mit einem Fehler geantwortet (${res.status}).`, res.status, "HTTP_ERROR");
   }
   if ("response" in ep) {

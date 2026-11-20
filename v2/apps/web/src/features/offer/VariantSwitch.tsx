@@ -13,6 +13,8 @@ import { euro } from "../../shared/lib/format.js";
 import { Alert, Button, Field, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { useOfferStore } from "./model/store.js";
+import { TEXT as SECOND } from "./model/second-offer.js";
+import { RelatedSection, SecondOfferHost, useRelatedCount } from "./SecondOffer.js";
 import { createVariant, deleteVariant, openAsRow, renameVariant, saveOpen, useVariants, useVariantsFollowSends, variantsKey } from "./model/useVariants.js";
 import { TEXT, nextVariantName, statusText, variantError, variantSearch } from "./model/variants.js";
 
@@ -32,19 +34,22 @@ export function VariantSwitch() {
   const open = usePanel((p) => p.mode !== null);
   const qc = useQueryClient();
   useVariantsFollowSends(qc);
+  const related = useRelatedCount(); // ADR 027 B: other offers of this customer — a small count on the pill
   useEffect(() => () => usePanel.getState().set(null), []); // leaving the offer: the panel does not come back with the next one
   return (
     <>
       <button
-        type="button" data-testid="variant-switch" aria-haspopup="dialog" aria-expanded={open} aria-label={`Variante: ${name} – Varianten anzeigen`} title={`Variante: ${name}`}
+        type="button" data-testid="variant-switch" aria-haspopup="dialog" aria-expanded={open} aria-label={`Variante: ${name} – Varianten anzeigen${related ? ` · ${SECOND.markerLabel(related)}` : ""}`} title={`Variante: ${name}${related ? ` · ${SECOND.markerLabel(related)}` : ""}`}
         onClick={() => openVariantPanel("list")}
         className="flex min-h-12 max-w-[11rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground hover:bg-muted"
       >
         <Layers aria-hidden className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate" data-part="name">{name}</span>
+        {related ? <span aria-hidden data-part="related" className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[0.75rem] font-bold leading-none text-primary-foreground">+{related}</span> : null}
         <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       </button>
       {open ? <VariantPanel /> : null}
+      <SecondOfferHost onCreateVariant={() => openVariantPanel("create")} />
     </>
   );
 }
@@ -133,6 +138,8 @@ function List() {
         })}
       </ul>
       <Button variant="outline" data-action="create-variant" onClick={() => set({ kind: "create" })}><CopyPlus aria-hidden />{TEXT.create}</Button>
+      {/* ADR 027 B: another offer TYPE is a new Bitrix deal — kept apart from the variant actions */}
+      <RelatedSection onLeave={() => set(null)} />
     </>
   );
 }

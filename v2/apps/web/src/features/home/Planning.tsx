@@ -7,7 +7,9 @@ import { useNavigate } from "react-router";
 import { call, ApiFailure, dealCustomerQuery } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
-import { newTempKey, prefillNextOffer, useOfferStore } from "../offer/index.js";
+import type { DealRelation } from "@oc/api-contract";
+import { isNewOfferType, type NewOfferType } from "@oc/domain";
+import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 
 export const TODAY_KEY = ["planning-today"];
@@ -80,14 +82,57 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
   );
 }
 
+/** what the picker shows when the deal already has an offer of ANOTHER type (ADR 027 B: no silent redirect) */
+interface Choice { type: NewOfferType; dealId: string; existing: NewOfferType; variantId?: string | undefined; customer: string; related: readonly DealRelation[]; same?: { dealId: string } | undefined }
+
 /** „Welche Angebotsart möchten Sie öffnen?“ — also what a tap in the week calendar opens */
 export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose: () => void }) {
   const start = useStartFromAppointment();
+  const qc = useQueryClient();
+  const nav = useNavigate();
+  const deal = entry.importDealId ? String(entry.importDealId) : "";
+  // asked when the picker opens, so a tap does not wait for it: the deal's draft (its type) and its related deals
+  const draftQuery = { queryKey: ["picker-draft", deal], queryFn: () => call("dealDraft", { params: { dealId: deal } }), staleTime: 30_000, retry: false } as const;
+  const relatedQuery = { queryKey: relatedKey(deal), queryFn: () => call("dealRelated", { params: { dealId: deal } }), staleTime: 5_000, retry: false } as const;
+  useQuery({ ...draftQuery, enabled: !!deal });
+  useQuery({ ...relatedQuery, enabled: !!deal });
+  const [choice, setChoice] = useState<Choice | null>(null);
+  const [busy, setBusy] = useState("");
+  const pickType = async (t: string) => {
+    if (busy) return;
+    if (!deal || !isNewOfferType(t)) { start(entry, t); onClose(); return; }
+    setBusy(t);
+    // no draft yet, or it cannot be asked (offline): as before — the offer frame opens the deal's own offer and says so
+    const d = await qc.fetchQuery(draftQuery).catch(() => null);
+    if (!d || d.offerType === t || !isNewOfferType(d.offerType)) { start(entry, t); onClose(); return; }
+    const rel = await qc.fetchQuery(relatedQuery).then((r) => r.related, () => d.related ?? []);
+    const same = relatedOfType(rel.map((r) => ({ ...r, createdAt: String(r.createdAt) })), t);
+    setBusy("");
+    setChoice({ type: t, dealId: deal, existing: d.offerType, variantId: d.variantId, customer: customerName((d.payload as Record<string, any>).Kundendaten), related: d.related ?? [], same: same ? { dealId: same.dealId } : undefined });
+  };
+  if (choice) {
+    const has = typeTitle(choice.existing), want = typeTitle(choice.type);
+    return (
+      <Modal title="Angebot öffnen oder weiteres anlegen?" onClose={onClose}>
+        <div className="grid gap-3" data-testid="picker-choice">
+          <p className="m-0">Zu Auftrag {choice.dealId} gibt es bereits ein Angebot {has}.</p>
+          {choice.same ? <p className="m-0" data-testid="picker-same">Für diesen Kunden gibt es auch schon ein Angebot {want}: Auftrag {choice.same.dealId}.</p> : null}
+          {choice.same ? <Button size="lg" data-action="open-same" onClick={() => { nav(`/deal/${choice.same!.dealId}/${choice.type}`); onClose(); }}>Angebot {want} öffnen (Auftrag {choice.same.dealId})</Button> : null}
+          <Button size="lg" variant={choice.same ? "outline" : "default"} data-action="open-existing" onClick={() => { nav(`/deal/${choice.dealId}/${choice.existing}`); onClose(); }}>Bestehendes Angebot ({has}) öffnen</Button>
+          <Button size="lg" variant="outline" className="h-auto min-h-14 whitespace-normal" data-action="second-offer"
+            onClick={() => { openSecondOffer({ dealId: choice.dealId, type: choice.existing, variantId: choice.variantId, customer: choice.customer, inOffer: false, related: choice.related }, choice.type); onClose(); }}>
+            Weiteres Angebot ({want}) für diesen Kunden anlegen
+          </Button>
+          <Button variant="ghost" className="justify-self-start" onClick={() => setChoice(null)}>Zurück</Button>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal title="Welche Angebotsart möchten Sie öffnen?" onClose={onClose} wide>
       <p className="m-0 text-muted-foreground">{entry.name || "Unbekannt"} · {entry.address || "Ort unbekannt"}</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {TYPES.map(([t, title]) => <Button key={t} variant="outline" size="lg" className="h-auto min-h-20 flex-col" data-offer-key={t} onClick={() => { onClose(); start(entry, t); }}>{title}</Button>)}
+        {TYPES.map(([t, title]) => <Button key={t} variant="outline" size="lg" className="h-auto min-h-20 flex-col" data-offer-key={t} disabled={!!busy} onClick={() => void pickType(t)}>{busy === t ? "Einen Moment …" : title}</Button>)}
         {NOT_YET.map(([t, title]) => <Button key={t} asChild variant="secondary" size="lg" className="h-auto min-h-20 flex-col whitespace-normal text-center"><a href="/" data-offer-key={t}>{title}<span className="text-[0.95rem] font-normal">in der bisherigen Ansicht</span></a></Button>)}
       </div>
     </Modal>
