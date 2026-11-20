@@ -16,10 +16,26 @@ import { useOfferStore } from "./model/store.js";
 import { StepDrawer } from "./StepDrawer.js";
 import { TEXT as VARIANT, variantInSearch, variantSearch } from "./model/variants.js";
 import { usePrice } from "./model/usePrice.js";
+import { useAhPrice } from "./model/ah-price.js";
 import { TEXT as SECOND } from "./model/second-offer.js";
 import { OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, groupStartingAt, isReferenzStep, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
 
 function Total() {
+  const ah = useOfferStore((s) => s.offer?.activeOffer === "ah");
+  return ah ? <AhTotal /> : <ServerTotal />;
+}
+/** Alltagshilfe: monthly total (and Eigenanteil) computed in the browser — no price request (U-048) */
+function AhTotal() {
+  const p = useAhPrice();
+  const part = "grid content-center";
+  return (
+    <div className="flex shrink-0 items-stretch gap-4 leading-tight" aria-live="polite" data-testid="ah-total">
+      <span className={part}><span className="text-[0.75rem] text-muted-foreground">Gesamt / Monat</span><strong className="tabular-nums" data-part="gesamt">{euro(p?.gesamt)}</strong></span>
+      {p && !p.isSelbstzahler ? <span className={part}><span className="text-[0.75rem] text-muted-foreground">Eigenanteil</span><strong className="tabular-nums" data-part="eigenanteil">{euro(p.eigenanteil)}</strong></span> : null}
+    </div>
+  );
+}
+function ServerTotal() {
   const { total, pending, error } = usePrice();
   if (error) return <Alert kind="error">Der Preis kann gerade nicht berechnet werden.</Alert>;
   return (

@@ -11,6 +11,7 @@ import { checkStep, type StepStatus } from "../offer/index.js";
 import { check, type Price } from "./angebotscheck/rules.js";
 import { isOn as isDa } from "./duschabtrennung/rules.js";
 import { trayOn } from "./duschwanne/rules.js";
+import { hasContent as ahHasContent } from "./ah/rules.js";
 import { isOn as isDv } from "./duschvorhang/rules.js";
 
 type F = Record<string, any>;
@@ -37,6 +38,7 @@ function content(step: string, o: F): boolean | undefined {
     case "Kundendaten": { const k = obj(o.Kundendaten); return !![k.lastName, k.firstName, k.kundenName].some((v) => String(v ?? "").trim()); }
     case "Arbeitszeit": return pos(obj(o.Arbeitszeit).totalHoursNumeric) || pos(obj(o.Arbeitszeit).ArbeitHoursNumeric);
     case "Arbeiten": return arr(obj(o.duschwanne).workTasks).length > 0;
+    case "ah": return ahHasContent(obj(o.ah)); // Alltagshilfe: a service with a duration and a rhythm (over budget is a choice, not a warning)
     case "Optional": { const op = obj(o.optional); return Object.keys(op).some((k) => (k.startsWith("qty_") && pos(op[k])) || (k.startsWith("opt_") && op[k] === true)); }
     default: return undefined;
   }
@@ -45,7 +47,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }

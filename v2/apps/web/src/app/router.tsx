@@ -46,6 +46,7 @@ const bwtArbeiten = () => import("../features/steps/index.js").then((m) => ({ Co
 const referenzVorher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzVorher }));
 const referenzNachher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzNachher }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
+const ahLeistungen = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhLeistungen }));
 
 export const routes: RouteObject[] = [
   {
@@ -78,6 +79,7 @@ export const routes: RouteObject[] = [
           { path: "Zusammenfassung", lazy: versand },
           { path: "referenzVorher", lazy: referenzVorher },
           { path: "referenzNachher", lazy: referenzNachher },
+          { path: "ah", lazy: ahLeistungen },
           { path: ":step", lazy: stepInLegacy },
         ],
       },

@@ -11,6 +11,7 @@ import { DropZone } from "./drop-zone.js";
 import { Lightbox } from "./lightbox.js";
 import { Collapsible, TabsList, TabsPanel } from "./tabs.js";
 
+export { CHIP, CHIP_OFF, CHIP_ON, ChipGroup, Stepper, TickRow } from "./controls.js";
 export { Alert, Button, Card, CardTitle, Collapsible, DropZone, Input, Label, Lightbox, TabsList, TabsPanel, buttonVariants };
 // toasts live in ./toaster.js and are imported from there directly: the toast library is loaded
 // with the first screen that needs it, not with the start script

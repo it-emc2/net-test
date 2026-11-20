@@ -16,10 +16,12 @@ export { ReferenzNachher, ReferenzVorher } from "./referenz/Referenz.js";
 export { Versand } from "./versand/Versand.js";
 export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
+export { AhLeistungen } from "./ah/Leistungen.js";
 
 // what "Weiter" asks for on these steps before it goes on
 import { setStepCheck, setStepStatuses } from "../offer/index.js";
 import { statuses } from "./status.js";
+import { installAhSettle } from "./ah/settle.js";
 import { useOfferStore } from "../offer/index.js";
 import { arbeitszeitProblem } from "./arbeitszeit/rules.js";
 import { bwtProblem } from "./bwt/rules.js";
@@ -35,4 +37,5 @@ setStepCheck("Fussboden", () => { const o = useOfferStore.getState().offer as Re
 // in today's code, but that check is wired to a step name that does not exist (optional/rules.ts
 // keeps the rule as `optionalProblem`, ready to be registered here).
 
-setStepStatuses(statuses); // step list: done / warning / open / not chosen (U-011 D2)
+setStepStatuses(statuses);
+installAhSettle(); // Alltagshilfe budget mode follows price changes made on any step (ah/settle.ts) // step list: done / warning / open / not chosen (U-011 D2)
