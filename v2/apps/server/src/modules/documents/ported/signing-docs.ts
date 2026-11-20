@@ -1,5 +1,5 @@
 // @ts-nocheck
-// GENERATED copy of src/templates/signing-docs.js with 3 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// GENERATED copy of src/templates/signing-docs.js with 5 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
 // Drift guard: apps/server/test/verbatim-ports.test.ts
 // src/templates/signing-docs.js
 //
@@ -12,6 +12,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { replaceTextInHtml } from "./docx-text-replace.js";
 import { docsRoot } from "../shims/runtime.js";
+import { ahSigningTotalsHtml } from "../ah-offer-data.js";
 import { isValidSignatureDataUrl } from "./signature-image.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -769,9 +770,7 @@ export function buildAhAngebotHtml(data, opts = {}) {
         <tbody>${anfahrtRow}${serviceRows}</tbody>
       </table>
 
-      <table class="totals"><tbody>
-        <tr class="alt"><td>Gesamtbetrag</td><td class="num">${esc(d.AhGesamtbetrag || "")}</td></tr>
-      </tbody></table>
+      ${ahSigningTotalsHtml(d, esc)}
 
       ${d.AhNote ? `<p class="muted">${esc(d.AhNote)}</p>` : ""}
 

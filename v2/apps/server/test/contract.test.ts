@@ -15,6 +15,7 @@ import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "@oc/config";
+import { ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { buildApp } from "../src/app.js";
 import { hashPassword } from "../src/platform/auth.js";
 import { connectDb, disconnectDb } from "../src/platform/db.js";
@@ -654,10 +655,31 @@ describe("contract: Bitrix WRITE routes — same response AND same outgoing call
     const missing = await same("POST", "/api/bitrix/deal/9010/move-ang-verschickt", { offerType: "bu" });
     expect(missing.v2.status).toBe(400);
     expect(missing.v2.body.missing).toEqual(missing.legacy.body.missing);
+    // DOCUMENTED DEVIATION (ADR 028, owner 2026-11-20): v2 writes the AH deal amount — the monthly
+    // amount of THE AH total function (gross Selbstzahler / net Kasse) — legacy writes none. Every
+    // other field and call is the legacy one.
+    const AMOUNT = ["fields[opportunity]", "fields[isManualOpportunity]", "fields[currencyId]"];
+    const withoutAmount = (params: string) => { const sp = new URLSearchParams(params); for (const k of AMOUNT) sp.delete(k); return sp.toString(); };
+    const sameAhMove = async (id: string, body: Record<string, unknown>, amount: number | null) => {
+      bx.take("legacy"); bx.take("v2");
+      const r = await both("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, body);
+      const calls = { legacy: bx.take("legacy"), v2: bx.take("v2") };
+      expect(r.v2.status).toBe(r.legacy.status);
+      expect(r.v2.body).toEqual(r.legacy.body);
+      expect(calls.v2.map((c) => ({ ...c, params: withoutAmount(c.params) }))).toEqual(calls.legacy);
+      const last = new URLSearchParams(calls.v2.at(-1)!.params);
+      if (amount === null) for (const k of AMOUNT) expect(last.has(k), k).toBe(false);
+      else expect(AMOUNT.map((k) => last.get(k))).toEqual([String(amount), "Y", "EUR"]);
+      return { ...r, calls: calls.v2 };
+    };
+    const ahAmount = ahOfferTotals(ahDocumentInput(AH, { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 })).customerAmount;
+    expect(ahAmount).toBeGreaterThan(0);
     for (const id of ["9012", "9013"]) {
-      const r = await same("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, { offerType: "ah", payload: JSON.stringify(AH), opportunity: 99, invoiceCopy: "email" });
+      const r = await sameAhMove(id, { offerType: "ah", payload: JSON.stringify(AH), opportunity: 99, invoiceCopy: "email" }, ahAmount);
       expect(r.calls.at(-1)!.params.includes("UF_CRM_1711019971"), id).toBe(id === "9012");
     }
+    // a payload that cannot be read: the amount the client sent (99), no AH fields
+    await sameAhMove("9012", { offerType: "ah", payload: "{kaputt", opportunity: 99 }, 99);
     await same("POST", "/api/bitrix/deal/9012/move-ang-verschickt", { offerType: "ah", payload: "{kaputt" });
     await same("POST", "/api/bitrix/deal/9003/move-ang-verschickt", { opportunity: 1 });
     const coll = mongoose.connection.db!.collection("useractionlogs");
@@ -836,6 +858,12 @@ describe("contract: send-offer — same mail, same Bitrix calls, same logs (no r
   it("AH offer: AH footer, AH preset set (Selbstzahler without Abtretung/Vollmacht), AH totals", async () => {
     const o = await sendBoth({ to: "ah@example.invalid", subject: "Alltagshilfe", offerNumber: "ANG-AH-1", offerType: "ah", payload: JSON.stringify(AH), contactId: "101", body: "Guten Tag" });
     expect(o.v2.res.status, JSON.stringify(o.v2.res.body).slice(0, 400)).toBe(200);
+    // Deliberate difference (ADR 028, owner decision 4): the total of an AH send is the customer-facing
+    // monthly amount — for this Selbstzahler the gross (net + 7 % MwSt); legacy answers the net
+    expect(AH.Kundendaten.payer).toBe("Selbstzahler");
+    const net = o.legacy.res.body.offerTotal, vat = Math.round(net * 0.07 * 100) / 100;
+    expect(o.v2.res.body.offerTotal).toBe(Math.round((net + vat) * 100) / 100);
+    o.v2.res.body.offerTotal = net;
     expectSameResult(o);
   }, 60000);
 
@@ -1324,8 +1352,17 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
     if (app === "legacy" && !body && r.type.includes("html") && /<head/i.test(r.text)) r = { ...r, text: injectHead(r.text) };
     if (body && app === "v2" && body.error && typeof body.error === "object") body = { ...body, error: body.error.message };
     if (r.status === 401) body = { error: "<login required>" }; // auth-gate wording differs by design (see security section)
-    return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(r.text) };
+    const text = app === "v2" && !body ? ahTotalsAsLegacy(r.text) : r.text;
+    return { status: r.status, type: r.type.split(";")[0], body: body ? JSON.parse(normText(JSON.stringify(stripIds(body)))) : normText(text) };
   };
+  // Deliberate difference (ADR 028, owner decision 3, 2026-11-20): the AH signing page shows the DOCX's
+  // total block — „Nettobetrag“, MwSt and „Gesamtbetrag brutto“ (Selbstzahler) or the deduction and
+  // „Ihr Eigenanteil“ (Kassenkunde); legacy shows „Gesamtbetrag“ only. Taken back to the legacy block
+  // here (the rows are asserted in ah-offer-data.test.ts); everything else must equal the old page.
+  const ahTotalsAsLegacy = (html: string) => html.includes('<table class="totals">') && html.includes("Anfahrtspauschale Alltagshilfe")
+    ? html.replace(/<tr class="alt"><td>Nettobetrag<\/td>/g, '<tr class="alt"><td>Gesamtbetrag</td>')
+      .replace(/\n\s*<tr( class="(gesamtsumme|eigenanteil)")?><td>(zzgl\. 7 % MwSt\.|Gesamtbetrag brutto|abzgl\. [^<]*|Ihr Eigenanteil)<\/td><td class="num">[^<]*<\/td><\/tr>/g, "")
+    : html;
   const stripIds = (v: any): any => Array.isArray(v) ? v.map(stripIds) : v && typeof v === "object"
     ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== "id" && k !== "_id" && k !== "__v").map(([k, x]) => [k, stripIds(x)])) : v;
   // Deliberate difference (ADR 027 A, step 3): v2's stage move after a completed signature also
@@ -1363,10 +1400,15 @@ describe("contract: online signing — same responses, stored requests, Bitrix n
   const step = async (app: "legacy" | "v2", ctx: { log: any[] }, name: string, p: Promise<Res>) => {
     const r = await p;
     await new Promise((res) => setTimeout(res, 50));
-    ctx.log.push({ step: name, res: view(r, app), calls: calls(app), mails: smtp.take().map((m) => mailView(m, normText)) });
+    ctx.log.push(maskAhOffer({ step: name, res: view(r, app), calls: calls(app), mails: smtp.take().map((m) => mailView(m, normText)) }));
     return r;
   };
   const create = (app: "legacy" | "v2", body: Record<string, unknown>) => send(app, "POST", "/api/signing", body);
+  // ADR 028: the signed AH offer PDF holds the new total block (see ahTotalsAsLegacy) → its bytes differ
+  // from the old app's on purpose; masked in both (the page's HTML itself is compared above)
+  const maskAhOffer = (entry: Record<string, unknown>) => JSON.parse(JSON.stringify(entry)
+    .replace(/(angebot_T-AH-[A-Za-z]+\.pdf&fields\[FILES\]\[\d+\]\[1\]=)[A-Za-z0-9+/=]+/g, "$1<AH-ANGEBOT-PDF>")
+    .replace(/("filename":"angebot_T-AH-[A-Za-z]+\.pdf"[^}]*?"sha256":")[0-9a-f]+/g, "$1<AH-ANGEBOT-PDF>"));
 
   it("Selbstzahler: create + email link, open, view, payment-term rule, sign → completion (mail, Bitrix, stage)", async () => {
     const v = await scenario("T-SZ-1", () => {}, async (app, ctx) => {

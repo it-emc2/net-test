@@ -2,6 +2,7 @@
 // updateDealAfterSigning, addTimelineComment, ensurePartnerContact, setDealOfferLink, AH fields).
 // Field ids, enum ids, stage ids and the exact request shapes are unchanged: the contract test
 // records the outgoing calls of legacy and v2 against the same stub and requires them identical.
+import { ahDocHours, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { buildQS, type BitrixBatchResult, type BitrixClient } from "./bitrix.js";
 
 export const DEAL_ENTITY_TYPE_ID = 2;
@@ -47,20 +48,11 @@ export const DEAL_UPLOADS: Record<string, { field: string; label: string; note: 
 };
 
 // ---------------- AH: numbers for the deal fields (legacy buildAhData().AhBitrix) ----------------
-const AH_FREQ: Record<string, number> = {
-  "Wöchentlich": 52 / 12, "14-tägig": 26 / 12, "alle drei Wochen": 52 / 3 / 12, "Monatlich": 1,
-  "Vierteljährlich": 4 / 12, "Halbjährlich": 2 / 12, "Jährlich": 1 / 12,
-};
-const AH_ANFAHRT_PER_EINSATZ = 7.96, AH_STUNDENSATZ_HND = 40.56, AH_STUNDENSATZ_AB = 53.04;
-const AH_SERVICE_ORDER: Record<string, number> = { Haushaltsnahedienstleistungen: 0, Alltagsbegleitung: 1 };
+// Every amount from THE AH total function (ADR 028: @oc/pricing ahOfferTotals on the documents'
+// reading of the offer, ahDocumentInput) — no own arithmetic; equal to the legacy numbers
+// (differential test: test/bitrix-deal.test.ts). The deal fields do not depend on the payer.
 const r2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-function parseHHMM(str: unknown): number {
-  if (!str) return 0;
-  const s = String(str).trim();
-  const i = s.indexOf(":");
-  if (i !== -1) return (parseInt(s.slice(0, i), 10) || 0) + (parseInt(s.slice(i + 1), 10) || 0) / 60;
-  return parseFloat(s) || 0;
-}
+const NO_FUNDING_CONFIG = { entlastungsbetragMonat: 0, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
 
 export interface AhBitrix {
   zoneNum: number; hasHnD: boolean; hasAb: boolean; stundenProEinsatz: number; tatsaechlicherStundenumfang: number;
@@ -70,51 +62,29 @@ export interface AhBitrix {
 
 /** Exactly legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts. */
 export function ahBitrixFromPayload(body: any): AhBitrix {
-  const ah = body?.ah || {};
-  const raw: any[] = (Array.isArray(ah.services) ? ah.services : []).slice()
-    .sort((a: any, b: any) => (AH_SERVICE_ORDER[a.type] ?? 99) - (AH_SERVICE_ORDER[b.type] ?? 99));
-  const zoneNum = parseInt(body?.Arbeitszeit?.ahTravelZone || "0") || 0;
-  const travelTimeH = zoneNum > 0 ? ((zoneNum - 1) * 10 + 10) / 60 : parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
-  const svcTotals = (svc: any) => {
-    let totalEinsaetze = 0, totalMonatlichH = 0;
-    if (!svc) return { totalEinsaetze, totalMonatlichH };
-    for (const sched of Array.isArray(svc.schedules) ? svc.schedules : []) {
-      const dauerH = parseHHMM(sched.dauer);
-      const freq = AH_FREQ[sched.regelmaessigkeit] || 0;
-      if (!dauerH || !freq) continue;
-      totalEinsaetze += freq;
-      totalMonatlichH += (dauerH + travelTimeH) * freq;
-    }
-    return { totalEinsaetze, totalMonatlichH };
-  };
+  const raw = ahDocServices(body);
+  const { zoneNum, travelTimeH } = ahDocTravel(body);
+  const p = ahOfferTotals(ahDocumentInput(body, NO_FUNDING_CONFIG)).detail;
   const hndSvc = raw.find((s) => s.type === "Haushaltsnahedienstleistungen");
   const abSvc = raw.find((s) => s.type === "Alltagsbegleitung");
-  const hnd = svcTotals(hndSvc), ab = svcTotals(abSvc);
-  const abShared = abSvc && abSvc.combinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
-  ab.totalMonatlichH = Math.max(0, ab.totalMonatlichH - abShared * travelTimeH);
-  const abAnfahrtEinsaetze = ab.totalEinsaetze - abShared;
-  const totalMonatlichH = (hnd.totalMonatlichH || 0) + (ab.totalMonatlichH || 0);
-  const totalEinsaetze = (hnd.totalEinsaetze || 0) + abAnfahrtEinsaetze;
-  const anfahrtTotal = r2(hnd.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
-  const leistungenTotal = r2(hnd.totalMonatlichH * AH_STUNDENSATZ_HND);
-  const abAnfahrtTotal = r2(abAnfahrtEinsaetze * AH_ANFAHRT_PER_EINSATZ);
-  const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
-  const anfahrtGesamt = r2(anfahrtTotal + abAnfahrtTotal);
+  const totalMonatlichH = (p.totalMonatlichH || 0) + (p.abTotalMonatlichH || 0);
+  const totalEinsaetze = (p.totalEinsaetze || 0) + p.abAnfahrtEinsaetze;
+  const anfahrtGesamt = r2(p.anfahrtTotal + p.abAnfahrtTotal);
   const firstSched = (hndSvc?.schedules || []).find((s: any) => s.dauer) || (abSvc?.schedules || []).find((s: any) => s.dauer);
   return {
     zoneNum,
     hasHnD: raw.some((s) => s.type === "Haushaltsnahedienstleistungen"),
     hasAb: raw.some((s) => s.type === "Alltagsbegleitung"),
-    stundenProEinsatz: firstSched ? parseHHMM(firstSched.dauer) : 0,
-    tatsaechlicherStundenumfang: firstSched ? r2(parseHHMM(firstSched.dauer) + travelTimeH) : 0,
+    stundenProEinsatz: firstSched ? ahDocHours(firstSched.dauer) : 0,
+    tatsaechlicherStundenumfang: firstSched ? r2(ahDocHours(firstSched.dauer) + travelTimeH) : 0,
     regelmaessigkeit: firstSched?.regelmaessigkeit || "",
     monatlicherStundenumfang: r2(totalMonatlichH),
     anzahlAnfahrtspauschalen: r2(totalEinsaetze),
     anfahrtGesamt,
-    gesamtpreisAB: abLeistungenTotal,
-    gesamtpreisHnD: leistungenTotal,
-    gesamtbetragAB: r2(abLeistungenTotal + anfahrtGesamt),
-    gesamtbetragHnD: r2(leistungenTotal + anfahrtGesamt),
+    gesamtpreisAB: p.abLeistungenTotal,
+    gesamtpreisHnD: p.leistungenTotal,
+    gesamtbetragAB: r2(p.abLeistungenTotal + anfahrtGesamt),
+    gesamtbetragHnD: r2(p.leistungenTotal + anfahrtGesamt),
   };
 }
 
@@ -194,7 +164,8 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     fields.stageId = String(u.stageId).trim();
     const isAh = String(u.offerType || "").toLowerCase() === "ah";
     const amount = Number(u.opportunity);
-    if (!isAh && Number.isFinite(amount) && amount > 0) {
+    // AH too since ADR 028 (owner 2026-11-20): the monthly amount (gross Selbstzahler / net Kasse)
+    if (Number.isFinite(amount) && amount > 0) {
       fields.opportunity = amount;
       fields.isManualOpportunity = "Y";
       fields.currencyId = String(u.currencyId || "EUR").trim() || "EUR";
@@ -233,11 +204,18 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
   }
 
   /** amount (as „ANG verschickt“ writes it), final total, offer number and offer link of one offer;
-   *  AH (owner 2026-11-20): the AH fields of the „ANG verschickt“ move + the link — no amount, no number, as the move */
+   *  AH (owner 2026-11-20): the AH fields of the „ANG verschickt“ move + the link + (ADR 028) the deal
+   *  amount as the move writes it (opportunity, manual, currency) — no final total, no number, as the move */
   function signedOfferFields(o: SignedOffer): Record<string, unknown> {
     const f: Record<string, unknown> = {};
     if (o.ah) {
       if (o.ahPayload) Object.assign(f, buildAhBitrixFields(o.ahPayload, AH_ZONE_KEEP));
+      const amount = Number(o.total);
+      if (Number.isFinite(amount) && amount > 0) {
+        f.opportunity = amount;
+        f.isManualOpportunity = "Y";
+        f.currencyId = String(o.currencyId || "EUR").trim() || "EUR";
+      }
       const n = String(o.offerNumber || "").trim();
       if (n) f[OFFER_LINK_FIELD] = `${opts.offerLinkBase}/?offer=${encodeURIComponent(n)}`;
       return f;

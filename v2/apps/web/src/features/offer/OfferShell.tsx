@@ -24,14 +24,15 @@ function Total() {
   const ah = useOfferStore((s) => s.offer?.activeOffer === "ah");
   return ah ? <AhTotal /> : <ServerTotal />;
 }
-/** Alltagshilfe: monthly total (and Eigenanteil) computed in the browser — no price request (U-048) */
+/** Alltagshilfe: monthly total (and Eigenanteil) computed in the browser — no price request (U-048);
+ *  THE AH total (ADR 028): Selbstzahler gross incl. 7 % MwSt, Kassenkunde net and Eigenanteil */
 function AhTotal() {
   const p = useAhPrice();
   const part = "grid content-center";
   return (
     <div className="flex shrink-0 items-stretch gap-4 leading-tight" aria-live="polite" data-testid="ah-total">
-      <span className={part}><span className="text-[0.75rem] text-muted-foreground">Gesamt / Monat</span><strong className="tabular-nums" data-part="gesamt">{euro(p?.gesamt)}</strong></span>
-      {p && !p.isSelbstzahler ? <span className={cn(part, "max-[479px]:hidden")}><span className="text-[0.75rem] text-muted-foreground">Eigenanteil</span><strong className="tabular-nums" data-part="eigenanteil">{euro(p.eigenanteil)}</strong></span> : null}
+      <span className={part}><span className="text-[0.75rem] text-muted-foreground">Gesamt / Monat</span><strong className="tabular-nums" data-part="gesamt">{euro(p?.gross)}</strong></span>
+      {p && p.payer === "Kassenkunde" ? <span className={cn(part, "max-[479px]:hidden")}><span className="text-[0.75rem] text-muted-foreground">Eigenanteil</span><strong className="tabular-nums" data-part="eigenanteil">{euro(p.eigenanteil)}</strong></span> : null}
     </div>
   );
 }

@@ -70,6 +70,10 @@ export function emptyOffer<T extends NewOfferType>(type: T, ctx: OfferContext): 
   if (ctx.contactName !== undefined) o.Kundendaten.emc2_contact = ctx.contactName;
   if (ctx.signatureUser !== undefined) o.ourSignatureUser = ctx.signatureUser;
   if (ctx.pricingRules !== undefined) o.pricingRules = structuredClone(ctx.pricingRules);
+  // Alltagshilfe (owner decision 2026-11-20, UX-CHANGES U-050): a new offer starts with its
+  // Finanzierung untouched — no source ticked (today: Entlastungsbetrag ticked for everyone). The
+  // Entlastungsbetrag is ticked when the Pflegegrad is answered (web: steps/ah/funding.ts).
+  if (type === "ah") o.Finanzierung = {};
   return o as Offer<T>;
 }
 

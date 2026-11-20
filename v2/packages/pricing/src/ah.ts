@@ -48,7 +48,13 @@ export function ahZoneFromNumber(zone: number): AhZone | null {
   return z ? { zone: z, billMin: (z - 1) * 10 + 10 } : null;
 }
 
-export interface AhSchedule { dauer?: string; regelmaessigkeit?: string; [k: string]: unknown }
+export interface AhSchedule {
+  dauer?: string; regelmaessigkeit?: string;
+  /** the duration in hours, set only by ahDocumentInput (the offer documents read "1.5" and "1:5" too);
+   *  the golden inputs never carry it, so the legacy-exact result is untouched */
+  hours?: number;
+  [k: string]: unknown;
+}
 export interface AhService {
   type?: string; // "Haushaltsnahedienstleistungen" | "Alltagsbegleitung"
   schedules?: AhSchedule[];
@@ -82,7 +88,7 @@ export function computeAhPricing(input: AhPricingInput) {
     let totalMonatlichH = 0;
     const schedRows: Array<Record<string, unknown>> = [];
     for (const sched of scheds) {
-      const dauerH = parseDurationMinutes(sched.dauer || "") / 60;
+      const dauerH = typeof sched.hours === "number" ? sched.hours : parseDurationMinutes(sched.dauer || "") / 60;
       const freq = AH_FREQ[sched.regelmaessigkeit as string] || 0;
       if (!dauerH || !freq) continue;
       const perVisitH = dauerH + reisezeitH;
