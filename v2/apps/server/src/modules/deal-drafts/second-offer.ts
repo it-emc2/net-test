@@ -103,7 +103,8 @@ export function newDealOf(s: SecondOfferSettings, a: { offerType: NewOfferType; 
 export function secondOfferPayload(a: { offerType: NewOfferType; sourceKundendaten: Record<string, unknown>; newDealId: string; today: string; contact?: Record<string, unknown>; pricingRules?: Record<string, unknown> | undefined }) {
   let o = emptyOffer(a.offerType, { date: a.today, ...(a.pricingRules ? { pricingRules: a.pricingRules } : {}) }) as Record<string, any>;
   o = applyChanges(o, restoreChanges(o, structuredClone(a.sourceKundendaten), a.offerType));
-  o = applyChanges(o, newOfferPatch(a.today, a.contact ?? {}));
+  // date and contact person as for any new offer (the Kundendaten part of newOfferPatch; a new offer is not sent anyway)
+  o = applyChanges(o, { Kundendaten: newOfferPatch(a.today, a.contact ?? {}).Kundendaten });
   return { ...o, ...dealNumberTop(o, a.newDealId) } as Record<string, unknown>;
 }
 
