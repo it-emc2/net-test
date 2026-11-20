@@ -78,8 +78,8 @@ function buildAngebotForOffer(data, opts) {
 
 export const DOC_LABELS = {
   angebot: "Angebot",
-  vollmacht: "Vollmacht für die Krankenkasse",
-  abtretung: "Abtretungserklärung",
+  vollmacht: "Vollmacht für Krankenkasse",
+  abtretung: "Abtretungserklärung § 40 SGB XI",
   zusatzblatt: "Zusatzblatt – Wichtige Hinweise",
   abtretung_ah: "Abtretungserklärung § 45b SGB XI",
 };
@@ -95,7 +95,7 @@ function hasPartner(payload) {
   );
 }
 
-// "Vollmacht für die Krankenkasse – Else Fröhlich" style label; the person
+// "Vollmacht für Krankenkasse – Else Fröhlich" style label; the person
 // name is only added for two-person requests, where it disambiguates.
 function docLabel(sr, key) {
   const base = DOC_LABELS[baseDocKey(key)] || key;
