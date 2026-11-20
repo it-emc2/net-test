@@ -339,6 +339,20 @@ Steps of today's sidebar (`STEPS.bwt`): Kundendaten → Arbeitszeit → Arbeiten
 | 7 | Angebotsversand | shared | Full | **Built (shared)**; BWT gap check open (documents, Bitrix, mail text) |
 | 8 | Nachher (`referenzNachher`) | shared with BU | Light | **Built (with BU 15–16)** — Badewannentür has Nachher only (2 projects, 4 photos), no switch |
 
+### AH (Alltagshilfe) build order (owner order: BU, BWT, AH, then HL, BL)
+
+Steps of today's sidebar (`STEPS.ah`): Kundendaten → Arbeitszeit → Leistungen (`ah`) → Finanzierung → Kosten → Angebotsversand. AH is priced in the browser (`@oc/pricing` `computeAhPricing` + `ahInputFromPayload`, golden-tested against 143 real offers); the server answers `POST /api/price` with an empty shell for AH (`isClientPricedOffer`).
+
+| # | Step | Level | State |
+|---|---|---|---|
+| 1 | Kundendaten | Full | **Built (shared).** Open for AH: Vorbereitung (preparation checklist), „2 Personen mit Pflegegrad“ (`ahZweiPersonen`, read by Leistungen already), „Besondere Hinweise“, Lebenssituation (`ah_*` fields) |
+| 2 | Arbeitszeit | Full | **Built (shared)** incl. the AH travel zone |
+| 3 | Leistungen (`ah`) | Full (stored `ah`, price) | **Built 2026-11-20 — redesign U-048** (`features/steps/ah`: `rules.ts`, `settle.ts`, `Leistungen.tsx`; budget fit `@oc/pricing` `ah-fit.ts`; shared kit `shared/ui/controls.tsx` — `TickRow`, `ChipGroup`, `Stepper`, ready for Finanzierung). 11 recordings of today's page (`ah-leistungen.json`, `v2/scripts/capture-ah-leistungen.cjs`): stored `ah` byte-equal, totals equal. Old offers: 8 real payloads open unchanged and price as `restore.json`. Shell total „Gesamt / Monat“ + Eigenanteil from the browser (`offer/model/ah-price.ts`), zero price requests |
+| 4 | Finanzierung | Full | **Open** (today's view): Entlastungsbetrag anrechnen, Verhinderungspflege, Umwidmung, § 35a — the Leistungen summary already shows their minus lines |
+| 5 | Kosten | Full | **Open** for AH (today's view; the info button with the AH formula) |
+| 6 | Angebotsversand | Full | **Built (shared)**; AH gap check open (documents, Bitrix, mail text) |
+| — | Server-side AH price storage | — | **Open, owner decision:** the server stores no AH price today (`POST /api/price` answers an empty shell; drafts keep only the payload; sends store the client total) — decide whether the server prices AH (same `computeAhPricing`) when saving / sending |
+
 ### Markup (Aufschlag) — where it lives
 
 Recorded (`kundendaten-markup.json`, 40 recordings): for Badumbau, Badewannentür and Handlauf today's UI shows and stores the markup on the **Aufschlag / Rabatt** step (`rabatt.sonderaufschlagValue`); only Badelift, which has no such step, has it in Kundendaten (`Kundendaten.sonderaufschlagValue`). The value the price uses is `Kundendaten.aufschlag` in both cases. The React component `features/steps/markup` is used in both places. The target-price search is today's algorithm unchanged; on a real offer in the preview it returned the same markup as today's own function (23.4595 %, total one cent under the target).

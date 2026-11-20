@@ -16,7 +16,7 @@ export function TickRow({ id, checked, onChange, children, suffix, compact, clas
       className={cn("group flex cursor-pointer items-center gap-3 rounded-lg", compact ? "min-h-[42px] px-2 text-[14px] leading-snug" : "min-h-12 px-1", disabled && "cursor-default opacity-60", className)}>
       <input id={id} type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span aria-hidden data-part="box"
-        className={cn("grid shrink-0 place-items-center rounded-md border-2 transition-colors peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring",
+        className={cn("grid shrink-0 place-items-center rounded-[5px] border-2 transition-colors peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring",
           compact ? "size-[22px]" : "size-6",
           checked ? "border-primary bg-primary text-primary-foreground" : "border-control bg-card text-transparent")}>
         <Check className={compact ? "size-4" : "size-[1.1rem]"} strokeWidth={3} />

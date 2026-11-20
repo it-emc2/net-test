@@ -31,7 +31,7 @@ function AhTotal() {
   return (
     <div className="flex shrink-0 items-stretch gap-4 leading-tight" aria-live="polite" data-testid="ah-total">
       <span className={part}><span className="text-[0.75rem] text-muted-foreground">Gesamt / Monat</span><strong className="tabular-nums" data-part="gesamt">{euro(p?.gesamt)}</strong></span>
-      {p && !p.isSelbstzahler ? <span className={part}><span className="text-[0.75rem] text-muted-foreground">Eigenanteil</span><strong className="tabular-nums" data-part="eigenanteil">{euro(p.eigenanteil)}</strong></span> : null}
+      {p && !p.isSelbstzahler ? <span className={cn(part, "max-[479px]:hidden")}><span className="text-[0.75rem] text-muted-foreground">Eigenanteil</span><strong className="tabular-nums" data-part="eigenanteil">{euro(p.eigenanteil)}</strong></span> : null}
     </div>
   );
 }
@@ -247,7 +247,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     // burger in the header hides/shows it). Narrower (iPad portrait, 834 px): no sidebar, the form
     // has the full width; a slim bar under the header names the step (‹ ›), shows the total, and
     // the burger opens the list as a drawer.
-    <div className={cn("mx-auto grid max-w-6xl gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
+    <div className={cn("mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
       {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
       {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
         {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}

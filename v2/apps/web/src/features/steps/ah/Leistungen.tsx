@@ -200,6 +200,7 @@ export function AhLeistungen() {
   const auto = isActive(offer, cfg) && budget !== null && price.allBase <= budget;
   return (
     <div className="grid gap-4" data-testid="ah-leistungen">
+      <h2 className="sr-only">Leistungen</h2>
       <BudgetCard offer={offer} used={price.gesamt} any={any} />
       {KINDS.map((k) => <ServiceCard key={k} kind={k} item={its[k]} auto={auto} />)}
       {its.hnd && its.ab ? (
