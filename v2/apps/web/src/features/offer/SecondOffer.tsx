@@ -83,8 +83,9 @@ export function useRelatedCount(): number {
 export function SecondOfferButton({ place, onOpen }: { place: string; onOpen?: () => void }) {
   const temp = useOfferStore((s) => isTemp(s.dealId));
   return (
-    <span className="grid gap-1" data-testid="second-offer-entry" data-place={place}>
-      <Button variant="outline" data-action="second-offer" data-place={place} disabled={temp} aria-describedby={temp ? `second-offer-reason-${place}` : undefined}
+    <span className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1" data-testid="second-offer-entry" data-place={place}>
+      {/* may wrap: in the 400 px panel the label is wider than one line */}
+      <Button variant="outline" className="h-auto min-h-12 whitespace-normal py-2 text-center" data-action="second-offer" data-place={place} disabled={temp} aria-describedby={temp ? `second-offer-reason-${place}` : undefined}
         onClick={() => { const src = sourceOfOpenOffer(); if (!src) return; onOpen?.(); openSecondOffer(src); }}>
         <FilePlus2 aria-hidden className="size-4" /><span data-part="label">{TEXT.button}</span>
       </Button>
@@ -101,7 +102,7 @@ export function RelatedSection({ onLeave }: { onLeave: () => void }) {
   const open = useOpenRelated();
   const [busy, setBusy] = useState("");
   return (
-    <section className="grid gap-2 border-t border-border pt-3" aria-labelledby="related-title" data-testid="related-section">
+    <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 border-t border-border pt-3" aria-labelledby="related-title" data-testid="related-section">
       <h3 id="related-title" className="m-0 text-[1rem] font-bold">{TEXT.relatedTitle}</h3>
       {failed ? <p className="m-0 text-[0.9rem] text-muted-foreground" role="status">{TEXT.relatedFailed}</p> : null}
       {rows.length ? (
