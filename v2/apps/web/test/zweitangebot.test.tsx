@@ -387,7 +387,7 @@ describe("second offer — planning and addresses", () => {
 
   it("„Weiteres Angebot“ from the planning opens the confirmation with the existing draft as source", async () => {
     const s = fakeServer({ ...BASE, ...PLAN, "GET /api/deals/70001/draft": DRAFT70, "GET /api/deals/70001/related": { body: { dealId: "70001", related: [] } },
-      "POST /api/deals/70001/second-offer": (b) => ({ body: { ...ok(b as Obj).body, sourceDealId: "70001" } }), [`GET /api/deals/${NEW}/draft`]: draftOf({}, NEW, "ah") });
+      "POST /api/deals/70001/second-offer": (b) => ({ body: { ...(ok(b as Obj).body as Obj), sourceDealId: "70001" } }), [`GET /api/deals/${NEW}/draft`]: draftOf({}, NEW, "ah") });
     const router = renderApp("/");
     await pick("Alltagshilfe");
     await userEvent.click(within(await screen.findByTestId("picker-choice")).getByRole("button", { name: /^Weiteres Angebot/ }));
