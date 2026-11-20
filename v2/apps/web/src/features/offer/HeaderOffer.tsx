@@ -5,6 +5,7 @@ import { Brand } from "../../app/Brand.js";
 import { OFFER_TITLES } from "./steps.js";
 import { useNav, useWide } from "./model/nav.js";
 import { useOfferField, useOfferStore } from "./model/store.js";
+import { VariantSwitch } from "./VariantSwitch.js";
 
 const who = (last: string, first: string) => [last.trim(), first.trim()].filter(Boolean).join(", ");
 /** line 1: "<Nachname>, <Vorname>"; without a customer the offer type */
@@ -44,6 +45,7 @@ export function HeaderLeft() {
         <p className="m-0 truncate font-bold" data-testid="header-offer">{line1}</p>
         {line2 ? <p className="m-0 truncate text-[0.8rem] text-muted-foreground" data-testid="header-deal">{line2}</p> : null}
       </div>
+      <VariantSwitch />
     </div>
   );
 }

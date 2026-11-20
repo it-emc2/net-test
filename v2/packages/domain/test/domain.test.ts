@@ -139,3 +139,14 @@ describe("emptyOffer — what today's UI stores for a new offer", () => {
     expect([isNewOfferType("hms"), isNewOfferType("wd"), isNewOfferType("BU"), isNewOfferType(null)]).toEqual([false, false, false, false]);
   });
 });
+
+describe("a new offer from this one (Neue Version / Variante, ADR 027 A)", () => {
+  it("one rule: date and contact anew, not sent; a variant also drops the number; nothing else changes", async () => {
+    const { newOfferPatch, variantCopyPayload } = await import("../src/index.js");
+    expect(newOfferPatch("2026-11-19", { ansprechpartner: "ao@test.local" })).toEqual({ Kundendaten: { date: "2026-11-19", ansprechpartner: "ao@test.local" }, zusammenfassung: { versand: undefined } });
+    const src = { offerNumber: "ANG2026-1119-100000", auftragId: "4711", Kundendaten: { lastName: "Muster", date: "2026-01-01" }, zusammenfassung: { versand: "x", a: 1 }, b: [1] };
+    expect(variantCopyPayload(src, "2026-11-19")).toEqual({ auftragId: "4711", Kundendaten: { lastName: "Muster", date: "2026-11-19" }, zusammenfassung: { a: 1 }, b: [1] });
+    expect(src.offerNumber).toBe("ANG2026-1119-100000");
+  });
+});
+

@@ -14,6 +14,7 @@
 // A number is "sent" when a send under it reached the customer (mail, post, signing — filing in
 // Bitrix alone does not count) or the offer itself says so (`zusammenfassung.versand`).
 // A download never renumbers a sent number (F5): renumbering it is this action only.
+import { newOfferPatch } from "@oc/domain";
 import { todayIso } from "../../../shared/lib/format.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { flushDraft, useOfferStore, type SaveStatus } from "../../offer/index.js";
@@ -88,7 +89,8 @@ export async function saveBeforeSend(nothing: string) { return saveProblem(await
 export async function newVersion(people: People | null | undefined): Promise<string> {
   const before = (st().offer ?? {}) as Fields, was = str(before.offerNumber);
   const users = people?.users ?? [], mine = users.some((u) => u.email === people?.me) ? people!.me! : users[0]?.email;
-  st().patchAll({ Kundendaten: { date: todayIso(), ...(mine ? chooseContact(users, mine) : {}) }, zusammenfassung: { versand: undefined } } as never);
+  // the same reset as a new variant on the server (@oc/domain newOfferPatch, ADR 027 A)
+  st().patchAll(newOfferPatch(todayIso(), mine ? chooseContact(users, mine) : {}) as never);
   const number = await giveNumber();
   for (const key of ["sendStatus", "postStatus", "signStatus-mail", "signStatus-post", "editedDocx", "handEditedNumber", ...PLACES.map(stopKey)]) st().remember(key, null);
   st().remember("postSent", false);

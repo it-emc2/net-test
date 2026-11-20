@@ -14,6 +14,7 @@ import { flushDraft, legacyAddress, newTempKey, openInLegacy, useAutosave, useOp
 import { useNav, useWide } from "./model/nav.js";
 import { useOfferStore } from "./model/store.js";
 import { StepDrawer } from "./StepDrawer.js";
+import { TEXT as VARIANT, variantInSearch, variantSearch } from "./model/variants.js";
 import { usePrice } from "./model/usePrice.js";
 import { OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, groupStartingAt, isReferenzStep, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
 
@@ -59,7 +60,7 @@ function StatusIcon({ s }: { s: StepStatus }) {
 }
 
 /** The step list with a status per step (done / warning / open / not chosen) and the progress on top. */
-function StepList({ type, base, current, statuses }: { type: NewOfferType; base: string; current: string; statuses: Record<string, StepStatus> }) {
+function StepList({ type, base, q, current, statuses }: { type: NewOfferType; base: string; q: string; current: string; statuses: Record<string, StepStatus> }) {
   const { done, total } = countsIn(statuses);
   return (
     <div className="grid gap-2">
@@ -82,7 +83,7 @@ function StepList({ type, base, current, statuses }: { type: NewOfferType; base:
             <li key={s}>
               {group ? <p className="mb-1 mt-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">{group.num ? `${group.num} · ` : ""}{group.title}</p> : null}
               <NavLink
-                to={`${base}/${s}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
+                to={`${base}/${s}${q}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
                 className={cn(
                   "flex min-h-12 items-center gap-3 rounded-lg border border-transparent px-3 py-1.5 text-foreground no-underline transition-colors hover:bg-accent-weak",
                   active && "border-accent bg-accent-weak font-bold", st.kind === "off" && "text-muted-foreground",
@@ -175,8 +176,17 @@ const barBtn = "grid size-11 shrink-0 place-items-center rounded-lg border borde
 
 function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const navigate = useNavigate();
-  const step = useLocation().pathname.split("/")[4]; // /deal/<id>/<type>/<step>
-  const open = useOpenOffer(dealId, type);
+  const location = useLocation();
+  const step = location.pathname.split("/")[4]; // /deal/<id>/<type>/<step>
+  const asked = variantInSearch(location.search); // ?variante=<id> (ADR 027 A)
+  const open = useOpenOffer(dealId, type, asked);
+  const variantId = useOfferStore((s) => (s.dealId === dealId ? s.variantId : null));
+  // an address without the variant: the one that is open is written into it (same page, nothing reloads)
+  useEffect(() => {
+    // only on a step: the frame's own redirect to the first step carries the variant already
+    if (open.status === "ready" && !asked && variantId && isStepOf(type, step)) navigate({ pathname: location.pathname, search: variantSearch(variantId) }, { replace: true });
+  }, [open.status, asked, variantId, location.pathname, navigate, type, step]);
+  useEffect(() => { if (open.status === "moved") toast.info(VARIANT.gone, { id: "variant-gone" }); }, [open.status]);
   const setOfferType = usePrefs((p) => p.setOfferType);
   useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
   useAutosave();
@@ -196,11 +206,13 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   useEffect(() => { setDrawer(false); }, [step, setDrawer]); // a step was chosen → the drawer folds away
   useEffect(() => () => setDrawer(false), [setDrawer]); // leaving the offer
   const base = `/deal/${dealId}/${type}`;
+  const q = variantSearch(variantId ?? asked);
 
+  if (open.status === "moved") return <Navigate to={`${location.pathname}${variantSearch(open.variantId)}`} replace />;
   if (open.status === "loading") return <Page title="Einen Moment …" lead="Das Angebot wird geöffnet." />;
   if (open.status === "error") return <Page title="Das Angebot kann nicht geöffnet werden"><Alert kind="error">{open.message}</Alert></Page>;
-  if (open.status === "other-type") return <Navigate to={`/deal/${dealId}/${open.type}`} replace />;
-  if (!isStepOf(type, step)) return <Navigate to={`${base}/${firstStep(type)}`} replace />;
+  if (open.status === "other-type") return <Navigate to={`/deal/${dealId}/${open.type}${location.search}`} replace />;
+  if (!isStepOf(type, step)) return <Navigate to={`${base}/${firstStep(type)}${q}`} replace />;
 
   const temp = dealId.startsWith("t-");
   // Referenzbilder are outside Weiter / Zurück (as today); they have their own way back
@@ -218,15 +230,15 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     <div className={cn("mx-auto grid max-w-6xl gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
       {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
       {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
-        {prev ? <Link to={`${base}/${prev}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
+        {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
         <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</p>
-        {next ? <Link to={`${base}/${next}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
+        {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
         <BarMoney base={base} fallback={<Total />} />
       </div> : null}
-      <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} current={step} statuses={statuses} /></StepDrawer>
+      <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} q={q} current={step} statuses={statuses} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
         <p className="m-0 font-bold">{title}</p>
-        <StepList type={type} base={base} current={step} statuses={statuses} />
+        <StepList type={type} base={base} q={q} current={step} statuses={statuses} />
         {wide && sidebar ? <><Total /><SelfPayRows base={base} /></> : null}
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
         <Button variant="secondary" onClick={goHome}>Zum Hauptmenü</Button>
@@ -235,8 +247,8 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         <Outlet />
         {/* with the sidebar closed these two are the way through the offer */}
         <div className="flex items-center justify-between gap-3 pt-2">
-          {prev ? <ButtonLink to={`${base}/${prev}`} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
-          {next ? <Button asChild><Link to={`${base}/${next}`} aria-label={`Weiter zu ${stepLabel(next)}`} onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}`))) e.preventDefault(); }}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
+          {prev ? <ButtonLink to={`${base}/${prev}${q}`} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
+          {next ? <Button asChild><Link to={`${base}/${next}${q}`} aria-label={`Weiter zu ${stepLabel(next)}`} onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
         </div>
       </main>
     </div>

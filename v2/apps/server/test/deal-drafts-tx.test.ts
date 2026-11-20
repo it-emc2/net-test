@@ -50,4 +50,16 @@ describe("deal draft saves in a transaction", () => {
     expect(d.revision).toBe(2);
     expect(await DealDraftRevision.countDocuments({ dealId: "7002" })).toBe(2);
   });
+
+  it("variants (ADR 027 A): simultaneous saves of different variants of one deal all succeed, each with its own deal-unique revision", async () => {
+    await saveDealDraft({ dealId: "7003", offerType: "bu", payload: { n: 0 }, baseRevision: 0, by: "t@test" });
+    const ids = ["v-000000000001", "v-000000000002", "v-000000000003"];
+    for (const id of ids) await saveDealDraft({ dealId: "7003", variantId: id, offerType: "bu", payload: { id }, baseRevision: 0, by: "t@test" });
+    const bases = await Promise.all(ids.map(async (id) => ((await DealDraft.findOne({ dealId: "7003", variantId: id }).lean()) as any).revision));
+    const results = await Promise.all(ids.map((id, i) => saveDealDraft({ dealId: "7003", variantId: id, offerType: "bu", payload: { id, n: 1 }, baseRevision: bases[i]!, by: "t@test" })));
+    expect(results.every((r) => r.changed)).toBe(true);
+    const revs = results.map((r) => r.revision);
+    expect(new Set(revs).size).toBe(3);
+    expect(await DealDraftRevision.countDocuments({ dealId: "7003" })).toBe(7);
+  });
 });

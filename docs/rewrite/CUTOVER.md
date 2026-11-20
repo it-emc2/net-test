@@ -11,7 +11,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 | D2 | Deployment tool: Coolify or Dokploy, or plain `docker compose` | Plain `docker compose` first (already tested in CI); a UI tool later if wanted |
 | D3 | Date/time of the switch | A quiet afternoon (no appointments), not before a weekend |
 | D4 | Database user (ADR 010): replace `atlasAdmin` with `readWrite@KonfiguratorDB` + `read@vigor` | Yes, before the switch (owner action in Atlas) |
-| D5 | Run migrations 001 (deal-draft indexes), 002 (B-1, one customer field), 003 (indexes for the new record collections `offer_sends`, `signing_completions`, `offer_numbers`, ADR 023) and 004 (indexes of the new error log `error_events`: expiry after 90 days — without it the records are kept forever; schema in `apps/server/src/platform/error-events.ts`) | Yes — after a backup, dry run first |
+| D5 | Run migrations 001 (deal-draft indexes), 002 (B-1, one customer field), 003 (indexes for the new record collections `offer_sends`, `signing_completions`, `offer_numbers`, ADR 023) 004 (indexes of the new error log `error_events`: expiry after 90 days — without it the records are kept forever; schema in `apps/server/src/platform/error-events.ts`) and 005 (variants, ADR 027 A: `deal_drafts` gets `uniq_deal_variant`, then the one-draft-per-deal index `uniq_dealId` is dropped; no document is rewritten — without it a second variant is refused with `VARIANT_CREATE_FAILED`) | Yes — after a backup, dry run first |
 
 ## 1. Preparation (days before, no user impact)
 
@@ -42,6 +42,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - Logs: `docker compose logs -f app` (every error has a request id; GlitchTip later, ADR 009).
 - Daily: Bitrix failure log (`/admin` → Bitrix-Logs), email/letter sends, signing completions.
 - `main` keeps evolving until the switch; after the switch, changes go to v2 only (see §5).
+- Signing completions (ADR 027 A, step 3): every signature now also writes the signed offer's amount, final total, offer number and offer link (non-AH) or its AH fields and offer link (AH) to Bitrix; after a signature the „ANG verschickt“ move leaves the deal where it is. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
 
 ## 4. Way back (rollback, ~10 minutes)
 
@@ -57,6 +58,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 ## Open items before the switch
 
 - [ ] Owner decisions D1–D5.
+- [ ] Variants step 3 on a Bitrix **test deal** with the owner (send A, send B, sign A — field checklist in the step-3 PR). New collection `deal_variant_choices` needs no migration (keyed by `_id`); the old app ignores it on the way back.
 - [x] Rollback export tool `deal_drafts → drafts` (§4.2): `node apps/server/dist/cli/migrate.js rollback-export [--apply]` — insert-only, idempotent, tested; dry run on the copy 2026-11-06: 0 (no deal drafts exist yet).
 - [ ] Staging run with staff spot-check (§1.5).
 - [ ] Fresh parallel run on a copy taken the day before (§1.4).

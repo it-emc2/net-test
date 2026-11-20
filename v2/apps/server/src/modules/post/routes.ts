@@ -14,6 +14,7 @@ import { buildInternalNoteComment, type DealWrites } from "../../integrations/bi
 import type { Onlinebrief24 } from "../../integrations/onlinebrief24.js";
 import { PostalSend } from "../../platform/models.js";
 import { claimSendLock } from "../email/index.js";
+import { NOT_CHOSEN_MESSAGE, isNotChosen, resolveSendVariant, signedElsewhere } from "../deal-drafts/index.js";
 import { randomUUID } from "node:crypto";
 import {
   OfferChangedError, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, beginSend, finishSend, lastSentOffer, offerChangedBody, patchSend, readSendFile, recordStep,
@@ -133,10 +134,23 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       try { normalizeRecipientAddress(recipient || {}); } catch (err) { throw staged(err, "normalize_recipient"); }
       const offerNumber = String(meta?.offerNumber || b.offerNumber || "").trim() || mainFilename.replace(/\.pdf$/i, "");
 
+      // the variant of the deal's offer (ADR 027 A): its own 24 h lock row; never blocks the send
+      const recordDealId = String(meta?.dealId ?? dealId ?? auftragId ?? "").trim();
+      let sendVariant = { variantId: "", lockKey: recordDealId };
+      if (recordDealId) {
+        try { sendVariant = await resolveSendVariant(recordDealId, { variantId: b.variantId ?? meta?.variantId, offerNumber }); }
+        catch (e) { req.log.warn({ err: e, sendId }, "variant of the send not resolved — deal lock used"); }
+      }
       const offerLetter = b.letterKind !== "signed"; // "signed" = the signed documents, a second letter by design
+      // ADR 027 A, step 3: the offer of a variant that was not chosen is not posted (signed documents may be)
+      if (recordDealId && offerLetter) {
+        let refused = false;
+        try { refused = await isNotChosen(recordDealId, sendVariant.variantId); } catch (e) { req.log.warn({ err: e, sendId }, "not-chosen check failed — continuing"); }
+        if (refused) return failSend(req, reply, 409, NOT_CHOSEN_MESSAGE, { code: "VARIANT_NOT_CHOSEN" });
+      }
       try {
         const begun = await beginSend(sendId, {
-          channel: "post", by: String(req.user?.email || ""), dealId: String(meta?.dealId ?? dealId ?? auftragId ?? ""), offerNumber,
+          channel: "post", by: String(req.user?.email || ""), dealId: String(meta?.dealId ?? dealId ?? auftragId ?? ""), variantId: sendVariant.variantId, offerNumber,
           offerType: String(meta?.offerType || b.payload?.activeOffer || ""), to: [recipient?.name, recipient?.street, recipient?.zipCode || recipient?.zip || recipient?.postalCode, recipient?.city].filter(Boolean).join(", "),
           subject: offerLetter ? "Angebot per Post" : "Unterschriebene Unterlagen per Post", recipient: recipient ?? null,
         });
@@ -210,7 +224,7 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
       if (registered === "r1" || registered === "r2") letter.registered = registered;
       const { mode } = d.ob24.config();
 
-      const guardDealId = String(meta?.dealId ?? dealId ?? auftragId ?? "").trim();
+      const guardDealId = sendVariant.lockKey; // the lock row's key (deal number, or deal#variant)
       if (guardDealId) {
         const existing = await claimSendLock(PostalSend, guardDealId, b.forceResend === true, { inFlightMs: IN_FLIGHT_MS, resendBlockMs: RESEND_BLOCK_MS });
         if (existing) {
@@ -265,7 +279,8 @@ export async function registerPost(app: FastifyInstance, d: PostDeps) {
           if (timelineEntityId) await rec("bitrixCall", () => patchSend(sendId, { bitrixCall: { target: { entityType, entityId: String(timelineEntityId) }, comment, internalNote: String(internalNote || "") } }));
         }
         if (timelineEntityId) {
-          if (entityType === "deal") await d.deals.setDealOfferLink(timelineEntityId, offerNumber);
+          // signed wins (ADR 027 A): the deal's offer link stays with the signed variant
+          if (entityType === "deal" && !(await signedElsewhere(recordDealId, sendVariant.variantId))) await d.deals.setDealOfferLink(timelineEntityId, offerNumber);
           bitrixResult = await d.deals.addTimelineComment({ entityType, entityId: timelineEntityId, comment, attachments: bitrixAttachments });
           const note = buildInternalNoteComment(internalNote);
           if (note) await d.deals.addTimelineComment({ entityType, entityId: timelineEntityId, comment: note });

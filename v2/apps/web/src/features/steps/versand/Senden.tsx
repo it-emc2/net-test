@@ -11,7 +11,7 @@ import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
-import { checkStep, useOfferStore, usePrice } from "../../offer/index.js";
+import { checkStep, sendVariantOf, useOfferStore, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
 import { SignOnSite } from "./Unterschrift.js";
 import { historyChanged } from "./Verlauf.js";
@@ -19,7 +19,7 @@ import { StopActions } from "./NeueVersion.js";
 import { NOTHING, NeedsNewVersion, refusal, saveBeforeSend, setStop } from "./version.js";
 import { ccDefault, excluded, touchedOf, type Touched } from "./mail-rules.js";
 import {
-  TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, sending, sentTitle, started,
+  TEXT, atLocal, bitrixJobs, done, errorOf, filingFailed, materialCodes, missingMain, movePayload, movedText, sending, sentTitle, started,
   type MainItem, type SentResult,
 } from "./send-rules.js";
 
@@ -133,6 +133,8 @@ function useSend(ask: (a: Omit<Ask, "resolve">) => Promise<boolean>, askMain: (i
       form.append("dealId", deal);
       form.append("contactId", String((offer.Kundendaten ?? {}).bitrixContactId ?? "").trim());
       form.append("sendId", crypto.randomUUID());
+      const variantId = sendVariantOf(st(), deal); // the variant this mail is a send of (ADR 027 A)
+      if (variantId) form.append("variantId", variantId);
       for (const f of (scratch.mailUploads as File[] | undefined) ?? []) form.append("attachments", f, f.name);
       for (const d of docs) form.append("bitrixDocs", d, d.name);
       if (edited) form.append("editedDocx", edited, edited.name);
@@ -241,8 +243,9 @@ export function SentDialog({ s, codes, onClose }: { s: Sent; codes: string; onCl
   const move = async () => {
     setMoving(true); setLine({ ok: true, text: "Verschiebe Deal…" });
     try {
-      await call("moveSent", { params: { id: s.dealId }, body: movePayload(s.offer, s.result, s.offerNumber, codes) });
-      setMoved(true); setLine({ ok: true, text: "Deal wurde auf „ANG verschickt\" verschoben." });
+      const variantId = sendVariantOf(st(), s.dealId); // the variant just sent (ADR 027 A)
+      const r = await call("moveSent", { params: { id: s.dealId }, body: { ...movePayload(s.offer, s.result, s.offerNumber, codes), ...(variantId ? { variantId } : {}) } });
+      setMoved(true); setLine({ ok: true, text: movedText(r) });
     } catch (err) {
       setLine({ ok: false, text: `Deal konnte nicht verschoben werden: ${messageOf(err)}`, then: "Das Angebot wurde trotzdem versendet – bitte NICHT erneut senden." });
     } finally { setMoving(false); }
