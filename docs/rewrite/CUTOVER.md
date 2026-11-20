@@ -20,6 +20,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
    - `EXTERNAL_API_KEY` set — and the same key entered in the bau-formular (v2 keeps the external lookup closed without it);
    - `GOTENBERG_URL` is set by compose;
    - second offer type (ADR 027 B), only to point at a test pipeline: `SECOND_OFFER_CATEGORY_ID` (default 72), `SECOND_OFFER_STAGE_ID` (default `C72:NEW`), `SECOND_OFFER_SOURCE_ID` (default `WEBFORM`), `SECOND_OFFER_TITLE` (default „Neuanfrage“), `SECOND_OFFER_VALUES_JSON` (optional override of the enum values per offer type; an invalid value stops the start).
+   - route start for Alltagshilfe (offer type `ah`, UX-CHANGES U-049): `COMPANY_ADDRESS_AH` (default `Waldstraße 5, 95030 Hof` — owner to confirm the postcode, the letterhead says 95032), optional `COMPANY_AH_LAT` / `COMPANY_AH_LNG` (without them the address is geocoded); every other offer type keeps `COMPANY_ADDRESS` (default `Kornhausacker 10, Hof`)
 2. **Atlas**: create the least-privilege user (D4); allow the server's IP in the Atlas network list.
 3. **Backup**: full `mongodump` of `KonfiguratorDB` + `vigor` (Atlas snapshot plus an offline copy). Restore test on the local replica.
 4. **Fresh local copy** of production → run the checks against it:

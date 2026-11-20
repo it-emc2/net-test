@@ -99,6 +99,10 @@ const EnvSchema = z.object({
   COMPANY_ADDRESS: z.string().default("Kornhausacker 10, Hof"),
   COMPANY_LAT: z.string().optional(),
   COMPANY_LNG: z.string().optional(),
+  /** Alltagshilfe (offer type ah): the route to the customer starts here instead (owner 2026-11-20). Without coordinates the address is geocoded like any other. */
+  COMPANY_ADDRESS_AH: z.string().default("Waldstraße 5, 95030 Hof"),
+  COMPANY_AH_LAT: z.string().optional(),
+  COMPANY_AH_LNG: z.string().optional(),
   GEO_PHOTON_URL: z.string().url().default("https://photon.komoot.io"),
   GEO_NOMINATIM_URL: z.string().url().default("https://nominatim.openstreetmap.org"),
   GEO_ORS_URL: z.string().url().default("https://api.openrouteservice.org"),

@@ -161,7 +161,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerRouting(app, {
     routing: new RoutingService({
       orsApiKey: cfg.ORS_API_KEY, photonUrl: cfg.GEO_PHOTON_URL, nominatimUrl: cfg.GEO_NOMINATIM_URL, orsUrl: cfg.GEO_ORS_URL, osrmUrl: cfg.ROUTE_OSRM_URL,
-      companyAddress: cfg.COMPANY_ADDRESS, companyLat: num(cfg.COMPANY_LAT), companyLng: num(cfg.COMPANY_LNG), log: app.log,
+      companyAddress: cfg.COMPANY_ADDRESS, companyLat: num(cfg.COMPANY_LAT), companyLng: num(cfg.COMPANY_LNG), companyAddressAh: cfg.COMPANY_ADDRESS_AH, companyAhLat: num(cfg.COMPANY_AH_LAT), companyAhLng: num(cfg.COMPANY_AH_LNG), log: app.log,
     }),
     planning: new PlanningClient({ baseUrl: cfg.PLANNING_API_BASE_URL, apiKey: cfg.PLANNING_API_KEY }),
   });

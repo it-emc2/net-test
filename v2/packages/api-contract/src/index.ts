@@ -292,6 +292,8 @@ export const DealRelatedResponseSchema = z.object({
 export type DealRelatedResponse = z.infer<typeof DealRelatedResponseSchema>;
 
 // ---------- route suggestion (distance and travel time to the customer's address) ----------
+/** `offerType` "ah" starts the route at the Alltagshilfe address; without it (or any other type) at the company address */
+export const SuggestDistanceRequestSchema = z.looseObject({ Kundendaten: z.looseObject({}).optional(), offerType: z.string().optional() });
 export const SuggestDistanceResponseSchema = z.looseObject({
   ok: z.boolean(),
   oneWayKm: z.number().nullish(), roundTripKm: z.number().nullish(), oneWaySeconds: z.number().nullish(),
@@ -366,7 +368,7 @@ export const endpoints = {
   products: { method: "GET", path: "/api/products", response: z.array(ProductSchema) },
   /** query: w, l (cm) and either series=SLA (Premium) or source=badolux (Standard) */
   traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
-  suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", response: SuggestDistanceResponseSchema },
+  suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", request: SuggestDistanceRequestSchema, response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
   /** the variants of a deal (ADR 027 A) with their derived status */
   dealVariants: { method: "GET", path: "/api/deals/:dealId/variants", response: DealVariantsResponseSchema },
