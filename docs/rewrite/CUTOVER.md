@@ -42,7 +42,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - Logs: `docker compose logs -f app` (every error has a request id; GlitchTip later, ADR 009).
 - Daily: Bitrix failure log (`/admin` → Bitrix-Logs), email/letter sends, signing completions.
 - `main` keeps evolving until the switch; after the switch, changes go to v2 only (see §5).
-- Signing completions (ADR 027 A, step 3): every signature of a non-AH deal now also writes the signed offer's amount, final total, offer number and offer link to Bitrix. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
+- Signing completions (ADR 027 A, step 3): every signature now also writes the signed offer's amount, final total, offer number and offer link (non-AH) or its AH fields and offer link (AH) to Bitrix; after a signature the „ANG verschickt“ move leaves the deal where it is. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
 
 ## 4. Way back (rollback, ~10 minutes)
 
