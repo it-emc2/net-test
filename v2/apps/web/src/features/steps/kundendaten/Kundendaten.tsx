@@ -3,10 +3,10 @@
 // and property, notes and the internal list. The stored fields are exactly today's
 // (test/kundendaten.test.tsx compares with what today's UI stores for the same inputs).
 // The confirmations of the Kasse and the landlord go straight to the Bitrix deal (uploads.ts).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
-import { Button, Card, CardTitle, Check, Field, Input, Label, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Check, Choices, Field, Input, Label, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { OfferChoice, OfferText } from "../fields.js";
 import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
 import { Markup } from "../markup/Markup.js";
@@ -15,6 +15,7 @@ import { Camera, CircleAlert, CircleCheck, LoaderCircle, Plus, Trash2, X } from 
 import { EMPTY_ROW, TODOS, amountRows, storedWohnumfeld, todoCount, todosOf, usedText, type AmountRow } from "./extras.js";
 import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
+import { hasContactData, hasDeploymentData, hasInsuranceData, showLandlordAnswer, useFollowUp } from "./follow-ups.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
 import { BitrixCustomer, CustomerSearch } from "./CustomerSources.js";
 import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
@@ -64,6 +65,10 @@ function Contact() {
 }
 
 function Address() {
+  // B3: the other place of deployment is asked for after "Ja" (page-only answer; the stored field is the one text)
+  const stored = useOfferStore((s) => hasDeploymentData((s.offer as Record<string, any> | null)?.Kundendaten ?? {}));
+  const [asked, setAsked] = useState<"Ja" | "Nein" | "">("");
+  const [show, answered] = useFollowUp(asked === "Ja", stored);
   return (
     <Card aria-labelledby="kd-address">
       <CardTitle id="kd-address">Adressdaten des Kunden</CardTitle>
@@ -73,21 +78,23 @@ function Address() {
         <OfferText section={KD} name="city" label="Stadt" autoComplete="off" onCommit={toLetter("city")} />
       </div>
       <OfferText section={KD} name="state" label="Bundesland / Provinz" autoComplete="off" />
-      <OfferText section={KD} name="deployment" label="Abweichender Einsatzort" autoComplete="off" />
+      <Choices legend="Abweichender Einsatzort vorhanden?" name="kd-deploymentAsked" options={[{ value: "Ja", label: "Ja" }, { value: "Nein", label: "Nein" }]} value={asked || (show ? "Ja" : undefined)} onChange={(v) => { answered(); setAsked(v as "Ja" | "Nein"); }} />
+      {show ? <OfferText section={KD} name="deployment" label="Abweichender Einsatzort" autoComplete="off" /> : null}
       <OfferChoice section={KD} name="customerType" label="Neukunde oder Bestandskunde?" options={["Neu", "Bestandskunde"]} required />
     </Card>
   );
 }
 
 function ContactPerson() {
-  const has = useOfferField<string>(KD, "hasContactPerson") === "Ja";
+  const stored = useOfferStore((s) => hasContactData((s.offer as Record<string, any> | null)?.Kundendaten ?? {}));
+  const [has, answered] = useFollowUp(useOfferField<string>(KD, "hasContactPerson") === "Ja", stored); // B3: never hide entries
   return (
     <Card aria-labelledby="kd-cp">
       <CardTitle id="kd-cp">Ansprechpartner</CardTitle>
       <OfferChoice
         section={KD} name="hasContactPerson" label="Ansprechpartner vorhanden?" options={["Ja", "Nein"]} required
         // as today: switching back to "Nein" empties the name; the other entries are kept
-        onChoose={(v) => useOfferStore.getState().patch(KD as never, (v === "Nein" ? { hasContactPerson: v, cp_name: "" } : { hasContactPerson: v }) as never)}
+        onChoose={(v) => { answered(); useOfferStore.getState().patch(KD as never, (v === "Nein" ? { hasContactPerson: v, cp_name: "" } : { hasContactPerson: v }) as never); }}
       />
       {has ? (
         <>
@@ -106,6 +113,26 @@ function ContactPerson() {
         </>
       ) : null}
     </Card>
+  );
+}
+
+/** The insurance details of a Kassenkunde — on the page after "Kunde hat Pflegegrad?" = Ja (B3), see follow-ups.ts. */
+function InsuranceFields({ type }: { type: string | null }) {
+  return (
+    <>
+      {/* birth date and insurance number are not asked for a Badumbau (as today) */}
+      {type !== "bu" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <OfferText section={KD} name="kk_geburtsdatum" label="Geburtsdatum" type="date" />
+          <OfferText section={KD} name="kk_versichertennr" label="Versicherungsnummer" placeholder="z. B. A123456789" autoComplete="off" />
+        </div>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <OfferText section={KD} name="kassenkundeName" label="Name der Krankenkasse" placeholder="z. B. AOK Nord" autoComplete="off" />
+        <OfferText section={KD} name="kk_krankenkasseAdresse" label="Adresse der Krankenkasse" placeholder="Straße, PLZ Ort" autoComplete="off" />
+      </div>
+      <OfferText section={KD} name="kk_pflegegradSeit" label="Pflegegrad seit" type="month" />
+    </>
   );
 }
 
@@ -142,18 +169,6 @@ function Payer() {
       <OfferChoice section={KD} name="payer" label="Ist der Kunde Selbstzahler oder Kassenkunde?" options={["Selbstzahler", "Kassenkunde"]} onChoose={pickPayer} />
       {payer === "Kassenkunde" ? (
         <>
-          {/* birth date and insurance number are not asked for a Badumbau (as today) */}
-          {type !== "bu" ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <OfferText section={KD} name="kk_geburtsdatum" label="Geburtsdatum" type="date" />
-              <OfferText section={KD} name="kk_versichertennr" label="Versicherungsnummer" placeholder="z. B. A123456789" autoComplete="off" />
-            </div>
-          ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <OfferText section={KD} name="kassenkundeName" label="Name der Krankenkasse" placeholder="z. B. AOK Nord" autoComplete="off" />
-            <OfferText section={KD} name="kk_krankenkasseAdresse" label="Adresse der Krankenkasse" placeholder="Straße, PLZ Ort" autoComplete="off" />
-          </div>
-          <OfferText section={KD} name="kk_pflegegradSeit" label="Pflegegrad seit" type="month" />
           <OfferChoice section={KD} name="kk_rechnungskopie" label="Kassen-Rechnungskopie gewünscht?" options={[{ value: "ja", label: "Ja" }, { value: "nein", label: "Nein" }]} onChoose={pickCopy} />
           {copy === "ja" ? (
             <OfferChoice section={KD} name="kk_rechnungskopie_art" label="Rechnungskopie per Post oder per E-Mail?" options={[{ value: "post", label: "Per Post" }, { value: "email", label: "Per E-Mail" }]} />
@@ -177,6 +192,8 @@ function CareLevel() {
   const premium = !!useOfferField(KD, "premium");
   const copay = !!useOfferField(KD, "budgetCopay");
   const copayAmount = useOfferField<number>(KD, "copayAmount") ?? 0;
+  const stored = useOfferStore((s) => hasInsuranceData((s.offer as Record<string, any> | null)?.Kundendaten ?? {}));
+  const [insurance, answered] = useFollowUp(has === "Ja", stored); // B3: never hide entries
   if (payer !== "Kassenkunde") return null; // not asked for a Selbstzahler (as today)
   const ticked = { budgetMax, twoPersons, premium };
   const pickMain = (m: MainOption, on: boolean) => {
@@ -194,8 +211,9 @@ function CareLevel() {
   return (
     <Card aria-labelledby="kd-care">
       <CardTitle id="kd-care">Pflegegrad und Budget</CardTitle>
-      <OfferChoice section={KD} name="hasPflegegrad" label="Kunde hat Pflegegrad?" options={["Ja", "Nein"]} required onChoose={(v) => setKd({ ...chooseHasCareLevel(kdNow(), v as "Ja" | "Nein"), ...notForAh })} />
+      <OfferChoice section={KD} name="hasPflegegrad" label="Kunde hat Pflegegrad?" options={["Ja", "Nein"]} required onChoose={(v) => { answered(); setKd({ ...chooseHasCareLevel(kdNow(), v as "Ja" | "Nein"), ...notForAh }); }} />
       {has === "Ja" ? <OfferChoice section={KD} name="pflegegrad" label="Welchen Pflegegrad?" options={levels} required onChoose={(v) => setKd({ pflegegrad: v, ...notForAh })} /> : null}
+      {insurance ? <InsuranceFields type={type} /> : null}
       {showBudget ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
           <legend className="mb-1.5 p-0 font-semibold">Budget</legend>
@@ -301,6 +319,7 @@ function Property() {
   const living = useOfferField<string>(KD, "wohnsituation");
   const needed = useOfferField<string>(KD, "vermieterGenehmigungErforderlich");
   const notes = useOfferField<string>(KD, "notes") ?? "";
+  const kd = { wohnsituation: living, vermieterGenehmigungErforderlich: needed, vermieterGenehmigung: useOfferField<string>(KD, "vermieterGenehmigung") }; // B3: what the landlord's questions depend on
   // a landlord's confirmation that went up answers "liegt vor" with Ja (stored for a rented home only)
   const confirmed = () => useOfferStore.getState().scratch.landlordConfirmed === true;
   const landlordDone = () => { useOfferStore.getState().remember("landlordConfirmed", true); const a = landlordAnswer(kdNow().wohnsituation, true); if (a.vermieterGenehmigung) setKd(a); };
@@ -317,9 +336,9 @@ function Property() {
         </>
       ) : null}
       {notAh ? <OfferChoice section={KD} name="wohnsituation" label="Angabe zur Wohnsituation" options={["Eigentum", "Miete"]} onChoose={(v) => setKd({ ...chooseLivingSituation(v), ...landlordAnswer(v, confirmed()) })} /> : null}
-      {type === "bu" || type === "bwt" || type === "hl" ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
+      {(type === "bu" || type === "bwt" || type === "hl") ? <OfferChoice section={KD} name="vermieterGenehmigungErforderlich" label="Genehmigung des Vermieters erforderlich?" options={JA_NEIN} required /> : null}
       {showVermieter(type, needed) ? <DealUpload kind="vermieter" onDone={landlordDone} /> : null}
-      {notAh && living === "Miete" ? (
+      {notAh && showLandlordAnswer(kd) ? (
         <OfferChoice
           section={KD} name="vermieterGenehmigung" label="Genehmigung des Vermieters liegt vor?" options={["Ja", "Nein", "Noch ausstehend"]}
           // an answer given by hand counts from now on, not the upload before it
