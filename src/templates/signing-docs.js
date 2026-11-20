@@ -177,19 +177,6 @@ const PFLEGEGRAD_GRADES = [
   { value: "beantragt", label: "beantragt" },
 ];
 
-function pflegegradField(value, mode) {
-  if (mode === "pdf") {
-    const marks = PFLEGEGRAD_GRADES.map(
-      (g) => `${g.value === String(value) ? "☒" : "☐"} ${g.label}`,
-    ).join(" &nbsp; ");
-    return `<div class="row"><span class="label">Pflegegrad:</span><span>${marks}</span></div>`;
-  }
-  return `<div class="fld"><span class="fld-label">Pflegegrad:</span><span class="pg-opts">${PFLEGEGRAD_GRADES.map(
-    (g) =>
-      `<label><input type="radio" name="pflegegrad" value="${g.value}"${g.value === String(value) ? " checked" : ""} disabled> ${g.label}</label>`,
-  ).join("")}</span></div>`;
-}
-
 function editButton() {
   return `<button type="button" class="edit-toggle" data-editing="0">✎ Bearbeiten</button>`;
 }
@@ -808,106 +795,282 @@ function displayFragment(inner) {
   return `<div class="signdoc"><style>${DOC_CSS}${INTERACTIVE_CSS}</style>${inner}</div>`;
 }
 
+// Layout of the Vollmacht mirrors the paper form 8.2.1.0 (header line with
+// form number + logo, centred title, underlined fill-in lines, footer). Scoped
+// to .vm so the other documents keep their look; used in PDF and on screen.
+const VM_CSS = `
+.vm { font-family: Arial, Helvetica, sans-serif; color:#111; line-height:1.4; }
+.vm .vm-head { display:flex; align-items:flex-end; gap:0; margin-bottom:14px; }
+.vm .vm-head .vm-formno { flex:1; font-weight:bold; font-size:12pt; padding-bottom:8px; border-bottom:2px solid #2f6eb5; align-self:stretch; display:flex; align-items:flex-start; }
+.vm .vm-head img { height:70px; width:auto; border-bottom:2px solid #2f6eb5; padding:0 0 4px 6px; margin-bottom:0; }
+.vm .vm-title { text-align:center; font-weight:bold; font-size:12.5pt; margin:18px 0 14px; }
+.vm .vm-bev { display:grid; grid-template-columns:150px 1fr; gap:4px 10px; margin:0 0 16px; }
+.vm .vm-bev b { font-weight:bold; }
+.vm h2, .vm .editsec h2 { background:none; border:0; padding:0; font-size:11.5pt; font-weight:bold; margin:16px 0 6px; }
+.vm .vm-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; margin:12px 0; }
+.vm .vm-grp { display:flex; align-items:baseline; gap:8px; flex:1 1 220px; min-width:0; }
+.vm .vm-grp.wide { flex:1 1 100%; }
+.vm .vm-lbl { white-space:nowrap; }
+.vm .vm-val { flex:1; min-width:0; border-bottom:1px solid #111; padding:0 2px 1px; min-height:1.3em; }
+.vm .vm-grp input[type=text] { flex:1; min-width:0; width:100%; border:0; border-bottom:1px solid #111; background:transparent; font:inherit; font-size:12pt; padding:2px 2px 1px; color:#111; }
+.vm .vm-grp input[type=text]:not(:disabled) { background:#fffdf0; }
+.vm .vm-grp input:disabled { color:#111; -webkit-text-fill-color:#111; opacity:1; }
+.vm .vm-grp .vm-sep { flex:0; }
+.vm .vm-grp input[data-edit-field=postalCode] { flex:0 0 80px; }
+.vm ol { margin:8px 0 8px 0; padding-left:44px; }
+.vm ol li { margin:2px 0; }
+.vm .vm-hint { font-size:8.5pt; font-weight:bold; margin:14px 0 0; }
+.vm .vm-foot { display:flex; justify-content:space-between; align-items:flex-start; border-top:2px solid #2f6eb5; margin-top:28px; padding-top:6px; font-size:10pt; }
+.vm .vm-foot span:last-child { text-align:right; }
+/* PDF: compact so it stays on one A4 page like the paper form */
+.vm.pdf { font-size:10pt; line-height:1.3; }
+.vm.pdf p { margin:4px 0; }
+.vm.pdf .vm-head img { height:56px; }
+.vm.pdf .vm-title { margin:10px 0 10px; font-size:12pt; }
+.vm.pdf .vm-bev { margin-bottom:8px; }
+.vm.pdf h2 { margin:10px 0 4px; font-size:10.5pt; }
+.vm.pdf .vm-line { margin:7px 0; }
+.vm.pdf ol { margin:4px 0; }
+.vm.pdf ol li { margin:0; }
+.vm.pdf .audit { margin-top:6px; }
+.vm.pdf .vm-hint { font-size:8pt; margin-top:8px; }
+.vm.pdf .vm-foot { margin-top:14px; font-size:9pt; }
+`;
+
+// One underlined fill-in value: plain text in the PDF, an input (locked until
+// "Bearbeiten") on screen. Keys stay the same as before so saving/validation
+// (signpage/app.js, routes/signing.js) is unchanged.
+function vmVal(key, value, mode, placeholder) {
+  if (mode === "pdf") return `<span class="vm-val">${esc(value)}</span>`;
+  return `<input type="text" data-edit-field="${key}" value="${esc(value)}" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}" disabled>`;
+}
+
 export function buildVollmachtHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
   const pdfLike = mode === "pdf" || doc.status === "signed";
-  const entlastung = !!doc.extraFields?.entlastungsguthaben;
-  const budgetWuM = doc.extraFields?.budgetWuM !== false; // default on
   const editBtn = mode === "pdf" ? "" : " " + editButton();
   // AH and BU are two legally distinct Vollmachten: AH only queries the
   // Entlastungsbudget (§45b, EmC2 Soziale Dienste UG), BU only applies for the
-  // Zuschuss (§40 Abs. 3,4,5, EmC2 Attila Landgrafe).
+  // Zuschuss (§40 Abs. 3,4,5, EmC2 Attila Landgrafe). Wording + layout mirror
+  // assets/Email/Vollmacht.pdf and Vollmacht_SGB_45b_*.pdf — keep in sync.
   const ah = isAhSr(sr);
   const scope = ah
-    ? "Vollmacht zur Abfrage des Entlastungsbudgets nach §45b SGB XI."
-    : "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI.";
-  const bevollmaechtigter = ah
-    ? "EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof"
-    : "EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof";
-
-  const guthaben = ah
-    ? pdfLike
-      ? `<div class="box">
-           <div class="opt">${entlastung ? "☒" : "☐"} aktuelles Entlastungsguthaben</div>
-         </div>`
-      : `<div class="box">
-           <label class="opt-label"><input type="checkbox" id="entlastungCheckbox" checked><span>aktuelles Entlastungsguthaben (§45b SGB XI)</span></label>
-         </div>`
-    : pdfLike
-      ? `<div class="box">
-           <div class="opt">${budgetWuM ? "☒" : "☐"} Budget für Wohnumfeldverbessernde Maßnahmen</div>
-         </div>`
-      : `<div class="box">
-           <label class="opt-label"><input type="checkbox" id="budgetWuMCheckbox" checked><span>Budget für Wohnumfeldverbessernde Maßnahmen</span></label>
-         </div>`;
+    ? "Vollmacht zur Abfrage des Entlastungsbudgets nach §45b SGB XI"
+    : "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI";
+  const firma = ah ? "EmC2 Soziale Dienste UG (haftungsbeschränkt)" : "EmC2 Attila Landgrafe";
+  const gegenstand = ah
+    ? "alle Angelegenheiten, die im Zusammenhang mit dem Entlastungsbudget nach §45b SGB XI bei meiner Krankenkasse stehen"
+    : "alle Angelegenheiten, die im Zusammenhang mit der Beantragung des Zuschusses gem. §40 SGB XI bei meiner Krankenkasse stehen";
+  const formDate = ah ? "17.09.2025" : "17.09.2026"; // as printed on the two forms
+  const common = [
+    "Die Kommunikation mit der Krankenkasse per Telefon, Brief, E-Mail oder anderen geeigneten Kommunikationsmitteln.",
+    "Die Anforderung und Prüfung von Bescheiden sowie die Geltendmachung von Widersprüchen.",
+    "Die Entgegennahme von Informationen und Unterlagen im Zusammenhang mit meinem Versicherungsverhältnis.",
+  ];
+  const punkte = ah
+    ? ["Die Abfrage des aktuellen Guthabens bzgl. des Entlastungsbudgets", ...common]
+    : [
+        "Das Unterschreiben im Auftrag des Kunden, Einreichen und Verfolgen von Anträgen auf Leistungen der Pflege- oder Krankenkasse für wohnumfeldverbessernde Maßnahmen gemäß §40 SGB XI.",
+        ...common,
+        "Die Abfrage des aktuell verfügbaren <b>Budgets für Wohnumfeldverbessernde Maßnahmen</b>",
+      ];
+  const v = (key, ph) => vmVal(key, f[key], mode, ph);
+  const sep = mode === "pdf" ? "" : `<span class="vm-sep">,</span>`;
+  // PDF shows the combined lines like the paper form; on screen each part
+  // stays its own input so it can be corrected and validated separately.
+  const nameVal =
+    mode === "pdf"
+      ? `<span class="vm-val">${esc([f.lastName, f.firstName].filter(Boolean).join(", "))}</span>`
+      : `${v("lastName", "Name")}${sep}${v("firstName", "Vorname")}`;
+  const adrVal =
+    mode === "pdf"
+      ? `<span class="vm-val">${esc(`${f.street}, ${f.postalCode} ${f.city}`.replace(/^,\s*|\s*,\s*$/g, "").trim())}</span>`
+      : `${v("street", "Straße, Nr.")}${sep}${v("postalCode", "PLZ")}${v("city", "Ort")}`;
+  const logo = logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : "";
 
   const body = `
-    ${docHeader()}
-    <h1>Vollmacht für die Krankenkasse</h1>
-    <p class="muted">${scope}</p>
-    <div class="box">
-      <div class="row"><span class="label">Bevollmächtigter:</span> <span>${bevollmaechtigter}</span></div>
+    <style>${VM_CSS}</style>
+    <div class="vm${mode === "pdf" ? " pdf" : ""}">
+    <div class="vm-head"><div class="vm-formno">8.2.1.0_Vollmacht für Krankenkasse</div>${logo}</div>
+    <div class="vm-title">${scope}</div>
+    <div class="vm-bev">
+      <b>Bevollmächtigter:</b>
+      <span>${firma}, Waldstraße 5, 95032 Hof<br>+49 9281 591 59 00, <u>service@e-m-c-2.de</u></span>
     </div>
     <div class="editsec">
-      <h2>Vollmachtgeber/in${editBtn}</h2>
-      <div class="box">
-        ${fld("Nachname:", "lastName", f.lastName, mode)}
-        ${fld("Vorname:", "firstName", f.firstName, mode)}
-        ${fld("Straße:", "street", f.street, mode)}
-        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
-        ${fld("Ort:", "city", f.city, mode)}
-        ${fld("Telefon:", "phone", f.phone, mode)}
-        ${fld("Geburtsdatum:", "geburtsdatum", f.geburtsdatum, mode)}
-        ${fld("Krankenkasse:", "kassenkundeName", f.kassenkundeName, mode)}
-        ${fld("KVNR:", "kk_versichertennr", f.kk_versichertennr, mode)}
+      <h2>Vollmachtgeber/in:${editBtn}</h2>
+      <div class="vm-line"><div class="vm-grp wide"><span class="vm-lbl">Name, Vorname:</span>${nameVal}</div></div>
+      <div class="vm-line"><div class="vm-grp wide"><span class="vm-lbl">Adresse:</span>${adrVal}</div></div>
+      <div class="vm-line">
+        <div class="vm-grp"><span class="vm-lbl">Telef.-Nr.:</span>${v("phone", "Telefon")}</div>
+        <div class="vm-grp"><span class="vm-lbl">Geburtsdatum:</span>${v("geburtsdatum", "TT.MM.JJJJ")}</div>
+      </div>
+      <div class="vm-line">
+        <div class="vm-grp"><span class="vm-lbl">Krankenkasse:</span>${v("kassenkundeName", "Krankenkasse")}</div>
+        <div class="vm-grp"><span class="vm-lbl">KVNR:</span>${v("kk_versichertennr", "KVNR")}</div>
       </div>
     </div>
-    <h2>Abzufragende Guthaben</h2>
-    ${guthaben}
-    <p class="muted">Diese Vollmacht gilt bis auf Widerruf oder bis das Vertragsverhältnis
-    aufgehoben wird und kann jederzeit schriftlich widerrufen werden.</p>`;
+    <h2>Gegenstand der Vollmacht:</h2>
+    <p style="margin:0;">Hiermit bevollmächtige ich die oben genannte Firma ${firma}, ${gegenstand}, in meinem Namen
+    zu regeln. Diese Vollmacht umfasst insbesondere, aber nicht ausschließlich:</p>
+    <ol>${punkte.map((p) => `<li>${p}</li>`).join("")}</ol>
+    <h2>Einwilligungserklärung zur Datenübermittlung:</h2>
+    <p>Ich willige ein, dass meine Krankenkasse dem Bevollmächtigten alle erforderlichen Informationen zu
+    meinem Versicherungsverhältnis sowie zu beantragten oder laufenden Leistungen übermitteln darf. Dies
+    umfasst auch sensible Gesundheitsdaten, soweit dies zur Durchführung der oben genannten Aufgaben
+    erforderlich ist.</p>
+    <h2>Dauer der Vollmacht:</h2>
+    <p>Diese Vollmacht gilt bis auf Widerruf oder bis das Vertragsverhältnis zwischen dem Bevollmächtigten
+    und Ihnen aufgehoben wird. Sie kann jederzeit von mir schriftlich gegenüber dem Bevollmächtigten
+    widerrufen werden.</p>`;
+  const tail = `
+    <p class="vm-hint">Hinweis: Diese Vollmacht ist im Original oder als Kopie der zuständigen Krankenkasse
+    vorzulegen, sofern dies erforderlich ist. Die ${firma} wird sorgfältig und im Rahmen der gesetzlichen
+    Vorschriften mit den ihr anvertrauten Daten umgehen.</p>
+    <div class="vm-foot"><span>8.2.1.0 gemeinsame Dokumente Vertrieb</span><span>1 / 1</span><span>Index: 02<br>Datum: ${formDate}</span></div>
+    </div>`;
+  const sigHeading = "Ort, Datum und Unterschrift Vollmachtgeber/in";
 
-  if (mode === "pdf") return wrap("Vollmacht für die Krankenkasse", body + signatureBlock(doc, f));
-  if (pdfLike) return displayFragment(body + signatureBlock(doc, f));
-  return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & weiter"));
+  if (mode === "pdf")
+    return wrap("Vollmacht für Krankenkasse", body + signatureBlock(doc, f, { heading: sigHeading }) + tail);
+  if (pdfLike) return displayFragment(body + signatureBlock(doc, f, { heading: sigHeading }) + tail);
+  return displayFragment(
+    body + interactiveSignatureBlock({ heading: sigHeading }) + tail + submitBar("Unterschreiben & weiter"),
+  );
+}
+
+// Abtretungserklärung, laid out like the paper form "V3" (blue header line +
+// logo, bordered label/value table, Ort / Datum + Unterschrift lines, footer).
+// BU (§40, EmC2 Attila Landgrafe) and AH (§45b, EmC2 Soziale Dienste UG) share
+// it; field keys are unchanged so saving/validation stays as before.
+const AB_CSS = `
+.vm .ab-title { font-weight:bold; font-size:14pt; margin:16px 0 4px; }
+.vm .ab-title2 { font-weight:bold; font-size:14pt; text-align:center; margin:0 0 14px; }
+.vm .ab-sec { margin:14px 0 6px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.vm table.ab-tab { width:100%; border-collapse:collapse; margin:0 0 10px; }
+.vm .ab-tab td { border:1px solid #111; padding:6px 8px; vertical-align:top; }
+.vm .ab-tab td:first-child { width:22%; white-space:nowrap; }
+.vm .ab-tab input[type=text] { width:100%; border:0; border-bottom:1px solid transparent; background:transparent; font:inherit; font-size:12pt; padding:2px; color:#111; }
+.vm .ab-tab input[type=text]:not(:disabled) { border-bottom-color:#111; background:#fffdf0; }
+.vm .ab-tab input:disabled { color:#111; -webkit-text-fill-color:#111; opacity:1; }
+.vm .ab-adr { display:flex; flex-wrap:wrap; gap:4px 8px; }
+.vm .ab-adr input[data-edit-field=street] { flex:1 1 100%; }
+.vm .ab-adr input[data-edit-field=postalCode] { flex:0 0 80px; }
+.vm .ab-adr input[data-edit-field=city] { flex:1 1 120px; width:auto; }
+.vm .ab-pg { display:flex; flex-wrap:wrap; gap:6px 16px; align-items:center; }
+.vm .ab-pg label { display:flex; gap:5px; align-items:center; }
+.vm .ab-sigs { display:flex; gap:40px; margin-top:26px; align-items:flex-end; }
+.vm .ab-sigs > div { flex:0 1 240px; }
+.vm .ab-sigs .ab-line { border-top:1px solid #111; padding-top:3px; }
+.vm .ab-foot { display:flex; justify-content:space-between; gap:12px; border-top:2px solid #2f6eb5; margin-top:6px; padding-top:6px; font-size:9pt; }
+.vm .ab-foot span:nth-child(2) { text-align:center; }
+.vm .ab-foot span:last-child { text-align:right; }
+.vm.pdf .ab-title, .vm.pdf .ab-title2 { font-size:13pt; }
+.vm.pdf .ab-tab td { padding:5px 8px; }
+`;
+
+function abtretungDoc(sr, doc, mode, ah) {
+  const f = resolveFields(sr, doc);
+  const pdfLike = mode === "pdf" || doc.status === "signed";
+  const editBtn = mode === "pdf" ? "" : editButton();
+  const cell = (key) =>
+    mode === "pdf"
+      ? esc(f[key])
+      : `<input type="text" data-edit-field="${key}" value="${esc(f[key])}" aria-label="${key}" disabled>`;
+  const adr =
+    mode === "pdf"
+      ? `${esc(f.street)}<br>${esc(`${f.postalCode} ${f.city}`.trim())}`
+      : `<div class="ab-adr">${cell("street")}${cell("postalCode")}${cell("city")}</div>`;
+  const pg =
+    mode === "pdf"
+      ? PFLEGEGRAD_GRADES.map((g) => `${g.value === String(f.pflegegrad) ? "☒" : "☐"} ${g.label}`).join(" &nbsp; ")
+      : `<span class="ab-pg">${PFLEGEGRAD_GRADES.map(
+          (g) =>
+            `<label><input type="radio" name="pflegegrad" value="${g.value}"${g.value === String(f.pflegegrad) ? " checked" : ""} disabled> ${g.label}</label>`,
+        ).join("")}<span>(bitte ankreuzen)</span></span>`;
+  const row = (label, val) => `<tr><td>${label}</td><td>${val}</td></tr>`;
+  const firmaLines = ah
+    ? ["EmC2 Soziale Dienste UG (haftungsbeschränkt)", "Waldstraße 5", "95032 Hof"]
+    : ["EmC2", "Attila Landgrafe", "Waldstraße 5", "95032 Hof"];
+  const title = ah
+    ? ["Abtretungserklärung für zusätzliche Betreuungsleistungen", "§ 45b SGB XI"]
+    : ["Abtretungserklärung für wohnumfeldverbessernde Maßnahmen", "§ 40 SGB XI"];
+  const leistung = ah
+    ? `<ul style="margin:6px 0 0 22px;padding:0;">
+         <li>die Leistungen nach § 45b SGB XI direkt mit der Pflegekasse abrechnen darf.</li>
+         <li>mein aktuelles Entlastungsguthaben regelmäßig bei der Pflegekasse abfragen darf.</li>
+       </ul>`
+    : `<div>die Leistungen nach § 40 SGB XI direkt mit der Pflegekasse abrechnen darf.</div>`;
+  const logo = logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : "";
+
+  const body = `
+    <style>${VM_CSS}${AB_CSS}</style>
+    <div class="vm${mode === "pdf" ? " pdf" : ""}">
+    <div class="vm-head"><div class="vm-formno"></div>${logo}</div>
+    <div class="ab-title">${title[0]}</div>
+    <div class="ab-title2">${title[1]}</div>
+    <div class="editsec">
+      <div class="ab-sec"><span>Kontaktdaten Auftraggeber:</span>${editBtn}</div>
+      <table class="ab-tab">
+        ${row("Nachname:", cell("lastName"))}
+        ${row("Vorname:", cell("firstName"))}
+        ${row("Geburtstag:", cell("geburtsdatum"))}
+        ${row("Vers.-Nr.:", cell("kk_versichertennr"))}
+        ${row("Adresse:", adr)}
+        ${row("Telefon:", cell("phone"))}
+        ${row("E-Mail:", cell("email"))}
+        ${row("Pflegegrad:", pg)}
+        ${row("Pflegegrad seit:", cell("kk_pflegegradSeit"))}
+      </table>
+    </div>
+    <div class="editsec">
+      <div class="ab-sec"><span>Kontaktdaten Pflegekasse:</span>${editBtn}</div>
+      <table class="ab-tab">
+        ${row("Name:", cell("kassenkundeName"))}
+        ${row("Adresse:", cell("kk_krankenkasseAdresse"))}
+      </table>
+    </div>
+    <p>Sehr geehrte Damen und Herren,</p>
+    <p>hiermit erteile ich eine Abtretungserklärung und mein Einverständnis, dass der Anbieter</p>
+    <div>${firmaLines.join("<br>")}</div>
+    ${leistung}`;
+
+  // Signature: "Ort / Datum" + "Unterschrift" lines side by side, as on paper.
+  const signedAt = doc.signedAt ? new Date(doc.signedAt) : new Date();
+  const ortDatum = `${esc(doc.place || f.city || "")}, ${signedAt.toLocaleDateString("de-DE")}`;
+  let sig;
+  if (pdfLike) {
+    const img =
+      doc.signatureImage && isValidSignatureDataUrl(doc.signatureImage)
+        ? `<img class="sig-img" src="${esc(doc.signatureImage)}" alt="Unterschrift">`
+        : "";
+    sig = `
+    <div class="ab-sigs">
+      <div><div>${ortDatum}</div><div class="ab-line">Ort / Datum</div></div>
+      <div>${img}<div class="ab-line">Unterschrift</div></div>
+    </div>
+    <div class="audit">Elektronisch signiert am ${signedAt.toLocaleString("de-DE")} ·
+      IP: ${esc(doc.signedIp || "-")} · über den Online-Signatur-Link der EmC2 Attila Landgrafe.</div>`;
+  } else {
+    sig = `
+    <div class="ab-sigs"><div><div>${ortDatum}</div><div class="ab-line">Ort / Datum</div></div></div>
+    ${interactiveSignatureBlock({ heading: "Unterschrift" })}`;
+  }
+  const foot = `
+    <div class="ab-foot">
+      <span>${(ah ? ["EmC2 Soziale Dienste UG", "Waldstraße 5", "95032 Hof"] : ["EmC2", "Waldstraße 5", "95032 Hof"]).join("<br>")}</span>
+      <span>Abtretungserklärung für<br>${ah ? "zusätzliche Betreuungsleistungen" : "wohnumfeldverbessernde Maßnahmen"}</span>
+      <span>25.07.2025<br>V3<br>Seite 1 von 1</span>
+    </div>
+    </div>`;
+
+  if (mode === "pdf") return wrap(`${title[0]} ${title[1]}`, body + sig + foot);
+  if (pdfLike) return displayFragment(body + sig + foot);
+  return displayFragment(body + sig + foot + submitBar("Unterschreiben & absenden"));
 }
 
 export function buildAbtretungHtml(sr, doc, mode = "pdf") {
-  const f = resolveFields(sr, doc);
-  const editBtn = mode === "pdf" ? "" : " " + editButton();
-  const body = `
-    ${docHeader()}
-    <h1>Abtretungserklärung für wohnumfeldverbessernde Maßnahmen § 40 SGB XI</h1>
-    <div class="editsec">
-      <h2>Kontaktdaten Auftraggeber${editBtn}</h2>
-      <div class="box">
-        ${fld("Nachname:", "lastName", f.lastName, mode)}
-        ${fld("Vorname:", "firstName", f.firstName, mode)}
-        ${fld("Geburtstag:", "geburtsdatum", f.geburtsdatum, mode)}
-        ${fld("Vers.-Nr.:", "kk_versichertennr", f.kk_versichertennr, mode)}
-        ${fld("Straße:", "street", f.street, mode)}
-        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
-        ${fld("Ort:", "city", f.city, mode)}
-        ${fld("Telefon:", "phone", f.phone, mode)}
-        ${fld("E-Mail:", "email", f.email, mode)}
-        ${pflegegradField(f.pflegegrad, mode)}
-        ${fld("Pflegegrad seit:", "kk_pflegegradSeit", f.kk_pflegegradSeit, mode)}
-      </div>
-    </div>
-    <div class="editsec">
-      <h2>Kontaktdaten Pflegekasse${editBtn}</h2>
-      <div class="box">
-        ${fld("Name:", "kassenkundeName", f.kassenkundeName, mode)}
-        ${fld("Adresse:", "kk_krankenkasseAdresse", f.kk_krankenkasseAdresse, mode)}
-      </div>
-    </div>
-    <p class="muted">Hiermit erteile ich meine Abtretungserklärung und mein Einverständnis,
-    dass der Anbieter EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof, die Leistungen nach
-    §40 SGB XI direkt mit der Pflegekasse abrechnen darf.</p>`;
-
-  if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, f));
-  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
-  return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
+  return abtretungDoc(sr, doc, mode, false);
 }
 
 // ---- AH (Alltagshilfe) — Zusatzblatt + Abtretungserklärung §45b SGB XI ----
@@ -1017,43 +1180,5 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
 }
 
 export function buildAbtretungAhHtml(sr, doc, mode = "pdf") {
-  const f = resolveFields(sr, doc);
-  const editBtn = mode === "pdf" ? "" : " " + editButton();
-  const body = `
-    ${docHeader()}
-    <h1>Abtretungserklärung für zusätzliche Betreuungsleistungen § 45b SGB XI</h1>
-    <div class="editsec">
-      <h2>Kontaktdaten Auftraggeber${editBtn}</h2>
-      <div class="box">
-        ${fld("Nachname:", "lastName", f.lastName, mode)}
-        ${fld("Vorname:", "firstName", f.firstName, mode)}
-        ${fld("Geburtstag:", "geburtsdatum", f.geburtsdatum, mode)}
-        ${fld("Vers.-Nr.:", "kk_versichertennr", f.kk_versichertennr, mode)}
-        ${fld("Straße:", "street", f.street, mode)}
-        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
-        ${fld("Ort:", "city", f.city, mode)}
-        ${fld("Telefon:", "phone", f.phone, mode)}
-        ${fld("E-Mail:", "email", f.email, mode)}
-        ${pflegegradField(f.pflegegrad, mode)}
-        ${fld("Pflegegrad seit:", "kk_pflegegradSeit", f.kk_pflegegradSeit, mode)}
-      </div>
-    </div>
-    <div class="editsec">
-      <h2>Kontaktdaten Pflegekasse${editBtn}</h2>
-      <div class="box">
-        ${fld("Name:", "kassenkundeName", f.kassenkundeName, mode)}
-        ${fld("Adresse:", "kk_krankenkasseAdresse", f.kk_krankenkasseAdresse, mode)}
-      </div>
-    </div>
-    <p class="muted">Hiermit erteile ich eine Abtretungserklärung und mein Einverständnis, dass der Anbieter
-    EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</p>
-    <ul style="margin:8px 0 8px 22px;padding:0;">
-      <li>die Leistungen nach § 45b SGB XI direkt mit der Pflegekasse abrechnen darf.</li>
-      <li>mein aktuelles Entlastungsguthaben regelmäßig bei der Pflegekasse abfragen darf.</li>
-    </ul>`;
-
-  if (mode === "pdf")
-    return wrap("Abtretungserklärung § 45b SGB XI", body + signatureBlock(doc, f));
-  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
-  return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
+  return abtretungDoc(sr, doc, mode, true);
 }
