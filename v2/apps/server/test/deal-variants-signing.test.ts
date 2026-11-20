@@ -12,6 +12,7 @@ import { loadConfig } from "@oc/config";
 import { DealVariantsResponseSchema } from "@oc/api-contract";
 import { buildApp } from "../src/app.js";
 import { buildQS } from "../src/integrations/bitrix.js";
+import { ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { buildAhBitrixFields } from "../src/integrations/bitrix-deal.js";
 import { hashPassword } from "../src/platform/auth.js";
 import { connectDb, disconnectDb } from "../src/platform/db.js";
@@ -147,6 +148,13 @@ async function signAll(tok: string) {
 const LINK = (nr: string) => `http://oc.test/?offer=${encodeURIComponent(nr)}`;
 const SZ_STAGE = { categoryId: "38", stageId: "C38:UC_5DII17" };
 const KASSE_STAGE = { categoryId: "38", stageId: "C38:UC_ON3GS1", UF_CRM_1771944212969: "8396", UF_CRM_1771944969284: "8400", UF_CRM_1772533113350: "8412", UF_CRM_1772533223056: "8418" };
+/** ADR 028 (owner 2026-11-20): the AH deal amount — THE AH total function on the payload as sent
+ *  (Selbstzahler: gross = net + 7 %), the figure the „ANG verschickt“ move writes */
+const ahAmount = (payload: unknown) => {
+  const t = ahOfferTotals(ahDocumentInput(payload as any, { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 }));
+  return { opportunity: String(t.customerAmount), isManualOpportunity: "Y", currencyId: "EUR" };
+};
+
 const amount = (t: string, nr: string) => ({ opportunity: t, isManualOpportunity: "Y", currencyId: "EUR", UF_CRM_1768391021079: t, UF_CRM_1776156870205: nr, UF_CRM_1790772236055: LINK(nr) });
 
 describe("one variant: today's completion plus the signed offer's amount fields", () => {
@@ -184,16 +192,20 @@ describe("one variant: today's completion plus the signed offer's amount fields"
   /** the AH fields the „ANG verschickt“ move writes, from the payload as sent — without the Anfahrtszone (filled once by the move) */
   const ahFields = (payload: unknown, nr: string) => flat({ ...buildAhBitrixFields(payload, "keep"), UF_CRM_1790772236055: LINK(nr) });
 
-  it("AH (owner 2026-11-20): stage + the AH fields of the offer as sent + its link — no amount, no number; one update", async () => {
+  it("AH (owner 2026-11-20, ADR 028): stage + the AH fields of the offer as sent + its link + the deal amount — no final total, no number; one update", async () => {
     const DEAL = "9612";
     await firstVariant(DEAL, "S1-AH", AH);
     const tok = await handOver(DEAL, "S1-AH", AH, { total: 999 });
     const calls = await signAll(tok);
     expect(calls.filter((c) => c.method === "crm.item.update")).toHaveLength(1);
     const [u] = updates(calls);
-    expect(u).toEqual({ id: DEAL, fields: { ...AH_STAGE, ...ahFields(AH, "S1-AH") } });
+    expect(u).toEqual({ id: DEAL, fields: { ...AH_STAGE, ...ahFields(AH, "S1-AH"), ...ahAmount(AH) } });
     expect(Object.keys(u!.fields).length).toBeGreaterThan(4); // the AH fields really are there
-    expect(u!.fields).not.toHaveProperty("opportunity");
+    expect(AH.Kundendaten.payer).toBe("Selbstzahler");
+    const net = ahOfferTotals(ahDocumentInput(AH, { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 })).net;
+    const vat = Math.round(net * 0.07 * 100) / 100;
+    expect(Number(u!.fields.opportunity)).toBe(Math.round((net + vat) * 100) / 100); // gross (DOCX rounding), not net, not the 999 of the record
+    expect(u!.fields).not.toHaveProperty("UF_CRM_1768391021079");
     expect(u!.fields).not.toHaveProperty("UF_CRM_1776156870205");
     expect(u!.fields).not.toHaveProperty("UF_CRM_1711019971"); // zone: never at a signature
   });
@@ -206,7 +218,8 @@ describe("one variant: today's completion plus the signed offer's amount fields"
     await db().collection("offers").deleteMany({ offerNumber: "S2-AH" });
     const calls = await signAll(tok);
     expect(updates(calls)).toEqual([{ id: DEAL, fields: { ...AH_STAGE, UF_CRM_1790772236055: LINK("S2-AH") } }]);
-    await wait();
+    // the event is written without waiting for it (reportError) — give it up to 2 s
+    for (let i = 0; i < 40 && !(await errorCodes(DEAL)).includes("SIGNING_AMOUNT_MISSING"); i++) await wait(50);
     expect(await errorCodes(DEAL)).toContain("SIGNING_AMOUNT_MISSING");
   });
 });
@@ -311,7 +324,8 @@ describe("AH, two variants", () => {
     const tokA = await handOver(DEAL, "AHA-1", AH, { variantId: "v1" });
     await handOver(DEAL, "AHB-1", AH_B, { variantId: B }); // B is the last sent
     const calls = await signAll(tokA);
-    expect(updates(calls)).toEqual([{ id: DEAL, fields: { categoryId: "52", stageId: "C52:UC_7NLTX7", ...flat({ ...fa, UF_CRM_1790772236055: LINK("AHA-1") }) } }]);
+    expect(updates(calls)).toEqual([{ id: DEAL, fields: { categoryId: "52", stageId: "C52:UC_7NLTX7", ...flat({ ...fa, UF_CRM_1790772236055: LINK("AHA-1") }), ...ahAmount(AH) } }]);
+    expect(ahAmount(AH_B).opportunity).not.toBe(ahAmount(AH).opportunity); // signed wins: A's amount, not the last sent B's
     expect((await call("GET", `/api/deals/${DEAL}/variants`)).body.variants.map((v: any) => v.status)).toEqual(["signed", "not-chosen"]);
   });
 });

@@ -27,6 +27,7 @@ import {
   docKeysFor, docLabel, extractPrefill, hasPaymentChoice, isAhOffer, isExpired, isPartnerKey, recomputeStatus, resolveFields,
 } from "./fields.js";
 import { documentHtml, documentPdf, signedPdf, type SigningRenderer } from "./documents.js";
+import { ahTotalsOfPayload } from "../documents/index.js";
 import {
   OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, handEditedOf, handEditedSentBody, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
   sendForSigning, storeSendFile, type SendFile,
@@ -391,18 +392,22 @@ export function signingService(d: SigningDeps) {
           const { computed } = await d.renderer.renderData(sr.payloadSnapshot || {});
           selfPayAmount = Number(computed?.selfPayAmount) || 0;
         }
-        // ADR 027 A: the signed offer's sent total, number and link (not AH — its field set stays
-        // as today; not when the variant could not be found among several)
+        // ADR 027 A: the signed offer's sent total, number and link (AH: its own field set, below;
+        // not when the variant could not be found among several)
         let signedOffer: SignedOffer | undefined;
         if (dec.kind !== "unknown" && !isAhOffer(sr)) {
           const total = await sentTotal(sr).catch(() => null);
           if (total === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "no sent total for the signed offer — amount left as it was", dealId);
           signedOffer = { total, offerNumber: String(sr.offerNumber || "") };
         } else if (dec.kind !== "unknown") {
-          // AH (owner 2026-11-20): the AH fields of the signed offer AS SENT + its link
+          // AH (owner 2026-11-20): the AH fields of the signed offer AS SENT + its link; ADR 028: and
+          // its amount — the figure the „ANG verschickt“ move writes: THE AH total function on the
+          // payload as sent (an on-site hand-over records no total; a record made before ADR 028
+          // holds the net also for a Selbstzahler). Without the payload: the record's total.
           const ahPayload = await sentPayload(sr).catch(() => null);
           if (ahPayload === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "AH: no sent payload for the signed offer — AH fields left as they were", dealId);
-          signedOffer = { ah: true, ahPayload, offerNumber: String(sr.offerNumber || "") };
+          const total = ahPayload ? ahTotalsOfPayload(ahPayload).customerAmount : await sentTotal(sr).catch(() => null);
+          signedOffer = { ah: true, ahPayload, total, offerNumber: String(sr.offerNumber || "") };
         }
         await d.deals.updateDealAfterSigning({
           dealId: sr.bitrixEntityId, customerType: sr.customerType, selfPayAmount,

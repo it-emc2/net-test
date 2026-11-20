@@ -1,5 +1,5 @@
 // @ts-nocheck
-// GENERATED copy of src/routes/docx-template.js with 12 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
+// GENERATED copy of src/routes/docx-template.js with 15 import/runtime rewrites (see v2/scripts/port-verbatim.mjs) — do not edit. Re-port: node v2/scripts/port-verbatim.mjs
 // Drift guard: apps/server/test/verbatim-ports.test.ts
 /* eslint-disable no-control-regex */
 /* eslint-disable no-undef */
@@ -22,6 +22,7 @@ import ProductModel from "../shims/product-model.js";
 import User from "../shims/user-model.js";
 import pricingFactory from "../shims/pricing.js";
 import cfg from "../shims/config.js";
+import { buildAhOfferData } from "../ah-offer-data.js";
 import { replaceTextInDocx, wordingRules } from "./docx-text-replace.js";
 
 
@@ -2145,7 +2146,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === "on",
 
     // ── AH (Alltagshilfe) data ──────────────────────────────────────────
-    ...buildAhData(body),
+    ...buildAhOfferData(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS }), // v2: ADR 028
   };
 }
 
@@ -2709,4 +2710,7 @@ export {
   sanitizeRenderData,
   STATIC_DOCX_WORD_BLOCKLIST,
   buildAhData,
+  fmtCurrency,
+  AH_GENERIC_HAUSHALT_TASKS,
+  AH_GENERIC_BEGLEITUNG_TASKS,
 };

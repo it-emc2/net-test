@@ -194,7 +194,8 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     fields.stageId = String(u.stageId).trim();
     const isAh = String(u.offerType || "").toLowerCase() === "ah";
     const amount = Number(u.opportunity);
-    if (!isAh && Number.isFinite(amount) && amount > 0) {
+    // AH too since ADR 028 (owner 2026-11-20): the monthly amount (gross Selbstzahler / net Kasse)
+    if (Number.isFinite(amount) && amount > 0) {
       fields.opportunity = amount;
       fields.isManualOpportunity = "Y";
       fields.currencyId = String(u.currencyId || "EUR").trim() || "EUR";
@@ -233,11 +234,18 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
   }
 
   /** amount (as „ANG verschickt“ writes it), final total, offer number and offer link of one offer;
-   *  AH (owner 2026-11-20): the AH fields of the „ANG verschickt“ move + the link — no amount, no number, as the move */
+   *  AH (owner 2026-11-20): the AH fields of the „ANG verschickt“ move + the link + (ADR 028) the deal
+   *  amount as the move writes it (opportunity, manual, currency) — no final total, no number, as the move */
   function signedOfferFields(o: SignedOffer): Record<string, unknown> {
     const f: Record<string, unknown> = {};
     if (o.ah) {
       if (o.ahPayload) Object.assign(f, buildAhBitrixFields(o.ahPayload, AH_ZONE_KEEP));
+      const amount = Number(o.total);
+      if (Number.isFinite(amount) && amount > 0) {
+        f.opportunity = amount;
+        f.isManualOpportunity = "Y";
+        f.currencyId = String(o.currencyId || "EUR").trim() || "EUR";
+      }
       const n = String(o.offerNumber || "").trim();
       if (n) f[OFFER_LINK_FIELD] = `${opts.offerLinkBase}/?offer=${encodeURIComponent(n)}`;
       return f;

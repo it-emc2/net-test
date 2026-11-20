@@ -15,6 +15,7 @@ import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "@oc/config";
+import { ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { buildApp } from "../src/app.js";
 import { hashPassword } from "../src/platform/auth.js";
 import { connectDb, disconnectDb } from "../src/platform/db.js";
@@ -654,10 +655,31 @@ describe("contract: Bitrix WRITE routes — same response AND same outgoing call
     const missing = await same("POST", "/api/bitrix/deal/9010/move-ang-verschickt", { offerType: "bu" });
     expect(missing.v2.status).toBe(400);
     expect(missing.v2.body.missing).toEqual(missing.legacy.body.missing);
+    // DOCUMENTED DEVIATION (ADR 028, owner 2026-11-20): v2 writes the AH deal amount — the monthly
+    // amount of THE AH total function (gross Selbstzahler / net Kasse) — legacy writes none. Every
+    // other field and call is the legacy one.
+    const AMOUNT = ["fields[opportunity]", "fields[isManualOpportunity]", "fields[currencyId]"];
+    const withoutAmount = (params: string) => { const sp = new URLSearchParams(params); for (const k of AMOUNT) sp.delete(k); return sp.toString(); };
+    const sameAhMove = async (id: string, body: Record<string, unknown>, amount: number | null) => {
+      bx.take("legacy"); bx.take("v2");
+      const r = await both("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, body);
+      const calls = { legacy: bx.take("legacy"), v2: bx.take("v2") };
+      expect(r.v2.status).toBe(r.legacy.status);
+      expect(r.v2.body).toEqual(r.legacy.body);
+      expect(calls.v2.map((c) => ({ ...c, params: withoutAmount(c.params) }))).toEqual(calls.legacy);
+      const last = new URLSearchParams(calls.v2.at(-1)!.params);
+      if (amount === null) for (const k of AMOUNT) expect(last.has(k), k).toBe(false);
+      else expect(AMOUNT.map((k) => last.get(k))).toEqual([String(amount), "Y", "EUR"]);
+      return { ...r, calls: calls.v2 };
+    };
+    const ahAmount = ahOfferTotals(ahDocumentInput(AH, { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 })).customerAmount;
+    expect(ahAmount).toBeGreaterThan(0);
     for (const id of ["9012", "9013"]) {
-      const r = await same("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, { offerType: "ah", payload: JSON.stringify(AH), opportunity: 99, invoiceCopy: "email" });
+      const r = await sameAhMove(id, { offerType: "ah", payload: JSON.stringify(AH), opportunity: 99, invoiceCopy: "email" }, ahAmount);
       expect(r.calls.at(-1)!.params.includes("UF_CRM_1711019971"), id).toBe(id === "9012");
     }
+    // a payload that cannot be read: the amount the client sent (99), no AH fields
+    await sameAhMove("9012", { offerType: "ah", payload: "{kaputt", opportunity: 99 }, 99);
     await same("POST", "/api/bitrix/deal/9012/move-ang-verschickt", { offerType: "ah", payload: "{kaputt" });
     await same("POST", "/api/bitrix/deal/9003/move-ang-verschickt", { opportunity: 1 });
     const coll = mongoose.connection.db!.collection("useractionlogs");

@@ -23,12 +23,23 @@ const DOCS_TRANSFORMS = [
   // PDF via Gotenberg (ADR 008): no LibreOffice warm-up at import, conversion through the engine
   [/\nspawn\(\s*"soffice",[\s\S]*?\)\.on\("error", \(\) => \{\}\);\n/, "\n/* v2: no LibreOffice warm-up — PDFs via the PDF engine (ADR 008) */\n"],
   [/function convertDocxToPdf\(docxBuffer\) \{[\s\S]*?\n\}\n/, "function convertDocxToPdf(docxBuffer) {\n  return pdfEngine().docxToPdf(docxBuffer); // v2: Gotenberg (ADR 008)\n}\n"],
+  // Alltagshilfe: every amount from ONE function, @oc/pricing ahOfferTotals (ADR 028). The legacy
+  // buildAhData stays in the file (exported) as the reference of test/ah-offer-data.test.ts.
+  ['import cfg from "../shims/config.js";', 'import cfg from "../shims/config.js";\nimport { buildAhOfferData } from "../ah-offer-data.js";'],
+  ["    ...buildAhData(body),\n", "    ...buildAhOfferData(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS }), // v2: ADR 028\n"],
+  ["  buildAhData,\n};", "  buildAhData,\n  fmtCurrency,\n  AH_GENERIC_HAUSHALT_TASKS,\n  AH_GENERIC_BEGLEITUNG_TASKS,\n};"],
 ];
 
 const SIGNING_TRANSFORMS = [
   ['from "../lib/signatureImage.js"', 'from "./signature-image.js"'],
   ['import { replaceTextInHtml } from "../lib/docxTextReplace.js";', 'import { replaceTextInHtml } from "./docx-text-replace.js";\nimport { docsRoot } from "../shims/runtime.js";'],
   ['path.join(__dirname, "..", "public", "assets", "logo.png")', 'path.join(docsRoot(), "src", "public", "assets", "logo.png")'],
+  // Alltagshilfe: the signing page shows the DOCX's total block (net, MwSt, gross / deduction,
+  // Eigenanteil) instead of the net total alone (owner decision 3, 2026-11-20; ADR 028)
+  ['import { docsRoot } from "../shims/runtime.js";', 'import { docsRoot } from "../shims/runtime.js";\nimport { ahSigningTotalsHtml } from "../ah-offer-data.js";'],
+  [`      <table class="totals"><tbody>
+        <tr class="alt"><td>Gesamtbetrag</td><td class="num">\${esc(d.AhGesamtbetrag || "")}</td></tr>
+      </tbody></table>`, "      ${ahSigningTotalsHtml(d, esc)}"],
 ];
 
 // shared rewrites for ported legacy route modules

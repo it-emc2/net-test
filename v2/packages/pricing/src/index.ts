@@ -63,4 +63,5 @@ export function createPricingEngine(ProductModel: PricingProductModel, deps: Pri
 }
 export * from "./ah.js";
 export * from "./ah-fit.js";
+export * from "./ah-totals.js";
 export * from "./aufschlag-rules.js";
