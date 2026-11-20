@@ -125,7 +125,7 @@ function ServiceCard({ kind, item, auto }: { kind: Kind; item: Item | undefined;
   return (
     <Card data-testid={`ah-svc-${kind}`} className="gap-4">
       <TickRow id={`ah-${kind}`} checked={on} onChange={(v) => toggleService(kind, v)} className="text-[1.15rem] font-bold">
-        {TITLE[kind]}<span className="block text-[0.95rem] font-normal text-muted-foreground">{euro(RATE[kind])} pro Stunde</span>
+        {TITLE[kind]}{" "}<span className="block text-[0.95rem] font-normal text-muted-foreground">{euro(RATE[kind])} pro Stunde</span>
       </TickRow>
       {item ? (
         <div className="grid gap-5">

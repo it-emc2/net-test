@@ -21,7 +21,7 @@ export function TickRow({ id, checked, onChange, children, suffix, compact, clas
           checked ? "border-primary bg-primary text-primary-foreground" : "border-control bg-card text-transparent")}>
         <Check className={compact ? "size-4" : "size-[1.1rem]"} strokeWidth={3} />
       </span>
-      <span className="min-w-0" data-part="text">{children}{suffix ? <span className="font-normal text-muted-foreground"> {suffix}</span> : null}</span>
+      <span className="min-w-0" data-part="text">{children}{suffix ? <>{" "}<span className="font-normal text-muted-foreground">{suffix}</span></> : null}</span>
     </label>
   );
 }
