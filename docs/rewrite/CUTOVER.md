@@ -18,7 +18,8 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 1. **Server**: install Docker; copy `v2/deploy/` (compose, Caddyfile) and create `.env` from `.env.example` on the server (never in git). Values: the current app's settings, plus:
    - `AUTH_SECRET` = **the current app's value** (logins stay valid across the switch);
    - `EXTERNAL_API_KEY` set — and the same key entered in the bau-formular (v2 keeps the external lookup closed without it);
-   - `GOTENBERG_URL` is set by compose.
+   - `GOTENBERG_URL` is set by compose;
+   - second offer type (ADR 027 B), only to point at a test pipeline: `SECOND_OFFER_CATEGORY_ID` (default 72), `SECOND_OFFER_STAGE_ID` (default `C72:NEW`), `SECOND_OFFER_SOURCE_ID` (default `WEBFORM`), `SECOND_OFFER_TITLE` (default „Neuanfrage“), `SECOND_OFFER_VALUES_JSON` (optional override of the enum values per offer type; an invalid value stops the start).
 2. **Atlas**: create the least-privilege user (D4); allow the server's IP in the Atlas network list.
 3. **Backup**: full `mongodump` of `KonfiguratorDB` + `vigor` (Atlas snapshot plus an offline copy). Restore test on the local replica.
 4. **Fresh local copy** of production → run the checks against it:
@@ -44,6 +45,8 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - `main` keeps evolving until the switch; after the switch, changes go to v2 only (see §5).
 - Signing completions (ADR 027 A, step 3): every signature now also writes the signed offer's amount, final total, offer number and offer link (non-AH) or its AH fields and offer link (AH) to Bitrix; after a signature the „ANG verschickt“ move leaves the deal where it is. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
 
+- Second offers (ADR 027 B): `error_events` area `deals.second-offer` — `SECOND_OFFER_UNCLEAR` (check Bitrix for the deal, then the user retries with „In Bitrix prüfen“), `SECOND_OFFER_DRAFT_FAILED`, `SECOND_OFFER_BITRIX_FAILED`, `SECOND_OFFER_COMMENT_FAILED`. Claims are in `second_offer_creations` (keyed by `_id`, no migration; the old app ignores it).
+
 ## 4. Way back (rollback, ~10 minutes)
 
 1. DNS for `oc.emc2.de` back to Fly.io (the old app was never stopped).
@@ -60,5 +63,16 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - [ ] Owner decisions D1–D5.
 - [ ] Variants step 3 on a Bitrix **test deal** with the owner (send A, send B, sign A — field checklist in the step-3 PR). New collection `deal_variant_choices` needs no migration (keyed by `_id`); the old app ignores it on the way back.
 - [x] Rollback export tool `deal_drafts → drafts` (§4.2): `node apps/server/dist/cli/migrate.js rollback-export [--apply]` — insert-only, idempotent, tested; dry run on the copy 2026-11-06: 0 (no deal drafts exist yet).
+- [ ] Second offer type (ADR 027 B, step 3): the first real creation with the owner on a **test contact** (test pipeline via `SECOND_OFFER_*` if needed). Right after creation the new deal must show:
+  - [ ] pipeline „Neue Anfragen“ (72; or the test pipeline), stage „[VI] Neu“;
+  - [ ] title written by the stage's rule (`<ID> - Neuanfrage <Kategorie Neu> - <Tätigkeit> - von <Nachname, Vorname>`), not „Neuanfrage“;
+  - [ ] responsible person set by the rule (the app sends none);
+  - [ ] „Kategorie Neu“, „Auszuführende Tätigkeiten“ as in the value table for the chosen type, „Zugehörigkeit“ = „Eigener Auftrag“;
+  - [ ] source „Bestandskunde“ (`WEBFORM`);
+  - [ ] the same contact as the first deal, as primary contact;
+  - [ ] timeline notes on both deals („Angelegt aus OC als weiteres Angebot …“ / „Weiteres Angebot … angelegt: Auftrag …“);
+  - [ ] the deal can be found by `crm.item.list` filter `originatorId=oc-second-offer`, `originId=<creationId>` (the lookup after an unclear outcome);
+  - [ ] the OC: the new deal's offer has the customer data, the new deal number, no products; both offers list each other;
+  - [ ] a later send / signature moves the new deal into the HD (38) or AH (52) pipeline as usual.
 - [ ] Staging run with staff spot-check (§1.5).
 - [ ] Fresh parallel run on a copy taken the day before (§1.4).
