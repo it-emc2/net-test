@@ -10,7 +10,7 @@ import { Button, Card, CardTitle, Field, Input, Switch, cn, IMG } from "../../..
 import { useOfferField, useOfferStore } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import {
-  ACCESSORIES, COLORS, LINE_TEXT, accessoryText, changeSize, cheaper, chooseLine, colorImage, customItem, isSlate, lineOf, pickTray, priceText, searches,
+  ACCESSORIES, COLORS, LINE_DEFAULTED, LINE_TEXT, accessoryText, changeSize, cheaper, chooseLine, colorImage, customItem, isSlate, lineOf, pickTray, priceText, searches,
   stepQty, stockText, summary, switchTray, toggleAccessory, trayExtras, trayOn, trayTitle, type Line, type Tray,
 } from "./rules.js";
 
@@ -124,7 +124,7 @@ function Search({ line }: { line: Line }) {
                   <p className="m-0"><strong>Keine {LINE_TEXT[line].name}-Duschwanne in dieser Größe.</strong> In der Linie {LINE_TEXT[other].name} gibt es {rest.length} passende Treffer{cheapestHint(rest)}.</p>
                   <div><Button variant="secondary" onClick={() => toLine(other, false)}>Zu {LINE_TEXT[other].name} wechseln</Button></div>
                 </>
-              ) : <p className="m-0"><strong>Keine passende Duschwanne gefunden.</strong> Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen.</p>}
+              ) : <p className="m-0"><strong>Keine passende Duschwanne gefunden.</strong> Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen.</p>}
             </div>
           ) : null}
         </div>
@@ -132,7 +132,7 @@ function Search({ line }: { line: Line }) {
       {offer ? (
         <div className="grid gap-2 rounded-lg border-2 border-primary p-3" data-testid="tray-cheaper">
           <p className="m-0"><strong>{offer.text}</strong> {offer.detail}</p>
-          <div><Button variant="secondary" onClick={() => { remember("traySaved", { productId: offer.tray.productId, name: offer.tray.name ?? "", searchW: w, searchL: l } satisfies Saved); write({ ...chooseLine("standard", true), ...pickTray(offer.tray) }); }}>Auf Standard wechseln</Button></div>
+          <div><Button variant="secondary" onClick={() => { remember("traySaved", { productId: offer.tray.productId, name: offer.tray.name ?? "", searchW: w, searchL: l } satisfies Saved); write({ ...chooseLine("standard", true), ...pickTray(offer.tray) }); }}>Auf Badolux wechseln</Button></div>
         </div>
       ) : null}
       <Chosen line={line} tray={[...active, ...rest].find((p) => p.productId === chosen)} />
@@ -236,7 +236,10 @@ export function Duschwanne() {
     const st = useOfferStore.getState();
     const r = switchTray(dwNow(), next, (st.scratch.trayParked as Fields | undefined) ?? null);
     st.remember("trayParked", r.parked);
-    write(r.changes);
+    // a NEW offer: the first time the tray is switched on, Badolux is preselected (never on an opened offer, never again)
+    const first = next && !st.scratch[LINE_DEFAULTED];
+    if (next) st.remember(LINE_DEFAULTED, true);
+    write(first && lineOf(dwNow()) === "premium" ? { ...r.changes, ...chooseLine("standard") } : r.changes);
   };
   return (
     <Card aria-labelledby="dw-title">

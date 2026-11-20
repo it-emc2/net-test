@@ -62,7 +62,9 @@ function merged(section: Record<string, unknown> | undefined, fields: Record<str
 export const useOfferStore = create<OfferState>()((set) => ({
   ...CLOSED,
   start: (type, ctx, dealId = null, variant) => set({ ...CLOSED, offer: emptyOffer(type, ctx) as Offer, dealId, ...variantOf(dealId, variant) }),
-  load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, offer, dealId, revision, ...variantOf(dealId, variant) }),
+  // an opened offer keeps its product line when the tray is switched on later (today's restore: `__dwLineDefaulted`);
+  // only a NEW offer (`start`) gets Badolux preselected — see steps/duschwanne `LINE_DEFAULTED`
+  load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, offer, dealId, revision, scratch: { dwLineDefaulted: true }, ...variantOf(dealId, variant) }),
   setVariantName: (variantName) => set({ variantName }),
   close: () => set({ ...CLOSED }),
   patch: (section, fields) =>

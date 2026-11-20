@@ -35,9 +35,6 @@
     "price": 449.82,
     "productId": "SLA17085",
     "source": "hassmann",
-    "stockQuantity": 0,
-    "stockSymbol": 1,
-    "stockText": "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.",
     "widthCm": 170
    }
   ],
@@ -93,9 +90,6 @@
     "price": 377.37,
     "productId": "SLA13090",
     "source": "hassmann",
-    "stockQuantity": 3,
-    "stockSymbol": 2,
-    "stockText": "Der Artikel ist im Lager verfügbar. Der Bestand beträgt 3 Stück.",
     "widthCm": 130
    },
    {
@@ -152,6 +146,10 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
@@ -211,10 +209,14 @@
    }
   },
   {
-   "name": "tray switched on",
+   "name": "new offer, tray on, then Hassmann",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ]
    ],
    "duschwanne": {
@@ -227,6 +229,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -286,10 +292,1097 @@
    }
   },
   {
+   "name": "new offer, Badolux preselected, first tray picked",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "dims",
+     "90",
+     "120"
+    ],
+    [
+     "pick",
+     1
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "chosenTrayProductId": "DW015",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true,
+    "traySize": "90 x 120 x 2.6 cm",
+    "traySuggestion": "DW015",
+    "tray_l_cm": "120",
+    "tray_w_cm": "90"
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "90",
+     "120"
+    ],
+    "headings": [
+     "BADOLUX-DUSCHWANNEN"
+    ],
+    "cards": [
+     {
+      "id": "DW015",
+      "title": "Riviera 90 × 120 × 2,6 cm",
+      "sub": "Beste Übereinstimmung Art.-Nr. PRI70DW06 Badolux",
+      "price": "138,80 €",
+      "selected": true,
+      "pinned": false
+     },
+     {
+      "id": "DW021",
+      "title": "Riviera 100 × 120 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW09 Badolux",
+      "price": "248,64 €",
+      "selected": false,
+      "pinned": false
+     },
+     {
+      "id": "DW016",
+      "title": "Riviera 90 × 140 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW07 Badolux",
+      "price": "161,08 €",
+      "selected": false,
+      "pinned": false
+     }
+    ],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": "Riviera 90 × 120 × 2,6 cm Badolux · extraflach · Art.-Nr. PRI70DW06 · 138,80 € Wannenabdichtband-Set TRWDB Siphon Bridge 90 PR95DW001 8 × Stelzlager-Set PLA5282 Kleinmaterial"
+   }
+  },
+  {
+   "name": "Hassmann chosen, switched off and on again: stays Hassmann",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "tier",
+     "premium"
+    ],
+    [
+     "off"
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "Badolux preselected, switched off and on again",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "off"
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer with Badolux, tray on (stays Badolux)",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": true,
+      "budgetMode": "1"
+     }
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer with Hassmann, tray on (stays Hassmann)",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": true
+     }
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer without budgetMode, tray on: Hassmann",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial"
+     }
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer with Hassmann, tray off, tray on",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": false
+     }
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer with Badolux, tray off, tray on",
+   "steps": [
+    [
+     "open",
+     {
+      "abdichtSet": "Wannenabdichtband-Set TRWDB",
+      "drainSet": "Ablaufgarnitur TRAGD9060",
+      "stelzlager": "PLA5282",
+      "smallMaterial": "Kleinmaterial",
+      "trayEnabled": false,
+      "budgetMode": "1"
+     }
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
+   "name": "reopened offer with a Hassmann tray picked, off and on",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "tier",
+     "premium"
+    ],
+    [
+     "dims",
+     "90",
+     "120"
+    ],
+    [
+     "pick",
+     1
+    ],
+    [
+     "open",
+     {}
+    ],
+    [
+     "off"
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "chosenTrayProductId": "SLA12090",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true,
+    "traySize": "120 x 90 x 3 cm",
+    "traySuggestion": "SLA12090",
+    "tray_l_cm": "120",
+    "tray_w_cm": "90"
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "premium",
+    "tierLine": "Nur Produkte von Vigour / Hassmann",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "90",
+     "120"
+    ],
+    "headings": [
+     "HASSMANN-DUSCHWANNEN"
+    ],
+    "cards": [
+     {
+      "id": "SLA12090",
+      "title": "Slate 120 × 90 × 3 cm, Mineralguss weiß",
+      "sub": "Beste Übereinstimmung 8 auf Lager Hassmann",
+      "price": "368,55 €",
+      "selected": true,
+      "pinned": false
+     },
+     {
+      "id": "SLA13090",
+      "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
+      "sub": "Hassmann",
+      "price": "377,37 €",
+      "selected": false,
+      "pinned": false
+     },
+     {
+      "id": "SLA120100",
+      "title": "Slate 120 × 100 × 3 cm, Mineralguss weiß",
+      "sub": "7 auf Lager Hassmann",
+      "price": "424,62 €",
+      "selected": false,
+      "pinned": false
+     }
+    ],
+    "notes": [],
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
+    "colorShown": true,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Ablaufgarnitur TRAGD9060",
+      "small": "Rohbauset mit Sifon, BH 60 mm, 90 mm Ablauf"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": "Slate 120 × 90 × 3 cm, Mineralguss weiß Slate · Farbe Weiß · Art.-Nr. SLA12090 · 368,55 € Wannenabdichtband-Set TRWDB Ablaufgarnitur TRAGD9060 8 × Stelzlager-Set PLA5282 Kleinmaterial"
+   }
+  },
+  {
+   "name": "reopened offer with a Badolux tray picked, tray off and on",
+   "steps": [
+    [
+     "on"
+    ],
+    [
+     "dims",
+     "90",
+     "120"
+    ],
+    [
+     "pick",
+     1
+    ],
+    [
+     "open",
+     {}
+    ],
+    [
+     "off"
+    ],
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "chosenTrayProductId": "DW015",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true,
+    "traySize": "90 x 120 x 2.6 cm",
+    "traySuggestion": "DW015",
+    "tray_l_cm": "120",
+    "tray_w_cm": "90"
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "90",
+     "120"
+    ],
+    "headings": [
+     "BADOLUX-DUSCHWANNEN"
+    ],
+    "cards": [
+     {
+      "id": "DW015",
+      "title": "Riviera 90 × 120 × 2,6 cm",
+      "sub": "Beste Übereinstimmung Art.-Nr. PRI70DW06 Badolux",
+      "price": "138,80 €",
+      "selected": true,
+      "pinned": false
+     },
+     {
+      "id": "DW021",
+      "title": "Riviera 100 × 120 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW09 Badolux",
+      "price": "248,64 €",
+      "selected": false,
+      "pinned": false
+     },
+     {
+      "id": "DW016",
+      "title": "Riviera 90 × 140 × 2,6 cm",
+      "sub": "Art.-Nr. PRI70DW07 Badolux",
+      "price": "161,08 €",
+      "selected": false,
+      "pinned": false
+     }
+    ],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": "Riviera 90 × 120 × 2,6 cm Badolux · extraflach · Art.-Nr. PRI70DW06 · 138,80 € Wannenabdichtband-Set TRWDB Siphon Bridge 90 PR95DW001 8 × Stelzlager-Set PLA5282 Kleinmaterial"
+   }
+  },
+  {
+   "name": "new offer, tray switched on: Badolux preselected",
+   "steps": [
+    [
+     "on"
+    ]
+   ],
+   "duschwanne": {
+    "abdichtSet": "Wannenabdichtband-Set TRWDB",
+    "budgetMode": "1",
+    "drainSet": "Ablaufgarnitur TRAGD9060",
+    "smallMaterial": "Kleinmaterial",
+    "stelzlager": "PLA5282",
+    "trayEnabled": true
+   },
+   "arbeitszeit": {},
+   "view": {
+    "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
+    "tier": "standard",
+    "tierLine": "Nur Produkte von Badolux",
+    "settingsShown": true,
+    "hint": true,
+    "dims": [
+     "",
+     ""
+    ],
+    "headings": [],
+    "cards": [],
+    "notes": [],
+    "cheaper": "",
+    "colorShown": false,
+    "color": "Weiss",
+    "accessories": [
+     {
+      "name": "abdichtSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Wannenabdichtband-Set TRWDB",
+      "small": "3,4 m · Nass-/Trockenanbindung, DIN 18534"
+     },
+     {
+      "name": "drainSet",
+      "shown": true,
+      "checked": true,
+      "caption": "Siphon Bridge 90 PR95DW001",
+      "small": "Badolux · Ablauf 90 mm"
+     },
+     {
+      "name": "stelzlager",
+      "shown": true,
+      "checked": true,
+      "caption": "Stelzlager-Set PLA5282",
+      "small": "Plattenlager Pro, justierbar 64–110 mm"
+     },
+     {
+      "name": "smallMaterial",
+      "shown": true,
+      "checked": true,
+      "caption": "Kleinmaterial",
+      "small": "KM02"
+     }
+    ],
+    "qty": "8",
+    "qtyShown": true,
+    "customShown": true,
+    "customOpen": false,
+    "customTitle": "Duschwanne nicht gefunden? Freien Posten anlegen",
+    "custom": {
+     "dwCustomName": "",
+     "dwCustomPrice": "",
+     "dwCustomQty": "1",
+     "dwCustomId": ""
+    },
+    "summary": ""
+   }
+  },
+  {
    "name": "size entered, nothing picked",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -309,6 +1402,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -318,7 +1415,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -332,7 +1429,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -395,10 +1492,14 @@
    }
   },
   {
-   "name": "first Premium tray picked",
+   "name": "first Hassmann tray picked",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -425,6 +1526,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -434,7 +1539,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -448,7 +1553,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -463,7 +1568,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -511,10 +1616,14 @@
    }
   },
   {
-   "name": "second Premium tray picked",
+   "name": "second Hassmann tray picked",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -541,6 +1650,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -550,7 +1663,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -564,7 +1677,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": true,
       "pinned": false
@@ -627,10 +1740,14 @@
    }
   },
   {
-   "name": "Premium tray in Anthrazit",
+   "name": "Hassmann tray in Anthrazit",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -662,6 +1779,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -671,7 +1792,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -685,7 +1806,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -700,7 +1821,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Anthrazit",
     "accessories": [
@@ -748,7 +1869,7 @@
    }
   },
   {
-   "name": "Standard line, first tray picked",
+   "name": "Badolux line, first tray picked",
    "steps": [
     [
      "on"
@@ -783,6 +1904,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
@@ -792,7 +1917,7 @@
      "120"
     ],
     "headings": [
-     "STANDARD-DUSCHWANNEN"
+     "BADOLUX-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -869,10 +1994,14 @@
    }
   },
   {
-   "name": "Premium tray picked, then the Standard line",
+   "name": "Hassmann tray picked, then the Badolux line",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -902,6 +2031,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
@@ -911,7 +2044,7 @@
      "120"
     ],
     "headings": [
-     "STANDARD-DUSCHWANNEN"
+     "BADOLUX-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -988,10 +2121,14 @@
    }
   },
   {
-   "name": "Premium tray picked, Standard line and back",
+   "name": "Hassmann tray picked, Badolux line and back",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -1024,6 +2161,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1033,7 +2174,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1047,7 +2188,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -1110,10 +2251,14 @@
    }
   },
   {
-   "name": "Premium tray picked, then the cheaper Standard one taken",
+   "name": "Hassmann tray picked, then the cheaper Badolux one taken",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -1144,6 +2289,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
@@ -1153,7 +2302,7 @@
      "120"
     ],
     "headings": [
-     "STANDARD-DUSCHWANNEN"
+     "BADOLUX-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1230,10 +2379,14 @@
    }
   },
   {
-   "name": "the cheaper Standard one taken, then the Premium line",
+   "name": "the cheaper Badolux one taken, then the Hassmann line",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -1265,6 +2418,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1274,7 +2431,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1288,7 +2445,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -1357,6 +2514,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -1383,6 +2544,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1392,7 +2557,7 @@
      "170"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1414,7 +2579,7 @@
      {
       "id": "SLA17085",
       "title": "Slate 170 × 85 × 3 cm, Mineralguss weiß",
-      "sub": "Auf Bestellung Hassmann",
+      "sub": "Hassmann",
       "price": "449,82 €",
       "selected": false,
       "pinned": false
@@ -1477,6 +2642,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -1509,6 +2678,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1518,7 +2691,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1532,7 +2705,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -1547,7 +2720,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -1601,6 +2774,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "300",
      "300"
@@ -1618,6 +2795,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1627,11 +2808,11 @@
      "300"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [],
     "notes": [
-     "Keine passende Duschwanne gefunden. Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen."
+     "Keine passende Duschwanne gefunden. Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen."
     ],
     "cheaper": "",
     "colorShown": false,
@@ -1687,6 +2868,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "300",
      "300"
@@ -1736,6 +2921,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1745,11 +2934,11 @@
      "300"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [],
     "notes": [
-     "Keine passende Duschwanne gefunden. Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen."
+     "Keine passende Duschwanne gefunden. Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen."
     ],
     "cheaper": "",
     "colorShown": false,
@@ -1805,6 +2994,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -1829,6 +3022,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1894,6 +3091,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -1933,6 +3134,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -1942,7 +3147,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -1956,7 +3161,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -1971,7 +3176,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -2025,6 +3230,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2052,6 +3261,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -2061,7 +3274,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -2075,7 +3288,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2090,7 +3303,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -2138,7 +3351,7 @@
    }
   },
   {
-   "name": "Standard line: accessories",
+   "name": "Badolux line: accessories",
    "steps": [
     [
      "on"
@@ -2178,6 +3391,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
@@ -2187,7 +3404,7 @@
      "120"
     ],
     "headings": [
-     "STANDARD-DUSCHWANNEN"
+     "BADOLUX-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -2270,6 +3487,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "hint"
     ]
    ],
@@ -2284,6 +3505,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -2349,6 +3574,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2368,6 +3597,10 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
@@ -2377,7 +3610,7 @@
      "120"
     ],
     "headings": [
-     "Premium-Duschwannen"
+     "Hassmann-Duschwannen"
     ],
     "cards": [
      {
@@ -2391,7 +3624,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2460,6 +3693,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2490,6 +3727,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -2499,7 +3740,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -2513,7 +3754,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2528,7 +3769,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -2586,6 +3827,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2625,6 +3870,10 @@
    },
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -2634,7 +3883,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -2648,7 +3897,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2663,7 +3912,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -2721,6 +3970,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2774,6 +4027,10 @@
    },
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -2783,7 +4040,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -2797,7 +4054,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2812,7 +4069,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -2870,6 +4127,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -2890,6 +4151,10 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
@@ -2899,7 +4164,7 @@
      "120"
     ],
     "headings": [
-     "Premium-Duschwannen"
+     "Hassmann-Duschwannen"
     ],
     "cards": [
      {
@@ -2913,7 +4178,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -2990,6 +4255,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -3032,6 +4301,10 @@
    },
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -3041,7 +4314,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -3055,7 +4328,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -3070,7 +4343,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -3124,6 +4397,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "dims",
      "90",
      "120"
@@ -3148,6 +4425,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -3157,7 +4438,7 @@
      "120"
     ],
     "headings": [
-     "PREMIUM-DUSCHWANNEN"
+     "HASSMANN-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -3171,7 +4452,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -3186,7 +4467,7 @@
      }
     ],
     "notes": [],
-    "cheaper": "Diese Größe gibt es auch als Standard (Badolux) — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Standard wechseln",
+    "cheaper": "Diese Größe gibt es auch als Badolux — 229,75 € günstiger. Riviera 90 × 120 × 2,6 cm · 138,80 € statt 368,55 € (Duschwanne, netto). Die Ablaufgarnitur wechselt dabei zur Siphon Bridge 90. Auf Badolux wechseln",
     "colorShown": true,
     "color": "Weiss",
     "accessories": [
@@ -3242,6 +4523,10 @@
     ],
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ]
    ],
    "duschwanne": {
@@ -3255,6 +4540,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -3324,6 +4613,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "custom",
      "dwCustomName",
      "Duschwanne Sonderform"
@@ -3369,6 +4662,10 @@
    },
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,
@@ -3428,7 +4725,7 @@
    }
   },
   {
-   "name": "Ohne Rückbau, tray picked, then the Standard line",
+   "name": "Ohne Rückbau, tray picked, then the Badolux line",
    "steps": [
     [
      "kind",
@@ -3436,6 +4733,10 @@
     ],
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -3466,6 +4767,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "standard",
     "tierLine": "Nur Produkte von Badolux",
     "settingsShown": true,
@@ -3475,7 +4780,7 @@
      "120"
     ],
     "headings": [
-     "STANDARD-DUSCHWANNEN"
+     "BADOLUX-DUSCHWANNEN"
     ],
     "cards": [
      {
@@ -3552,10 +4857,14 @@
    }
   },
   {
-   "name": "Premium tray in Anthrazit, then switched off",
+   "name": "Hassmann tray in Anthrazit, then switched off",
    "steps": [
     [
      "on"
+    ],
+    [
+     "tier",
+     "premium"
     ],
     [
      "dims",
@@ -3582,6 +4891,10 @@
    "arbeitszeit": {},
    "view": {
     "on": false,
+    "tierButtons": [
+     "Badoluxguenstig",
+     "HassmannVigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": false,
@@ -3591,7 +4904,7 @@
      "120"
     ],
     "headings": [
-     "Premium-Duschwannen"
+     "Hassmann-Duschwannen"
     ],
     "cards": [
      {
@@ -3605,7 +4918,7 @@
      {
       "id": "SLA13090",
       "title": "Slate 130 × 90 × 3 cm, Mineralguss weiß",
-      "sub": "3 auf Lager Hassmann",
+      "sub": "Hassmann",
       "price": "377,37 €",
       "selected": false,
       "pinned": false
@@ -3674,6 +4987,10 @@
      "on"
     ],
     [
+     "tier",
+     "premium"
+    ],
+    [
      "qty",
      "+"
     ],
@@ -3692,6 +5009,10 @@
    "arbeitszeit": {},
    "view": {
     "on": true,
+    "tierButtons": [
+     "Badolux guenstig",
+     "Hassmann Vigour · Markenqualitaet"
+    ],
     "tier": "premium",
     "tierLine": "Nur Produkte von Vigour / Hassmann",
     "settingsShown": true,

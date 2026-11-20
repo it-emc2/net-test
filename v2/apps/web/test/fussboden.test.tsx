@@ -30,7 +30,7 @@ async function play(steps: (string | number)[][]) {
   for (const [kind, a, b, c] of steps) {
     if (kind === "on" || kind === "off") await user.click(screen.getByRole("switch", { name: "Fußboden" }));
     else if (kind === "tab") await user.click(screen.getByRole("tab", { name: a === "wall" ? "Wandverkleidung als Fußboden" : "Fußboden" }));
-    else if (kind === "tier") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: a === "standard" ? /^Standard/ : /^Premium/ }));
+    else if (kind === "tier") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: a === "standard" ? /^Badolux/ : /^Hassmann/ }));
     else if (kind === "confirm") await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: a === "yes" ? /umstellen$/ : "Abbrechen" }));
     else if (kind === "kind") await user.click(screen.getByRole("group", { name: "Umfang" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "area") fireEvent.change(screen.getByLabelText("Fläche in m²"), { target: { value: a } });
@@ -54,6 +54,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(sorted(a)) === JSON.stri
 const changed = (base: Record<string, unknown>, now: Record<string, unknown>) => Object.fromEntries([...new Set([...Object.keys(base), ...Object.keys(now)])]
   .filter((k) => !same(base[k], now[k])).map((k) => [k, k in now ? now[k] : "<removed>"]));
 const without = (o: Record<string, unknown>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key));
+/** the recording is today's HTML: "Badolux guenstig" / "Hassmann Vigour · Markenqualitaet". React shows the names alone
+ *  (UX-CHANGES U-042, owner 2026-11-19). The button text is the name and the line below it, without a space. */
+const withoutClaims = (t: string) => t.replace(/ ?guenstig/, "").replace(/ ?Vigour · Markenqualitaet/, "");
 const squeeze = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "");
 const tiles = () => screen.queryAllByTestId("fb-tile").map((t) => ({ value: t.dataset.value, caption: t.querySelector('[data-part="caption"]')!.textContent, checked: t.querySelector("input")!.checked }));
 
@@ -75,7 +78,11 @@ describe("Fußboden stores and shows what today's UI does", () => {
     if (v.tabs) expect(screen.getByRole("tab", { selected: true }).textContent).toBe(v.tab === "wall" ? "Wandverkleidung als Fußboden" : "Fußboden");
     expect(!!document.getElementById("fb-area")).toBe(v.floorShown); // the mode Fußboden (the other mode has a product line too)
     if (v.floorShown) {
-      expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Standard/ : /^Premium/);
+      expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(v.tier === "standard" ? /^Badolux/ : /^Hassmann/);
+      expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getAllByRole("button").map((b) => b.textContent)).toEqual(v.tierButtons.map(withoutClaims)); // the name, then the line below
+      expect(screen.queryByText(/Fußbodenoptionen verfügbar/)?.textContent ?? "").toBe(v.standardEmpty);
+      const ask = screen.queryByRole("alertdialog"); // "change the line?": its title, its message and its button, as today's dialog says them
+      expect(ask ? [...ask.querySelectorAll("strong, p")].map((n) => n.textContent).concat(ask.querySelector("button")!.textContent) : null).toEqual(v.confirmText);
       expect(screen.getByTestId("fb-tier-line").textContent).toBe(v.tierLine);
       expect((screen.getByRole("group", { name: "Umfang" }).querySelector("input:checked") as HTMLInputElement | null)?.value ?? "").toBe(v.kind);
       expect((screen.getByLabelText("Fläche in m²") as HTMLInputElement).value).toBe(v.area);
@@ -102,14 +109,6 @@ describe("Fußboden stores and shows what today's UI does", () => {
 });
 
 describe("Fußboden — rules", () => {
-  it("changing the line asks only when the user picked the covering, and names it", async () => {
-    await open();
-    await play([["on"], ["area", "5"], ["color", "Loft-Grau"], ["tier", "standard"]]);
-    const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("Fußboden auf „Standard\" umstellen?");
-    expect(dialog.textContent).toContain("Die bisherige Auswahl „Loft-Grau\" gehört zur Linie Premium und wird entfernt.");
-  });
-
   it("quantities: adhesive per 0,6 m², sealing set for 7 m² and a roll per further 5 m² (with 15 % offcut)", () => {
     expect([0, 0.6, 0.61, 4.5, 12.5].map(adhesivePacks)).toEqual([0, 1, 2, 8, 21]);
     expect([sealingFor(4, true), sealingFor(12, true), sealingFor(12, false)].map((s) => [s.sets, s.rolls])).toEqual([[1, 0], [1, 2], [0, 0]]);
