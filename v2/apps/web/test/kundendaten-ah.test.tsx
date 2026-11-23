@@ -92,9 +92,14 @@ function outsideChanges(): F {
   for (const k of Object.keys(out)) if (k.startsWith("pricingRules.")) delete out[k]; // the business settings this test serves, taken into a new offer
   return out;
 }
+// DELIBERATE DIFFERENCE (U-052, owner 2026-11-23): switching „Sonstiges“ → „Ja“ keeps the typed details;
+// today's UI writes „Ja“ over them. The recording stays as it is; here the new rule is asserted for it.
+const KEEPS_DETAILS: Record<string, { kd: F; details: Record<string, string> }> = {
+  "notes: Sonstiges with details, then Ja": { kd: { ah_allergien_choice: "Ja", ah_allergien: "Nüsse" }, details: { ah_allergien: "Nüsse" } },
+};
 /** the page shows what today's page shows — the details field after „Ja“ too (U-052), and the details
  *  without the chip's own word that today's page writes into the text */
-function expectView(view: View) {
+function expectView(view: View, shown: Record<string, string> = {}) {
   expect(!!screen.queryByTestId("ah-kd-p2")).toBe(view.twoPersons.fields);
   if (view.twoPersons.fields) {
     const s = (n: string) => Array.from(group(n, p2()).querySelectorAll("input")).find((i) => i.checked)?.value ?? "";
@@ -107,7 +112,7 @@ function expectView(view: View) {
     expect([q.name, Array.from(g.querySelectorAll("input")).find((i) => i.checked)?.value ?? ""]).toEqual([q.name, q.choice]);
     const details = document.getElementById(`Kundendaten-${q.name}`) as HTMLInputElement | null;
     expect([q.name, !!details]).toEqual([q.name, q.detailsShown || q.choice === "Ja"]);
-    if (details) expect(details.value).toBe(q.details === "Ja" || q.details === "Nein" ? "" : q.details);
+    if (details) expect(details.value).toBe(q.name in shown ? shown[q.name] : q.details === "Ja" || q.details === "Nein" ? "" : q.details);
   }
   expect((document.getElementById("Kundendaten-ah_sonstiges") as HTMLInputElement).value).toBe(view.hints.other.value);
   for (const q of view.living.questions) expect([q.name, Array.from(group(q.label).querySelectorAll("input")).find((i) => i.checked)?.value ?? ""]).toEqual([q.name, q.choice]);
@@ -118,9 +123,12 @@ describe("Alltagshilfe blocks store what today's UI stores", () => {
   it.each(REPLAY.map((s) => [s.name, s] as const))("%s", async (_name, s) => {
     await open();
     await play(s.steps);
-    expect(stored()).toEqual(s.kundendaten); // the whole Kundendaten, byte for byte (same values, same keys)
+    const own = KEEPS_DETAILS[s.name];
+    // the whole Kundendaten, byte for byte (same values, same keys) — except the one deliberate difference
+    expect(stored()).toEqual({ ...s.kundendaten, ...own?.kd });
+    if (own) expect(s.kundendaten).toMatchObject({ ah_allergien_choice: "Ja", ah_allergien: "Ja" }); // today's UI, recorded: the details are gone
     expect(outsideChanges()).toEqual(s.outside);
-    expectView(s.view);
+    expectView(s.view, own?.details);
   }, 20000);
 
   it("the recordings cover every option of every question and each Pflegegrad of the second person", () => {
@@ -204,6 +212,41 @@ describe("deliberate difference (U-052): details also after „Ja“", () => {
     await u.click(chipIn(group("Allergien / Unverträglichkeiten"), "Nein"));
     expect(screen.queryByRole("textbox", { name: "Details zu „Allergien / Unverträglichkeiten“" })).toBeNull();
     expect([offer().Kundendaten.ah_allergien_choice, offer().Kundendaten.ah_allergien]).toEqual(["Nein", "Nein"]);
+  });
+
+  it("„Sonstiges“ + details → „Ja“ keeps them (today: overwritten with „Ja“); „Ja“ + details → „Sonstiges“ keeps them", async () => {
+    await open();
+    const u = userEvent.setup();
+    const g = () => group("Allergien / Unverträglichkeiten");
+    const field = () => screen.getByRole("textbox", { name: "Details zu „Allergien / Unverträglichkeiten“" }) as HTMLInputElement;
+    await u.click(chipIn(g(), "Sonstiges"));
+    await u.type(field(), "Nüsse");
+    await u.click(chipIn(g(), "Ja"));
+    expect([offer().Kundendaten.ah_allergien_choice, offer().Kundendaten.ah_allergien, field().value]).toEqual(["Ja", "Nüsse", "Nüsse"]);
+    await u.click(chipIn(g(), "Sonstiges"));
+    expect([offer().Kundendaten.ah_allergien_choice, offer().Kundendaten.ah_allergien, field().value]).toEqual(["Sonstiges", "Nüsse", "Nüsse"]);
+  });
+
+  it("„Nein“ stores today's „Nein“; the details come back with „Ja“ / „Sonstiges“ while the offer is open", async () => {
+    await open();
+    const u = userEvent.setup();
+    const g = () => group("Mobilitätseinschränkungen");
+    await u.click(chipIn(g(), "Ja"));
+    await u.type(screen.getByRole("textbox", { name: "Details zu „Mobilitätseinschränkungen“" }), "Rollator");
+    await u.click(chipIn(g(), "Nein"));
+    expect([offer().Kundendaten.ah_mobilitaet_choice, offer().Kundendaten.ah_mobilitaet]).toEqual(["Nein", "Nein"]); // exactly today's „Nein“
+    expect(screen.queryByRole("textbox", { name: "Details zu „Mobilitätseinschränkungen“" })).toBeNull();
+    await u.click(chipIn(g(), "Sonstiges"));
+    expect([offer().Kundendaten.ah_mobilitaet_choice, offer().Kundendaten.ah_mobilitaet]).toEqual(["Sonstiges", "Rollator"]);
+    await u.click(chipIn(g(), "Nein"));
+    await u.click(chipIn(g(), "Ja"));
+    expect([offer().Kundendaten.ah_mobilitaet_choice, offer().Kundendaten.ah_mobilitaet]).toEqual(["Ja", "Rollator"]);
+  });
+
+  it("an offer stored with „Nein“ opens with nothing kept: „Ja“ is then a plain „Ja“ as today", async () => {
+    await openStored(draftWith({ ah_sprache_choice: "Nein", ah_sprache: "Nein" }));
+    await userEvent.setup().click(chipIn(group("Sprachliche Besonderheiten"), "Ja"));
+    expect([offer().Kundendaten.ah_sprache_choice, offer().Kundendaten.ah_sprache]).toEqual(["Ja", "Ja"]);
   });
 
   it("an offer stored with „Ja“ + details opens with „Ja“ and the details; today's UI shows it as „Sonstiges“ with the details and keeps the text", async () => {

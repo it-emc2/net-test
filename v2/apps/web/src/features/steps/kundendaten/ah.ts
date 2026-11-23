@@ -15,9 +15,10 @@
 //    word into the text as well; „Sonstiges“ leaves the text as it is.
 //  - Lebenssituation: the chosen answer's value; nothing chosen: not stored.
 //
-// DELIBERATE DIFFERENCE (UX-CHANGES U-052, owner 2026-11-23): the details field opens on „Ja“ too
+// DELIBERATE DIFFERENCES (UX-CHANGES U-052, owner 2026-11-23): the details field opens on „Ja“ too
 // (today only on „Sonstiges“). Its text goes into the same `ah_*` field; emptied, the field holds
-// the chip's word again ("Ja") — so a plain „Ja“ is stored exactly as today.
+// the chip's word again ("Ja") — so a plain „Ja“ is stored exactly as today. Switching between „Ja“
+// and „Sonstiges“ keeps the details (today: „Ja“ overwrites them); „Nein“ see chooseHint.
 import { HINT_CHOICES, hintChoice, type HintChoice } from "@oc/domain";
 
 type Fields = Record<string, unknown>;
@@ -101,8 +102,17 @@ export const hintDetailsOpen = (choice: string) => choice === "Ja" || choice ===
 /** what the details field shows: the text, but not the chip's own word that today writes into it */
 export const hintDetails = (kd: Fields, field: string) => { const t = String(kd[field] ?? ""); return t === "Ja" || t === "Nein" ? "" : t; };
 
-export function chooseHint(field: string, choice: HintChoice): Fields {
-  return choice === "Sonstiges" ? { [`${field}_choice`]: choice } : { [`${field}_choice`]: choice, [field]: choice };
+/** A chip chosen (owner 2026-11-23, U-052): the details typed stay when switching between „Ja“ and
+ *  „Sonstiges“ (today's UI writes „Ja“ over them). „Nein“ stores exactly today's („Nein“ in `ah_*`);
+ *  the details are kept in the session (`kept`, not stored) and come back with „Ja“ / „Sonstiges“
+ *  while the offer is open. Without details: „Ja“ / „Nein“ write the chip's word, „Sonstiges“ leaves
+ *  the text as it is — all as today.
+ *  Returns the changes and what the session keeps for this question afterwards. */
+export function chooseHint(kd: Fields, field: string, choice: HintChoice, kept = ""): { changes: Fields; kept: string } {
+  const details = hintDetails(kd, field) || kept;
+  if (choice === "Nein") return { changes: { [`${field}_choice`]: "Nein", [field]: "Nein" }, kept: details };
+  if (details) return { changes: { [`${field}_choice`]: choice, [field]: details }, kept: "" };
+  return { changes: choice === "Sonstiges" ? { [`${field}_choice`]: choice } : { [`${field}_choice`]: choice, [field]: choice }, kept: "" };
 }
 /** details typed: stored in `ah_*`; emptied after „Ja“ the field holds "Ja" again (as a plain „Ja“) */
 export function typeHint(kd: Fields, field: string, text: string): Fields {

@@ -80,9 +80,17 @@ export function AhTwoPersons() {
 function HintQuestion({ field, label }: { field: string; label: string }) {
   const choice = useOfferStore((s) => hintChoice(((s.offer as Record<string, any> | null)?.Kundendaten ?? {}) as Fields, field));
   const details = useOfferStore((s) => hintDetails(((s.offer as Record<string, any> | null)?.Kundendaten ?? {}) as Fields, field));
+  // details hidden by „Nein“ are kept for this page visit (not stored) and come back with „Ja“ / „Sonstiges“
+  const pick = (v: HintChoice) => {
+    const st = useOfferStore.getState();
+    const kept = (st.scratch.ahHintDetails as Record<string, string> | undefined) ?? {};
+    const r = chooseHint(kdNow(), field, v, kept[field] ?? "");
+    st.remember("ahHintDetails", { ...kept, [field]: r.kept });
+    setKd(r.changes);
+  };
   return (
     <div className="grid gap-2" data-testid={`ah-kd-${field}`}>
-      <ChipGroup legend={label} name={`ah-kd-${field}_choice`} options={opts(["Ja", "Nein", "Sonstiges"])} value={choice} onChange={(v) => setKd(chooseHint(field, v as HintChoice))} />
+      <ChipGroup legend={label} name={`ah-kd-${field}_choice`} options={opts(["Ja", "Nein", "Sonstiges"])} value={choice} onChange={(v) => pick(v as HintChoice)} />
       {hintDetailsOpen(choice) ? (
         <Field label={`Details zu „${label}“`} id={`${KD}-${field}`} name={field} placeholder="Details eintragen" autoComplete="off"
           value={details} onChange={(e) => setKd(typeHint(kdNow(), field, e.target.value))} />
