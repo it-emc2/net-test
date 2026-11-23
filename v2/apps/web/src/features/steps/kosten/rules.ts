@@ -91,7 +91,7 @@ function bwtIncluded(price: Price, _offer: Fields): RawLine[] {
   return out;
 }
 
-/** The sections of the page, from a price (Badumbau; for the Badewannentür with `ctx`). */
+/** The sections of the page, from a price (Badumbau; for the Badewannentür and the Badelift with `ctx`). */
 export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
   if (!price) return [];
   const bwt = ctx.type === "bwt", offer = ctx.offer ?? {};
@@ -121,6 +121,15 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
         note: drift2 ? { text: `Preis geändert: ${drift!.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
     ];
   }
+  // Badelift: no numerals, the material as one list (today's Kosten groups only Badumbau and Handlauf), no optional products
+  if (ctx.type === "bl") {
+    return [
+      { num: "", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
+      { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
+      { num: "", title: String(materials.title || "Material für Badumbau"), rows: matLines.map((l) => row(l, exempt)), footer: `Summe Material: ${eur(matSum)}`,
+        note: drift && Math.abs(delta) >= 0.005 && (drift.lines?.length ?? 0) > 1 ? { text: `Preis geändert: ${drift.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
+    ];
+  }
   return [
     { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
@@ -134,7 +143,7 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
 /** "Summen": purchase sums → markup → (subtotal → discount / bonus) → net → VAT → total */
 export function sums(price: Price | null, ctx: Ctx = {}): SumRow[] {
   if (!price) return [];
-  const num = (s: string) => (ctx.type === "bwt" ? "" : s);
+  const num = (s: string) => (ctx.type === "bwt" || ctx.type === "bl" ? "" : s); // numerals: Badumbau (and Handlauf) only
   const services = (price.services ?? {}) as Fields, materials = (price.materials ?? {}) as Fields;
   const optional = n((price.optionalDisplayUI as Fields | undefined)?.sum), discount = n(price.rabattAmount), bonus = n(price.bonusGross);
   const grabReal = n(price.grabBonusReal), grabMat = n(price.grabBonusMaterial), grabWork = n(price.grabBonusArbeit), base = n(price.markupBase);
