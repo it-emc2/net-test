@@ -15,7 +15,7 @@
   --muted: #eef0f5;
   --muted-foreground: #5b6472; /* a little darker than today's #6b7280 → 4.5:1 on the page background */
   --border: #e5e7eb;
-  --input: #d1d5db;
+  --input: #6b7280;          /* boundary of every field, button and choice card: ≥ 3:1 on card and page (was #d1d5db, 1.5:1) */
   --destructive: #dc2626;
   --success: #16a34a;
   /* boundary of a tick box, chip or stepper button (≥ 3:1 on card and page) and status pills */
@@ -49,7 +49,7 @@
   --muted: #131f30;
   --muted-foreground: #9ca3af;
   --border: #1e2d3d;
-  --input: #334155;
+  --input: #7d8ba1;
   --destructive: #f87171;
   --success: #22c55e;
   --control: #7d8ba1;
