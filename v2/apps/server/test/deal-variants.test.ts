@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { readFileSync } from "node:fs";
 import { loadConfig } from "@oc/config";
-import { ahTotalsOfPayload } from "../src/modules/documents/index.js";
+import { ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { variantCopyPayload, newOfferPatch } from "@oc/domain";
 import { buildApp } from "../src/app.js";
 import { createToken } from "../src/platform/auth.js";
@@ -19,6 +19,9 @@ import { claimNumber } from "../src/modules/sends/numbers.js";
 import { claimSendLock } from "../src/modules/email/send-lock.js";
 import { EmailSend } from "../src/platform/models.js";
 
+// what compose.ts passes in (THE AH total of the documents module), here with the default business settings
+const AH_CFG = { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
+const AH_AMOUNT = (p: unknown, r: "document" | "screen") => ahOfferTotals(ahDocumentInput(p as any, AH_CFG, r)).customerAmount;
 const SECRET = "deal-variant-test-secret-0123456789";
 let mongod: MongoMemoryServer;
 let app: FastifyInstance;
@@ -32,6 +35,7 @@ beforeAll(async () => {
   await migrateDealDraftIndexes();
   app = await buildApp(cfg, {
     register: (a) => registerDealDrafts(a, {
+      ahAmountOf: AH_AMOUNT,
       // stands in for offers' resolveAnsprechpartner: the signed-in user becomes the contact person
       resolveContact: async (kd, user) => ({ ...kd, ansprechpartner: user?.email, emc2_contact: `Name of ${user?.email}` }),
     }),
@@ -280,7 +284,7 @@ describe("variants", () => {
     const ROOT = new URL("../../../../", import.meta.url).pathname;
     const AH: any = structuredClone((JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8")) as any[])[0].payload);
     AH.activeOffer = "ah"; AH.offerNumber = "ANG-6025";
-    const want = ahTotalsOfPayload(AH, undefined, "document").customerAmount;
+    const want = AH_AMOUNT(AH, "document");
     expect(want).toBeGreaterThan(0);
     await put("6025", { offerType: "ah", payload: AH, baseRevision: 0 });
     await sendsC.insertOne({ sendId: "s-6025", dealId: "6025", offerNumber: "ANG-6025", status: "done", channel: "onsite", ahZoneReading: "document", startedAt: at, finishedAt: at });

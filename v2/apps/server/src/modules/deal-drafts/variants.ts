@@ -11,8 +11,13 @@ import mongoose from "mongoose";
 import { FIRST_VARIANT_ID, VARIANT_NAME_MAX, type DealVariant } from "@oc/api-contract";
 import { variantCopyPayload as variantCopyPayloadOf } from "@oc/domain";
 import { EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
-import { ahTotalsOfPayload } from "../documents/index.js";
 import { DealDraft, defaultOf, liveVariants, publicVariantId, saveDealDraft, storedVariant, touchOpened, variantFilter } from "./store.js";
+
+/** The Alltagshilfe monthly amount of a stored offer payload (ADR 028: THE AH total function of the documents module).
+ *  Passed in at startup (compose.ts) — this module must not import documents (documents → sends → deal-drafts → documents). */
+export type AhAmountOf = (payload: unknown, reading: "document" | "screen") => number | null;
+let ahAmountOf: AhAmountOf | null = null;
+export function setAhAmountOf(f: AhAmountOf | null) { ahAmountOf = f; }
 
 const str = (v: unknown) => String(v ?? "").trim();
 const sends = () => mongoose.connection.collection("offer_sends");
@@ -104,7 +109,7 @@ async function storedTotalsOf(list: { variantId: string; offerType: string; send
     let t: unknown = null;
     if (/^ah/i.test(x.offerType) || /^ah/i.test(str(o.payload?.activeOffer))) {
       const reading = x.send.ahZoneReading === "screen" ? "screen" : "document";
-      try { t = o.payload && typeof o.payload === "object" ? ahTotalsOfPayload(o.payload, undefined, reading).customerAmount : null; } catch { t = null; }
+      try { t = ahAmountOf && o.payload && typeof o.payload === "object" ? ahAmountOf(o.payload, reading) : null; } catch { t = null; }
     } else t = o.pricing?.total;
     if (typeof t === "number" && Number.isFinite(t) && t > 0) out.set(x.variantId, t);
   }
