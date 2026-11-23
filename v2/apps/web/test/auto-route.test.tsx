@@ -110,7 +110,7 @@ describe("the automatic route — on the pages", () => {
 
 describe("the route asks with the offer's type (Alltagshilfe starts at its own address)", () => {
   it.each(["ah", "bu"])("Arbeitszeit of a %s offer sends offerType and shows the start the server names", async (type) => {
-    const start = type === "ah" ? "Waldstraße 5, 95030 Hof" : "Kornhausacker 10, Hof";
+    const start = type === "ah" ? "Waldstraße 5, 95032 Hof" : "Kornhausacker 10, Hof";
     const server = fakeServer({
       ...BASE, "GET /api/deals/*/draft": { body: { ...draft({ Kundendaten: ADDRESS }).body as Obj, offerType: type, payload: { activeOffer: type, Kundendaten: ADDRESS } } },
       [ROUTE]: { body: { ...(FOUND.body as Obj), from: { address: start } } },

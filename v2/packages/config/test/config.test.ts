@@ -70,9 +70,9 @@ describe("loadConfig", () => {
 });
 
 describe("route start settings", () => {
-  it("COMPANY_ADDRESS_AH defaults to Waldstraße 5, 95030 Hof, its coordinates are optional, the environment overrides", () => {
+  it("COMPANY_ADDRESS_AH defaults to Waldstraße 5, 95032 Hof, its coordinates are optional, the environment overrides", () => {
     const d = loadConfig({});
-    expect([d.COMPANY_ADDRESS_AH, d.COMPANY_AH_LAT, d.COMPANY_AH_LNG, d.COMPANY_ADDRESS]).toEqual(["Waldstraße 5, 95030 Hof", undefined, undefined, "Kornhausacker 10, Hof"]);
+    expect([d.COMPANY_ADDRESS_AH, d.COMPANY_AH_LAT, d.COMPANY_AH_LNG, d.COMPANY_ADDRESS]).toEqual(["Waldstraße 5, 95032 Hof", undefined, undefined, "Kornhausacker 10, Hof"]);
     const o = loadConfig({ COMPANY_ADDRESS_AH: "Test 1, Hof", COMPANY_AH_LAT: "50.1", COMPANY_AH_LNG: "11.1" });
     expect([o.COMPANY_ADDRESS_AH, o.COMPANY_AH_LAT, o.COMPANY_AH_LNG]).toEqual(["Test 1, Hof", "50.1", "11.1"]);
   });
