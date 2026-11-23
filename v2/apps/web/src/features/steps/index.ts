@@ -17,11 +17,13 @@ export { Versand } from "./versand/Versand.js";
 export { Wandverkleidung } from "./wandverkleidung/Wandverkleidung.js";
 export { Rabatt } from "./rabatt/Rabatt.js";
 export { AhLeistungen } from "./ah/Leistungen.js";
+export { AhFinanzierung } from "./ah/Finanzierung.js";
 
 // what "Weiter" asks for on these steps before it goes on
 import { setStepCheck, setStepStatuses } from "../offer/index.js";
 import { statuses } from "./status.js";
 import { installAhSettle } from "./ah/settle.js";
+import { installAhFundingDefaults } from "./ah/funding.js";
 import { useOfferStore } from "../offer/index.js";
 import { arbeitszeitProblem } from "./arbeitszeit/rules.js";
 import { bwtProblem } from "./bwt/rules.js";
@@ -38,4 +40,5 @@ setStepCheck("Fussboden", () => { const o = useOfferStore.getState().offer as Re
 // keeps the rule as `optionalProblem`, ready to be registered here).
 
 setStepStatuses(statuses);
+installAhFundingDefaults(); // Alltagshilfe: the Entlastungsbetrag follows the Pflegegrad answer while the Finanzierung is untouched (ah/funding.ts)
 installAhSettle(); // Alltagshilfe budget mode follows price changes made on any step (ah/settle.ts) // step list: done / warning / open / not chosen (U-011 D2)

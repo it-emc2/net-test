@@ -2,7 +2,7 @@
 // must store what today's page stores and price what today's computeAHGesamt prices.
 // Reference: fixtures/ah-leistungen.json, recorded from today's UI by v2/scripts/capture-ah-leistungen.cjs.
 // Old offers: real (anonymised) AH payloads, tests/golden/fixtures/ah/{payloads,restore}.json.
-import { ahInputFromPayload, computeAhPricing } from "@oc/pricing";
+import { ahInputFromPayload, ahOfferTotals, computeAhPricing } from "@oc/pricing";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -33,6 +33,9 @@ async function open(setup: F = {}) {
   const server = fakeServer(handlers());
   renderApp(`/deal/${KEY}/ah/ah`);
   await screen.findByTestId("ah-leistungen");
+  // today's new offer has the Entlastungsbetrag ticked; since U-050 (owner 2026-11-20) a new offer
+  // starts unticked and the tick follows the Pflegegrad — these tests start from today's state
+  patch("Finanzierung", { ahEntlastungsbetragNutzen: "on" });
   for (const [s, f] of Object.entries(setup)) patch(s, f as F);
   return server;
 }
@@ -92,7 +95,12 @@ describe("Leistungen stores and prices what today's page does for the same choic
     expect(stored.ahServicesJson).toBe(sc.ah.ahServicesJson); // byte for byte
     const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
     expect([p.gesamt, p.eigenanteil, p.allBase]).toEqual([sc.price.gesamt, sc.price.eigenanteil, sc.price.allBase]);
-    expect(totalShown()).toEqual([euro(sc.price.gesamt), sc.Kundendaten.payer === "Selbstzahler" ? null : euro(sc.price.eigenanteil)]);
+    // ADR 028 (owner 2026-11-20): one total — a Selbstzahler sees net + 7 % MwSt, the Servicepauschale
+    // only as a note (today: net + 1,20 €); a Kassenkunde exactly today's numbers
+    const t = ahOfferTotals(ahInputFromPayload(offer(), CFG));
+    if (sc.Kundendaten.payer === "Selbstzahler") expect(t.net).toBe(sc.price.allBase);
+    else expect([t.gross, t.eigenanteil]).toEqual([sc.price.gesamt, sc.price.eigenanteil]);
+    expect(totalShown()).toEqual([euro(t.gross), sc.Kundendaten.payer === "Selbstzahler" ? null : euro(sc.price.eigenanteil)]);
     expect(server.count("POST /api/price")).toBe(0);
   });
 });
@@ -292,21 +300,22 @@ describe("budget mode", () => {
     expect(within(card("hnd")).getByRole("button", { name: "Dauer pro Einsatz kürzer" })).toBeInTheDocument();
   });
 
-  it("summary: the minus lines add up to the Eigenanteil; Selbstzahler: total (and Servicepauschale)", async () => {
+  it("summary: the minus lines add up to the Eigenanteil; Selbstzahler: net, MwSt, gross; Servicepauschale as a note (ADR 028)", async () => {
     await open({ Arbeitszeit: { travelTimeHHMM: "0:25" }, Finanzierung: { ahVerhinderungspflegeMonat: "50" } });
     const u = user();
     await u.click(screen.getByRole("checkbox", { name: /Im Budget bleiben/ }));
     await u.click(screen.getByRole("checkbox", { name: /^Haushaltsnahe Dienstleistungen/ }));
     const sum = screen.getByTestId("ah-summary");
     const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
-    expect(Array.from(sum.querySelectorAll('[data-part="line"]')).map((l) => l.textContent)).toEqual([`Leistungen und Anfahrt${euro(p.gesamt)}`, `Entlastungsbetrag− ${euro(131)}`, `Verhinderungspflege− ${euro(50)}`]);
+    expect(Array.from(sum.querySelectorAll('[data-part="line"]')).map((l) => l.textContent)).toEqual([`Leistungen und Anfahrt pro Monat${euro(p.gesamt)}`, `Entlastungsbetrag− ${euro(131)}`, `Verhinderungspflege− ${euro(50)}`]);
     expect(sum.querySelector('[data-part="total"]')).toHaveTextContent(nb(`Eigenanteil pro Monat${euro(p.eigenanteil)}`));
     expect(Math.round((p.gesamt - 131 - 50) * 100) / 100).toBe(p.eigenanteil);
     patch("Kundendaten", { payer: "Selbstzahler" });
-    const q = computeAhPricing(ahInputFromPayload(offer(), CFG));
-    expect(Array.from(screen.getByTestId("ah-summary").querySelectorAll('[data-part="line"]')).map((l) => l.textContent)).toEqual([`Leistungen und Anfahrt${euro(q.allBase)}`, `Servicepauschale${euro(1.2)}`]);
-    expect(screen.getByTestId("ah-summary").querySelector('[data-part="total"]')).toHaveTextContent(nb(`Gesamt pro Monat${euro(q.gesamt)}`));
-    expect(summaryOf(q).total.value).toBe(q.allBase + 1.2);
+    const q = ahOfferTotals(ahInputFromPayload(offer(), CFG));
+    expect(Array.from(screen.getByTestId("ah-summary").querySelectorAll('[data-part="line"]')).map((l) => l.textContent)).toEqual([`Leistungen und Anfahrt pro Monat${euro(q.net)}`, `zzgl. 7 % MwSt.${euro(q.vat)}`]);
+    expect(screen.getByTestId("ah-summary").querySelector('[data-part="total"]')).toHaveTextContent(nb(`Gesamt pro Monat${euro(q.gross)}`));
+    expect(summaryOf(q, euro).total.value).toBe(Math.round((q.net + Math.round(q.net * 7) / 100) * 100) / 100);
+    expect(screen.getByTestId("ah-summary").querySelector('[data-part="note-pauschale"]')).toHaveTextContent(/Separate Direktrechnung — nicht im Gesamtbetrag\. Servicepauschale Reinigungsutensilien für HnD: 1,20.€ \/ Monat/);
   });
 });
 
@@ -328,7 +337,10 @@ describe("old offers open, show and price as stored — and stay unchanged", () 
       });
       expect(within(card(k)).getByText(`Aufgaben · ${s.tasks.filter((t: unknown) => typeof t === "string").length} gewählt`)).toBeInTheDocument();
     }
-    expect(totalShown()[0]).toBe(euro(expected.gesamt));
+    // ADR 028: a Selbstzahler's total is net + 7 % MwSt (today: + 1,20 €); a Kassenkunde's as today
+    const isSz = expected.isSelbstzahler === true;
+    const net = isSz ? expected.allBase : expected.gesamt;
+    expect(totalShown()[0]).toBe(euro(isSz ? Math.round((net + Math.round(net * 7) / 100) * 100) / 100 : net));
     await new Promise((r) => setTimeout(r, 300));
     expect(ah()).toEqual(payload.ah);
     expect(useOfferStore.getState().version).toBe(0);
@@ -346,7 +358,7 @@ describe("old offers open, show and price as stored — and stay unchanged", () 
     await openStored(structuredClone(payload));
     const p = computeAhPricing(ahInputFromPayload(payload, CFG));
     expect(p.gesamt).toBeGreaterThan(0);
-    expect(totalShown()[0]).toBe(euro(p.gesamt));
+    expect(totalShown()[0]).toBe(euro(ahOfferTotals(ahInputFromPayload(payload, CFG)).gross)); // a Selbstzahler: net + 7 % (ADR 028)
     expect(durationOf("hnd")).toBe("4:00 Std.");
     expect(within(card("hnd")).getByRole("radio", { name: "Monatlich" })).toBeChecked();
     expect(within(card("hnd")).getByRole("checkbox", { name: /^Wohnungsreinigung/ })).toBeChecked();
@@ -367,9 +379,10 @@ describe("old offers open, show and price as stored — and stay unchanged", () 
 });
 
 describe("frame", () => {
-  it("the step is built and routed; Finanzierung and Kosten stay in today's view", async () => {
+  it("the step is built and routed; Kosten stays in today's view", async () => {
     expect(BUILT_STEPS.get("ah")).toBe("complete");
-    expect(BUILT_STEPS.has("Finanzierung")).toBe(false);
+    expect(BUILT_STEPS.get("Finanzierung")).toBe("complete");
+    expect(BUILT_STEPS.has("Kosten") && BUILT_STEPS.get("Kosten")).toBe("partly");
     await open();
     await waitFor(() => expect(within(screen.getByRole("navigation", { name: "Schritte" })).getByRole("link", { name: /^Leistungen/ })).toHaveAttribute("data-state", "open"));
   });
@@ -389,9 +402,9 @@ describe("frame", () => {
     await waitFor(() => expect(within(screen.getByRole("navigation", { name: "Schritte" })).getByRole("link", { name: /^Leistungen/ })).toHaveAttribute("data-state", "done"));
   });
 
-  it("Finanzierung (not built yet) opens the placeholder and shows the AH total", async () => {
+  it("Finanzierung (built in slice 2) opens with the AH total", async () => {
     await openStored(structuredClone(PAYLOADS.find((c) => c.id === "ah-offer-97ca8e12")!.payload), "Finanzierung");
-    expect(screen.getByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeInTheDocument();
+    expect(await screen.findByTestId("ah-finanzierung")).toBeInTheDocument();
     expect(totalShown()[0]).toBe(euro(137.02));
   });
 

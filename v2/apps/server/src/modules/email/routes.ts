@@ -213,7 +213,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
           // very large payloads (many sketches) would exceed the document limit — the stored PDF is the record then
           payload: payloadJson.length <= 8 * 1024 * 1024 ? payload : null, payloadOmitted: payloadJson.length > 8 * 1024 * 1024,
           pricing: offerComputed ?? null, identity, resendOf,
-          total: isAhOffer ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0,
+          total: isAhOffer ? Number(offerData?.AhBetragNum) || 0 : Number(offerComputed?.total) || 0, // AH: gross (Selbstzahler) / net (Kasse), ADR 028
           selfPayAmount: isAhOffer ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0,
         }));
       }
@@ -331,7 +331,7 @@ export async function registerEmail(app: FastifyInstance, d: EmailDeps) {
       }
 
       // final gross total + Eigenanteil for the "ANG verschickt" dialog (AH prices client-side)
-      const offerTotal = isAh ? Number(offerData?.AhGesamtNum) || 0 : Number(offerComputed?.total) || 0;
+      const offerTotal = isAh ? Number(offerData?.AhBetragNum) || 0 : Number(offerComputed?.total) || 0; // AH: ADR 028
       const selfPayAmount = isAh ? Number(offerData?.AhEigenanteilNum) || 0 : Number(offerComputed?.selfPayAmount) || 0;
       req.log.info({ dealId, offerNumber, bitrixOnly, attachments: attachmentNames.length, sendId }, "offer email done");
       const result = { ok: true, bitrixOnly, messageId: info.messageId, attachmentNames, bitrixComment, offerTotal, selfPayAmount, ...(clientSendId ? { sendId } : {}), ...(handEdited && !bitrixOnly ? { signingLink: "off-hand-edited" } : {}) };

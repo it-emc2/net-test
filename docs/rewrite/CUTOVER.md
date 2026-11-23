@@ -44,7 +44,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 - Logs: `docker compose logs -f app` (every error has a request id; GlitchTip later, ADR 009).
 - Daily: Bitrix failure log (`/admin` → Bitrix-Logs), email/letter sends, signing completions.
 - `main` keeps evolving until the switch; after the switch, changes go to v2 only (see §5).
-- Signing completions (ADR 027 A, step 3): every signature now also writes the signed offer's amount, final total, offer number and offer link (non-AH) or its AH fields and offer link (AH) to Bitrix; after a signature the „ANG verschickt“ move leaves the deal where it is. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
+- Signing completions (ADR 027 A, step 3): every signature now also writes the signed offer's amount, final total, offer number and offer link (non-AH) or its AH fields, offer link and (ADR 028) the AH monthly amount (AH) to Bitrix; after a signature the „ANG verschickt“ move leaves the deal where it is. Watch `error_events` (area `signing.completion`: `SIGNING_DEAL_UPDATE_FAILED`, `SIGNING_AMOUNT_MISSING`, `VARIANT_SECOND_SIGNATURE`, `VARIANT_PARTIAL_SIGNING_CLOSED`, `VARIANT_OF_SIGNATURE_UNKNOWN`) and the Bitrix failure log.
 
 - Second offers (ADR 027 B): `error_events` area `deals.second-offer` — `SECOND_OFFER_UNCLEAR` (check Bitrix for the deal, then the user retries with „In Bitrix prüfen“), `SECOND_OFFER_DRAFT_FAILED`, `SECOND_OFFER_BITRIX_FAILED`, `SECOND_OFFER_COMMENT_FAILED`. Claims are in `second_offer_creations` (keyed by `_id`, no migration; the old app ignores it).
 
@@ -75,5 +75,6 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
   - [ ] the deal can be found by `crm.item.list` filter `originatorId=oc-second-offer`, `originId=<creationId>` (the lookup after an unclear outcome);
   - [ ] the OC: the new deal's offer has the customer data, the new deal number, no products; both offers list each other;
   - [ ] a later send / signature moves the new deal into the HD (38) or AH (52) pipeline as usual.
+- [ ] AH amount in Bitrix (ADR 028) on a Bitrix **test deal** in the AH pipeline (52) with the owner: send a Selbstzahler AH offer → „ANG verschickt“: deal amount = the gross monthly amount (net + 7 %), manual, EUR, AH UF fields as before; a Kassenkunde offer → the net monthly amount (not the Eigenanteil); sign the first offer after sending a second variant → the deal amount is the signed offer's; an old AH deal opened again keeps its amount until the next send. Check the amount does not break an AH robot or report that expected 0.
 - [ ] Staging run with staff spot-check (§1.5).
 - [ ] Fresh parallel run on a copy taken the day before (§1.4).
