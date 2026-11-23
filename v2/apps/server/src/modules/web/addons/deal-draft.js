@@ -71,7 +71,7 @@
   }
   function hhmm(d) { return new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); }
   function when(d) { return new Date(d).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  function initials(email) { // org rule: initials, not names (t.raithel → TR)
+  function initials(email) { // org rule: initials, not names (m.muster → MM)
     var local = String(email || "").split("@")[0];
     var parts = local.split(/[._-]+/).filter(Boolean);
     return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : local.slice(0, 2).toUpperCase();
