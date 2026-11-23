@@ -3,15 +3,17 @@
 //  - the Bitrix deal of a NEW offer: its contact, the deal number and the landlord answers
 //    (today: Hauptmenü „Bitrix Deal laden“). ONE request (GET /api/deals/:id/customer, one Bitrix
 //    batch on the server), kept as long as the server keeps it; no refetch on focus/reconnect.
-//  - „Kontakt aus Bitrix laden“ with the Bitrix contact number
+//  - „Kontakt aus Bitrix laden“ with the Bitrix contact number; on an offer without deal number the
+//    contact's deals are asked once (60 s kept): one deal is taken, several → the pick list „Deal:“
+//    (DealPick; recorded in test/fixtures/home-entwurf.json „contact with several deals“)
 //  - „Kunde suchen“ in the local customer list (no Bitrix)
 // Nothing here blocks: a failure is said in German with „Erneut versuchen“; the fields can always
 // be typed by hand.
 import { DEAL_NUMBER_RE, ERROR_AREAS, ERROR_CODES, customerOfContact, type DealCustomerResponse } from "@oc/api-contract";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { CircleAlert, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { call, dealCustomerKey, dealCustomerQuery, loadDealCustomerFresh } from "../../../shared/api/index.js";
+import { CONTACT_DEALS, call, contactDealsQuery, dealCustomerKey, dealCustomerQuery, loadDealCustomerFresh, type ContactDeal } from "../../../shared/api/index.js";
 import { Alert, Button, Card, CardTitle, Input, Label } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
@@ -83,6 +85,50 @@ function DealLoad({ dealId }: { dealId: string }) {
   return null;
 }
 
+/** A deal of the contact becomes the offer's deal: its number (Auftrag ID, mail, post) and — as for a
+ *  single deal (U-038) — the landlord answers of that deal (one request, shared with Kundendaten). */
+async function takeDeal(qc: QueryClient, type: string, dealId: string, still: () => boolean) {
+  apply({}, dealNumberTop(offerNow()!, dealId));
+  const r = await qc.fetchQuery(dealCustomerQuery(dealId)).catch(() => null);
+  const now = offerNow();
+  if (r && now && still()) {
+    const kd = now.Kundendaten ?? {};
+    const changes = landlordChanges(type, r.vermieter, kd, r.customer?.bitrixContactId ?? null);
+    if (Object.keys(changes).length) apply({ [KD]: changes });
+  }
+}
+
+/** Today's pick list „Deal:“ (summary widget, script.js fetchAndSetDeal): a contact with several deals,
+ *  loaded with „Kontakt aus Bitrix laden“ on an offer without deal number, or the contact of an
+ *  appointment without deal. A tap makes that deal the offer's; the list goes away. */
+function DealPick() {
+  const qc = useQueryClient();
+  const type = useOfferType() ?? "";
+  const pick = useOfferStore((s) => s.scratch[CONTACT_DEALS] as { contactId: string; deals: ContactDeal[] } | null | undefined);
+  const [busy, setBusy] = useState("");
+  if (!pick || pick.deals.length < 2) return null;
+  const choose = async (id: string) => {
+    const opened = useOfferStore.getState().dealId;
+    setBusy(id);
+    useOfferStore.getState().remember(CONTACT_DEALS, null);
+    await takeDeal(qc, type, id, () => useOfferStore.getState().dealId === opened);
+    setBusy("");
+  };
+  return (
+    <div className="grid gap-2" data-testid="kd-deal-pick">
+      <p className="m-0 font-semibold" id="kd-deal-pick">Deal:</p>
+      <p className="m-0 text-[0.95rem] text-muted-foreground">Dieser Kontakt hat mehrere Deals. Bitte wählen Sie den Deal für dieses Angebot.</p>
+      <div role="group" aria-labelledby="kd-deal-pick" className="grid gap-2 sm:grid-cols-2">
+        {pick.deals.map((d) => (
+          <Button key={d.id} variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" disabled={!!busy} data-deal={d.id} onClick={() => void choose(d.id)}>
+            <span><strong>{d.id}</strong>{d.title ? <span className="text-muted-foreground"> · {d.title}</span> : null}</span>
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** „Bitrix Kontakt ID“ + „Kontakt aus Bitrix laden“ (today's row at the top of the form) */
 function ContactLoad() {
   const qc = useQueryClient();
@@ -114,20 +160,13 @@ function ContactLoad() {
       if (!customer) throw Object.assign(new Error("Kontakt nicht gefunden"), { notFound: true });
       apply(restoreChanges(offerNow()!, { ...customer }, type));
       toast.success("Kontakt aus Bitrix übernommen");
-      // the contact's deal becomes the offer's — only for an offer without a deal number (as today: exactly one deal)
+      // the contact's deal becomes the offer's — only for an offer without a deal number: exactly one
+      // deal is taken; several → today's pick list „Deal:“ (DealPick)
       if (!deal) {
-        const list = await call("bitrixContactDeals", { params: { id: contactId } }).then((r) => r.deals ?? [], () => []);
-        if (list.length === 1 && still()) {
-          const dealId = String(list[0]!.id);
-          apply({}, dealNumberTop(offerNow()!, dealId));
-          const r = await qc.fetchQuery(dealCustomerQuery(dealId)).catch(() => null);
-          const now = offerNow();
-          if (r && now && still()) {
-            const kd = now.Kundendaten ?? {};
-            const changes = landlordChanges(type, r.vermieter, kd, r.customer?.bitrixContactId ?? null);
-            if (Object.keys(changes).length) apply({ [KD]: changes });
-          }
-        }
+        const list = await qc.fetchQuery(contactDealsQuery(contactId)).catch(() => [] as ContactDeal[]);
+        if (!still()) return;
+        useOfferStore.getState().remember(CONTACT_DEALS, list.length > 1 ? { contactId, deals: list } : null);
+        if (list.length === 1) await takeDeal(qc, type, list[0]!.id, still);
       }
     } catch (err) {
       if (isAbort(err) || !still()) return;
@@ -164,6 +203,7 @@ export function BitrixCustomer() {
       <CardTitle id="kd-bitrix">Kunde aus Bitrix</CardTitle>
       <DealLoad dealId={dealId} />
       <ContactLoad />
+      <DealPick />
     </Card>
   );
 }
