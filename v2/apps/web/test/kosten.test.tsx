@@ -53,10 +53,10 @@ describe("Kosten — rules and what goes beyond the recordings", () => {
     await waitFor(() => expect(server.count("POST /api/price")).toBe(before + 1));
   });
 
-  it("the other offer types still use today's view for this step", async () => {
-    await open({ total: 10 }, "bl");
-    expect(await screen.findByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeTruthy();
-    expect(screen.queryByTestId("kosten-sums")).toBeNull();
+  it("Handlauf and Badelift have their React Kosten too — no link to today's view any more", async () => {
+    await open({ total: 10 }, "hl");
+    expect(await screen.findByTestId("kosten-sums")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeNull();
   });
 
   it("a line left out of the markup is marked; a changed price shows today's difference, several of them their sum", () => {

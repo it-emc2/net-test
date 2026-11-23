@@ -49,6 +49,7 @@ const referenzVorher = () => import("../features/steps/index.js").then((m) => ({
 const referenzNachher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzNachher }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
 const ahLeistungen = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhLeistungen }));
+const badelift = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badelift }));
 const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhFinanzierung }));
 
 export const routes: RouteObject[] = [
@@ -86,6 +87,7 @@ export const routes: RouteObject[] = [
           { path: "referenzNachher", lazy: referenzNachher },
           { path: "ah", lazy: ahLeistungen },
           { path: "Finanzierung", lazy: ahFinanzierung },
+          { path: "bl", lazy: badelift },
           { path: ":step", lazy: stepInLegacy },
         ],
       },

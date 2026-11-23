@@ -202,12 +202,7 @@ describe("step status and the other offer types", () => {
     expect(statuses("bu", {}, null).Kosten).toBeUndefined();
   });
 
-  it("Badumbau Kosten is untouched, Badelift keeps the link to today's view", async () => {
-    fakeServer({ ...BASE, "POST /api/price": { body: { total: 10 } } });
-    renderApp("/deal/t-0123456789abcdef01234569/bl/Kosten");
-    expect(await screen.findByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeTruthy();
-    expect(screen.queryByTestId("ah-kosten")).toBeNull();
-    cleanup();
+  it("Badumbau Kosten is untouched", async () => {
     fakeServer({ ...BASE, "POST /api/price": { body: { total: 10 } } });
     renderApp("/deal/t-0123456789abcdef01234569/bu/Kosten");
     expect(await screen.findByText("Kosten-Details")).toBeTruthy();
