@@ -83,10 +83,12 @@ export const ERROR_CODES = {
   SECOND_OFFER_ID_MISMATCH: "SECOND_OFFER_ID_MISMATCH",
   /** second offer: the timeline notes (one batch) failed — the creation itself succeeded (warn) */
   SECOND_OFFER_COMMENT_FAILED: "SECOND_OFFER_COMMENT_FAILED",
+  /** Hauptmenü „Öffnen“: the search in the stored drafts and offers failed */
+  OFFER_SEARCH_FAILED: "OFFER_SEARCH_FAILED",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
-export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion", secondOffer: "deals.second-offer" } as const;
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion", secondOffer: "deals.second-offer", homeSearch: "home.search" } as const;
 export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
 
 // ---------- the customer of a Bitrix deal (Kundendaten) ----------
@@ -291,6 +293,77 @@ export const DealRelatedResponseSchema = z.object({
 });
 export type DealRelatedResponse = z.infer<typeof DealRelatedResponseSchema>;
 
+// ---------- Hauptmenü „Öffnen“: legacy drafts and stored offers (search, a deal's list) ----------
+// Today's UI (script.js renderGlobalOfferSearchResults, openDealActionDialog) gets the whole stored
+// documents from GET /api/offers/search-all and /api/offers/by-deal/:dealId and derives what a row
+// shows in the browser. The React app asks the lean routes (/api/offers/v2/…), which derive the
+// same row on the server with homeSearchRow — one function, so a row looks exactly like today's.
+/** today's matching: 220 ms after the last key, up to 20 rows, no minimum length */
+export const HOME_SEARCH_DELAY_MS = 220;
+export const HOME_SEARCH_LIMIT = 20;
+export const HomeSearchRowSchema = z.object({
+  kind: z.enum(["draft", "offer"]),
+  /** the stored document's id (a draft is opened by it) */
+  id: z.string(),
+  title: z.string(),
+  /** as stored, lower or upper case; "" when none */
+  offerType: z.string(),
+  /** the bold reference: the offer number, else (search only) the draft's id — as today */
+  ref: z.string(),
+  offerNumber: z.string(),
+  /** ISO time of the last change (today's date column), null when unknown */
+  at: z.string().nullable(),
+  snippet: z.string(),
+  /** the deal number the document belongs to (its `auftragId`), "" when it has none */
+  deal: z.string(),
+});
+export type HomeSearchRow = z.infer<typeof HomeSearchRowSchema>;
+export const HomeSearchResponseSchema = z.object({ rows: z.array(HomeSearchRowSchema) });
+export type HomeSearchResponse = z.infer<typeof HomeSearchResponseSchema>;
+
+const text = (v: unknown) => (v == null ? "" : String(v));
+const isoOf = (v: unknown): string | null => {
+  if (v == null || v === "") return null;
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+/**
+ * One row of today's lists from a search-all / by-deal result (mapSearchResult on the server).
+ * `list`: "search" = the Hauptmenü search (renderGlobalOfferSearchResults), "deal" = the list of a
+ * deal (openDealActionDialog) — they name a row differently, as today. Verbatim rules, quirks kept:
+ * a search row's title is the customer name only if the document has a `customerName` (none has),
+ * so drafts show their name and offers their number; a draft without number shows its id.
+ */
+export function homeSearchRow(item: Record<string, any>, list: "search" | "deal" = "search"): HomeSearchRow {
+  const source = String(item.source || item.collection || item.kind || "").toLowerCase();
+  const draftId = text(item._id || item.id || item.draftId);
+  const offerNumber = text(item.offerNumber || item.angNumber || item.number || item.angebotNummer);
+  const isDraft = list === "deal" ? item._type === "draft" :
+    item._type === "draft" || source.includes("draft") || source.includes("entwurf") || item.isDraft === true || item.type === "draft" ||
+    item.kind === "draft" || item.collection === "drafts" || (!!draftId && !offerNumber);
+  const title = list === "deal"
+    ? [item.firstName, item.lastName].filter(Boolean).join(" ").trim() || text(item.name) || text(item.offerNumber) || "Ohne Titel"
+    : text(item.customerName || item.name || item.title || item.offerNumber || item.angNumber) || (isDraft ? "Entwurf ohne Titel" : "Ohne Titel");
+  const deal = text(item.payload?.auftragId || item.payload?.postal?.auftragId || item.auftragId).trim();
+  return {
+    kind: isDraft ? "draft" : "offer",
+    id: draftId,
+    title,
+    offerType: text(list === "deal" ? item.offerType : item.offerType || item.activeOffer || item.type),
+    ref: list === "deal" ? text(item.offerNumber) : offerNumber || draftId,
+    offerNumber: list === "deal" ? text(item.offerNumber) : offerNumber,
+    at: isoOf(list === "deal" ? item.updatedAt : item.updatedAt || item.createdAt || item.date),
+    snippet: list === "deal" ? "" : text(item.snippet || item.summary || item.preview),
+    deal: DEAL_NUMBER_RE.test(deal) ? deal : "",
+  };
+}
+/** a legacy draft (GET /api/drafts/:id) */
+export const LegacyDraftResponseSchema = z.looseObject({ id: z.unknown(), name: z.string().nullish(), offerType: z.string().nullish(), offerNumber: z.string().nullish(), payload: z.record(z.string(), z.unknown()).nullish() });
+/** a stored offer (GET /api/offers/:offerNumber) */
+export const StoredOfferResponseSchema = z.looseObject({ ok: z.boolean().nullish(), offer: z.looseObject({ offerNumber: z.string(), offerType: z.string().nullish(), payload: z.record(z.string(), z.unknown()).nullish() }) });
+/** copies a legacy draft or a stored offer into the deal's draft (a new version; the source is only read) */
+export const ImportDealDraftRequestSchema = z.object({ kind: z.enum(["draft", "offer"]), id: z.string().optional(), offerNumber: z.string().optional(), baseRevision: z.number().int() });
+
 // ---------- route suggestion (distance and travel time to the customer's address) ----------
 /** `offerType` "ah" starts the route at the Alltagshilfe address; without it (or any other type) at the company address */
 export const SuggestDistanceRequestSchema = z.looseObject({ Kundendaten: z.looseObject({}).optional(), offerType: z.string().optional() });
@@ -348,6 +421,14 @@ export const endpoints = {
   bitrixContactDeals: { method: "GET", path: "/api/bitrix/contact/:id/deals", response: z.looseObject({ deals: z.array(z.looseObject({ id: z.string() })).nullish() }) },
   /** a saved offer exists for this deal? (the list is empty if not) */
   offersByDeal: { method: "GET", path: "/api/offers/by-deal/:dealId", response: z.array(z.unknown()) },
+  /** Hauptmenü „Öffnen“: legacy drafts + stored offers matching q (today's matching), as today's rows; query: q, limit */
+  homeSearch: { method: "GET", path: "/api/offers/v2/search", response: HomeSearchResponseSchema },
+  /** the legacy drafts + stored offers of a deal (up to 20 + 20), as today's rows of the deal dialog */
+  homeByDeal: { method: "GET", path: "/api/offers/v2/by-deal/:dealId", response: HomeSearchResponseSchema },
+  legacyDraft: { method: "GET", path: "/api/drafts/:id", response: LegacyDraftResponseSchema },
+  storedOffer: { method: "GET", path: "/api/offers/:offerNumber", response: StoredOfferResponseSchema },
+  /** a legacy draft / stored offer becomes a new version of the deal's draft (query variant=…); REVISION_CONFLICT when the draft moved on */
+  importDealDraft: { method: "POST", path: "/api/deals/:dealId/draft/import", request: ImportDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
   /** „Termin hat nicht stattgefunden“: the deal goes back to „Besichtigungstermin vereinbaren“; body: comment, reason */
   moveBesichtigung: { method: "POST", path: "/api/bitrix/deal/:id/move-besichtigung", response: z.looseObject({ commentFailed: z.boolean().nullish(), plannerSynced: z.boolean().nullish() }) },
   /** the lean planning API (route-plannung #35) through our server, which holds the key: one day, ~3 KB; query: date=YYYY-MM-DD (default today) → { ok, updatedAt, plan } */
