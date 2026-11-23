@@ -1,0 +1,1299 @@
+{
+ "note": "Anonymised stored Handlauf offers, copied from tests/golden/fixtures/pricing/cases.json (customer set to the test customer). Used by hl-alt.test.tsx and compare-handlauf-prices.cjs.",
+ "offers": {
+  "offers-hl-KK-e04d66": {
+   "expectedTotal": 1399.13,
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Herr",
+     "date": "2000-01-01",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "0000000000",
+     "email": "kunde@example.test",
+     "street": "Musterweg 1",
+     "city": "Musterstadt",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "ansprechpartner": "",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "hasPflegegrad": "Ja",
+     "pflegegrad": "3",
+     "budgetMax": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "pflegekasseAntrag": "Nein",
+     "pflegekasseEmc2Antrag": "Ja",
+     "wohnsituation": "ANON",
+     "parkenMoeglich": "Ja",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {
+     "sonderaufschlagValue": "124",
+     "rb-add-rabatt": "nein",
+     "rabattEnabled": false,
+     "materialDiscountPct": 0,
+     "bonus300": false,
+     "bonusGrab": false
+    },
+    "bwt": {},
+    "hl": {
+     "hl_area": [
+      "inside",
+      "outside"
+     ],
+     "hlSpeditionskosten": "zzgl. Speditionskosten lange Rohre",
+     "hlPreis": "95",
+     "quickAdd": [
+      {
+       "kind": "hl-logistik",
+       "group": "Logistik",
+       "label": "zzgl. Speditionskosten lange Rohre",
+       "productId": "HL_LOGISTIK",
+       "qty": 1,
+       "price": 95
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Eiche dunkel",
+       "productId": "FF_07",
+       "qty": 1,
+       "price": 21
+      },
+      {
+       "kind": "hl-config",
+       "label": "Eiche mittel",
+       "category": "HL EG zum Podest",
+       "productId": "FF_06",
+       "qty": 3.85,
+       "price": 21,
+       "unit": "m"
+      },
+      {
+       "kind": "hl-config",
+       "label": "Handlaufhalter Chrom matt",
+       "category": "HL EG zum Podest",
+       "productId": "FF_H04",
+       "qty": 2,
+       "price": 13
+      },
+      {
+       "kind": "hl-config",
+       "label": "Wandabschlussbogen Chrom matt",
+       "category": "HL EG zum Podest",
+       "productId": "FF_W04",
+       "qty": 2,
+       "price": 20
+      },
+      {
+       "kind": "hl-config",
+       "label": "Eiche mittel",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_06",
+       "qty": 3.45,
+       "price": 21,
+       "unit": "m"
+      },
+      {
+       "kind": "hl-config",
+       "label": "Handlaufhalter Chrom matt",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_H04",
+       "qty": 2,
+       "price": 13
+      },
+      {
+       "kind": "hl-config",
+       "label": "Wandabschlussbogen Chrom matt",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_W04",
+       "qty": 2,
+       "price": 20
+      },
+      {
+       "kind": "hl-config",
+       "label": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+       "category": "HL außen vor der Haustür",
+       "productId": "6669",
+       "qty": 1,
+       "price": 29.51
+      }
+     ],
+     "hlConfigurator": {
+      "state": [
+       {
+        "name": "HL EG zum Podest",
+        "area": "inside",
+        "tubeTab": "Stahlrohr 35mm",
+        "finish": "Chrom matt",
+        "tubes": {
+         "Stahlrohr 35mm::FF_06::Eiche mittel": 3.85
+        },
+        "fittings": {
+         "Handlaufhalter innen::FF_H04::Handlaufhalter Chrom matt": 2,
+         "Wandabschlussbogen innen::FF_W04::Wandabschlussbogen Chrom matt": 2
+        },
+        "sonderprodukte": []
+       },
+       {
+        "name": "HL Podest zum 1. OG",
+        "area": "inside",
+        "tubeTab": "Stahlrohr 35mm",
+        "finish": "Chrom matt",
+        "tubes": {
+         "Stahlrohr 35mm::FF_06::Eiche mittel": 3.45
+        },
+        "fittings": {
+         "Handlaufhalter innen::FF_H04::Handlaufhalter Chrom matt": 2,
+         "Wandabschlussbogen innen::FF_W04::Wandabschlussbogen Chrom matt": 2
+        },
+        "sonderprodukte": []
+       },
+       {
+        "name": "HL außen vor der Haustür",
+        "area": "outside",
+        "tubeTab": "__sonder__",
+        "finish": "",
+        "tubes": {},
+        "fittings": {},
+        "sonderprodukte": [
+         {
+          "name": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+          "price": 29.51,
+          "articleId": "6669",
+          "qty": 1
+         }
+        ]
+       }
+      ],
+      "lines": [
+       {
+        "label": "Eiche mittel",
+        "category": "HL EG zum Podest",
+        "productId": "FF_06",
+        "qty": 3.85,
+        "price": 21,
+        "unit": "m"
+       },
+       {
+        "label": "Handlaufhalter Chrom matt",
+        "category": "HL EG zum Podest",
+        "productId": "FF_H04",
+        "qty": 2,
+        "price": 13
+       },
+       {
+        "label": "Wandabschlussbogen Chrom matt",
+        "category": "HL EG zum Podest",
+        "productId": "FF_W04",
+        "qty": 2,
+        "price": 20
+       },
+       {
+        "label": "Eiche mittel",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_06",
+        "qty": 3.45,
+        "price": 21,
+        "unit": "m"
+       },
+       {
+        "label": "Handlaufhalter Chrom matt",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_H04",
+        "qty": 2,
+        "price": 13
+       },
+       {
+        "label": "Wandabschlussbogen Chrom matt",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_W04",
+        "qty": 2,
+        "price": 20
+       },
+       {
+        "label": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+        "category": "HL außen vor der Haustür",
+        "productId": "6669",
+        "qty": 1,
+        "price": 29.51
+       }
+      ]
+     },
+     "hlNote": "ANON_text",
+     "sketch": {
+      "json": "{\"version\":1,\"ops\":[]}",
+      "dataUrl": ""
+     },
+     "pipes": [],
+     "area": [
+      "inside",
+      "outside"
+     ],
+     "mountType": [],
+     "workTasks": [
+      "deliver_install_hl_handrail"
+     ],
+     "extraTasks": []
+    },
+    "ah": {},
+    "Finanzierung": {
+     "ahEntlastungsbetragNutzen": "on",
+     "ahVerhinderungspflegeMonat": "0",
+     "ahUmwidmungBetrag": ""
+    },
+    "hms": {},
+    "wd": {},
+    "pricingRules": {
+     "kleinInAufschlag": true,
+     "bwtKmFreeThreshold": 0,
+     "bwtTravelTimeFreeHours": 0
+    },
+    "materials": [],
+    "bl": {},
+    "offerNumber": "ANG2026-0812-160327",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:12",
+     "totalHoursNumeric": 7.2,
+     "ReiseHoursNumeric": 0.2,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:06",
+     "distanceKm": "2.5",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 13.9,
+      "travelSecondWorkerCost": 7,
+      "totalCost": 993.9
+     }
+    },
+    "activeOffer": "hl",
+    "includeOurSignature": true,
+    "ourSignatureUser": "capture",
+    "auftragId": "65720",
+    "postal": {
+     "auftragId": "",
+     "recipient": {
+      "firstName": "ANON_firstName",
+      "lastName": "ANON_lastName",
+      "street": "ANON_street",
+      "zipCode": "95028",
+      "city": "ANON_city",
+      "country": "ANON_country"
+     },
+     "attachments": [
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      },
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      }
+     ]
+    },
+    "docSelection": {
+     "abtretung": true,
+     "vollmacht": true,
+     "barrierefrei": true
+    },
+    "mail": {
+     "auftragId": "",
+     "to": "",
+     "subject": "",
+     "body": ""
+    }
+   }
+  },
+  "offers-hl-KK-367e1d": {
+   "expectedTotal": 1456.56,
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "13114",
+     "salutation": "Frau",
+     "date": "2000-01-01",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "phone": "0000000000",
+     "email": "kunde@example.test",
+     "street": "Musterweg 1",
+     "city": "Musterstadt",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "payer": "Kassenkunde",
+     "kassenkundeName": "",
+     "aufschlag": "",
+     "sonderaufschlagValue": "",
+     "hasPflegegrad": "Ja",
+     "pflegegrad": "1",
+     "budgetMax": "",
+     "copayAmount": 0,
+     "wohnumfeldDone": "Nein",
+     "wohnumfeldAmount": "",
+     "partnerSalutation": "",
+     "pflegekasseAntrag": "Ja",
+     "pflegekasseGenehmigung": "Nein",
+     "wohnsituation": "ANON",
+     "vermieterGenehmigung": "",
+     "zugangWohnung": "",
+     "badStockwerk": "",
+     "parkenMoeglich": "Ja",
+     "parkDetails": "",
+     "customerNumber": "X000000000",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0
+     }
+    },
+    "duschwanne": {},
+    "wandverkleidung": {},
+    "duschabtrennung": {},
+    "optional": {},
+    "rabatt": {},
+    "bwt": {},
+    "hl": {
+     "hlQuickAddTarget": "hausecke",
+     "hlNote": "",
+     "hlSketchDataUrl": "",
+     "hlSketchJson": "",
+     "hl_area": "outside",
+     "hlMountType": "boden-befestigung",
+     "hl_pipe_type": "Stahlrohr",
+     "qty_hlPipeWood": "",
+     "hl_steel_length[]": [
+      "1,70",
+      "1,70"
+     ],
+     "hl_steel_quality[]": [
+      "V2A silber matt",
+      "V2A silber matt"
+     ],
+     "hl_steel_color": "Silber matt",
+     "qty_hlPipeAlu": "",
+     "hlEdelstahlstuetzeBetonierenSize": "120",
+     "qty_hlEdelstahlstuetzeBetonieren": "4",
+     "hl_outdoor_components[]": [
+      "Edelstahlstütze, Bodenbefestigung mit Schrauben",
+      "Abschlusskappe flach, Außenbefestigung, 35 mm"
+     ],
+     "qty_hlEdelstahlstuetzeBoden": "4",
+     "hlEdelstahlstuetzeSeitlSize": "20",
+     "qty_hlEdelstahlstuetzeSeitl": "0",
+     "qty_hlCapFlatOuter35": "4",
+     "qty_hlWallStraightOuter35": "0",
+     "qty_hlBefFlexoGelenk": "",
+     "qty_hlBef90Bogen": "",
+     "qty_hlBefSonderabschluss": "",
+     "qty_hlBefWandabschlussbogen": "",
+     "qty_hlBefHandlaufhalter": "",
+     "hlSpeditionskosten": "Speditionskosten Rohre",
+     "hlPreis": "95",
+     "steelLines": [
+      {
+       "length": "1,70",
+       "quality": "V2A silber matt"
+      },
+      {
+       "length": "1,70",
+       "quality": "V2A silber matt"
+      }
+     ],
+     "quickAdd": [
+      {
+       "kind": "hl-item",
+       "group": "hl_outdoor_components[]",
+       "label": "Edelstahlstütze, Bodenbefestigung mit Schrauben",
+       "productId": "hlEdelstahlstuetzeBoden",
+       "qty": 4,
+       "imageUrl": "./assets/Edelstahlstütze.png"
+      },
+      {
+       "kind": "hl-item",
+       "group": "hl_outdoor_components[]",
+       "label": "Abschlusskappe flach, Außenbefestigung, 35 mm",
+       "productId": "hlCapFlatOuter35",
+       "qty": 4,
+       "imageUrl": "./assets/Wandanschluss gerade.png"
+      },
+      {
+       "kind": "hl-logistik",
+       "group": "Logistik",
+       "label": "Speditionskosten Rohre",
+       "productId": "HL_LOGISTIK",
+       "qty": 1,
+       "price": 95
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Auflage flexibel lang",
+       "productId": "E22d",
+       "qty": 4,
+       "price": 25
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Abdeckrosette (halbrund)",
+       "productId": "E08",
+       "qty": 4,
+       "price": 11.5
+      }
+     ],
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "pipes": [
+      {
+       "productId": "FF_10",
+       "type": "Stahlrohr",
+       "diameter": "⌀35mm",
+       "lengthText": "ANON_text",
+       "lengthCm": 170,
+       "quality": "V2A silber matt",
+       "color": "Silber matt",
+       "qty": 1
+      },
+      {
+       "productId": "FF_10",
+       "type": "Stahlrohr",
+       "diameter": "⌀35mm",
+       "lengthText": "ANON_text",
+       "lengthCm": 170,
+       "quality": "V2A silber matt",
+       "color": "Silber matt",
+       "qty": 1
+      }
+     ],
+     "extras": {
+      "FF_E05": 4,
+      "FF_KFS12": 4
+     },
+     "area": [
+      "outside"
+     ],
+     "mountType": [
+      "boden-befestigung"
+     ]
+    },
+    "ah": {},
+    "hms": {},
+    "wd": {},
+    "materials": [],
+    "bl": {},
+    "offerNumber": "ANG2026-0608-141223",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "3:52",
+     "totalHoursNumeric": 3.86,
+     "ReiseHoursNumeric": 0.86,
+     "ArbeitHoursNumeric": 3,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "3:00",
+     "travelTimeHHMM": "0:26",
+     "distanceKm": "24.0",
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 417,
+      "travelDriverCost": 59.769999999999996,
+      "travelSecondWorkerCost": 30.099999999999998,
+      "totalCost": 506.87
+     }
+    },
+    "activeOffer": "hl",
+    "includeOurSignature": true,
+    "ourSignatureUser": "capture",
+    "postal": {
+     "enabled": false,
+     "auftragId": "",
+     "recipient": {
+      "firstName": "ANON_firstName",
+      "lastName": "ANON_lastName",
+      "street": "ANON_street",
+      "zipCode": "95028",
+      "city": "ANON_city",
+      "country": "ANON_country"
+     },
+     "subject": "ANON_subject",
+     "body": "ANON_body",
+     "attachments": [
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      },
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      }
+     ]
+    }
+   }
+  },
+  "drafts-hl-KK-f8ba40": {
+   "expectedTotal": 835.88,
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "13114",
+     "salutation": "Frau",
+     "date": "2000-01-01",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "0000000000",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "Musterweg 1",
+     "city": "Musterstadt",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "ansprechpartner": "",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "hasPflegegrad": "Ja",
+     "pflegegrad": "1",
+     "budgetMax": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "pflegekasseAntrag": "Ja",
+     "pflegekasseGenehmigung": "Nein",
+     "wohnsituation": "ANON",
+     "vermieterGenehmigung": "",
+     "zugangWohnung": "",
+     "badStockwerk": "",
+     "parkenMoeglich": "Ja",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "",
+     "customerNumber": "X000000000",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "rabatt": {
+     "sonderaufschlagValue": "50",
+     "rb-add-rabatt": "nein",
+     "rabattEnabled": false,
+     "materialDiscountPct": 0,
+     "bonus300": false,
+     "bonusGrab": false
+    },
+    "hl": {
+     "hlSpeditionskosten": "Speditionskosten Rohre",
+     "hlPreis": "95",
+     "quickAdd": [
+      {
+       "kind": "hl-logistik",
+       "group": "Logistik",
+       "label": "Speditionskosten Rohre",
+       "productId": "HL_LOGISTIK",
+       "qty": 1,
+       "price": 95
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Auflage flexibel lang",
+       "productId": "E22d",
+       "qty": 4,
+       "price": 25
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Abdeckrosette (halbrund)",
+       "productId": "E08",
+       "qty": 4,
+       "price": 11.5
+      }
+     ],
+     "hlNote": "",
+     "sketch": {
+      "json": "{\"version\":1,\"ops\":[]}",
+      "dataUrl": ""
+     },
+     "pipes": [],
+     "area": [],
+     "mountType": [],
+     "workTasks": [
+      "deliver_install_hl_handrail"
+     ],
+     "extraTasks": []
+    },
+    "Finanzierung": {
+     "ahEntlastungsbetragNutzen": "on",
+     "ahVerhinderungspflegeMonat": "0",
+     "ahUmwidmungBetrag": ""
+    },
+    "pricingRules": {
+     "kleinInAufschlag": false,
+     "bwtKmFreeThreshold": 200,
+     "bwtTravelTimeFreeHours": 2
+    },
+    "materials": [],
+    "offerNumber": "ANG2026-1012-103052",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "3:52",
+     "totalHoursNumeric": 3.86,
+     "ReiseHoursNumeric": 0.86,
+     "ArbeitHoursNumeric": 3,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "3:00",
+     "travelTimeHHMM": "0:26",
+     "distanceKm": "24.0",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 417,
+      "travelDriverCost": 59.769999999999996,
+      "travelSecondWorkerCost": 30.099999999999998,
+      "totalCost": 506.87
+     }
+    },
+    "activeOffer": "hl",
+    "includeOurSignature": true,
+    "ourSignatureUser": "capture",
+    "postal": {
+     "auftragId": "",
+     "recipient": {
+      "firstName": "ANON_firstName",
+      "lastName": "ANON_lastName",
+      "street": "ANON_street",
+      "zipCode": "95028",
+      "city": "ANON_city",
+      "country": "ANON_country"
+     },
+     "attachments": [
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      },
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      }
+     ]
+    },
+    "docSelection": {
+     "abtretung": true,
+     "vollmacht": true,
+     "barrierefrei": true
+    },
+    "mail": {
+     "auftragId": "",
+     "to": "",
+     "subject": "",
+     "body": ""
+    }
+   }
+  },
+  "drafts-hl-KK-bdd82d": {
+   "expectedTotal": 1399.13,
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Herr",
+     "date": "2000-01-01",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "0000000000",
+     "email": "kunde@example.test",
+     "street": "Musterweg 1",
+     "city": "Musterstadt",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "ansprechpartner": "",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "hasPflegegrad": "Ja",
+     "pflegegrad": "3",
+     "budgetMax": "",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "pflegekasseAntrag": "Nein",
+     "pflegekasseEmc2Antrag": "Ja",
+     "wohnsituation": "ANON",
+     "parkenMoeglich": "Ja",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "rabatt": {
+     "sonderaufschlagValue": "124",
+     "rb-add-rabatt": "nein",
+     "rabattEnabled": false,
+     "materialDiscountPct": 0,
+     "bonus300": false,
+     "bonusGrab": false
+    },
+    "hl": {
+     "hl_area": [
+      "inside",
+      "outside"
+     ],
+     "hlSpeditionskosten": "zzgl. Speditionskosten lange Rohre",
+     "hlPreis": "95",
+     "quickAdd": [
+      {
+       "kind": "hl-logistik",
+       "group": "Logistik",
+       "label": "zzgl. Speditionskosten lange Rohre",
+       "productId": "HL_LOGISTIK",
+       "qty": 1,
+       "price": 95
+      },
+      {
+       "kind": "hl-custom",
+       "group": "Handlauf Hausecke Außenbereich",
+       "label": "Eiche dunkel",
+       "productId": "FF_07",
+       "qty": 1,
+       "price": 21
+      },
+      {
+       "kind": "hl-config",
+       "label": "Eiche mittel",
+       "category": "HL EG zum Podest",
+       "productId": "FF_06",
+       "qty": 3.85,
+       "price": 21,
+       "unit": "m"
+      },
+      {
+       "kind": "hl-config",
+       "label": "Handlaufhalter Chrom matt",
+       "category": "HL EG zum Podest",
+       "productId": "FF_H04",
+       "qty": 2,
+       "price": 13
+      },
+      {
+       "kind": "hl-config",
+       "label": "Wandabschlussbogen Chrom matt",
+       "category": "HL EG zum Podest",
+       "productId": "FF_W04",
+       "qty": 2,
+       "price": 20
+      },
+      {
+       "kind": "hl-config",
+       "label": "Eiche mittel",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_06",
+       "qty": 3.45,
+       "price": 21,
+       "unit": "m"
+      },
+      {
+       "kind": "hl-config",
+       "label": "Handlaufhalter Chrom matt",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_H04",
+       "qty": 2,
+       "price": 13
+      },
+      {
+       "kind": "hl-config",
+       "label": "Wandabschlussbogen Chrom matt",
+       "category": "HL Podest zum 1. OG",
+       "productId": "FF_W04",
+       "qty": 2,
+       "price": 20
+      },
+      {
+       "kind": "hl-config",
+       "label": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+       "category": "HL außen vor der Haustür",
+       "productId": "6669",
+       "qty": 1,
+       "price": 29.51
+      }
+     ],
+     "hlConfigurator": {
+      "state": [
+       {
+        "name": "HL EG zum Podest",
+        "area": "inside",
+        "tubeTab": "Stahlrohr 35mm",
+        "finish": "Chrom matt",
+        "tubes": {
+         "Stahlrohr 35mm::FF_06::Eiche mittel": 3.85
+        },
+        "fittings": {
+         "Handlaufhalter innen::FF_H04::Handlaufhalter Chrom matt": 2,
+         "Wandabschlussbogen innen::FF_W04::Wandabschlussbogen Chrom matt": 2
+        },
+        "sonderprodukte": []
+       },
+       {
+        "name": "HL Podest zum 1. OG",
+        "area": "inside",
+        "tubeTab": "Stahlrohr 35mm",
+        "finish": "Chrom matt",
+        "tubes": {
+         "Stahlrohr 35mm::FF_06::Eiche mittel": 3.45
+        },
+        "fittings": {
+         "Handlaufhalter innen::FF_H04::Handlaufhalter Chrom matt": 2,
+         "Wandabschlussbogen innen::FF_W04::Wandabschlussbogen Chrom matt": 2
+        },
+        "sonderprodukte": []
+       },
+       {
+        "name": "HL außen vor der Haustür",
+        "area": "outside",
+        "tubeTab": "__sonder__",
+        "finish": "",
+        "sonderprodukte": [
+         {
+          "name": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+          "price": 29.51,
+          "articleId": "6669",
+          "qty": 1
+         }
+        ]
+       }
+      ],
+      "lines": [
+       {
+        "label": "Eiche mittel",
+        "category": "HL EG zum Podest",
+        "productId": "FF_06",
+        "qty": 3.85,
+        "price": 21,
+        "unit": "m"
+       },
+       {
+        "label": "Handlaufhalter Chrom matt",
+        "category": "HL EG zum Podest",
+        "productId": "FF_H04",
+        "qty": 2,
+        "price": 13
+       },
+       {
+        "label": "Wandabschlussbogen Chrom matt",
+        "category": "HL EG zum Podest",
+        "productId": "FF_W04",
+        "qty": 2,
+        "price": 20
+       },
+       {
+        "label": "Eiche mittel",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_06",
+        "qty": 3.45,
+        "price": 21,
+        "unit": "m"
+       },
+       {
+        "label": "Handlaufhalter Chrom matt",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_H04",
+        "qty": 2,
+        "price": 13
+       },
+       {
+        "label": "Wandabschlussbogen Chrom matt",
+        "category": "HL Podest zum 1. OG",
+        "productId": "FF_W04",
+        "qty": 2,
+        "price": 20
+       },
+       {
+        "label": "Trittstufe Haltegriff Edelstahl Ø 25 mm",
+        "category": "HL außen vor der Haustür",
+        "productId": "6669",
+        "qty": 1,
+        "price": 29.51
+       }
+      ]
+     },
+     "hlNote": "ANON_text",
+     "sketch": {
+      "json": "{\"version\":1,\"ops\":[]}",
+      "dataUrl": ""
+     },
+     "pipes": [],
+     "area": [
+      "inside",
+      "outside"
+     ],
+     "mountType": [],
+     "workTasks": [
+      "deliver_install_hl_handrail"
+     ],
+     "extraTasks": []
+    },
+    "Finanzierung": {
+     "ahEntlastungsbetragNutzen": "on",
+     "ahVerhinderungspflegeMonat": "0",
+     "ahUmwidmungBetrag": ""
+    },
+    "pricingRules": {
+     "kleinInAufschlag": true,
+     "bwtKmFreeThreshold": 0,
+     "bwtTravelTimeFreeHours": 0
+    },
+    "materials": [],
+    "offerNumber": "ANG2026-1001-133947",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:12",
+     "totalHoursNumeric": 7.2,
+     "ReiseHoursNumeric": 0.2,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:06",
+     "distanceKm": "2.5",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 13.9,
+      "travelSecondWorkerCost": 7,
+      "totalCost": 993.9
+     }
+    },
+    "activeOffer": "hl",
+    "includeOurSignature": true,
+    "ourSignatureUser": "capture",
+    "auftragId": "65720",
+    "postal": {
+     "auftragId": "",
+     "recipient": {
+      "firstName": "ANON_firstName",
+      "lastName": "ANON_lastName",
+      "street": "ANON_street",
+      "zipCode": "95028",
+      "city": "ANON_city",
+      "country": "ANON_country"
+     },
+     "attachments": [
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      },
+      {
+       "id": "ANON_id",
+       "type": "ANON_type",
+       "filename": "ANON_filename",
+       "label": "ANON_label",
+       "size": 0
+      }
+     ]
+    },
+    "docSelection": {
+     "abtretung": true,
+     "vollmacht": true,
+     "barrierefrei": true
+    },
+    "mail": {
+     "auftragId": "",
+     "to": "",
+     "subject": "",
+     "body": ""
+    }
+   }
+  },
+  "drafts-hl-?-563848": {
+   "expectedTotal": 296.25,
+   "payload": {
+    "Kundendaten": {
+     "bitrixContactId": "13232",
+     "salutation": "Frau",
+     "date": "2000-01-01",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "phone": "0000000000",
+     "email": "kunde@example.test",
+     "street": "Musterweg 1",
+     "city": "Musterstadt",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "",
+     "sonderaufschlagValue": "",
+     "copayAmount": 0,
+     "wohnumfeldAmount": "0",
+     "partnerSalutation": "",
+     "parkDetails": "",
+     "customerNumber": "X000000000",
+     "budgetOptionsPanel": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0
+     }
+    },
+    "hl": {
+     "hlNote": "",
+     "hlSketchDataUrl": "",
+     "hlSketchJson": "",
+     "hl_steel_length[]": [
+      ""
+     ],
+     "hl_steel_quality[]": [
+      ""
+     ],
+     "qty_hlPipeAlu": "",
+     "qty_hlPipeWood": "",
+     "hlEdelstahlstuetzeBetonierenSize": "120",
+     "qty_hlEdelstahlstuetzeBetonieren": "",
+     "qty_hlEdelstahlstuetzeBoden": "",
+     "hlEdelstahlstuetzeSeitlSize": "20",
+     "qty_hlEdelstahlstuetzeSeitl": "",
+     "qty_hlAbdeckrosetteHalbrund": "",
+     "qty_hlAuflageWaagrechtFestLang": "",
+     "qty_hlAuflageFlexibelLang": "",
+     "hlHandlaufhalterSize": "7,5",
+     "qty_hlHandlaufhalter": "0",
+     "qty_hlCapFlatOuter35": "0",
+     "qty_hlCapFlatInner35": "0",
+     "qty_hlWallStraightOuter35": "0",
+     "qty_hlWallAngledBall35": "0",
+     "qty_hlBefFlexoGelenk": "",
+     "qty_hlBef90Bogen": "",
+     "qty_hlBefSonderabschluss": "",
+     "qty_hlBefWandabschlussbogen": "",
+     "qty_hlBefHandlaufhalter": "",
+     "hlSpeditionskosten": "zzgl. Speditionskosten lange Rohre",
+     "hlPreis": "95",
+     "quickAdd": [
+      {
+       "kind": "hl-logistik",
+       "group": "Logistik",
+       "label": "zzgl. Speditionskosten lange Rohre",
+       "productId": "HL_LOGISTIK",
+       "qty": 1,
+       "price": 95
+      }
+     ],
+     "sketch": {
+      "json": "",
+      "dataUrl": ""
+     },
+     "pipes": [],
+     "area": [],
+     "mountType": []
+    },
+    "materials": [],
+    "offerNumber": "ANG2026-0413-081308",
+    "Arbeitszeit": {
+     "totalHoursHHMM": "8:08",
+     "totalHoursNumeric": 8.14,
+     "ReiseHoursNumeric": 1.14,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:34",
+     "distanceKm": "41.0",
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:10",
+     "autoSuggestedHoursNumeric": 0.17,
+     "autoSuggestedTasks": [
+      {
+       "key": "silikon",
+       "label": "Silikon",
+       "minutes": 10,
+       "qty": 1
+      }
+     ],
+     "travelCostDebug": {
+      "laborRate": 0,
+      "secondWorkerRate": 35,
+      "workCost": 0,
+      "travelDriverCost": 0,
+      "travelSecondWorkerCost": 39.9,
+      "totalCost": 39.9
+     }
+    },
+    "activeOffer": "hl",
+    "includeOurSignature": true,
+    "ourSignatureUser": "capture"
+   }
+  }
+ }
+}

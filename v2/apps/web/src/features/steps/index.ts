@@ -3,6 +3,8 @@ export { Angebotscheck } from "./angebotscheck/Angebotscheck.js";
 export { Arbeiten } from "./arbeiten/Arbeiten.js";
 export { BwtArbeiten } from "./bwt/BwtArbeiten.js";
 export { Badewannentuer } from "./bwt/Badewannentuer.js";
+export { HlArbeiten } from "./hl/HlArbeiten.js";
+export { Handlaeufe } from "./hl/Handlaeufe.js";
 export { Checkliste } from "./checkliste/Checkliste.js";
 export { Arbeitszeit } from "./arbeitszeit/Arbeitszeit.js";
 export { Duschabtrennung } from "./duschabtrennung/Duschabtrennung.js";
