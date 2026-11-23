@@ -130,6 +130,26 @@ export function chooseInvoiceCopy(answer: "ja" | "nein", lastKind: unknown): Fie
   return answer === "ja" ? { kk_rechnungskopie: "ja", kk_rechnungskopie_art: lastKind === "email" ? "email" : "post" } : { kk_rechnungskopie: "nein", kk_rechnungskopie_art: undefined };
 }
 
+// ---------------- Alltagshilfe: „Besondere Hinweise“ and „2 Personen“ (web: kundendaten/ah.ts) ----------------
+export const HINT_FIELDS = ["ah_mobilitaet", "ah_allergien", "ah_demenz", "ah_sprache"] as const;
+export const HINT_CHOICES = ["Ja", "Nein", "Sonstiges"] as const;
+export type HintChoice = (typeof HINT_CHOICES)[number];
+/** the chip of a note question. Today's page derives it on opening from the text alone
+ *  (restoreJaNeinText: „Ja“ / „Nein“ → that chip, any other text → „Sonstiges“, no text → none); here
+ *  the stored chip counts too where the text cannot say it: „Sonstiges“ (its text may still be the word
+ *  of the chip before), „Ja“ with details (UX-CHANGES U-052) and a chip without text. */
+export function hintChoice(kd: Fields, field: string): HintChoice | "" {
+  const text = String(kd[field] ?? "");
+  const stored = String(kd[`${field}_choice`] ?? "");
+  if (stored === "Sonstiges") return "Sonstiges"; // also when it still holds the word of an earlier chip
+  if (!text) return stored === "Ja" || stored === "Nein" ? stored : "";
+  if (text === "Ja" || text === "Nein") return text;
+  return stored === "Ja" ? "Ja" : "Sonstiges";
+}
+/** the second person of an Alltagshilfe offer (not the Badumbau `twoPersons` / `partner*`) */
+export const AH_P2_FIELDS = ["ahZweiPersonen", "p2Salutation", "p2FirstName", "p2LastName", "p2Pflegegrad"] as const;
+const onFlag = (v: unknown) => v === true || v === "on" || v === "true";
+
 // ---------------- restoreKundendaten (web: fill.ts) ----------------
 /** text fields restoreKundendaten sets from k (name → where k has it) */
 const TEXTS: Record<string, (k: Fields) => unknown> = {
@@ -202,6 +222,18 @@ export function restoreChanges(offer: Record<string, any>, k: Fields, type: stri
   for (const [f, get] of Object.entries(TEXTS)) { const v = get(k); if (v !== undefined && v !== null) next[f] = String(v); }
   if ("bitrixContactId" in next) next.customerNumber = next.bitrixContactId; // stored with the same number (getKundendatenPageData)
   for (const [f, get] of Object.entries(CHOICES)) { const v = get(k); if (v !== undefined && v !== null && v !== "") next[f] = v; }
+  // Alltagshilfe (restoreKundendaten: ahZweiPersonen, p2*, restoreJaNeinText). The second person goes
+  // into an Alltagshilfe offer only, and only from data that holds it (today's UI also unticks it and
+  // empties the names when k says nothing — e.g. a Bitrix contact; not copied: that would lose entries).
+  // The note chips follow the text as today. Not taken over: the preparation ticks (prep_*) — they
+  // belong to one appointment (today's UI copies them; U-052).
+  if (type === "ah" && AH_P2_FIELDS.some((f) => f in k)) {
+    next.ahZweiPersonen = onFlag(k.ahZweiPersonen) ? "on" : undefined;
+    next.p2FirstName = String(k.p2FirstName ?? ""); next.p2LastName = String(k.p2LastName ?? "");
+    if (k.p2Salutation) next.p2Salutation = String(k.p2Salutation);
+    if (k.p2Pflegegrad) next.p2Pflegegrad = String(k.p2Pflegegrad);
+  }
+  for (const f of HINT_FIELDS) { const c = f in k ? hintChoice(k, f) : ""; if (c) next[`${f}_choice`] = c; }
   const vgErf = k.vermieterGenehmigungErforderlich === true ? "Ja" : k.vermieterGenehmigungErforderlich;
   const explicitLandlord: Fields = vgErf === "Ja" || vgErf === "Nein" ? { vermieterGenehmigungErforderlich: vgErf } : {};
   const todos = k[TODOS] ?? k.internalTodos;

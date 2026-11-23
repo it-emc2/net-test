@@ -39,6 +39,8 @@ function content(step: string, o: F): boolean | undefined {
     case "Kundendaten": { const k = obj(o.Kundendaten); return !![k.lastName, k.firstName, k.kundenName].some((v) => String(v ?? "").trim()); }
     case "Arbeitszeit": return pos(obj(o.Arbeitszeit).totalHoursNumeric) || pos(obj(o.Arbeitszeit).ArbeitHoursNumeric);
     case "Arbeiten": return arr(obj(o.duschwanne).workTasks).length > 0;
+    // Alltagshilfe · Kosten (read-only): done once a service is booked (the table has rows)
+    case "Kosten": return ahHasContent(obj(o.ah));
     case "ah": return ahHasContent(obj(o.ah)); // Alltagshilfe: a service with a duration and a rhythm (over budget is a choice, not a warning)
     // Alltagshilfe: done once the page was used or a source is ticked (Selbstzahler: nothing to do → not counted)
     case "Finanzierung": { if (String(obj(o.Kundendaten).payer || "") === "Selbstzahler") return undefined; const x = finOf(o.Finanzierung); return finTouched(o.Finanzierung) || x.eb || x.um || vpValue(x) > 0; }
@@ -50,7 +52,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }

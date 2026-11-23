@@ -163,4 +163,21 @@ describe("customer data (ADR 027 B: one rule for web and server)", () => {
     expect(ch.Kundendaten).toMatchObject({ firstName: "Erika", lastName: "Muster", email: "kunde@example.test", wohnumfeldDone: undefined });
     expect(ch.mail).toEqual({ to: "kunde@example.test" });
   });
+
+  it("Alltagshilfe: second person and note chips are restored, the preparation ticks are not (U-052)", async () => {
+    const { applyChanges, emptyOffer, hintChoice, restoreChanges } = await import("../src/index.js");
+    const src = { ahZweiPersonen: "on", p2Salutation: "Herr", p2FirstName: "Max", p2LastName: "Muster", p2Pflegegrad: "beantragt", prep_visitenkarten: "Ja",
+      ah_mobilitaet_choice: "Ja", ah_mobilitaet: "Rollator", ah_demenz: "Nein", ah_sprache: "Polnisch", ah_haustiere: "Ja" };
+    const e = emptyOffer("ah", { date: "2026-11-23" }) as Record<string, any>;
+    const kd = applyChanges(e, restoreChanges(e, src, "ah")).Kundendaten as Record<string, unknown>;
+    expect(kd).toMatchObject({ ahZweiPersonen: "on", p2Salutation: "Herr", p2FirstName: "Max", p2LastName: "Muster", p2Pflegegrad: "beantragt",
+      ah_mobilitaet_choice: "Ja", ah_mobilitaet: "Rollator", ah_demenz_choice: "Nein", ah_sprache_choice: "Sonstiges", ah_haustiere: "Ja" });
+    expect("prep_visitenkarten" in kd).toBe(false);
+    const bu = emptyOffer("bu", { date: "2026-11-23" }) as Record<string, any>;
+    expect("ahZweiPersonen" in restoreChanges(bu, src, "bu").Kundendaten!).toBe(false);
+    // the chip: today's rule from the text, the stored chip where the text cannot say it
+    const c = (choice: string | undefined, text: string) => hintChoice({ x_choice: choice, x: text }, "x");
+    expect([c(undefined, "Ja"), c(undefined, "Nein"), c(undefined, "Gehstock"), c(undefined, ""), c("Ja", "Rollator"), c("Sonstiges", "Ja"), c("Sonstiges", ""), c("Nein", ""), c("x", "")])
+      .toEqual(["Ja", "Nein", "Sonstiges", "", "Ja", "Sonstiges", "Sonstiges", "Nein", ""]);
+  });
 });
