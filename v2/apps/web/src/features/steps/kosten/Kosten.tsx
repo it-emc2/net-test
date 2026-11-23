@@ -1,7 +1,8 @@
 // Kosten (Kosten-Details; ADR 026, phase 4): the internal overview of every position of the
 // offer with quantity, unit price and total, and the ladder of the sums — for checking the
 // calculation. Everything comes from the price (rules.ts); the page stores nothing.
-// Built for Badumbau and Badewannentür; the other offer types still use today's view for this step.
+// Built for Badumbau and Badewannentür and, as its own read-only page, Alltagshilfe (ah/Kosten.tsx, U-051);
+// Badelift and Handlauf still use today's view for this step.
 import { useQueryClient } from "@tanstack/react-query";
 import { Wrench } from "lucide-react";
 import { useState } from "react";
@@ -9,6 +10,7 @@ import { useParams } from "react-router";
 import { Button, Card, CardTitle, cn } from "../../../shared/ui/index.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { LegacyLink, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
+import { AhKosten } from "../ah/Kosten.js";
 import { sections, sums, type Price, type Row, type Section } from "./rules.js";
 
 const NUM = "grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[0.8rem] font-bold";
@@ -65,6 +67,7 @@ export function Kosten() {
   const [busy, setBusy] = useState(false);
   const offer = useOfferStore((s) => s.offer) as Record<string, any> | null;
   const ctx = { type, offer };
+  if (type === "ah") return <AhKosten />;
   if (type !== "bu" && type !== "bwt") {
     return (
       <Card>
