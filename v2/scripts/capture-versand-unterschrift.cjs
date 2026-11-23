@@ -61,6 +61,8 @@ const SCENARIOS = {
   "the signing view cannot be made": { setup: ADDR, pre: DEAL, acts: [["answer", "/api/signing", 500, { error: "kaputt" }], ["sign"], ALL, ["sign"], ALL] },
   "the offer was changed after it was sent": { setup: ADDR, pre: DEAL, acts: [["answer", "/api/signing", 409, { error: "Dieses Angebot wurde bereits versendet und seitdem geändert.", code: "OFFER_CHANGED" }], ["sign"], ALL] },
   "bwt: signed on site": { type: "bwt", setup: ADDR, pre: DEAL, acts: [["sign"]] },
+  "bl: signed on site": { type: "bl", setup: ADDR, pre: DEAL, acts: [["sign"]] },
+  "bl: signed documents posted in test mode": { type: "bl", setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["psigned"]] },
   "signed from the Post tab: the signed documents can be posted": { setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["tab", "mail"], ["tab", "post"]] },
   "signed from the mail tab: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], via: "" }]], ...POST] },
   "signature not complete: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], status: "opened" }]], ...POST] },

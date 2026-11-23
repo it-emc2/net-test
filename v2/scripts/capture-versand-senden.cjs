@@ -71,6 +71,7 @@ const SCENARIOS = {
   "documents taken out": { setup: KUNDE, pre: [...READY, ["doc", "abtretung"], ["tile", "Vollmacht.pdf"]], acts: [["send"], ALL, ["close"]] },
   "Badewannentür": { type: "bwt", setup: KUNDE, pre: READY, acts: [["send"], ["close"]] },
   "Alltagshilfe": { type: "ah", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
+  "Badelift": { type: "bl", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
   // main 81f73fc7 / 68b454a9: winwall plates count as wall cladding; rows with an invalid decor are asked
   "winwall plates: no question about the wall cladding": { setup: KUNDE, wv: [["wall"]], pre: READY, acts: [["send"], ALL, ["close"]] },
   "winwall row with an invalid decor: back": { setup: KUNDE, wv: [["wwrow", "23014"]], pre: READY, acts: [["send"], ["hp", "back"]] },
