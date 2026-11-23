@@ -339,6 +339,23 @@ Steps of today's sidebar (`STEPS.bwt`): Kundendaten → Arbeitszeit → Arbeiten
 | 7 | Angebotsversand | shared | Full | **Built (shared)**; BWT gap check open (documents, Bitrix, mail text) |
 | 8 | Nachher (`referenzNachher`) | shared with BU | Light | **Built (with BU 15–16)** — Badewannentür has Nachher only (2 projects, 4 photos), no switch |
 
+### HL (Handlauf) build order (owner order: BU, BWT, AH, then HL, BL)
+
+Steps of today's sidebar (`STEPS.hl`): Kundendaten → Arbeitszeit → Arbeiten (`hlArbeiten`) → Handläufe (`hlk`) → Aufschlag / Rabatt → Kosten → Zusammenfassung. Today's old Handlauf page (`#page-hl`) is in `OFFERS.hl.pages` but hidden from every step list (`getPagesForOfferType` drops it); its form is still collected (`collectHlExtras`: `hl-logistik`, `hl-custom`, `hl-item` rows), so old offers keep that data. Price: server (`POST /api/price`, `@oc/pricing` core: `payload.hl.quickAdd` → material lines with the configuration name as category; no `HL_LOGISTIK` row → permanent `HL_LIEFERKOSTEN` line). The configurator model is NOT a model file and not `configurator/engine.js` (that is the Duschabtrennung/Badolux engine): it is the 136 products of source `flexofit` from the database (`GET /api/products?source=flexofit&limit=500`), turned into families by product id (`hl/catalog.ts`).
+
+| # | Step | Today | Level | State |
+|---|---|---|---|---|
+| 1 | Kundendaten | shared | Full | **Built (shared)**; landlord question applies to hl (recorded in `versand-senden.json` „Handlauf: landlord approval asked“) |
+| 2 | Arbeitszeit | shared | Full | **Built (shared)** (hl: one worker, 05:00 default as today) |
+| 3 | Arbeiten (`hlArbeiten`) | 90 lines, handrail task + free tasks | Full (stored `hl.workTasks`, `extraTasks`; no price, no work time) | **Built 2026-11-23 (slice 1)** — `hl/HlArbeiten.tsx`; 21 recordings (`hl-arbeiten.json`, `v2/scripts/capture-handlauf-arbeiten.cjs`) replayed; an old offer without `workTasks` shows the task ticked (today's HTML default), nothing written |
+| 4 | Handläufe (`hlk`) — core: configurations, area, tube & colour, finish, fittings, position list | ~650 lines (`initHlFlexofitWizard`, `collectHlFlexofitConfigurator`) | Full (stored `hl.quickAdd` `hl-config` rows, `hl.hlConfigurator {state, lines}`, `hl_area` / `area`; price) | **Built 2026-11-23 (slice 2)** — `hl/rules.ts`, `hl/catalog.ts`, `hl/Handlaeufe.tsx`; 36 recordings (`hl-konfigurator.json`, `v2/scripts/capture-handlauf-konfigurator.cjs`) replayed: stored `hl` equal, view equal (Sonderprodukt edits: equal to today's page after its next redraw — U-055 proposed) |
+| 5 | Handläufe — rest: Sonderprodukte, note, sketch, C1 | | Full | **Built 2026-11-23 (slice 3)**; C1 (U-054): read-only card „Positionen aus der bisherigen Handlauf-Seite“ only for an offer with old-page data; 5 anonymised stored offers (`hl-old-offers.json`, test `hl-alt.test.tsx`) open unchanged, price request = stored offer, nothing saved by opening |
+| 6 | Aufschlag / Rabatt | shared | Full | **Built (shared)**; 8 Handlauf recordings (`rabatt-hl.json`, `capture-handlauf-rabatt.cjs`) incl. Neukundenbonus; no free grab bar for hl (no grab bars in the type). Material title „Material für Handläufe“ in the overview (today says Badumbau, fixed as for BWT) |
+| 7 | Kosten | shared | Full | **Built 2026-11-23 (slice 4)** — `kosten/rules.ts` hl branch: I / II numbered, material grouped by configuration name, rest under „Lieferkosten“, no units on material rows, no Optionale Produkte; 12 recordings (`kosten-hl.json`, `capture-handlauf-kosten.cjs`) |
+| 8 | Zusammenfassung / Versand | shared | Full | **Built (shared)**; gap check: Handlauf scenarios now in rahmen, mail, dokumente (before) and senden (sent + moved, landlord question), post, unterschrift (added) — all replay green, no code change needed |
+
+Legacy quirks ported (listed in `hl/rules.ts`): picking the same area again clears tube and fittings; unpicking the finish keeps the fittings (still priced); removing a configuration leaves `hl_area` / `area` as they were (synced on an area pick only); a Sonderprodukt price „1.234,50“ reads 1,234; a Sonderprodukt with quantity 0 stays as a row without a line; the tube tab is stored as shown; `hlConfigurator` is stored only while there is a line (an area-only choice is not kept for reopening).
+
 ### AH (Alltagshilfe) build order (owner order: BU, BWT, AH, then HL, BL)
 
 Steps of today's sidebar (`STEPS.ah`): Kundendaten → Arbeitszeit → Leistungen (`ah`) → Finanzierung → Kosten → Angebotsversand. AH is priced in the browser (`@oc/pricing` `computeAhPricing` + `ahInputFromPayload`, golden-tested against 143 real offers); the server answers `POST /api/price` with an empty shell for AH (`isClientPricedOffer`).

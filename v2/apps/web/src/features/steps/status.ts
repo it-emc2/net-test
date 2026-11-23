@@ -46,6 +46,9 @@ function content(step: string, o: F): boolean | undefined {
     case "bl": return blHasContent(obj(o.bl)); // Badelift: done once a product or a free item is chosen (a new offer has the main product)
     // Alltagshilfe: done once the page was used or a source is ticked (Selbstzahler: nothing to do → not counted)
     case "Finanzierung": { if (String(obj(o.Kundendaten).payer || "") === "Selbstzahler") return undefined; const x = finOf(o.Finanzierung); return finTouched(o.Finanzierung) || x.eb || x.um || vpValue(x) > 0; }
+    // Handlauf: the handrail task or a free task (an older offer without the key has the task ticked); a priced position
+    case "hlArbeiten": { const h = obj(o.hl); return !Array.isArray(h.workTasks) || arr(h.workTasks).length > 0 || arr(h.extraTasks).length > 0; }
+    case "hlk": return arr(obj(o.hl).quickAdd).length > 0;
     case "Optional": { const op = obj(o.optional); return Object.keys(op).some((k) => (k.startsWith("qty_") && pos(op[k])) || (k.startsWith("opt_") && op[k] === true)); }
     default: return undefined;
   }
@@ -54,7 +57,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "hl" ? ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }

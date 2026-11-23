@@ -46,12 +46,12 @@ describe("app shell", () => {
     expect(s.calls.some((c) => c.key.startsWith("PUT "))).toBe(false); // opening a tile alone creates nothing
   });
 
-  it("a deal number in the address opens the offer for that deal; a step without a React screen links to today's UI", async () => {
+  it("a deal number in the address opens the offer for that deal; every step of every offer type is a React screen now", async () => {
     fakeServer(BASE);
-    renderApp("/deal/4711/hl/hlk"); // a step still in today's UI (Badelift · Kosten is a React screen since the Badelift port)
+    renderApp("/deal/4711/hl/hlk"); // the last steps that linked to today's UI (Handlauf, Badelift) are built since 2026-11-23
     await screen.findByText(/Handlauf · Auftrag 4711/);
     expect(S().dealId).toBe("4711");
-    expect(screen.getByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toHaveAttribute("href", "/?deal=4711#hlk");
+    expect(screen.queryByRole("link", { name: "In der bisherigen Ansicht öffnen" })).toBeNull();
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1); // only the active step is on the page
   });
 

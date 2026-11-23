@@ -52,6 +52,8 @@ const SCENARIOS = {
   "main items: back": { setup: KUNDE, pre: READY, acts: [["send"], ["hp", "back"]] },
   "main items: to the page": { setup: KUNDE, pre: READY, acts: [["send"], ["hp", "Duschwanne"]] },
   "sent, dialog closed": { setup: KUNDE, pre: READY, acts: [["send"], ALL, ["close"]] },
+  "Handlauf: sent, deal moved": { type: "hl", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
+  "Handlauf: landlord approval asked (Miete)": { type: "hl", setup: [...KUNDE.slice(0, -1), ["radio", "vermieterGenehmigungErforderlich", "Ja"]], pre: READY, acts: [["send"]] },
   "sent, deal moved": { setup: KUNDE, pre: READY, acts: [["send"], ALL, ["move"]] },
   "sent, deal moved, Kassenkunde with invoice copy by e-mail": { setup: [...KUNDE, ["radio", "kk_rechnungskopie", "ja"], ["radio", "kk_rechnungskopie_art", "email"]], pre: READY, acts: [["send"], ALL, ["move"]] },
   "the deal cannot be moved": { setup: KUNDE, pre: READY, acts: [["answer", "/move-ang-verschickt", 500, { error: "Bitrix nicht erreichbar" }], ["send"], ALL, ["move"]] },

@@ -51,6 +51,7 @@ const BEFORE = { needsConfirm: true, warning: "Für dieses Angebot wurden bereit
 const SCENARIOS = {
   "the buttons": { setup: KUNDE, acts: [["tab", "post"]] },
   "signed on site": { setup: ADDR, pre: DEAL, acts: [["sign"], ALL] },
+  "Handlauf: signed on site": { type: "hl", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "signed on site, from the Post tab": { setup: ADDR, pre: POST, acts: [["signpost"], ALL] },
   "signed on site without deal number": { setup: ADDR, acts: [["sign"], ALL] },
   "nothing entered on Kundendaten": { acts: [["sign"]] },

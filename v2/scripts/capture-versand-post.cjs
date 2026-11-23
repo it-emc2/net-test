@@ -47,6 +47,7 @@ const POSTED = { ok: true, provider: "onlinebrief24", printjobId: "PJ-4711", sta
 const SCENARIOS = {
   "the post tab": { setup: KUNDE, acts: [["tab", "post"], ["tab", "mail"]] },
   "address from Kundendaten": { setup: ADDR, pre: [["deal", "65418"]], acts: [["tab", "post"]] },
+  "Handlauf: the letter": { type: "hl", setup: ADDR, pre: POST, acts: [["tab", "mail"], ["tab", "post"]] },
   "address typed": { setup: KUNDE, pre: POST, acts: [["pfield", "Street", "Musterweg 4"], ["pfield", "Zip", "95028"], ["pfield", "City", "Hof"], ["pfield", "Country", "AT"]] },
   "Kundendaten changed later": { setup: ADDR, pre: POST, acts: [["pfield", "Street", "Andere Str. 5"], ["kfield", "street", "Neue Str. 9"], ["pfield", "City", ""], ["kfield", "city", "Bayreuth"]] },
   "deal number typed on the post tab": { setup: ADDR, pre: NODEAL, acts: [["pfield", "AuftragId", "70001"], ["tab", "mail"]] },

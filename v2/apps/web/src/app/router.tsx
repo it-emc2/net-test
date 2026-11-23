@@ -43,6 +43,8 @@ const checkliste = () => import("../features/steps/index.js").then((m) => ({ Com
 const versand = () => import("../features/steps/index.js").then((m) => ({ Component: m.Versand }));
 const bwt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badewannentuer }));
 const bwtArbeiten = () => import("../features/steps/index.js").then((m) => ({ Component: m.BwtArbeiten }));
+const hlArbeiten = () => import("../features/steps/index.js").then((m) => ({ Component: m.HlArbeiten }));
+const hlk = () => import("../features/steps/index.js").then((m) => ({ Component: m.Handlaeufe }));
 const referenzVorher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzVorher }));
 const referenzNachher = () => import("../features/steps/index.js").then((m) => ({ Component: m.ReferenzNachher }));
 const rabatt = () => import("../features/steps/index.js").then((m) => ({ Component: m.Rabatt }));
@@ -76,6 +78,8 @@ export const routes: RouteObject[] = [
           { path: "Rabatt", lazy: rabatt },
           { path: "bwtArbeiten", lazy: bwtArbeiten },
           { path: "bwt", lazy: bwt },
+          { path: "hlArbeiten", lazy: hlArbeiten },
+          { path: "hlk", lazy: hlk },
           { path: "Angebotscheck", lazy: angebotscheck },
           { path: "Checkliste", lazy: checkliste },
           { path: "Zusammenfassung", lazy: versand },
