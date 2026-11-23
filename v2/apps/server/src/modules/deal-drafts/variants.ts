@@ -10,7 +10,8 @@ import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import { FIRST_VARIANT_ID, VARIANT_NAME_MAX, type DealVariant } from "@oc/api-contract";
 import { variantCopyPayload as variantCopyPayloadOf } from "@oc/domain";
-import { EmailLog, PostalSend, SigningRequest } from "../../platform/models.js";
+import { EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
+import { ahTotalsOfPayload } from "../documents/index.js";
 import { DealDraft, defaultOf, liveVariants, publicVariantId, saveDealDraft, storedVariant, touchOpened, variantFilter } from "./store.js";
 
 const str = (v: unknown) => String(v ?? "").trim();
@@ -71,7 +72,7 @@ export const versandSent = (versand: unknown): boolean => {
   return !!(v.art && v.versendetAm);
 };
 
-function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolean, versand: unknown): DealVariant {
+function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolean, versand: unknown, storedTotal: number | null = null): DealVariant {
   const reached = f.sends.find((s) => s.status === "done" && s.channel !== "bitrix");
   const lastDone = f.sends.find((s) => s.status === "done");
   const signedAt = signed?.at ?? f.sends.find((s) => s.signedAt)?.signedAt ?? null;
@@ -79,9 +80,35 @@ function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolea
   return {
     variantId: publicVariantId(v), name: variantNameOf(v), offerType: v.offerType, offerNumber: str(v.payload?.offerNumber),
     status, sentAt: reached ? reached.finishedAt ?? reached.startedAt : null, sentChannel: reached ? reached.channel : null,
-    signedAt, total: typeof lastDone?.total === "number" ? lastDone.total : null,
+    signedAt, total: typeof lastDone?.total === "number" ? lastDone.total : storedTotal,
     revision: v.revision, updatedAt: v.updatedAt, notChosenAt: v.notChosenAt ?? null, isDefault,
   };
+}
+
+/**
+ * The total of a handed-over offer: an on-site hand-over (and a mailed signing link) writes a send
+ * record WITHOUT `total`, but stores the offer under its number at that moment (`ensureSentOffer`).
+ * So the total is read from what is stored — never priced anew: `pricing.total` of the stored
+ * offer; Alltagshilfe: the app-facing monthly amount (ADR 028, the figure the Bitrix amount and the
+ * send record carry) from THE AH total function on the stored payload, read like the hand-over
+ * (the zone reading kept on the record). Nothing stored → null (no total is shown).
+ */
+async function storedTotalsOf(list: { variantId: string; offerType: string; send: any }[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const want = list.filter((x) => str(x.send?.offerNumber));
+  if (!want.length) return out;
+  const rows: any[] = await Offer.find({ offerNumber: { $in: [...new Set(want.map((x) => str(x.send.offerNumber)))] } }, { offerNumber: 1, "pricing.total": 1, payload: 1 }).lean();
+  for (const x of want) {
+    const o = rows.find((r) => str(r.offerNumber) === str(x.send.offerNumber));
+    if (!o) continue;
+    let t: unknown = null;
+    if (/^ah/i.test(x.offerType) || /^ah/i.test(str(o.payload?.activeOffer))) {
+      const reading = x.send.ahZoneReading === "screen" ? "screen" : "document";
+      try { t = o.payload && typeof o.payload === "object" ? ahTotalsOfPayload(o.payload, undefined, reading).customerAmount : null; } catch { t = null; }
+    } else t = o.pricing?.total;
+    if (typeof t === "number" && Number.isFinite(t) && t > 0) out.set(x.variantId, t);
+  }
+  return out;
 }
 
 /** The variants of a deal with their derived status, first variant first. */
@@ -93,13 +120,17 @@ export async function listVariants(dealId: string): Promise<{ dealId: string; de
   const completed: any[] = allNumbers.length
     ? await SigningRequest.find({ offerNumber: { $in: allNumbers }, status: "completed" }, { offerNumber: 1, completedAt: 1, updatedAt: 1 }).lean() : [];
   const versand: any[] = await DealDraft.find({ dealId, deletedAt: null }, { "payload.zusammenfassung.versand": 1 }).lean();
+  const handedOver = await storedTotalsOf(variants.flatMap((v) => {
+    const lastDone = facts.get(publicVariantId(v))?.sends.find((s) => s.status === "done");
+    return lastDone && typeof lastDone.total !== "number" ? [{ variantId: publicVariantId(v), offerType: str(v.offerType), send: lastDone }] : [];
+  }));
   return {
     dealId, defaultVariantId: def ? publicVariantId(def) : null,
     variants: variants.map((v) => {
       const f = facts.get(publicVariantId(v))!;
       const sr = completed.filter((c) => f.numbers.has(str(c.offerNumber))).sort((a, b) => +new Date(b.completedAt ?? b.updatedAt) - +new Date(a.completedAt ?? a.updatedAt))[0];
       const vs = versand.find((x) => String(x._id) === String(v._id))?.payload?.zusammenfassung?.versand;
-      return viewOf(v, f, sr ? { at: sr.completedAt ?? sr.updatedAt } : null, v === def, vs);
+      return viewOf(v, f, sr ? { at: sr.completedAt ?? sr.updatedAt } : null, v === def, vs, handedOver.get(publicVariantId(v)) ?? null);
     }),
   };
 }
