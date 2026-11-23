@@ -137,11 +137,24 @@ export const hasContent = (ah: F) => storedServices(ah).some((s) => itemOf(s).sc
 const isOn = (v: unknown) => v === true || v === "on" || v === "true" || v === 1 || v === "1";
 export const isSelbstzahler = (offer: F) => String(obj(offer.Kundendaten).payer || "Kassenkunde") === "Selbstzahler";
 export const entlastungApplied = (offer: F) => isOn(obj(offer.Finanzierung).ahEntlastungsbetragNutzen);
-/** the monthly budget, or why there is none */
-export function budgetOf(offer: F, cfg: AhConfig): { budget: number | null; none?: "selbstzahler" | "nicht-angerechnet" } {
-  if (isSelbstzahler(offer)) return { budget: null, none: "selbstzahler" };
-  if (!entlastungApplied(offer)) return { budget: null, none: "nicht-angerechnet" };
-  return { budget: cfg.entlastungsbetragMonat * (isOn(obj(offer.Kundendaten).ahZweiPersonen) ? 2 : 1) };
+/** what the Pflegekasse pays per month, per source (as ticked on Finanzierung) */
+export interface BudgetParts { eb: number; vp: number; um: number }
+const cents = (n: number) => Math.round(n * 100) / 100;
+/**
+ * The monthly budget — ALL sources ticked on Finanzierung (Entlastungsbetrag, × 2 for two persons;
+ * Verhinderungspflege; Umwidmung), so the card says the same as the offer document's Eigenanteil —
+ * or why there is none.
+ */
+export function budgetOf(offer: F, cfg: AhConfig): { budget: number | null; parts: BudgetParts; none?: "selbstzahler" | "nicht-angerechnet" } {
+  if (isSelbstzahler(offer)) return { budget: null, parts: { eb: 0, vp: 0, um: 0 }, none: "selbstzahler" };
+  const fin = obj(offer.Finanzierung);
+  const parts: BudgetParts = {
+    eb: entlastungApplied(offer) ? cfg.entlastungsbetragMonat * (isOn(obj(offer.Kundendaten).ahZweiPersonen) ? 2 : 1) : 0,
+    vp: Math.max(0, Number(fin.ahVerhinderungspflegeMonat) || 0),
+    um: isOn(fin.ahUmwidmungBeantragt) ? Math.max(0, Number(fin.ahUmwidmungBetrag) || 0) : 0,
+  };
+  const budget = cents(parts.eb + parts.vp + parts.um);
+  return budget > 0 ? { budget, parts } : { budget: null, parts, none: "nicht-angerechnet" };
 }
 /** budget mode as stored */
 export const autoStored = (offer: F) => obj(offer.ah).ahEntlastungAuto === "on";
@@ -198,7 +211,7 @@ const sameLength = (b: number[] | undefined, it: Item | undefined) => !!b && !!i
 
 /**
  * What the durations have to be after a change. Budget mode in force → fitted from the base;
- * budget mode just left (untick, Selbstzahler, Entlastungsbetrag not applied) → back to the base.
+ * budget mode just left (untick, Selbstzahler, no source applied) → back to the base.
  * Returns the stored fields to change (or null), the base to remember, whether it is in force, and
  * whether the services fit.
  */
@@ -229,6 +242,6 @@ export function settle(offer: F, base: Base | undefined, wasActive: boolean, cfg
 /** which inputs decide the durations in budget mode (a change of one of these re-fits) */
 export function settleKey(offer: F, cfg: AhConfig): string {
   const p = pricingInput(offer, cfg);
-  return JSON.stringify([obj(offer.ah).ahServicesJson ?? null, obj(offer.ah).ahArt ?? null, p.zone, p.payer, p.zweiPersonen, p.entlastungsbetragNutzen, autoStored(offer), cfg.entlastungsbetragMonat]);
+  return JSON.stringify([obj(offer.ah).ahServicesJson ?? null, obj(offer.ah).ahArt ?? null, p.zone, p.payer, p.zweiPersonen, p.entlastungsbetragNutzen, p.verhinderungspflegeMonat, p.umwidmungBeantragt, p.umwidmungBetrag, autoStored(offer), cfg.entlastungsbetragMonat]);
 }
 

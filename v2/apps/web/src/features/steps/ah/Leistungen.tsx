@@ -80,11 +80,11 @@ function Pill({ kind, children }: { kind: "ok" | "over" | "none"; children: stri
     kind === "ok" ? "bg-success-weak text-success-strong" : kind === "over" ? "bg-warning-weak text-warning-strong" : "bg-muted text-foreground")}>{children}</span>;
 }
 
-function BudgetCard({ offer, used, any }: { offer: F; used: number; any: boolean }) {
+function BudgetCard({ offer, used, own, any }: { offer: F; used: number; own: number; any: boolean }) {
   const cfg = useAhConfig();
   const touched = useOfferStore((s) => s.scratch[TOUCHED] === true);
   const { pathname, search } = useLocation();
-  const { budget, none } = budgetOf(offer, cfg);
+  const { budget, parts, none } = budgetOf(offer, cfg);
   if (budget === null) return (
     <Card data-testid="ah-budget" className="gap-2">
       <p className="m-0 text-muted-foreground">Gesamt pro Monat</p>
@@ -92,17 +92,21 @@ function BudgetCard({ offer, used, any }: { offer: F; used: number; any: boolean
       {none === "nicht-angerechnet" ? <p className="m-0" data-part="hint">Entlastungsbetrag wird nicht angerechnet · <Link to={`${pathname.replace(/\/ah$/, "/Finanzierung")}${search}`} className="font-semibold text-foreground underline underline-offset-2">Finanzierung</Link></p> : null}
     </Card>
   );
-  const over = used > budget;
+  // the pill says what the customer pays: the Eigenanteil after ALL sources — the offer document's figure
+  const over = own > 0;
+  const sources = ([["Entlastungsbetrag", parts.eb], ["Verhinderungspflege", parts.vp], ["Umwidmung", parts.um]] as const).filter(([, v]) => v > 0);
+  const onlyEb = sources.length === 1 && parts.eb > 0;
   return (
     <Card data-testid="ah-budget" className="gap-3">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div>
-          <p className="m-0 text-muted-foreground">Entlastungsbetrag pro Monat</p>
+          <p className="m-0 text-muted-foreground" data-part="label">{onlyEb ? "Entlastungsbetrag pro Monat" : "Zuschüsse pro Monat"}</p>
           <p className="m-0 text-[1.9rem] font-bold leading-tight tabular-nums" data-part="big">{euro(used)} <span className="text-[1.1rem] font-semibold text-muted-foreground">von {euro(budget)}</span></p>
         </div>
-        {!any ? <Pill kind="none">Leistung wählen</Pill> : over ? <Pill kind="over">{`Zuzahlung ${euro(used - budget)}`}</Pill> : <Pill kind="ok">{`Rest ${euro(budget - used)}`}</Pill>}
+        {!any ? <Pill kind="none">Leistung wählen</Pill> : over ? <Pill kind="over">{`Zuzahlung ${euro(own)}`}</Pill> : <Pill kind="ok">{`Rest ${euro(Math.max(0, budget - used))}`}</Pill>}
       </div>
-      <div role="progressbar" aria-label="Entlastungsbetrag genutzt" aria-valuemin={0} aria-valuemax={budget} aria-valuenow={Math.min(used, budget)} className="h-2.5 overflow-hidden rounded-full bg-muted">
+      {onlyEb ? null : <p className="m-0 text-[0.95rem] text-muted-foreground" data-part="sources">{sources.map(([l, v]) => `${l} ${euro(v)}`).join(" · ")}</p>}
+      <div role="progressbar" aria-label={onlyEb ? "Entlastungsbetrag genutzt" : "Zuschüsse genutzt"} aria-valuemin={0} aria-valuemax={budget} aria-valuenow={Math.min(used, budget)} className="h-2.5 overflow-hidden rounded-full bg-muted">
         <div className={cn("h-full rounded-full transition-[width]", over ? "bg-warning-strong" : "bg-primary")} style={{ width: `${Math.min(100, (used / budget) * 100)}%` }} />
       </div>
       <TickRow id="ah-auto" checked={autoShown(offer, touched)} onChange={setAuto} suffix="– Dauer passt sich an" data-testid="ah-auto">Im Budget bleiben</TickRow>
@@ -184,7 +188,7 @@ export function AhLeistungen() {
   return (
     <div className="grid gap-4" data-testid="ah-leistungen">
       <h2 className="sr-only">Leistungen</h2>
-      <BudgetCard offer={offer} used={price.gross} any={any} />
+      <BudgetCard offer={offer} used={price.gross} own={price.eigenanteil} any={any} />
       {KINDS.map((k) => <ServiceCard key={k} kind={k} item={its[k]} auto={auto} />)}
       {its.hnd && its.ab ? (
         <Card className="py-3"><TickRow id="ah-combined" checked={its.ab.combinedVisit} onChange={setCombined} suffix="– nur eine Anfahrt" data-testid="ah-combined">Beides im selben Termin</TickRow></Card>

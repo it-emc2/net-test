@@ -290,6 +290,57 @@ describe("budget mode", () => {
     await waitFor(() => expect(link).toHaveAttribute("data-state", "done"));
   });
 
+  // owner 2026-11-23: the card must say what the offer says — every source ticked on Finanzierung counts
+  const FIN = (vp: string, um?: string) => ({ ahEntlastungsbetragNutzen: "on", ahVerhinderungspflegeMonat: vp, ...(um ? { ahUmwidmungBeantragt: "on", ahUmwidmungBetrag: um } : {}) });
+
+  it("all sources count: Verhinderungspflege and Umwidmung cover the rest → „Rest“, not „Zuzahlung“ (Eigenanteil 0, as the offer prints)", async () => {
+    await open({ Arbeitszeit: { travelTimeHHMM: "0:25" }, Finanzierung: FIN("200", "60") });
+    const u = user();
+    await u.click(screen.getByRole("checkbox", { name: /Im Budget bleiben/ }));
+    await u.click(screen.getByRole("checkbox", { name: /^Haushaltsnahe Dienstleistungen/ }));
+    const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
+    expect(p.gesamt).toBeGreaterThan(131);
+    expect(p.eigenanteil).toBe(0);
+    const c = screen.getByTestId("ah-budget");
+    expect(c.querySelector('[data-part="label"]')).toHaveTextContent("Zuschüsse pro Monat");
+    expect(c).toHaveTextContent(nb(`von ${euro(391)}`));
+    expect(c.querySelector('[data-part="sources"]')).toHaveTextContent(nb(`Entlastungsbetrag ${euro(131)} · Verhinderungspflege ${euro(200)} · Umwidmung ${euro(60)}`));
+    expect(screen.getByTestId("ah-pill")).toHaveTextContent(nb(`Rest ${euro(391 - p.gesamt)}`));
+    expect(screen.getByTestId("ah-pill")).toHaveAttribute("data-kind", "ok");
+  });
+
+  it("sources that do not cover the total: „Zuzahlung“ is the Eigenanteil after all sources", async () => {
+    await open({ Arbeitszeit: { travelTimeHHMM: "0:25" }, Finanzierung: FIN("50") });
+    const u = user();
+    await u.click(screen.getByRole("checkbox", { name: /Im Budget bleiben/ }));
+    await u.click(screen.getByRole("checkbox", { name: /^Haushaltsnahe Dienstleistungen/ }));
+    const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
+    expect(p.eigenanteil).toBeGreaterThan(0);
+    expect(p.eigenanteil).toBeCloseTo(p.gesamt - 181, 2);
+    expect(screen.getByTestId("ah-pill")).toHaveTextContent(nb(`Zuzahlung ${euro(p.eigenanteil)}`));
+    expect(screen.getByTestId("ah-budget")).toHaveTextContent(nb(`von ${euro(181)}`));
+  });
+
+  it("only the Entlastungsbetrag: label and figures as before, no sources line", async () => {
+    await open({ Arbeitszeit: { travelTimeHHMM: "0:15" } });
+    const c = screen.getByTestId("ah-budget");
+    expect(c.querySelector('[data-part="label"]')).toHaveTextContent("Entlastungsbetrag pro Monat");
+    expect(c.querySelector('[data-part="sources"]')).toBeNull();
+    expect(c).toHaveTextContent(nb(`von ${euro(131)}`));
+  });
+
+  it("budget mode fits the durations to all sources, not only the Entlastungsbetrag", async () => {
+    await open({ Arbeitszeit: { travelTimeHHMM: "0:15" }, Finanzierung: FIN("100") });
+    const u = user();
+    await u.click(screen.getByRole("checkbox", { name: /^Haushaltsnahe Dienstleistungen/ }));
+    await setRhythm(u, "hnd", "14-tägig");
+    const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
+    expect(p.gesamt).toBeLessThanOrEqual(231);
+    expect(p.gesamt).toBeGreaterThan(131);
+    expect(p.eigenanteil).toBe(0);
+    expect(screen.getByTestId("ah-pill")).toHaveAttribute("data-kind", "ok");
+  });
+
   it("nothing fits even at 5 minutes: own durations with − / +, „Zuzahlung“ shown honestly, never 0 minutes", async () => {
     await open({ Arbeitszeit: { travelTimeHHMM: "0:45" } });
     const u = user();
