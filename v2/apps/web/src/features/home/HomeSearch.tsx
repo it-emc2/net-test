@@ -4,6 +4,7 @@
 import { DEAL_NUMBER_RE, HOME_SEARCH_DELAY_MS, HOME_SEARCH_LIMIT, type HomeSearchRow } from "@oc/api-contract";
 import { History, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { call } from "../../shared/api/index.js";
 import { Alert, Button, Card, Input, Label, cn } from "../../shared/ui/index.js";
@@ -32,7 +33,7 @@ export function ResultRow({ row, active, busy, onOpen, id }: { row: HomeSearchRo
       </span>
       {v.meta ? <span className="text-[0.95rem] text-muted-foreground" data-part="meta">{row.ref ? <strong className="text-foreground">{row.ref}</strong> : null}{v.meta.slice(row.ref.length)}</span> : null}
       {v.snippet ? <span className="text-[0.95rem]" data-part="snippet">{v.snippet}</span> : null}
-      {legacy ? <span className="text-[0.95rem] text-primary underline" data-part="legacy">{TEXT.legacy}</span> : null}
+      {legacy ? <span className="text-[0.95rem] font-semibold underline" data-part="legacy">{TEXT.legacy}</span> : null}
       {busy ? <span className="flex items-center gap-2 text-[0.95rem]" role="status"><LoaderCircle aria-hidden className="size-4 animate-spin" />Wird geöffnet …</span> : null}
     </>
   );
@@ -51,16 +52,16 @@ function TakeOverQuestion({ q, onClose, onOutcome }: { q: Ask; onClose: () => vo
   const label = sourceLabel(q.row);
   return (
     <Modal title="Automatisch gespeicherten Stand ersetzen?" onClose={onClose}>
-      <div className="grid gap-3" data-testid="takeover-question">
+      <div className="grid min-w-0 gap-3 [&>*]:min-w-0" data-testid="takeover-question">
         {q.moved ? <Alert className="my-0">Der Stand dieses Auftrags wurde gerade an anderer Stelle geändert.</Alert> : null}
         <p className="m-0">Zu Auftrag {q.key} gibt es bereits einen automatisch gespeicherten Stand{own ? ` (${typeTitle(own)}` : " ("}{e.variantName ? `, Variante „${e.variantName}“` : ""}, {when}, Version {e.revision}).</p>
         <p className="m-0">Wenn Sie {label} übernehmen, wird er zur neuen Version dieses Auftrags. Der bisherige Stand bleibt unter „Versionen“ erhalten.</p>
-        {own ? <Button size="lg" className="h-auto min-h-12 whitespace-normal" data-action="open-autosaved" disabled={busy} onClick={() => { onClose(); nav(`/deal/${q.key}/${own}`); }}>
-          <History aria-hidden />Automatisch gespeicherten Stand öffnen ({when}, Version {e.revision})
+        {own ? <Button size="lg" className="h-auto min-h-12 w-full whitespace-normal break-words text-left" data-action="open-autosaved" disabled={busy} onClick={() => { onClose(); nav(`/deal/${q.key}/${own}`); }}>
+          <History aria-hidden /><span className="min-w-0 whitespace-normal break-words">Automatisch gespeicherten Stand öffnen ({when}, Version {e.revision})</span>
         </Button> : null}
-        <Button size="lg" variant="outline" className="h-auto min-h-12 whitespace-normal" data-action="take-over" disabled={busy} aria-busy={busy}
+        <Button size="lg" variant="outline" className="h-auto min-h-12 w-full whitespace-normal break-words text-left" data-action="take-over" disabled={busy} aria-busy={busy}
           onClick={async () => { setBusy(true); const o = await takeOver(q); setBusy(false); onOutcome(o); }}>
-          {busy ? "Wird übernommen …" : `${label} übernehmen`}
+          <span className="min-w-0 whitespace-normal break-words">{busy ? "Wird übernommen …" : `${label} übernehmen`}</span>
         </Button>
         <Button variant="ghost" className="justify-self-start" disabled={busy} onClick={onClose}>Abbrechen</Button>
       </div>
@@ -80,7 +81,8 @@ export function useOpenOutcome() {
     else if (o.kind === "failed") setMessage(o.message);
     else window.location.assign("/"); // today's view (hms, wd)
   };
-  const dialog = ask ? <TakeOverQuestion q={ask} onClose={() => setAsk(null)} onOutcome={handle} /> : null;
+  // in the page's body: a card around the field must not become the dialog's frame (it clipped it)
+  const dialog = ask ? createPortal(<TakeOverQuestion q={ask} onClose={() => setAsk(null)} onOutcome={handle} />, document.body) : null;
   return { handle, dialog, message, setMessage };
 }
 
