@@ -83,7 +83,7 @@ export function Badelift() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)]">
             {main.map((p) => <ProductCard key={p.id} p={p} f={f} />)}
             <aside aria-label="Großansicht Hauptprodukt" className="grid place-items-center rounded-lg border-2 border-border bg-card p-3">
-              <img src={PREVIEW.src} alt={PREVIEW.alt} loading="lazy" data-part="preview" className="h-56 max-w-full object-contain" />
+              <img src={PREVIEW.src} alt={PREVIEW.alt} loading="lazy" data-part="preview" className={cn(IMG.product, "max-w-full object-contain")} />
             </aside>
           </div>
         </section>
