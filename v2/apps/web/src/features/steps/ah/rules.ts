@@ -14,7 +14,7 @@
 // Opening an offer writes nothing: the stored services change only when the user changes them —
 // then in today's format (as today's page rewrites them on its first change, too).
 import {
-  AH_CONSTANTS, ahDauer, ahInputFromPayload, computeAhPricing, fitAhToBudget, parseDurationMinutes,
+  AH_CONSTANTS, ahDauer, ahInputFromPayload, ahRowMaxMinutes, computeAhPricing, fitAhToBudget, parseDurationMinutes,
   type AhOfferTotals, type AhPricingInput, type AhPricingResult, type AhService,
 } from "@oc/pricing";
 import type { AhConfig } from "../../offer/index.js";
@@ -209,13 +209,20 @@ export const baseOf = (items: Items): Base => ({ ...(items.hnd ? { hnd: minutesO
 const withMinutes = (it: Item, mins: number[] | undefined): Item => ({ ...it, schedules: it.schedules.map((r, j) => (mins?.[j] ? { ...r, dauer: ahDauer(mins[j]!) } : r)) });
 const sameLength = (b: number[] | undefined, it: Item | undefined) => !!b && !!it && b.length === it.schedules.length;
 
+/** rows whose duration the user set by hand in budget mode (session state only, never stored) */
+export type Hand = Partial<Record<Kind, boolean[]>>;
+/** list index of the first service of each kind in today's stored order */
+const firstOf = (list: Item[], s: Item) => s === list.find((x) => x.type === s.type);
+const fixedOf = (list: Item[], hand: Hand | undefined) => list.map((s) => (firstOf(list, s) ? hand?.[kindOf(s.type)] : undefined));
+
 /**
- * What the durations have to be after a change. Budget mode in force → fitted from the base;
+ * What the durations have to be after a change. Budget mode in force → automatic rows fitted from
+ * the base, rows set by hand kept (reduced only as far as the budget needs, never raised);
  * budget mode just left (untick, Selbstzahler, no source applied) → back to the base.
  * Returns the stored fields to change (or null), the base to remember, whether it is in force, and
  * whether the services fit.
  */
-export function settle(offer: F, base: Base | undefined, wasActive: boolean, cfg: AhConfig): { changes: ReturnType<typeof servicesFields> | null; base: Base; active: boolean; fits: boolean } {
+export function settle(offer: F, base: Base | undefined, wasActive: boolean, cfg: AhConfig, hand?: Hand): { changes: ReturnType<typeof servicesFields> | null; base: Base; active: boolean; fits: boolean } {
   const items = itemsOf(obj(offer.ah));
   const active = isActive(offer, cfg);
   const kinds = KINDS.filter((k) => items[k]);
@@ -225,7 +232,10 @@ export function settle(offer: F, base: Base | undefined, wasActive: boolean, cfg
   if (active && kinds.length) {
     const list = serviceList(items);
     const input = { ...pricingInput(offer, cfg), services: list as AhService[] };
-    const r = fitAhToBudget(input, budgetOf(offer, cfg).budget!, list.map((s) => (s === list.find((x) => x.type === s.type) ? b[kindOf(s.type)] : undefined)));
+    const fixed = fixedOf(list, hand);
+    // a row set by hand starts from its current value; an automatic one from its base (the ratio)
+    const fitBase = list.map((s, n) => (firstOf(list, s) ? b[kindOf(s.type)]?.map((m, j) => (fixed[n]?.[j] ? parseDurationMinutes(s.schedules[j]?.dauer) || m : m)) : undefined));
+    const r = fitAhToBudget(input, budgetOf(offer, cfg).budget!, fitBase, { fixed });
     fits = r.fits;
     const fitted = r.services.map((s) => itemOf(s as F));
     next = { extra: items.extra };
@@ -237,6 +247,35 @@ export function settle(offer: F, base: Base | undefined, wasActive: boolean, cfg
   }
   const changed = JSON.stringify(serviceList(next)) !== JSON.stringify(serviceList(items));
   return { changes: changed ? servicesFields(next) : null, base: active ? b : baseOf(next), active, fits };
+}
+
+/**
+ * An opened offer in budget mode: which rows were set by hand? Nothing about it is stored, so a row
+ * whose stored duration equals the automatic fit of the stored offer counts as automatic, any other
+ * as set by hand (owner 2026-11-23).
+ */
+export function handOfStored(offer: F, cfg: AhConfig): Hand {
+  if (!isActive(offer, cfg)) return {};
+  const items = itemsOf(obj(offer.ah));
+  const list = serviceList(items);
+  const r = fitAhToBudget({ ...pricingInput(offer, cfg), services: list as AhService[] }, budgetOf(offer, cfg).budget!);
+  if (!r.fits) return {};
+  const out: Hand = {};
+  for (const k of KINDS) {
+    const n = list.findIndex((s) => s.type === TYPE_OF[k]);
+    if (n < 0) continue;
+    const flags = list[n]!.schedules.map((row, j) => row.dauer !== r.services[n]!.schedules![j]!.dauer);
+    if (flags.some(Boolean)) out[k] = flags;
+  }
+  return out;
+}
+
+/** „+“ in budget mode: the longest duration row j of this kind may get within the budget (0: none) */
+export function rowMax(offer: F, cfg: AhConfig, hand: Hand | undefined, kind: Kind, j: number): number {
+  const list = serviceList(itemsOf(obj(offer.ah)));
+  const i = list.findIndex((s) => s.type === TYPE_OF[kind]);
+  if (i < 0) return 0;
+  return ahRowMaxMinutes({ ...pricingInput(offer, cfg), services: list as AhService[] }, budgetOf(offer, cfg).budget!, i, j, { fixed: fixedOf(list, hand) });
 }
 
 /** which inputs decide the durations in budget mode (a change of one of these re-fits) */

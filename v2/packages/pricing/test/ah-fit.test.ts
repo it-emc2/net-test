@@ -1,6 +1,6 @@
 // AH budget mode: fitAhToBudget (ah-fit.ts). Properties over many generated offers + worked examples.
 import { describe, expect, it } from "vitest";
-import { ahDauer, ahRowCap, AH_CONSTANTS, AH_FREQ, computeAhPricing, fitAhToBudget, parseDurationMinutes, type AhPricingInput, type AhService } from "../src/index.js";
+import { ahDauer, ahRowCap, ahRowMaxMinutes, AH_CONSTANTS, AH_FREQ, computeAhPricing, fitAhToBudget, parseDurationMinutes, type AhPricingInput, type AhService } from "../src/index.js";
 
 const CONFIG = { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
 const HND = "Haushaltsnahedienstleistungen", AB = "Alltagsbegleitung";
@@ -120,5 +120,54 @@ describe("fitAhToBudget — worked examples (131 €, zone 2 = 20 min travel)", 
   it("too much: weekly AB + weekly HnD, zone 5, separate visits → does not fit, base kept", () => {
     const r = fitAhToBudget(input([svc(AB, [["1:00", "Wöchentlich"]]), svc(HND, [["1:00", "Wöchentlich"]])], 5), 131);
     expect([r.fits, r.services.map((s) => s.schedules![0]!.dauer)]).toEqual([false, ["1:00", "1:00"]]);
+  });
+});
+
+describe("fitAhToBudget — rows set by hand (owner 2026-11-23)", () => {
+  const two = (ab: string, hnd: string, zone = 2) => input([svc(AB, [[ab, "Monatlich"]], true), svc(HND, [[hnd, "14-tägig"]])], zone);
+  const fixedAb = { fixed: [[true], [false]] };
+  it("a hand-set row keeps its value when it fits; the automatic row fills the remainder", () => {
+    const i = two("0:30", "2:00");
+    const r = fitAhToBudget(i, 131, [], fixedAb);
+    expect(r.fits).toBe(true);
+    expect(r.services[0]!.schedules![0]!.dauer).toBe("0:30");
+    expect(r.total).toBeLessThanOrEqual(131);
+    const hnd = parseDurationMinutes(r.services[1]!.schedules![0]!.dauer);
+    const more = structuredClone(r.services); more[1]!.schedules![0]!.dauer = ahDauer(hnd + 5);
+    expect(price(i, more)).toBeGreaterThan(131); // maximal
+    // lowering the hand-set row raises the automatic one
+    const lower = fitAhToBudget(two("0:15", "2:00"), 131, [], fixedAb);
+    expect(parseDurationMinutes(lower.services[1]!.schedules![0]!.dauer)).toBeGreaterThan(hnd);
+  });
+  it("hand-set rows are scaled down only when over budget, never raised; minimum 5, multiples of 5", () => {
+    const over = fitAhToBudget(two("3:00", "1:00"), 131, [], { fixed: [[true], [true]] });
+    const m = mins(over.services).flat();
+    expect(over.fits).toBe(true);
+    expect(over.total).toBeLessThanOrEqual(131);
+    expect(m[0]).toBeLessThan(180); expect(m[1]).toBeLessThanOrEqual(60);
+    m.forEach((x) => { expect(x % 5).toBe(0); expect(x).toBeGreaterThanOrEqual(5); });
+    const under = fitAhToBudget(two("0:15", "0:15"), 131, [], { fixed: [[true], [true]] });
+    expect(mins(under.services).flat()).toEqual([15, 15]); // room left, but nothing is raised
+  });
+  it("never above the budget; idempotent; nothing fits → own values", () => {
+    for (const i of CASES) {
+      const fixed = i.services.map((s, a) => s.schedules!.map((_r, b) => (a + b) % 2 === 0));
+      const r = fitAhToBudget(i, budgetOf(i), [], { fixed });
+      if (!r.fits) { expect(mins(r.services)).toEqual(mins(i.services)); continue; }
+      expect(r.total).toBeLessThanOrEqual(budgetOf(i));
+      mins(r.services).flat().forEach((x) => expect(x % 5).toBe(0));
+      expect(fitAhToBudget({ ...i, services: r.services }, budgetOf(i), [], { fixed }).services).toEqual(r.services);
+    }
+  });
+  it("ahRowMaxMinutes: the largest duration that still fits, automatic rows giving way to 5 minutes", () => {
+    const i = two("0:30", "0:45");
+    const max = ahRowMaxMinutes(i, 131, 0, 0, fixedAb);
+    const at = (m: number) => { const s = structuredClone(i.services); s[0]!.schedules![0]!.dauer = ahDauer(m); s[1]!.schedules![0]!.dauer = "0:05"; return price(i, s); };
+    expect(max % 5).toBe(0);
+    expect(at(max)).toBeLessThanOrEqual(131);
+    expect(at(max + 5)).toBeGreaterThan(131);
+    // the other row set by hand too: it keeps its 0:45 → less room
+    expect(ahRowMaxMinutes(i, 131, 0, 0, { fixed: [[true], [true]] })).toBeLessThan(max);
+    expect(ahRowMaxMinutes(input([svc(HND, [["1:00", "Wöchentlich"]])], 5), 131, 0, 0)).toBe(0);
   });
 });

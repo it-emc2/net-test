@@ -8,13 +8,13 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { euro } from "../../../shared/lib/format.js";
 import { CHIP, CHIP_OFF, Card, ChipGroup, Label, Stepper, TickRow, cn } from "../../../shared/ui/index.js";
-import { useAhConfig, useAhPrice, useOfferStore } from "../../offer/index.js";
+import { getAhConfig, useAhConfig, useAhPrice, useOfferStore } from "../../offer/index.js";
 import {
   KINDS, RATE, RHYTHMS_MAIN, RHYTHMS_MORE, TASKS, TITLE, autoShown, budgetOf, canStep, dauerText, hasAnyService, isActive, isMoreRhythm,
-  isOtherRhythm, itemsOf, newItem, servicesFields, stepDauer, type Base, type Item, type Items, type Kind,
+  isOtherRhythm, itemsOf, newItem, priceOf, rowMax, servicesFields, stepDauer, type Base, type Hand, type Item, type Items, type Kind,
 } from "./rules.js";
 import { AhSummary } from "./Summary.js";
-import { BASE_KEY } from "./settle.js";
+import { BASE_KEY, HAND_KEY } from "./settle.js";
 
 type F = Record<string, any>;
 const PARKED = "ah:parked", TOUCHED = "ah:autoTouched";
@@ -30,7 +30,19 @@ function setBase(kind: Kind, mins: number[] | undefined) {
   if (mins) b[kind] = mins; else delete b[kind];
   st().remember(BASE_KEY, b);
 }
+/** mark rows as set by hand (or back to automatic); `j` undefined = the whole kind */
+function setHand(kind: Kind, j: number | undefined, on: boolean, rows = items()[kind]?.schedules.length ?? 0) {
+  const h: Hand = { ...(scratch<Hand>(HAND_KEY) ?? {}) };
+  const flags = Array.from({ length: rows }, (_x, n) => (j === undefined ? on : n === j ? on : h[kind]?.[n] === true));
+  if (flags.some(Boolean)) h[kind] = flags; else delete h[kind];
+  st().remember(HAND_KEY, h);
+}
 const items = () => itemsOf(offerNow().ah ?? {});
+/** budget mode in force and the services fit: the stepper sets a row by hand, within the budget */
+function budgetFits(o: F): boolean {
+  const cfg = getAhConfig(), { budget } = budgetOf(o, cfg);
+  return isActive(o, cfg) && budget !== null && priceOf(o, cfg).allBase <= budget;
+}
 const minutes = (it: Item) => it.schedules.map((r) => parseDurationMinutes(r.dauer));
 
 function toggleService(kind: Kind, on: boolean) {
@@ -41,6 +53,7 @@ function toggleService(kind: Kind, on: boolean) {
     // a new offer starts in budget mode (U-048) — written with the first service
     if (!hasAnyService(o.ah ?? {}) && autoShown(o, scratch<boolean>(TOUCHED) === true)) more.ahEntlastungAuto = "on";
     setBase(kind, parked?.base);
+    setHand(kind, undefined, false);
     write({ ...now, [kind]: parked?.item ?? newItem(kind) }, more);
   } else {
     const it = now[kind];
@@ -50,6 +63,7 @@ function toggleService(kind: Kind, on: boolean) {
     const own = base && base.length === it.schedules.length ? { ...it, schedules: it.schedules.map((r, j) => ({ ...r, dauer: base[j] ? ahDauer(base[j]!) : r.dauer })) } : it;
     st().remember(PARKED, { ...(scratch<Parked>(PARKED) ?? {}), [kind]: { item: own, base } });
     setBase(kind, undefined);
+    setHand(kind, undefined, false);
     const next: Items = { ...now }; delete next[kind];
     write(next);
   }
@@ -57,15 +71,31 @@ function toggleService(kind: Kind, on: boolean) {
 function changeItem(kind: Kind, f: (it: Item) => Item) { const now = items(); if (now[kind]) write({ ...now, [kind]: f(now[kind]!) }); }
 const setRhythm = (kind: Kind, j: number, v: string) => changeItem(kind, (it) => ({ ...it, schedules: it.schedules.map((r, n) => (n === j ? { ...r, regelmaessigkeit: v } : r)) }));
 function stepRow(kind: Kind, j: number, dir: 1 | -1) {
-  const it = items()[kind]; if (!it) return;
-  const next = { ...it, schedules: it.schedules.map((r, n) => (n === j ? { ...r, dauer: stepDauer(r.dauer, dir) } : r)) };
-  setBase(kind, minutes(next)); // a duration set by hand is the new base of budget mode
+  if (!items()[kind]) return;
+  let to = stepDauer(items()[kind]!.schedules[j]!.dauer, dir);
+  if (budgetFits(offerNow())) {
+    // budget mode (owner 2026-11-23): the row is now the user's; „+“ only as far as the budget allows
+    setHand(kind, j, true); // first: the other rows are fitted around this one
+    const now = parseDurationMinutes(items()[kind]!.schedules[j]!.dauer);
+    if (dir > 0) {
+      const max = rowMax(offerNow(), getAhConfig(), scratch<Hand>(HAND_KEY), kind, j);
+      if (max <= now) return;
+      to = ahDauer(Math.min(parseDurationMinutes(to), max));
+    }
+  }
+  const it = items()[kind]!;
+  const next = { ...it, schedules: it.schedules.map((r, n) => (n === j ? { ...r, dauer: to } : r)) };
+  // a duration set by hand is the new base of this row (what unticking budget mode brings back)
+  const base = scratch<Base>(BASE_KEY)?.[kind];
+  setBase(kind, base && base.length === it.schedules.length ? base.map((m, n) => (n === j ? parseDurationMinutes(to) : m)) : minutes(next));
   write({ ...items(), [kind]: next });
 }
 function removeRow(kind: Kind, j: number) {
   const it = items()[kind]; if (!it || it.schedules.length < 2) return;
   const base = scratch<Base>(BASE_KEY)?.[kind];
   if (base && base.length === it.schedules.length) setBase(kind, base.filter((_m, n) => n !== j));
+  const hand = scratch<Hand>(HAND_KEY)?.[kind];
+  if (hand) { const h = { ...(scratch<Hand>(HAND_KEY) ?? {}) }; const rest = hand.filter((_x, n) => n !== j); if (rest.some(Boolean)) h[kind] = rest; else delete h[kind]; st().remember(HAND_KEY, h); }
   write({ ...items(), [kind]: { ...it, schedules: it.schedules.filter((_r, n) => n !== j) } });
 }
 function toggleTask(kind: Kind, id: string, on: boolean) {
@@ -73,7 +103,8 @@ function toggleTask(kind: Kind, id: string, on: boolean) {
   changeItem(kind, (it) => ({ ...it, tasks: TASKS[kind].map((t) => t.id).filter((t) => (t === id ? on : it.tasks.includes(t))) }));
 }
 const setCombined = (on: boolean) => changeItem("ab", (it) => ({ ...it, combinedVisit: on }));
-function setAuto(on: boolean) { st().remember(TOUCHED, true); st().patch("ah" as never, { ahEntlastungAuto: on ? "on" : undefined } as never); }
+// ticking or unticking „Im Budget bleiben“ makes every row automatic again
+function setAuto(on: boolean) { st().remember(TOUCHED, true); st().remember(HAND_KEY, {}); st().patch("ah" as never, { ahEntlastungAuto: on ? "on" : undefined } as never); }
 
 function Pill({ kind, children }: { kind: "ok" | "over" | "none"; children: string }) {
   return <span data-testid="ah-pill" data-kind={kind} className={cn("inline-flex min-h-8 items-center rounded-full px-3 text-[0.95rem] font-semibold",
@@ -125,8 +156,13 @@ function RhythmChips({ kind, j, value }: { kind: Kind; j: number; value: string 
   );
 }
 
-function ServiceCard({ kind, item, auto }: { kind: Kind; item: Item | undefined; auto: boolean }) {
+function ServiceCard({ kind, item, auto, offer }: { kind: Kind; item: Item | undefined; auto: boolean; offer: F }) {
   const on = !!item;
+  const handAll = useOfferStore((s) => s.scratch[HAND_KEY] as Hand | undefined);
+  const hand = handAll?.[kind];
+  const cfg = useAhConfig();
+  // budget mode: how far „+“ may go per row (disabled when not even the next 5 minutes fit)
+  const up = auto && item ? item.schedules.map((_r, j) => rowMax(offer, cfg, handAll, kind, j)) : [];
   return (
     <Card data-testid={`ah-svc-${kind}`} className="gap-4">
       <TickRow id={`ah-${kind}`} checked={on} onChange={(v) => toggleService(kind, v)} className="text-[1.15rem] font-bold">
@@ -145,9 +181,12 @@ function ServiceCard({ kind, item, auto }: { kind: Kind; item: Item | undefined;
               <RhythmChips kind={kind} j={j} value={r.regelmaessigkeit} />
               <div className="grid gap-2">
                 <p className="m-0 font-semibold" id={`ah-${kind}-d-${j}`}>Dauer pro Einsatz</p>
-                {auto
-                  ? <p className="m-0 flex min-h-12 items-center gap-2" data-testid={`ah-${kind}-auto-${j}`}><span className="text-[1.1rem] font-semibold tabular-nums">{dauerText(r.dauer)}</span><span className="text-muted-foreground">automatisch</span></p>
-                  : <Stepper label="Dauer pro Einsatz" value={dauerText(r.dauer)} canDown={canStep(r.dauer, -1)} canUp={canStep(r.dauer, 1)} onStep={(dir) => stepRow(kind, j, dir)} data-testid={`ah-${kind}-dauer-${j}`} />}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Stepper label="Dauer pro Einsatz" value={dauerText(r.dauer)} canDown={canStep(r.dauer, -1)} canUp={auto ? (up[j] ?? 0) > parseDurationMinutes(r.dauer) : canStep(r.dauer, 1)} onStep={(dir) => stepRow(kind, j, dir)} data-testid={`ah-${kind}-dauer-${j}`} />
+                  {!auto ? null : hand?.[j]
+                    ? <button type="button" onClick={() => setHand(kind, j, false)} aria-label="Dauer wieder automatisch" data-testid={`ah-${kind}-reset-${j}`} className="min-h-12 cursor-pointer rounded-lg border-0 bg-transparent px-3 text-muted-foreground underline underline-offset-4 hover:text-foreground">automatisch</button>
+                    : <span className="text-muted-foreground" data-testid={`ah-${kind}-auto-${j}`}>automatisch</span>}
+                </div>
               </div>
             </div>
           ))}
@@ -183,13 +222,14 @@ export function AhLeistungen() {
   const its = itemsOf(offer.ah ?? {});
   const any = KINDS.some((k) => its[k]);
   const { budget } = budgetOf(offer, cfg);
-  // budget mode shows the computed durations — unless nothing fits, then the user's own (with − / +)
+  // budget mode: − / + on every row, „automatisch“ on the rows not set by hand — unless nothing
+  // fits, then the user's own durations with a free − / + (as before)
   const auto = isActive(offer, cfg) && budget !== null && price.net <= budget;
   return (
     <div className="grid gap-4" data-testid="ah-leistungen">
       <h2 className="sr-only">Leistungen</h2>
       <BudgetCard offer={offer} used={price.gross} own={price.eigenanteil} any={any} />
-      {KINDS.map((k) => <ServiceCard key={k} kind={k} item={its[k]} auto={auto} />)}
+      {KINDS.map((k) => <ServiceCard key={k} kind={k} item={its[k]} auto={auto} offer={offer} />)}
       {its.hnd && its.ab ? (
         <Card className="py-3"><TickRow id="ah-combined" checked={its.ab.combinedVisit} onChange={setCombined} suffix="– nur eine Anfahrt" data-testid="ah-combined">Beides im selben Termin</TickRow></Card>
       ) : null}

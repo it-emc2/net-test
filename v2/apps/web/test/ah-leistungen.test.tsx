@@ -2,8 +2,8 @@
 // must store what today's page stores and price what today's computeAHGesamt prices.
 // Reference: fixtures/ah-leistungen.json, recorded from today's UI by v2/scripts/capture-ah-leistungen.cjs.
 // Old offers: real (anonymised) AH payloads, tests/golden/fixtures/ah/{payloads,restore}.json.
-import { ahInputFromPayload, ahOfferTotals, computeAhPricing } from "@oc/pricing";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { ahInputFromPayload, ahOfferTotals, computeAhPricing, parseDurationMinutes } from "@oc/pricing";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { openVariantPanel, useOfferStore } from "../src/features/offer/index.js";
@@ -46,6 +46,8 @@ async function openStored(payload: F, step = "ah") {
   return server;
 }
 const user = () => userEvent.setup();
+/** a new page: nothing remembered from the last one */
+const cleanupAll = () => { cleanup(); useOfferStore.getState().close(); };
 const durationOf = (k: "hnd" | "ab", j = 0) => {
   const box = within(card(k)).getByTestId(`ah-${k}-row-${j}`);
   return (box.querySelector('[data-part="value"]') ?? box.querySelector(`[data-testid="ah-${k}-auto-${j}"] span`))?.textContent ?? "";
@@ -214,8 +216,10 @@ describe("budget mode", () => {
     expect(ah().ahEntlastungAuto).toBe("on");
     await setRhythm(u, "hnd", "14-tägig");
     const fitted = svcs()[0]!.schedules[0].dauer;
-    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toHaveTextContent(`${fitted} Std.automatisch`);
-    expect(within(card("hnd")).queryByRole("button", { name: /Dauer pro Einsatz/ })).toBeNull();
+    expect(durationOf("hnd")).toBe(`${fitted} Std.`);
+    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toHaveTextContent("automatisch");
+    // since 2026-11-23 the stepper is there in budget mode too
+    expect(within(card("hnd")).getByRole("button", { name: "Dauer pro Einsatz kürzer" })).toBeInTheDocument();
     const p = computeAhPricing(ahInputFromPayload(offer(), CFG));
     expect(p.gesamt).toBeLessThanOrEqual(131);
     expect(screen.getByTestId("ah-pill")).toHaveTextContent(nb(`Rest ${euro(131 - p.gesamt)}`));
@@ -370,6 +374,122 @@ describe("budget mode", () => {
   });
 });
 
+describe("budget mode: − / + by hand (owner 2026-11-23)", () => {
+  const dauer = (n = 0) => (ah().services as F[])[n]!.schedules[0].dauer as string;
+  const plus = (k: "hnd" | "ab") => within(card(k)).getByRole("button", { name: "Dauer pro Einsatz länger" });
+  const minus = (k: "hnd" | "ab") => within(card(k)).getByRole("button", { name: "Dauer pro Einsatz kürzer" });
+  const total = () => computeAhPricing(ahInputFromPayload(offer(), CFG)).gesamt;
+  async function hnd14() {
+    const server = await open({ Arbeitszeit: { travelTimeHHMM: "0:15" } });
+    const u = user();
+    await u.click(screen.getByRole("checkbox", { name: /^Haushaltsnahe Dienstleistungen/ }));
+    await setRhythm(u, "hnd", "14-tägig");
+    return { server, u };
+  }
+
+  it("stepper present; + limited by the budget (partial last step, then disabled); − sets the row by hand", async () => {
+    const { server, u } = await hnd14();
+    expect(dauer()).toBe("0:55"); // the fit: 127,10 €
+    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toHaveTextContent("automatisch");
+    expect(plus("hnd")).toBeDisabled(); // 1:00 would be 134,42 €
+    await u.click(minus("hnd"));
+    expect(dauer()).toBe("0:45");
+    expect(within(card("hnd")).queryByTestId("ah-hnd-auto-0")).toBeNull();
+    expect(within(card("hnd")).getByRole("button", { name: "Dauer wieder automatisch" })).toHaveTextContent("automatisch");
+    await u.click(within(card("hnd")).getByRole("checkbox", { name: "Fenster putzen" })); // another change: the hand value stays
+    expect(dauer()).toBe("0:45");
+    await u.click(plus("hnd")); // next 15 minutes (1:00) do not fit → the largest 5-minute step that does
+    expect(dauer()).toBe("0:55");
+    expect(plus("hnd")).toBeDisabled();
+    expect(total()).toBeLessThanOrEqual(131);
+    expect(screen.getByTestId("ah-pill")).toHaveTextContent(nb(`Rest ${euro(131 - total())}`));
+    expect(ah().ahEntlastungAuto).toBe("on");
+    expect(server.count("POST /api/price")).toBe(0);
+  });
+
+  it("two services: the automatic one takes what the hand-set one leaves (both ways)", async () => {
+    const { u } = await hnd14();
+    await u.click(screen.getByRole("checkbox", { name: /^Alltagsbegleitung/ }));
+    await setRhythm(u, "ab", "Monatlich");
+    const abAuto = () => parseDurationMinutes(dauer(0)); // AB comes first in the stored list
+    const before = abAuto();
+    await u.click(minus("hnd"));
+    await u.click(minus("hnd"));
+    expect(abAuto()).toBeGreaterThan(before);
+    expect(total()).toBeLessThanOrEqual(131);
+    const raised = abAuto();
+    await u.click(plus("hnd"));
+    expect(abAuto()).toBeLessThan(raised);
+    expect(total()).toBeLessThanOrEqual(131);
+    expect(within(card("ab")).getByTestId("ah-ab-auto-0")).toBeInTheDocument();
+    // both by hand: nothing is raised by itself
+    await u.click(minus("hnd")); await u.click(minus("hnd")); // room for AB (automatic, above 0:15)
+    expect(abAuto()).toBeGreaterThan(30);
+    await u.click(minus("ab"));
+    expect(within(card("ab")).queryByTestId("ah-ab-auto-0")).toBeNull();
+    const ab = dauer(0), hnd = dauer(1);
+    await u.click(plus("hnd")); // AB is the user's now: it keeps its value, HnD may use the room AB gave
+    expect(dauer(0)).toBe(ab);
+    expect(parseDurationMinutes(dauer(1))).toBeGreaterThan(parseDurationMinutes(hnd));
+    expect(total()).toBeLessThanOrEqual(131);
+  });
+
+  it("a later price change keeps a hand value that fits, reduces it when it would exceed, never raises it", async () => {
+    const { u } = await hnd14();
+    await u.click(minus("hnd")); await u.click(minus("hnd")); // 0:30 by hand
+    expect(dauer()).toBe("0:30");
+    await setRhythm(u, "hnd", "Monatlich");
+    expect(dauer()).toBe("0:30"); // fits: kept (not raised)
+    await setRhythm(u, "hnd", "Wöchentlich");
+    expect(dauer()).toBe("0:10"); // 0:30 weekly would be 180 € → down as far as needed
+    expect(total()).toBeLessThanOrEqual(131);
+    await setRhythm(u, "hnd", "Monatlich");
+    expect(dauer()).toBe("0:10"); // never raised by itself
+  });
+
+  it("„automatisch“ sets a row back; unticking and ticking budget mode resets every row", async () => {
+    const { u } = await hnd14();
+    await u.click(minus("hnd"));
+    await u.click(within(card("hnd")).getByRole("button", { name: "Dauer wieder automatisch" }));
+    expect(dauer()).toBe("0:55");
+    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toBeInTheDocument();
+    await u.click(minus("hnd"));
+    await u.click(screen.getByRole("checkbox", { name: /Im Budget bleiben/ }));
+    expect(dauer()).toBe("0:45"); // off: the user's own duration
+    await u.click(screen.getByRole("checkbox", { name: /Im Budget bleiben/ }));
+    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toBeInTheDocument();
+    expect(dauer()).toBe("0:55");
+  });
+
+  it("after a reload: the stored fit counts as automatic, a lower stored duration as by hand (not raised later)", async () => {
+    const { u } = await hnd14();
+    await u.click(within(card("hnd")).getByRole("checkbox", { name: "Fenster putzen" }));
+    const fitted = structuredClone(offer());
+    const lower = structuredClone(offer());
+    const json = (lower.ah.ahServicesJson as string).replace('"dauer":"0:55"', '"dauer":"0:30"');
+    lower.ah = { ...lower.ah, ahServicesJson: json, services: JSON.parse(json) };
+    cleanupAll();
+    await openStored(fitted);
+    expect(within(card("hnd")).getByTestId("ah-hnd-auto-0")).toBeInTheDocument();
+    expect(ah()).toEqual(fitted.ah);
+    cleanupAll();
+    await openStored(lower);
+    expect(within(card("hnd")).queryByTestId("ah-hnd-auto-0")).toBeNull();
+    expect(within(card("hnd")).getByRole("button", { name: "Dauer wieder automatisch" })).toBeInTheDocument();
+    expect(ah()).toEqual(lower.ah); // opening writes nothing
+    await setRhythm(user(), "hnd", "Monatlich");
+    expect(dauer()).toBe("0:30");
+  });
+
+  it("the stored shape stays today's: only the four keys per service, nothing about „by hand“", async () => {
+    const { u } = await hnd14();
+    await u.click(minus("hnd"));
+    expect(Object.keys(ah()).sort()).toEqual(["ahEntlastungAuto", "ahNote", "ahServicesJson", "services", "sketch"].filter((k) => k in ah()).sort());
+    expect(Object.keys((ah().services as F[])[0]!)).toEqual(["type", "schedules", "tasks", "combinedVisit"]);
+    expect(JSON.stringify(ah())).not.toMatch(/hand/i);
+  });
+});
+
 describe("old offers open, show and price as stored — and stay unchanged", () => {
   const CASES = ["ah-offer-b6e37653", "ah-offer-97ca8e12", "ah-offer-20b197e6", "ah-offer-20b18d79", "ah-offer-114d7198", "ah-offer-4cfe26f6", "ah-draft-e8fb9bc8", "ah-offer-114dbb2e"];
   it.each(CASES)("%s", async (id) => {
@@ -401,7 +521,8 @@ describe("old offers open, show and price as stored — and stay unchanged", () 
   it("ahEntlastungAuto is restored: an old offer with it shows budget mode on", async () => {
     await openStored(structuredClone(PAYLOADS.find((c) => c.id === "ah-offer-b6e37653")!.payload));
     expect(screen.getByRole("checkbox", { name: /Im Budget bleiben/ })).toBeChecked();
-    expect(screen.getByTestId("ah-hnd-auto-0")).toHaveTextContent("1:30 Std.automatisch");
+    expect(durationOf("hnd")).toBe("1:30 Std.");
+    expect(screen.getByTestId("ah-hnd-auto-0")).toHaveTextContent("automatisch"); // stored = the fit → automatic
   });
 
   it("the older nested format shows its time rows (v2 fix FINDINGS-AH #2) and prices them", async () => {
