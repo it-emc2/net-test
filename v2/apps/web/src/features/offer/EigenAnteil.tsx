@@ -33,7 +33,7 @@ const BOX = "flex h-11 shrink-0 items-stretch overflow-hidden rounded-lg border 
 
 /** step bar, Kassenkunde: ONE money button — Gesamt | Eigenanteil | ⌄ (tap → breakdown). Without a
  *  subsidy option the tinted part is the amber chip that leads to Kundendaten. Others: `fallback`. */
-export function BarMoney({ base, fallback }: { base: string; fallback: ReactNode }) {
+export function BarMoney({ base, fallback, className }: { base: string; fallback: ReactNode; className?: string }) {
   const s = useSelfPay();
   if (!s) return <>{fallback}</>;
   const gesamt = (
@@ -43,17 +43,17 @@ export function BarMoney({ base, fallback }: { base: string; fallback: ReactNode
     </span>
   );
   if (!s.hasOption) return (
-    <div className={BOX}>{gesamt}
-      <Link to={`${base}/Kundendaten`} className="flex items-center gap-1.5 border-l border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] font-semibold text-amber-800 no-underline dark:text-amber-300">
+    <div className={cn(BOX, className)}>{gesamt}
+      <Link to={`${base}/Kundendaten`} className="flex flex-1 items-center gap-1.5 border-l border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] font-semibold text-amber-800 no-underline dark:text-amber-300">
         <TriangleAlert aria-hidden className="size-4" />Zuschuss wählen
       </Link>
     </div>
   );
   return (
     <>
-      <button type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`Gesamt ${euro(s.total)}, ${label(s, true)} ${euro(s.selfPay)} – Aufschlüsselung`} className={cn(BOX, "cursor-pointer p-0")}>
+      <button type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`Gesamt ${euro(s.total)}, ${label(s, true)} ${euro(s.selfPay)} – Aufschlüsselung`} className={cn(BOX, "cursor-pointer p-0", className)}>
         {gesamt}
-        <span className="grid content-center border-l border-success/50 bg-success/15 px-3">
+        <span className="grid flex-1 content-center border-l border-success/50 bg-success/15 px-3">
           <span className={cn("text-[0.75rem]", GREEN)}>{label(s, true)}</span>
           <strong data-testid="selfpay-amount" className={cn("text-[0.95rem] font-medium tabular-nums", GREEN)}>{euro(s.selfPay)}</strong>
         </span>

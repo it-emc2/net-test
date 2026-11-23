@@ -250,11 +250,11 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     // the burger opens the list as a drawer.
     <div className={cn("mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
       {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
-      {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
+      {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 max-sm:flex-wrap border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
         {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
         <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</p>
         {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
-        <BarMoney base={base} fallback={<Total />} />
+        <BarMoney base={base} fallback={<Total />} className="max-sm:order-last max-sm:w-full" />
       </div> : null}
       <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} q={q} current={step} statuses={statuses} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
