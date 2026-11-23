@@ -11,7 +11,7 @@ beforeEach(() => { localStorage.clear(); usePrefs.setState({ theme: "", mode: "l
 
 describe("rules", () => {
   it("initials only", () => {
-    expect(initials("t.raithel@example.test")).toBe("TR");
+    expect(initials("m.muster@example.test")).toBe("MM");
     expect(initials("ap@example.test")).toBe("AP");
   });
   it("offer line and deal line leave out empty parts", () => {

@@ -3441,7 +3441,7 @@
    },
    "activeOffer": "bu",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
@@ -3699,7 +3699,7 @@
    },
    "activeOffer": "bwt",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
@@ -3913,7 +3913,7 @@
    },
    "activeOffer": "hl",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
@@ -4121,7 +4121,7 @@
    },
    "activeOffer": "bl",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
@@ -4326,7 +4326,7 @@
    },
    "activeOffer": "ah",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
