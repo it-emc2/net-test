@@ -37,15 +37,15 @@ export function BarMoney({ base, fallback, className }: { base: string; fallback
   const s = useSelfPay();
   if (!s) return <>{fallback}</>;
   const gesamt = (
-    <span className="grid content-center px-3">
+    <span className="grid content-center px-3 max-[479px]:px-2">
       <span className="text-[0.75rem] text-foreground/75">Gesamt</span>
       <span className="text-[0.95rem] font-medium tabular-nums text-foreground/80">{euro(s.total)}</span>
     </span>
   );
   if (!s.hasOption) return (
     <div className={cn(BOX, className)}>{gesamt}
-      <Link to={`${base}/Kundendaten`} className="flex flex-1 items-center gap-1.5 border-l border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] font-semibold text-amber-800 no-underline dark:text-amber-300">
-        <TriangleAlert aria-hidden className="size-4" />Zuschuss wählen
+      <Link to={`${base}/Kundendaten`} className="flex flex-1 items-center gap-1.5 border-l border-amber-500 bg-amber-500/15 px-3 text-[0.9rem] max-[479px]:min-w-12 max-[479px]:justify-center max-[479px]:px-0 font-semibold text-amber-800 no-underline dark:text-amber-300">
+        <TriangleAlert aria-hidden className="size-4" /><span className="max-[479px]:sr-only">Zuschuss wählen</span>
       </Link>
     </div>
   );
@@ -53,11 +53,11 @@ export function BarMoney({ base, fallback, className }: { base: string; fallback
     <>
       <button type="button" popoverTarget="selfpay-breakdown" aria-haspopup="true" aria-label={`Gesamt ${euro(s.total)}, ${label(s, true)} ${euro(s.selfPay)} – Aufschlüsselung`} className={cn(BOX, "cursor-pointer p-0", className)}>
         {gesamt}
-        <span className="grid flex-1 content-center border-l border-success/50 bg-success/15 px-3">
-          <span className={cn("text-[0.75rem]", GREEN)}>{label(s, true)}</span>
+        <span className="grid flex-1 content-center border-l border-success/50 bg-success/15 px-3 max-[479px]:px-2">
+          <span className={cn("text-[0.75rem]", GREEN)}>Eigenanteil{s.twoPersons ? <span className="max-[479px]:hidden"> · 2 Pers.</span> : null}</span>
           <strong data-testid="selfpay-amount" className={cn("text-[0.95rem] font-medium tabular-nums", GREEN)}>{euro(s.selfPay)}</strong>
         </span>
-        <span aria-hidden className="grid place-items-center border-l border-input px-2 text-foreground/75"><ChevronDown className="size-4" /></span>
+        <span aria-hidden className="grid place-items-center border-l border-input px-2 text-foreground/75 max-[479px]:hidden"><ChevronDown className="size-4" /></span>
       </button>
       <div id="selfpay-breakdown" popover="auto" aria-label="Eigenanteil Aufschlüsselung" className="fixed inset-auto right-3 top-32 m-0 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-xl">
         <dl className="m-0 grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-2 tabular-nums">
