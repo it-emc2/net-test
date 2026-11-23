@@ -26692,7 +26692,7 @@
    },
    "activeOffer": "bu",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
@@ -26950,7 +26950,7 @@
    },
    "activeOffer": "bwt",
    "includeOurSignature": true,
-   "ourSignatureUser": "t.raithel",
+   "ourSignatureUser": "capture",
    "postal": {
     "auftragId": "",
     "recipient": {
