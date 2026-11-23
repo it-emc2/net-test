@@ -134,15 +134,17 @@ export function chooseInvoiceCopy(answer: "ja" | "nein", lastKind: unknown): Fie
 export const HINT_FIELDS = ["ah_mobilitaet", "ah_allergien", "ah_demenz", "ah_sprache"] as const;
 export const HINT_CHOICES = ["Ja", "Nein", "Sonstiges"] as const;
 export type HintChoice = (typeof HINT_CHOICES)[number];
-/** the chip of a note question. Today's page derives it from the text alone (restoreJaNeinText:
- *  „Ja“ / „Nein“ → that chip, any other text → „Sonstiges“); the stored chip also counts where the
- *  text alone cannot say it: „Ja“ with details (UX-CHANGES U-052) and a chip without text. */
+/** the chip of a note question. Today's page derives it on opening from the text alone
+ *  (restoreJaNeinText: „Ja“ / „Nein“ → that chip, any other text → „Sonstiges“, no text → none); here
+ *  the stored chip counts too where the text cannot say it: „Sonstiges“ (its text may still be the word
+ *  of the chip before), „Ja“ with details (UX-CHANGES U-052) and a chip without text. */
 export function hintChoice(kd: Fields, field: string): HintChoice | "" {
   const text = String(kd[field] ?? "");
   const stored = String(kd[`${field}_choice`] ?? "");
+  if (stored === "Sonstiges") return "Sonstiges"; // also when it still holds the word of an earlier chip
+  if (!text) return stored === "Ja" || stored === "Nein" ? stored : "";
   if (text === "Ja" || text === "Nein") return text;
-  if (text) return stored === "Ja" ? "Ja" : "Sonstiges";
-  return (HINT_CHOICES as readonly string[]).includes(stored) ? (stored as HintChoice) : "";
+  return stored === "Ja" ? "Ja" : "Sonstiges";
 }
 /** the second person of an Alltagshilfe offer (not the Badumbau `twoPersons` / `partner*`) */
 export const AH_P2_FIELDS = ["ahZweiPersonen", "p2Salutation", "p2FirstName", "p2LastName", "p2Pflegegrad"] as const;
