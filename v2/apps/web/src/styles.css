@@ -29,6 +29,7 @@
   --accent-weak: #ede9fe;    /* active / hover background */
   --primary: #7c3aed;        /* filled buttons: the "strong" accent, readable with white text */
   --primary-foreground: #ffffff;
+  --primary-text: var(--primary); /* the accent as TEXT / outline on card and page (dark: lifted to ≥ 4.5:1) */
   --ring: #7c3aed;
   --step-done: #a78bfa;
   --step-active: #7c3aed;
@@ -53,6 +54,7 @@
   --destructive: #f87171;
   --success: #22c55e;
   --control: #7d8ba1;
+  --primary-text: color-mix(in srgb, var(--primary) 45%, white);
   --success-weak: #0b2e1b;
   --success-strong: #86efac;
   --warning-weak: #3a2306;
@@ -81,6 +83,7 @@
   --color-accent-weak: var(--accent-weak);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-text: var(--primary-text);
   --color-ring: var(--ring);
   --color-step-done: var(--step-done);
   --color-step-active: var(--step-active);
