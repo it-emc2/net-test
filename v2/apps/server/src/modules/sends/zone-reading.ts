@@ -1,7 +1,8 @@
 // Alltagshilfe: which reading of the travel zone an offer's documents use (ADR 028, addendum
 // 2026-11-23, owner): an offer sent from now on follows the screen (travel time + Hof rule); an
 // offer that already went out stays exactly as it went out (the documents' own reading: the saved
-// `Arbeitszeit.ahTravelZone` first).
+// `Arbeitszeit.ahTravelZone` first). Since the same day the "screen" reading covers the services
+// too (ahServicesJson, older formats) — the marker `ahZoneReading` means "zone and services reading".
 //
 // The reading is decided ONCE per offer number, at its first send or hand-over after this change,
 // and kept on the send record (`ahZoneReading`). Every later send, resend, download, signing page,

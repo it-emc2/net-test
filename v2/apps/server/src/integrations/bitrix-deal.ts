@@ -2,7 +2,7 @@
 // updateDealAfterSigning, addTimelineComment, ensurePartnerContact, setDealOfferLink, AH fields).
 // Field ids, enum ids, stage ids and the exact request shapes are unchanged: the contract test
 // records the outgoing calls of legacy and v2 against the same stub and requires them identical.
-import { ahDocHours, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals, type AhZoneReading } from "@oc/pricing";
+import { ahDocHoursFor, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals, type AhZoneReading } from "@oc/pricing";
 import { buildQS, type BitrixBatchResult, type BitrixClient } from "./bitrix.js";
 
 export const DEAL_ENTITY_TYPE_ID = 2;
@@ -61,9 +61,9 @@ export interface AhBitrix {
 }
 
 /** Exactly legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts.
- *  `reading`: the zone reading of the offer's documents (ADR 028 addendum 2026-11-23; the caller decides). */
+ *  `reading`: the zone and services reading of the offer's documents (ADR 028 addendum 2026-11-23; the caller decides). */
 export function ahBitrixFromPayload(body: any, reading: AhZoneReading = "document"): AhBitrix {
-  const raw = ahDocServices(body);
+  const raw = ahDocServices(body, reading);
   const { zoneNum, travelTimeH } = ahDocTravel(body, reading);
   const p = ahOfferTotals(ahDocumentInput(body, NO_FUNDING_CONFIG, reading)).detail;
   const hndSvc = raw.find((s) => s.type === "Haushaltsnahedienstleistungen");
@@ -76,8 +76,8 @@ export function ahBitrixFromPayload(body: any, reading: AhZoneReading = "documen
     zoneNum,
     hasHnD: raw.some((s) => s.type === "Haushaltsnahedienstleistungen"),
     hasAb: raw.some((s) => s.type === "Alltagsbegleitung"),
-    stundenProEinsatz: firstSched ? ahDocHours(firstSched.dauer) : 0,
-    tatsaechlicherStundenumfang: firstSched ? r2(ahDocHours(firstSched.dauer) + travelTimeH) : 0,
+    stundenProEinsatz: firstSched ? ahDocHoursFor(firstSched.dauer, reading) : 0,
+    tatsaechlicherStundenumfang: firstSched ? r2(ahDocHoursFor(firstSched.dauer, reading) + travelTimeH) : 0,
     regelmaessigkeit: firstSched?.regelmaessigkeit || "",
     monatlicherStundenumfang: r2(totalMonatlichH),
     anzahlAnfahrtspauschalen: r2(totalEinsaetze),
@@ -139,7 +139,7 @@ export interface SignedOffer {
   total?: number | null; offerNumber?: string; currencyId?: string;
   /** AH: the payload AS SENT gives the AH fields (buildAhBitrixFields); null = not available → left out */
   ah?: boolean; ahPayload?: unknown;
-  /** AH: the zone reading of the offer's documents (ADR 028 addendum 2026-11-23); absent = "document" */
+  /** AH: the zone and services reading of the offer's documents (ADR 028 addendum 2026-11-23); absent = "document" */
   ahZoneReading?: AhZoneReading;
 }
 /** At a signature the Anfahrtszone is never written: it is filled once, by the first „ANG verschickt“

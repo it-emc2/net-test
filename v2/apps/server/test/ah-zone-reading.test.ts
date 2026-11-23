@@ -246,3 +246,53 @@ describe("an offer sent BEFORE this change keeps its figures", () => {
     expect(await download("ZR-ALT-1-V2")).toContain(eur(NEW));
   });
 });
+
+describe("services read as the screen does (owner 2026-11-23): an offer with time rows nested in its tasks", () => {
+  const GOLD: any[] = JSON.parse(readFileSync(fileURLToPath(new URL("./fixtures/ah-golden-offers.json", import.meta.url)), "utf8")).cases;
+  const NESTED: any = structuredClone(GOLD.find((c) => c.id === "ah-draft-91fcd12b").payload);
+  NESTED.activeOffer = "ah";
+  NESTED.Kundendaten = { ...NESTED.Kundendaten, email: "kunde@example.invalid" };
+  const OLD_N = ahOfferTotals(ahDocumentInput(NESTED, CFG, "document")).customerAmount;
+  const NEW_N = ahOfferTotals(ahInputFromPayload(NESTED, CFG)).customerAmount;
+  const asN = (nr: string) => ({ ...structuredClone(NESTED), offerNumber: nr });
+  const sendN = (nr: string, dealId: string) => mail({
+    to: "kunde@example.invalid", subject: "Alltagshilfe", offerNumber: nr, offerType: "ah", payload: JSON.stringify(asN(nr)), dealId, contactId: "101",
+    body: "Guten Tag {{SIGN_LINK}}", sendId: `zn-${nr}-${rand()}`, forceResend: "1",
+  });
+  const downloadN = async (nr: string) => {
+    const r = await v2.inject({ method: "POST", url: "/docx-template", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, payload: asN(nr) as any });
+    expect(r.statusCode).toBe(200);
+    return docxText(r.rawPayload);
+  };
+
+  it("the two readings differ: the old one prints 0 €, the screen the real amount", () => {
+    expect(OLD_N).toBe(0);
+    expect(NEW_N).toBeGreaterThan(0);
+  });
+
+  it("new send: document, send total and Bitrix amount carry the screen's figure", async () => {
+    const r = await sendN("ZR-NEST-1", "9626");
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200);
+    expect(r.body.offerTotal).toBe(NEW_N);
+    expect(await record(r.body.sendId)).toMatchObject({ total: NEW_N, ahZoneReading: "screen" });
+    expect(await downloadN("ZR-NEST-1")).toContain(eur(NEW_N));
+    bx.take("v2");
+    const mv = await call("POST", "/api/bitrix/deal/9626/move-ang-verschickt", { offerType: "ah", offerNumber: "ZR-NEST-1", payload: JSON.stringify(asN("ZR-NEST-1")) });
+    expect(mv.status).toBe(200);
+    await wait();
+    expect(Number(updates(bx.take("v2")).find((f) => "opportunity" in f)!.opportunity)).toBe(NEW_N);
+  });
+
+  it("sent before (record without marker): re-renders unchanged with the old reading", async () => {
+    const NR = "ZR-NEST-ALT";
+    await db().collection("offer_sends").insertOne({
+      sendId: `old-${rand()}`, channel: "email", status: "done", offerNumber: NR, offerType: "ah", by: "", dealId: "9627", to: "kunde@example.invalid",
+      payload: asN(NR), identity: offerIdentity(asN(NR), NR), total: OLD_N, files: [], steps: {}, startedAt: new Date(Date.now() - 86400000), finishedAt: new Date(Date.now() - 86400000),
+    });
+    expect(await downloadN(NR)).not.toContain(eur(NEW_N));
+    const r = await sendN(NR, "9627");
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200);
+    expect(r.body.offerTotal).toBe(OLD_N);
+    expect(await record(r.body.sendId)).toMatchObject({ total: OLD_N, ahZoneReading: "document" });
+  });
+});
