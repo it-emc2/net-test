@@ -19,8 +19,10 @@ import {
 import { hlNow, str, useHl, writeHl } from "./store.js";
 
 const BOX = "rounded-lg border-2 border-border bg-card";
+/** a box that is a control (a pick, a card to tap): its edge must stand out (≥ 3:1) */
+const TAP = "rounded-lg border-2 border-control bg-card";
 const HINT = "m-0 text-muted-foreground";
-const INPUT = "min-h-12 w-full rounded-lg border-2 border-input bg-card px-3 text-foreground placeholder:text-muted-foreground";
+const INPUT = "min-h-12 w-full min-w-0 rounded-lg border-2 border-control bg-card px-3 text-foreground placeholder:text-muted-foreground";
 
 /** the Flexofit products (the configurator's model), loaded once */
 function useCatalog(): { cat: Catalog; loading: boolean } {
@@ -56,7 +58,7 @@ function Rail({ w, cat }: { w: Work; cat: Catalog }) {
     <aside className="grid content-start gap-2" data-testid="hl-rail">
       <div className="font-semibold">Konfigurationen</div>
       {w.configs.map((c) => (
-        <div key={c.id} className={cn(BOX, "flex items-center gap-2 p-1", c.id === w.activeId && "border-primary bg-accent-weak")}>
+        <div key={c.id} className={cn(TAP, "flex min-w-0 items-center gap-2 p-1", c.id === w.activeId && "border-primary bg-accent-weak")}>
           <button type="button" className="flex min-h-12 flex-1 items-center gap-2 px-2 text-left" aria-pressed={c.id === w.activeId} onClick={() => change(cat, (x) => ({ ...x, activeId: c.id }))}>
             <span aria-hidden className={cn("size-3 shrink-0 rounded-full", isComplete(c) ? "bg-success" : "border-2 border-warning-strong")} />
             <span className="grid"><strong data-part="name">{c.name}</strong><span className="text-[0.9rem] text-muted-foreground" data-part="summary">{summaryOf(c)}</span></span>
@@ -81,9 +83,9 @@ function Rail({ w, cat }: { w: Work; cat: Catalog }) {
 
 function Pick({ selected, img, name, meta, onClick, testid }: { selected: boolean; img: string; name: string; meta: string; onClick: () => void; testid: string }) {
   return (
-    <button type="button" aria-pressed={selected} data-testid={testid} onClick={onClick} className={cn(BOX, "flex min-h-16 items-center gap-3 p-2 text-left", selected && "border-primary bg-accent-weak")}>
+    <button type="button" aria-pressed={selected} data-testid={testid} onClick={onClick} className={cn(TAP, "flex min-h-16 min-w-0 items-center gap-3 p-2 text-left", selected && "border-primary bg-accent-weak")}>
       <img src={img} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 object-contain")} onError={(e) => e.currentTarget.remove()} />
-      <span className="grid"><span className="font-semibold" data-part="name">{name}</span><span className="text-[0.9rem] text-muted-foreground" data-part="meta">{meta}</span></span>
+      <span className="flex min-w-0 flex-col [overflow-wrap:anywhere]"><span className="font-semibold" data-part="name">{name}</span><span className="text-[0.9rem] text-muted-foreground" data-part="meta">{meta}</span></span>
     </button>
   );
 }
@@ -91,9 +93,9 @@ const Chip = ({ on, children, onClick }: { on: boolean; children: ReactNode; onC
 
 function AreaBody({ c, cat }: { c: Config; cat: Catalog }) {
   const card = (area: "inside" | "outside", title: string, sub: string, img: string) => (
-    <button key={area} type="button" data-part="card" aria-pressed={c.area === area} onClick={() => onActive(cat, (x) => pickArea(x, area), true)} className={cn(BOX, "grid justify-items-center gap-1 p-3 text-center", c.area === area && "border-primary bg-accent-weak")}>
+    <button key={area} type="button" data-part="card" aria-pressed={c.area === area} onClick={() => onActive(cat, (x) => pickArea(x, area), true)} className={cn(TAP, "grid min-w-0 justify-items-center gap-1 p-3 text-center", c.area === area && "border-primary bg-accent-weak")}>
       <img src={img} alt="" className={cn(IMG.tile, "object-contain")} onError={(e) => e.currentTarget.remove()} />
-      <span className="font-semibold" data-part="title">{title}</span><span className="text-[0.9rem] text-muted-foreground" data-part="sub">{sub}</span>
+      <span className="w-full break-words font-semibold" data-part="title">{title}</span><span className="w-full break-words text-[0.9rem] text-muted-foreground" data-part="sub">{sub}</span>
     </button>
   );
   return <div className="grid grid-cols-2 gap-3">{card("inside", "Innenbereich", "Alu, Stahl & Holz · 8 Oberflächen", "/assets/Innenbereich.png")}{card("outside", "Außenbereich", "Aluminium/Edelstahl · Edelstahl gebürstet", "/assets/Außenbereich.png")}</div>;
@@ -188,7 +190,7 @@ function Ledger({ c, cat }: { c: Config; cat: Catalog }) {
         <h3 className="m-0 text-[1.1rem] font-semibold">Positionen — {c.name}</h3>
         <span className="text-muted-foreground" data-part="count">{rows.length} Position{rows.length === 1 ? "" : "en"}</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse">
           <thead><tr className="text-left text-[0.9rem] text-muted-foreground"><th className="py-1 font-semibold">Position</th><th className="py-1 text-right font-semibold">Menge</th><th className="py-1 text-right font-semibold">Einzelpreis</th><th className="py-1 text-right font-semibold">Summe</th><th><span className="sr-only">Entfernen</span></th></tr></thead>
           <tbody>
@@ -219,7 +221,7 @@ function LegacyData() {
       <h3 id="hl-legacy-title" className="m-0 text-[1.1rem] font-semibold">Positionen aus der bisherigen Handlauf-Seite</h3>
       <p className={HINT} data-part="hint">Dieses Angebot enthält Einträge der früheren Handlauf-Seite. Sie werden unverändert berechnet und gespeichert und können hier nicht geändert werden.</p>
       {rows.length ? (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse">
             <thead><tr className="text-left text-[0.9rem] text-muted-foreground"><th className="py-1 font-semibold">Bezeichnung</th><th className="py-1 font-semibold">Artikel-ID</th><th className="py-1 text-right font-semibold">Menge</th><th className="py-1 text-right font-semibold">Preis (netto)</th></tr></thead>
             <tbody>{rows.map((r, i) => <tr key={i} className="border-t border-border" data-testid="hl-legacy-row"><td className="py-1"><div>{r.label}</div>{r.group ? <div className="text-[0.9rem] text-muted-foreground">{r.group}</div> : null}</td><td className="py-1">{r.productId}</td><td className="py-1 text-right">{r.qty}</td><td className="py-1 text-right tabular-nums">{r.price}</td></tr>)}</tbody>
