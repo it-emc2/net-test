@@ -321,7 +321,7 @@ session recovery — **reuse these, do not invent new ones**):
   "pricingRules":  { kleinInAufschlag, bwtKmFreeThreshold, bwtTravelTimeFreeHours },
   "frozen": false, "frozenPricing": null, "locked": false,
   "signature":     { dataUrl, signedAt },
-  "includeOurSignature": true, "ourSignatureUser": "t.raithel",
+  "includeOurSignature": true, "ourSignatureUser": "capture",
   "auftragId": "…",
   "postal": { … },
   "mail":   { auftragId, to, subject, body },

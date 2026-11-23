@@ -16,7 +16,7 @@ const SaveState = lazy(() => import("../features/offer/SaveState.js").then((m) =
 import { THEMES, usePrefs, type Mode } from "../shared/lib/prefs.js";
 import { Switch } from "../shared/ui/index.js";
 
-/** Initials only — the full name is never shown (org rule). Prefers the e-mail's parts: t.raithel → TR. */
+/** Initials only — the full name is never shown (org rule). Prefers the e-mail's parts: m.muster → MM. */
 export const initials = (email: string) => {
   const parts = email.split("@")[0]!.split(/[\s._-]+/).filter(Boolean);
   return (parts.length >= 2 ? parts[0]![0]! + parts[parts.length - 1]![0]! : (parts[0] ?? "?").slice(0, 2)).toUpperCase();

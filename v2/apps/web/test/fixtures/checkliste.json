@@ -2673,7 +2673,7 @@
    "cp_city": "",
    "cp_state": "",
    "cp_postalCode": "",
-   "emc2_contact": "Thomas Raithel",
+   "emc2_contact": "Test OC",
    "ansprechpartner": "emc2_ma29610669@e-m-c-2.de",
    "payer": "Kassenkunde",
    "kk_geburtsdatum": "",
@@ -3013,7 +3013,7 @@
   },
   "activeOffer": "bu",
   "includeOurSignature": true,
-  "ourSignatureUser": "t.raithel",
+  "ourSignatureUser": "capture",
   "postal": {
    "auftragId": "",
    "recipient": {
