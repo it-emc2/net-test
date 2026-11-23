@@ -18,6 +18,8 @@ import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 import { hasContactData, hasDeploymentData, hasInsuranceData, showLandlordAnswer, useFollowUp } from "./follow-ups.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
 import { BitrixCustomer, CustomerSearch } from "./CustomerSources.js";
+import { AhHints, AhLiving, AhPreparation, AhTwoPersons } from "./AhBlocks.js";
+import { ahFollowNames } from "./ah.js";
 import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
 
 const KD = "Kundendaten";
@@ -424,24 +426,27 @@ function InternalList() {
 }
 
 /** While two persons are chosen, the name and greeting of both follow the entered names (unless they were changed by hand). */
-function useTwoPersonsTexts() {
+function useTwoPersonsTexts(type: string | null) {
   const kd = useOfferStore((s) => (s.offer as Record<string, any> | null)?.Kundendaten as Record<string, unknown> | undefined);
   const before = useRef(kd);
   useEffect(() => {
     const was = before.current;
     before.current = kd;
     if (!kd || !was || was === kd) return;
-    const fix = followNames(was, kd);
+    // Alltagshilfe has its own two persons (`ahZweiPersonen` / `p2*`, ah.ts); the others `twoPersons` / `partner*`
+    const fix = type === "ah" ? ahFollowNames(was, kd) : followNames(was, kd);
     if (Object.keys(fix).length) setKd(fix);
-  }, [kd]);
+  }, [kd, type]);
 }
 
 export function Kundendaten() {
-  useTwoPersonsTexts();
-  useAutoRoute(); // the way to the customer is worked out as soon as the address is known (U-011 B4)
   const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
+  useTwoPersonsTexts(type);
+  useAutoRoute(); // the way to the customer is worked out as soon as the address is known (U-011 B4)
+  const ah = type === "ah"; // the Alltagshilfe-only blocks (U-052) in today's order on the page
   return (
     <>
+      {ah ? <AhPreparation /> : null}
       <CustomerSearch />
       <BitrixCustomer />
       <Contact />
@@ -450,10 +455,12 @@ export function Kundendaten() {
       <Payer />
       {type === "bl" ? <Markup /> : null}
       <CareLevel />
-      <SecondPerson />
+      {ah ? <AhTwoPersons /> : <SecondPerson />}
+      {ah ? <AhHints /> : null}
       <Wohnumfeld />
       <Property />
       <InternalList />
+      {ah ? <AhLiving /> : null}
     </>
   );
 }
