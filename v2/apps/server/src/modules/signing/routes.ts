@@ -32,7 +32,7 @@ import {
   OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, sentOriginalFor, handEditedOf, handEditedSentBody, claimSigningCompletion, finishSigningCompletion, offerChangedBody, patchSend, readSendFile,
   sendForSigning, storeSendFile, type SendFile,
 } from "../sends/index.js";
-import { offerIdentity } from "../sends/index.js";
+import { ahZoneReadingOf, offerIdentity } from "../sends/index.js";
 import type { EnsureSentOffer } from "../sends/index.js";
 
 export interface SigningDeps {
@@ -173,9 +173,10 @@ export function signingService(d: SigningDeps) {
     if (!rec) {
       // request created by the old app or without a send record: give it one now
       const sendId = `sign-${String(sr.token).slice(0, 40)}`;
+      const ahZoneReading = await ahZoneReadingOf(sr.offerNumber); // a request without a record → "document" (zone-reading.ts)
       await OfferSend.create({
         sendId, channel: "signlink", status: "done", offerNumber: sr.offerNumber || "", offerType: sr.offerType || "", dealId: sr.bitrixEntityType === "deal" ? sr.bitrixEntityId : "",
-        to: sr.customerEmail || "", signingToken: sr.token, identity: offerIdentity(sr.payloadSnapshot, sr.offerNumber), startedAt: sr.createdAt ?? new Date(), finishedAt: new Date(),
+        to: sr.customerEmail || "", signingToken: sr.token, identity: offerIdentity(sr.payloadSnapshot, sr.offerNumber), ahZoneReading, startedAt: sr.createdAt ?? new Date(), finishedAt: new Date(),
       });
       rec = await sendForSigning(sr.token);
     }
@@ -406,8 +407,10 @@ export function signingService(d: SigningDeps) {
           // holds the net also for a Selbstzahler). Without the payload: the record's total.
           const ahPayload = await sentPayload(sr).catch(() => null);
           if (ahPayload === null) report(ERROR_CODES.SIGNING_AMOUNT_MISSING, "warn", "AH: no sent payload for the signed offer — AH fields left as they were", dealId);
-          const total = ahPayload ? ahTotalsOfPayload(ahPayload).customerAmount : await sentTotal(sr).catch(() => null);
-          signedOffer = { ah: true, ahPayload, total, offerNumber: String(sr.offerNumber || "") };
+          // the zone reading the documents of this number use (ADR 028 addendum 2026-11-23) — the same figures as sent
+          const ahZoneReading = await ahZoneReadingOf(sr.offerNumber || (ahPayload as any)?.offerNumber);
+          const total = ahPayload ? ahTotalsOfPayload(ahPayload, undefined, ahZoneReading).customerAmount : await sentTotal(sr).catch(() => null);
+          signedOffer = { ah: true, ahPayload, ahZoneReading, total, offerNumber: String(sr.offerNumber || "") };
         }
         await d.deals.updateDealAfterSigning({
           dealId: sr.bitrixEntityId, customerType: sr.customerType, selfPayAmount,
@@ -482,6 +485,8 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
         if (refused) return fail(req, reply, 409, ERROR_CODES.VARIANT_NOT_CHOSEN, NOT_CHOSEN_MESSAGE);
       }
       payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user, d.apDefaultEmail);
+      // AH zone reading of the number, decided before the signing request exists (ADR 028 addendum 2026-11-23)
+      const ahZoneReading = await ahZoneReadingOf(String(b.offerNumber || payload?.offerNumber || ""));
       const result: any = await svc.createRequest({
         payload, offerNumber: b.offerNumber, offerType: b.offerType, dealId: b.dealId, contactId: b.contactId, baseUrl: baseUrl(req), force: !!b.force,
       });
@@ -503,7 +508,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
               sendId: String(b.sendId), channel: mailed ? "signlink" : "onsite", status: "done", by: String(req.user?.email || ""),
               dealId: String(b.dealId || ""), variantId, contactId: String(b.contactId || ""), offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || ""),
               to: mailed ? String(prefill.email || "") : "", subject: mailed ? "Link zur Online-Unterschrift" : "Unterschrift vor Ort",
-              payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, startedAt: new Date(), finishedAt: new Date(),
+              payload: asSent, identity: mailed ? identity : null, identityOnSign: identity, signingToken: token, ahZoneReading, startedAt: new Date(), finishedAt: new Date(),
             });
           }
           if (d.ensureSentOffer) await d.ensureSentOffer({ offerNumber: sr.offerNumber || offerNo, offerType: sr.offerType || String(b.offerType || "bu"), payload: asSent, onlyIfMissing: sentBefore, client: b.client });

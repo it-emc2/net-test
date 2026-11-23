@@ -9,7 +9,11 @@
 // customer-facing monthly amount (gross for a Selbstzahler, net for a Kassenkunde) for the send
 // record and Bitrix. Kassenkunde and Selbstzahler print exactly as before (the DOCX never shows
 // the Servicepauschale; a Selbstzahler already got net + 7 % MwSt = gross there).
-import { AH_CONSTANTS, ahDocHours, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals, type AhOfferTotals } from "@oc/pricing";
+// Zone and services reading (owner 2026-11-23, ADR 028 addendum): an offer not sent before reads its
+// travel zone (travel time + Hof rule) and its services (ahServicesJson, older formats) as the screen does; an offer that already went out keeps the reading it
+// went out with — decided per offer number by sends/zone-reading.ts (buildAhOfferDataFor).
+import { AH_CONSTANTS, ahDocHoursFor, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals, type AhOfferTotals, type AhZoneReading } from "@oc/pricing";
+import { ahZoneReadingForBody } from "../sends/index.js";
 import cfg from "./shims/config.js";
 
 export interface AhDocHelpers {
@@ -35,18 +39,23 @@ export function ahDocConfig() {
 }
 
 /** THE totals of a stored/sent AH offer for documents, signing page, send record and Bitrix */
-export function ahTotalsOfPayload(body: unknown, config = ahDocConfig()): AhOfferTotals {
-  return ahOfferTotals(ahDocumentInput(body as Record<string, any>, config));
+export function ahTotalsOfPayload(body: unknown, config = ahDocConfig(), reading: AhZoneReading = "document"): AhOfferTotals {
+  return ahOfferTotals(ahDocumentInput(body as Record<string, any>, config, reading));
 }
 
-export function buildAhOfferData(body: any, h: AhDocHelpers) {
+/** The document data with the zone reading of the offer's number (the DOCX/PDF and signing-page entry point). */
+export async function buildAhOfferDataFor(body: any, h: AhDocHelpers) {
+  return buildAhOfferData(body, h, await ahZoneReadingForBody(body));
+}
+
+export function buildAhOfferData(body: any, h: AhDocHelpers, reading: AhZoneReading = "document") {
   const { fmtCurrency } = h;
   const ah = body?.ah || {};
-  const rawServices = ahDocServices(body);
+  const rawServices = ahDocServices(body, reading);
   const ahNote = (ah.ahNote || "").trim();
-  const { zoneNum, travelTimeH } = ahDocTravel(body);
+  const { zoneNum, travelTimeH } = ahDocTravel(body, reading);
   const config = ahDocConfig();
-  const t = ahTotalsOfPayload(body, config);
+  const t = ahTotalsOfPayload(body, config, reading);
   const p = t.detail;
 
   const hndSvc = rawServices.find((s: any) => s.type === HND);
@@ -105,7 +114,7 @@ export function buildAhOfferData(body: any, h: AhDocHelpers) {
     if (sched?.dauer) rows.push({ AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:", AhKondValue: `${sched.dauer} h` });
     if (travelTimeH > 0 && sched) {
       const zoneLabel = zoneNum > 0 ? `Zone ${zoneNum}${body?.Arbeitszeit?.distanceKm ? ` / ${body.Arbeitszeit.distanceKm} km` : ""}` : "Zone";
-      rows.push({ AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`, AhKondValue: fmtHHMM(ahDocHours(sched.dauer) + travelTimeH) });
+      rows.push({ AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`, AhKondValue: fmtHHMM(ahDocHoursFor(sched.dauer, reading) + travelTimeH) });
     }
     if (monatlichH > 0) rows.push({ AhKondLabel: "Monatlicher Stundenumfang:", AhKondValue: fmtHHMM(monatlichH) });
     if (sched?.regelmaessigkeit) rows.push({ AhKondLabel: "Regelmäßigkeit:", AhKondValue: sched.regelmaessigkeit });
@@ -165,8 +174,8 @@ export function buildAhOfferData(body: any, h: AhDocHelpers) {
       zoneNum,
       hasHnD,
       hasAb,
-      stundenProEinsatz: firstSched ? ahDocHours(firstSched.dauer) : 0,
-      tatsaechlicherStundenumfang: firstSched ? r2(ahDocHours(firstSched.dauer) + travelTimeH) : 0,
+      stundenProEinsatz: firstSched ? ahDocHoursFor(firstSched.dauer, reading) : 0,
+      tatsaechlicherStundenumfang: firstSched ? r2(ahDocHoursFor(firstSched.dauer, reading) + travelTimeH) : 0,
       regelmaessigkeit: firstSched?.regelmaessigkeit || "",
       monatlicherStundenumfang: r2(totalMonatlichH),
       anzahlAnfahrtspauschalen: r2(totalEinsaetze),

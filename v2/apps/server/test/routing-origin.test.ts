@@ -6,7 +6,7 @@ import { PlanningClient } from "../src/integrations/planning.js";
 import { registerRouting } from "../src/modules/planning/routes.js";
 import { RoutingService, type RoutingConfig } from "../src/modules/planning/providers.js";
 
-const HOME = "Kornhausacker 10, Hof", AH = "Waldstraße 5, 95030 Hof";
+const HOME = "Kornhausacker 10, Hof", AH = "Waldstraße 5, 95032 Hof";
 const COORDS: Record<string, [number, number]> = { [HOME]: [11.9, 50.3], [AH]: [11.8, 50.4], "Musterweg 1, 95028 Hof": [11.95, 50.32] };
 const CUSTOMER = { Kundendaten: { street: "Musterweg 1", postalCode: "95028", city: "Hof" } };
 
@@ -46,7 +46,7 @@ describe("suggest-distance: where the route starts", () => {
     expect(geocoded[0]).toBe(HOME);
     expect(r.oneWayKm).toBe(10);
   });
-  it("ah → Waldstraße 5, 95030 Hof, and the answer names it", async () => {
+  it("ah → Waldstraße 5, 95032 Hof, and the answer names it", async () => {
     const { ask, geocoded } = await setup();
     const r = await ask({ ...CUSTOMER, offerType: "ah" });
     expect(r.from.address).toBe(AH);

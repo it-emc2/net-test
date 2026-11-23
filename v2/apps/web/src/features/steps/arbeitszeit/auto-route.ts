@@ -24,6 +24,19 @@ export function writeArbeitszeit(fields: Fields) {
   st().patch("Arbeitszeit" as never, derived({ ...(o.Arbeitszeit ?? {}), ...fields }, { type: o.activeOffer, payer: o.Kundendaten?.payer, postalCode: o.Kundendaten?.postalCode }) as never);
 }
 
+/** Alltagshilfe: the saved zone follows the travel time AND the postcode (Hof rule). When the
+ *  address changed but no new route came, the travel time stays — the zone is brought up to date
+ *  for the new postcode, so a new offer never carries a zone the screen does not bill (ADR 028
+ *  addendum 2026-11-23). Only after an address change in this session (opening an offer never
+ *  writes) and only when the zone really changes. */
+function refitAhZone() {
+  const o = offerNow();
+  if (o.activeOffer !== "ah") return;
+  const now = (o.Arbeitszeit ?? {}) as Fields;
+  const next = derived({ ...now }, { type: o.activeOffer, payer: o.Kundendaten?.payer, postalCode: o.Kundendaten?.postalCode });
+  if (next.ahTravelZone !== undefined && Number(next.ahTravelZone) !== Number(now.ahTravelZone)) writeArbeitszeit({});
+}
+
 export interface RouteHint { text: string; basis?: string }
 export const routeAddress = (kd: Fields) => ({ street: str(kd.street), city: str(kd.city), postalCode: str(kd.postalCode), state: kd.state ?? "", country: kd.country ?? "" });
 /** the address a route belongs to; "" while it is not enough to ask (a full PLZ or a town is) */
@@ -48,15 +61,17 @@ export async function askRoute(byHand: boolean, signal?: AbortSignal): Promise<v
   if (byHand) hint({ text: "Berechne Routenvorschlag …" });
   const offerType = str(offerNow().activeOffer); // Alltagshilfe starts its route at another address
   const moved = st().scratch.routeFor !== undefined; // the way on the page belongs to another address
+  const readdressed = moved && st().scratch.routeFor !== key; // the address really changed since the way was set
   try {
     const route = await call("suggestDistance", { body: { Kundendaten: address, ...(offerType ? { offerType } : {}) }, ...(signal ? { signal } : {}) });
     const found = route.ok ? fromRoute(route) : null;
-    if (!found) { if (byHand) hint({ text: route.ok ? "Keine sinnvolle Strecke ermittelt." : "Routenvorschlag fehlgeschlagen." }); else if (moved) hint({ text: STALE }); return; }
+    if (!found) { if (readdressed) refitAhZone(); if (byHand) hint({ text: route.ok ? "Keine sinnvolle Strecke ermittelt." : "Routenvorschlag fehlgeschlagen." }); else if (moved) hint({ text: STALE }); return; }
     writeArbeitszeit(found.fields);
     st().remember("routeFor", key);
     hint({ text: found.text, basis: found.basis });
   } catch (err) {
     if ((err as Error)?.name === "AbortError") return;
+    if (readdressed) refitAhZone();
     if (byHand) hint({ text: err instanceof ApiFailure && err.status ? err.message : "Routenvorschlag fehlgeschlagen (Netzwerkfehler)." });
     else if (moved) hint({ text: STALE });
   }
