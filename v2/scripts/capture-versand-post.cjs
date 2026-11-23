@@ -76,6 +76,7 @@ const SCENARIOS = {
   "the offer PDF cannot be made": { setup: ADDR, pre: POST, acts: [["answer", "/docx-template/pdf", 500, { error: "kaputt" }], ["psend"], ALL] },
   "a document for Bitrix cannot be made": { setup: ADDR, pre: POST, acts: [["answer", "/kalkulation/pdf-v2", 500, { error: "kaputt" }], ["psend"], ALL, ["close"]] },
   "bwt: sent in test mode": { type: "bwt", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
+  "bl: sent in test mode": { type: "bl", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

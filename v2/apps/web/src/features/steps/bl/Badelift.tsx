@@ -6,7 +6,7 @@ import { Button, Card, CardTitle, IMG, Input, TextAreaField, cn } from "../../..
 import { SketchPad, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { useOfferStore } from "../../offer/index.js";
-import { ADD_WARNING, PREVIEW, PRODUCTS, addRow, editRow, formOf, removeRow, sectionOf, setQty, toggle, type Form, type Product, type Row } from "./rules.js";
+import { ADD_WARNING, PREVIEW, PRODUCTS, addRow, afterOpening, editRow, formOf, qtyOpen, removeRow, sectionOf, setQty, toggle, type Form, type Product, type Row } from "./rules.js";
 
 type Fields = Record<string, unknown>;
 const useBl = () => useOfferStore((s) => ((s.offer as Record<string, Fields> | null)?.bl ?? {}) as Fields);
@@ -17,8 +17,10 @@ const sketchOf = (bl: Fields): Sketch => { const s = (bl.sketch && typeof bl.ske
 function write(change: (f: Form, bl: Fields) => { form?: Form; note?: string; sketch?: Sketch }) {
   const store = useOfferStore.getState(), bl = ((store.offer as Record<string, Fields> | null)?.bl ?? {}) as Fields;
   const before = formOf(bl, store.scratch.blForm), next = change(before, bl), form = next.form ?? before;
+  // the first change on this page of an opened offer (the store's `load` marks an opened offer; a Badelift has no Duschwanne step to set it otherwise)
+  const firstAfterOpening = store.scratch.blForm === undefined && store.scratch.dwLineDefaulted === true;
   store.remember("blForm", form);
-  const section = sectionOf(form, next.note ?? str(bl.blNote), next.sketch ?? sketchOf(bl));
+  const section = sectionOf(form, next.note ?? str(bl.blNote), next.sketch ?? (firstAfterOpening ? afterOpening(sketchOf(bl)) : sketchOf(bl)));
   const gone = Object.fromEntries(Object.keys(bl).filter((k) => !(k in section)).map((k) => [k, undefined]));
   store.patch("bl" as never, { ...gone, ...section } as never);
 }
@@ -34,7 +36,7 @@ function ProductCard({ p, f }: { p: Product; f: Form }) {
         {on ? <span aria-hidden data-part="tick" className="absolute right-0 top-0 grid size-6 place-items-center rounded-full bg-primary text-primary-foreground"><Tick className="size-4" /></span> : null}
       </label>
       <label className="flex items-center justify-between gap-3 text-[0.95rem] font-semibold">Menge
-        <Input type="number" aria-label={`Menge ${p.title}`} inputMode="numeric" min={1} step={1} disabled={!on} className="w-24 text-center tabular-nums" value={f.qty[p.id] ?? ""} onChange={(e) => write((x) => ({ form: setQty(x, p.id, e.target.value) }))} />
+        <Input type="number" aria-label={`Menge ${p.title}`} inputMode="numeric" min={1} step={1} disabled={!qtyOpen(f, p.id)} className="w-24 text-center tabular-nums" value={f.qty[p.id] ?? ""} onChange={(e) => write((x) => ({ form: setQty(x, p.id, e.target.value) }))} />
       </label>
     </div>
   );

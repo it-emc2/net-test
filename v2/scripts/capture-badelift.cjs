@@ -71,7 +71,8 @@ const SCENARIOS = {
   "reopened: real offer with three products": [["open", { quickAdd: [MAIN, item("BRS-909", "Gleittuch"), item("BHT-914", "Halterung ohne zu bohren")], ...EMPTY }]],
   "reopened: quantities and two free items": [["open", { quickAdd: [item("BRS-912", "Juwel Tuchlift Premium", 2), item("BRS-802", "Akkupack für Juwel Tuchlift (Ersatzteil)", 3), custom("Sitz", "BL-1", 1, 199), custom("Montage", "BL-2", 2, 99.5)], blNote: "Alt\nNotiz", sketch: { json: "", dataUrl: "" } }]],
   "reopened: without the main product": [["open", { quickAdd: [item("BRS-909", "Gleittuch")], ...EMPTY }]],
-  "reopened: without the main product, then Gleittuch quantity 2": [["open", { quickAdd: [item("BRS-909", "Gleittuch")], ...EMPTY }], ["qty", "BRS-909", "2"]],
+  // a card ticked by opening an offer keeps its quantity locked until it is tapped off and on (today's restore sends no change event)
+  "reopened: without the main product, then Gleittuch off, on, quantity 2": [["open", { quickAdd: [item("BRS-909", "Gleittuch")], ...EMPTY }], ["tick", "BRS-909"], ["tick", "BRS-909"], ["qty", "BRS-909", "2"]],
   "reopened: nothing chosen": [["open", { ...EMPTY }]],
   "reopened: unknown product id": [["open", { quickAdd: [MAIN, item("BRS-999", "Altes Teil")], ...EMPTY }]],
   "reopened: unknown product id, then a note": [["open", { quickAdd: [MAIN, item("BRS-999", "Altes Teil")], ...EMPTY }], ["note", "neu"]],
@@ -89,6 +90,8 @@ const sortKeys = (v) => Array.isArray(v) ? v.map(sortKeys)
 const same = (a, b) => JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
 const changed = (base, now) => Object.fromEntries([...new Set([...Object.keys(base || {}), ...Object.keys(now || {})])]
   .filter((k) => !same((base || {})[k], (now || {})[k])).map((k) => [k, k in (now || {}) ? now[k] : "<removed>"]));
+/** the logged-in user's signature name is a person's login — never kept */
+const anon = (o) => { if (o && typeof o === "object" && "ourSignatureUser" in o) o.ourSignatureUser = "<user>"; return o; };
 const png = (o) => { if (o?.bl?.sketch?.dataUrl?.startsWith("data:image/png")) o.bl.sketch.dataUrl = "<png>"; return o; };
 
 /** a new Badelift offer in today's UI, on the step "bl"; outside calls faked, price calls watched */
@@ -196,7 +199,7 @@ const kostenOf = (page) => page.evaluate(() => {
 
 async function settle(page, prices, quiet = 2000) { let n = -1; while (n !== prices.length) { n = prices.length; await page.waitForTimeout(quiet); } }
 
-module.exports = { SCENARIOS, CARDS, BASE, token, sortKeys, changed, png, newPage, play, viewOf, kostenOf, settle };
+module.exports = { SCENARIOS, CARDS, BASE, token, sortKeys, changed, png, anon, newPage, play, viewOf, kostenOf, settle };
 if (require.main !== module) return;
 
 const { chromium } = require("../../node_modules/playwright");
@@ -223,16 +226,17 @@ const { chromium } = require("../../node_modules/playwright");
         const view = await viewOf(page);
         const last = prices.at(-1);
         await page.evaluate(() => window.setStep("Kosten"));
-        await page.waitForTimeout(1200);
+        await settle(page, prices, 1500);
         const kosten = await kostenOf(page);
-        const price = await page.evaluate(() => window.getCanonicalPricingData?.() || window.__pricing || null);
+        // the answer the Kosten page was drawn from: the last price answer (getCanonicalPricingData can lag behind it)
+        const price = prices.at(-1)?.answer ?? await page.evaluate(() => window.getCanonicalPricingData?.() || window.__pricing || null);
         console.log(name);
         const elsewhere = Object.keys(now).filter((k) => k !== "bl" && !same(base[k], now[k]));
         return {
           name, steps, base: sortKeys(base.bl), bl: sortKeys(changed(base.bl, now.bl)), stored: sortKeys(now.bl),
           ...(elsewhere.length ? { elsewhere: Object.fromEntries(elsewhere.map((k) => [k, sortKeys(now[k] && base[k] && typeof now[k] === "object" && typeof base[k] === "object" ? changed(base[k], now[k]) : now[k])])) } : {}),
           view, ...(next !== null ? { next } : {}), priceCalls: prices.length - before,
-          lastPrice: last ? { request: sortKeys(png(last.body)), total: last.answer?.total ?? null } : null,
+          lastPrice: last ? { request: sortKeys(anon(png(last.body))), total: last.answer?.total ?? null } : null,
           kosten, price,
         };
       } finally { await ctx.close(); }

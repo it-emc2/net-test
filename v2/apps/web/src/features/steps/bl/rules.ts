@@ -36,27 +36,31 @@ export const ADD_WARNING = "Bitte zuerst Bezeichnung, Preis und Artikel-ID ausf�
 
 export interface Row { name: string; price: string; qty: string; id: string }
 export const EMPTY_ROW: Row = { name: "", price: "", qty: "", id: "" };
-/** the page as typed: ticks, quantities as text, free item rows */
-export interface Form { on: Record<string, boolean>; qty: Record<string, string>; rows: Row[] }
+/** the page as typed: ticks, quantities as text, free item rows; `locked`: a quantity that cannot be typed yet (see `formOf`) */
+export interface Form { on: Record<string, boolean>; qty: Record<string, string>; rows: Row[]; locked?: Record<string, boolean> }
 
 const list = (v: unknown): Fields[] => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Fields[]) : []);
 
 /** the page for a stored `bl` section (what is being typed wins: `remembered`) */
 export function formOf(bl: Fields, remembered?: unknown): Form {
   if (remembered && typeof remembered === "object") return remembered as Form;
-  const qa = list(bl.quickAdd), on: Record<string, boolean> = {}, qty: Record<string, string> = {};
+  const qa = list(bl.quickAdd), on: Record<string, boolean> = {}, qty: Record<string, string> = {}, locked: Record<string, boolean> = {};
   for (const p of PRODUCTS) { on[p.id] = false; qty[p.id] = "1"; }
   for (const r of qa) {
     const pid = String(r.productId ?? "").trim();
     if (r.kind !== "bl-item" || !(pid in on)) continue;
     on[pid] = true;
     qty[pid] = String(Number(r.qty ?? 1) || 1);
+    // LEGACY QUIRK (ported): today's restore ticks a card without its change event, so the quantity of
+    // an accessory ticked by opening an offer stays greyed out until the card is tapped off and on
+    // (the main product's quantity is free: it is ticked in every new page)
+    if (!PRODUCTS.find((p) => p.id === pid)?.main) locked[pid] = true;
   }
   const custom = qa.filter((r) => r.kind === "bl-custom").map((r) => ({
     name: String(r.label ?? r.name ?? ""), id: String(r.productId ?? ""), qty: r.qty != null ? String(r.qty) : "",
     price: typeof r.price === "number" ? String(r.price).replace(".", ",") : String(r.price ?? ""),
   }));
-  return { on, qty, rows: custom.length ? custom : [{ ...EMPTY_ROW }] };
+  return { on, qty, rows: custom.length ? custom : [{ ...EMPTY_ROW }], locked };
 }
 
 /** a row that goes into the offer: Bezeichnung, Preis and Artikel-ID filled */
@@ -82,8 +86,10 @@ export function sectionOf(f: Form, note: string, sketch: { json: string; dataUrl
 /** tapping a card; a card turned off with an empty quantity gets „1“ back */
 export function toggle(f: Form, id: string): Form {
   const on = !f.on[id];
-  return { ...f, on: { ...f.on, [id]: on }, qty: !on && !f.qty[id] ? { ...f.qty, [id]: "1" } : f.qty };
+  return { ...f, on: { ...f.on, [id]: on }, qty: !on && !f.qty[id] ? { ...f.qty, [id]: "1" } : f.qty, locked: { ...f.locked, [id]: false } };
 }
+/** the quantity can be typed: the card is ticked (and not locked by opening the offer) */
+export const qtyOpen = (f: Form, id: string): boolean => !!f.on[id] && !f.locked?.[id];
 export const setQty = (f: Form, id: string, text: string): Form => ({ ...f, qty: { ...f.qty, [id]: text } });
 export const editRow = (f: Form, i: number, field: keyof Row, text: string): Form => ({ ...f, rows: f.rows.map((r, at) => (at === i ? { ...r, [field]: text } : r)) });
 /** „+“: one more row, or null when the last row is not complete (the warning is shown) */
@@ -94,6 +100,12 @@ export function addRow(f: Form): Form | null {
 }
 /** the trash can: the last remaining row is cleared, else the row goes */
 export const removeRow = (f: Form, i: number): Form => ({ ...f, rows: f.rows.length <= 1 ? [{ ...EMPTY_ROW }] : f.rows.filter((_, at) => at !== i) });
+
+/** LEGACY QUIRK (ported): opening an offer puts its sketch on the pad, and the pad then writes an empty
+ *  drawing as '{"version":1,"ops":[]}' — so the first change after opening an offer without a sketch
+ *  stores that instead of "" (no effect on documents or price) */
+export const EMPTY_SKETCH_JSON = JSON.stringify({ version: 1, ops: [] });
+export const afterOpening = (s: { json: string; dataUrl: string }): { json: string; dataUrl: string } => (!s.json && !s.dataUrl ? { json: EMPTY_SKETCH_JSON, dataUrl: "" } : s);
 
 /** step list: something is chosen */
 export const hasContent = (bl: Fields): boolean => list(bl.quickAdd).length > 0;
