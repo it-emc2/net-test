@@ -120,3 +120,27 @@ describe("the route asks with the offer's type (Alltagshilfe starts at its own a
     expect(server.calls.find((c) => c.key === ROUTE)!.body).toMatchObject({ offerType: type });
   });
 });
+
+describe("Alltagshilfe: the saved zone follows the postcode also when no route comes (ADR 028 addendum 2026-11-23)", () => {
+  const ah = (Arbeitszeit: Obj, kd: Obj = { street: "Musterweg 4", postalCode: "95444", city: "Bayreuth" }): Reply =>
+    ({ body: { ...draft({}).body as Obj, offerType: "ah", payload: { activeOffer: "ah", Kundendaten: kd, Arbeitszeit } } });
+
+  it("the address moves into Hof, no route: travel 0:11 stays, the zone becomes 1 (the screen's zone)", async () => {
+    fakeServer({ ...BASE, "GET /api/deals/*/draft": ah({ distanceKm: "9", travelTimeHHMM: "0:11", ahTravelZone: 2 }), [ROUTE]: DOWN });
+    renderApp(`/deal/${KEY}/ah/Arbeitszeit`);
+    await screen.findByRole("heading", { name: "Anfahrt" });
+    await quiet(60);
+    expect(az().ahTravelZone).toBe(2); // opening writes nothing
+    setKd({ city: "Hof", postalCode: "95032" });
+    await waitFor(() => expect(screen.getByTestId("az-routing").textContent).toBe(STALE));
+    expect([az().travelTimeHHMM, az().ahTravelZone]).toEqual(["0:11", 1]);
+  });
+
+  it("opened with a stored zone that does not match, no address change, no route: left as stored", async () => {
+    fakeServer({ ...BASE, "GET /api/deals/*/draft": ah({ travelTimeHHMM: "0:11", ahTravelZone: 2 }, { street: "Musterweg 4", postalCode: "95032", city: "Hof" }), [ROUTE]: DOWN });
+    renderApp(`/deal/${KEY}/ah/Arbeitszeit`);
+    await screen.findByRole("heading", { name: "Anfahrt" });
+    await quiet();
+    expect([az().travelTimeHHMM, az().ahTravelZone]).toEqual(["0:11", 2]);
+  });
+});

@@ -12,6 +12,7 @@ import mongoose, { Schema } from "mongoose";
 import { Offer } from "../../platform/models.js";
 import { identityDifferences, offerIdentity, type OfferIdentity } from "./identity.js";
 import { wasSentBeforeRecords } from "./offer-record.js";
+import { ahZoneReadingOf } from "./zone-reading.js";
 
 const model = <T>(name: string, schema: Schema<T>) =>
   (mongoose.models[name] as mongoose.Model<T>) ?? mongoose.model<T>(name, schema);
@@ -60,6 +61,9 @@ export const OfferSend = model("OfferSend", new Schema({
   signedAt: { type: Date, default: null },
   bitrixRetryAt: { type: Date, default: null },
   total: { type: Number, default: null },
+  /** Alltagshilfe: the zone reading the documents of this number use ("screen" | "document";
+   *  absent on records before 2026-11-23 = "document") — zone-reading.ts, ADR 028 addendum */
+  ahZoneReading: { type: String, default: undefined },
   selfPayAmount: { type: Number, default: null },
   files: { type: [Schema.Types.Mixed], default: [] },
   steps: { type: Schema.Types.Mixed, default: {} },
@@ -94,7 +98,9 @@ export type Begin =
  * A failed or stale run is taken over (nothing left the house, or the process died).
  */
 export async function beginSend(sendId: string, init: Record<string, unknown>, now = new Date()): Promise<Begin> {
-  const fresh = { ...init, sendId, status: "running", startedAt: now, finishedAt: null, steps: {}, files: [], result: null, error: "" };
+  // AH zone reading of the number, decided before this record exists (ADR 028 addendum 2026-11-23)
+  const ahZoneReading = init.ahZoneReading ?? (await ahZoneReadingOf(init.offerNumber));
+  const fresh = { ...init, ahZoneReading, sendId, status: "running", startedAt: now, finishedAt: null, steps: {}, files: [], result: null, error: "" };
   for (let attempt = 0; attempt < 3; attempt++) {
     const existing: any = await OfferSend.findOne({ sendId }).lean();
     if (!existing) {

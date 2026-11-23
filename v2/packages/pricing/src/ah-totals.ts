@@ -11,7 +11,7 @@
 //      customer-facing monthly amount: gross for a Selbstzahler, net for a Kassenkunde — NOT the
 //      Eigenanteil
 // The Pflegegrad never refuses a deduction: the ticks decide (as today).
-import { computeAhPricing, type AhPricingInput, type AhPricingResult, type AhService } from "./ah.js";
+import { ahInputFromPayload, computeAhPricing, type AhPricingInput, type AhPricingResult, type AhService, type AhZone } from "./ah.js";
 
 /** 7 % on top for a Selbstzahler (Buchhaltung 10/2026; the offer DOCX's AH_MWST_SATZ) */
 export const AH_VAT_RATE_SZ = 0.07;
@@ -97,7 +97,13 @@ export function ahOfferTotals(input: AhPricingInput): AhOfferTotals {
 // (Arbeitszeit.ahTravelZone) — without one the travel time itself (no zone rounding).
 // The screen reads the same offer with ahInputFromPayload; both agree for every offer v2 writes
 // (zone and travel time written together). Old offers whose saved zone does not match their travel
-// time (e.g. Hof postcodes before the zone-1 rule) differ — see ADR 028, open question.
+// time (e.g. Hof postcodes before the zone-1 rule) differ — see ADR 028.
+// Owner 2026-11-23 (ADR 028 addendum): an offer that was NOT sent before is read with the screen's
+// zone ("screen": travel time + Hof rule, as ahInputFromPayload); an offer that was already sent
+// keeps the reading it went out with ("document", the default here). Only the zone differs between
+// the two readings; the server decides which one applies (modules/sends zone-reading.ts).
+export type AhZoneReading = "document" | "screen";
+export const isAhZoneReading = (v: unknown): v is AhZoneReading => v === "document" || v === "screen";
 type Loose = Record<string, any> | null | undefined;
 const on = (v: unknown) => v === "on" || v === true;
 const ORDER: Record<string, number> = { Haushaltsnahedienstleistungen: 0, Alltagsbegleitung: 1 };
@@ -118,14 +124,23 @@ export function ahDocServices(payload: Loose): any[] {
     .sort((a: any, b: any) => (ORDER[a?.type] ?? 99) - (ORDER[b?.type] ?? 99));
 }
 
-/** zone number and travel hours per visit as the documents read them */
-export function ahDocTravel(payload: Loose): { zoneNum: number; travelTimeH: number } {
+/** the zone exactly as the screen reads it (ahInputFromPayload: travel time + Hof rule, else the saved zone) */
+export function ahScreenZone(payload: Loose): AhZone | null {
+  return ahInputFromPayload(payload, { entlastungsbetragMonat: 0, steuerabsetzPct: 0, steuerabsetzCapJahr: 0 }).zone;
+}
+
+/** zone number and travel hours per visit as the documents read them (`reading`: see AhZoneReading) */
+export function ahDocTravel(payload: Loose, reading: AhZoneReading = "document"): { zoneNum: number; travelTimeH: number } {
+  if (reading === "screen") {
+    const z = ahScreenZone(payload);
+    return { zoneNum: z?.zone ?? 0, travelTimeH: z ? z.billMin / 60 : 0 };
+  }
   const az = (payload?.Arbeitszeit ?? {}) as Record<string, any>;
   const zoneNum = parseInt(az.ahTravelZone || "0") || 0;
   return { zoneNum, travelTimeH: zoneNum > 0 ? ((zoneNum - 1) * 10 + 10) / 60 : ahDocHours(az.travelTimeHHMM || "") };
 }
 
-export function ahDocumentInput(payload: Loose, config: AhPricingInput["config"]): AhPricingInput {
+export function ahDocumentInput(payload: Loose, config: AhPricingInput["config"], reading: AhZoneReading = "document"): AhPricingInput {
   const kd = (payload?.Kundendaten ?? {}) as Record<string, any>;
   const fin = (payload?.Finanzierung ?? {}) as Record<string, any>;
   const { zoneNum, travelTimeH } = ahDocTravel(payload);
@@ -138,7 +153,8 @@ export function ahDocumentInput(payload: Loose, config: AhPricingInput["config"]
   return {
     services,
     // whole minutes for a saved zone (so billMin / 60 is the documents' own hours exactly)
-    zone: zoneNum > 0 ? { zone: zoneNum, billMin: (zoneNum - 1) * 10 + 10 } : travelTimeH > 0 ? { zone: 0, billMin: travelTimeH * 60 } : null,
+    zone: reading === "screen" ? ahScreenZone(payload)
+      : zoneNum > 0 ? { zone: zoneNum, billMin: (zoneNum - 1) * 10 + 10 } : travelTimeH > 0 ? { zone: 0, billMin: travelTimeH * 60 } : null,
     payer: String(kd.payer || ""),
     entlastungsbetragNutzen: on(fin.ahEntlastungsbetragNutzen),
     zweiPersonen: on(kd.ahZweiPersonen),

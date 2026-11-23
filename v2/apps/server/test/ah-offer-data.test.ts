@@ -3,10 +3,13 @@
 // the ported file as the reference) over 543 stored offers (143 real anonymised + 400 controlled):
 //  - payer Kassenkunde and Selbstzahler: every DOCX field and the AH Bitrix numbers byte-identical
 //  - empty payer (owner decision 2: = Kassenkunde): only the funding lines change (listed below)
+// Addendum 2026-11-23 (owner): the zone reading. An offer ALREADY SENT keeps the documents' reading
+// ("document" — every guarantee above holds unchanged); a NEW offer reads the zone as the screen
+// does ("screen"). Which one applies is decided per offer number by sends/zone-reading.ts.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { ahInputFromPayload, ahOfferTotals } from "@oc/pricing";
+import { ahDocTravel, ahInputFromPayload, ahOfferTotals, ahScreenZone } from "@oc/pricing";
 import { configureDocuments } from "../src/modules/documents/context.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -31,7 +34,8 @@ const setConfig = (c: (typeof cases)[number]["config"]) => {
 const both = (c: (typeof cases)[number]) => {
   setConfig(c);
   const legacy = tpl.buildAhData(structuredClone(c.payload));
-  const now = mine.buildAhOfferData(structuredClone(c.payload), { fmtCurrency: tpl.fmtCurrency, haushaltTasks: tpl.AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: tpl.AH_GENERIC_BEGLEITUNG_TASKS });
+  // treated as ALREADY SENT: the documents' own reading of the zone
+  const now = mine.buildAhOfferData(structuredClone(c.payload), { fmtCurrency: tpl.fmtCurrency, haushaltTasks: tpl.AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: tpl.AH_GENERIC_BEGLEITUNG_TASKS }, "document");
   const { AhBetragNum, ...rest } = now;
   return { legacy, now: rest, betrag: AhBetragNum as number };
 };
@@ -90,7 +94,7 @@ describe("one total: documents = screen for the real offers", () => {
     const s = ahInputFromPayload(c.payload, c.config), z = c.payload.Arbeitszeit?.ahTravelZone;
     return (s.zone?.zone ?? 0) === (Number(z) || 0);
   });
-  it("covers the real offers with a consistent zone (the others: ADR 028 open question)", () => expect(consistent.length).toBe(CONSISTENT_REAL));
+  it("covers the real offers with a consistent zone (the others: ADR 028 addendum 2026-11-23)", () => expect(consistent.length).toBe(CONSISTENT_REAL));
   it.each(consistent.map((c) => [c.id, c] as const))("%s", (_id, c) => {
     setConfig(c.config);
     const screen = ahOfferTotals(ahInputFromPayload(c.payload, c.config));
@@ -157,6 +161,106 @@ describe("one total: screen = DOCX data = signing page = send-record amount (tab
         expect(data.AhHasEigenanteil).toBe(false);
         expect(rows).toEqual([["Gesamtbetrag", f(screen.net)]]);
       }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Addendum 2026-11-23: NEW offers read the zone as the screen does (travel time + Hof rule)
+const H = () => ({ fmtCurrency: tpl.fmtCurrency, haushaltTasks: tpl.AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: tpl.AH_GENERIC_BEGLEITUNG_TASKS });
+/** the offers whose printed figures differ between the old reading (already sent) and the new one
+ *  (not sent before): [id, payer, old net, old gross, new net, new gross] — all real offers whose
+ *  saved zone does not match their travel time, or whose zone was never saved (ah-offer-4cfe26f6:
+ *  travel 0:14 billed unrounded by the old reading, zone 2 = 20 min by the screen) */
+const OLD_VS_NEW: [string, string, number, number, number, number][] = [
+  ["ah-offer-1a777cfd", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-offer-1a777cf3", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-offer-1a72ba4c", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-offer-d626eb5f", "Kassenkunde", 163.72, 163.72, 134.42, 134.42],
+  ["ah-offer-d626aa66", "Kassenkunde", 141.75, 141.75, 127.1, 127.1],
+  ["ah-offer-d6267cc6", "Kassenkunde", 149.07, 149.07, 134.42, 134.42],
+  ["ah-offer-114edbbf", "Selbstzahler", 178.36, 190.85, 163.72, 175.18],
+  ["ah-offer-114edbbe", "Selbstzahler", 178.36, 190.85, 163.72, 175.18],
+  ["ah-offer-114d7198", "Selbstzahler", 788.14, 843.31, 705.9, 755.31],
+  ["ah-offer-4cff44ff", "Selbstzahler", 178.36, 190.85, 163.72, 175.18],
+  ["ah-offer-4cfe26f6", "Selbstzahler", 192.23, 205.69, 197.64, 211.47],
+  ["ah-draft-35f7f748", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-b0df503c", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-35f7f73c", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-b0df4edc", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-35f7f6ac", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-3d03430b", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-1b447064", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-1b44704a", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-3d034302", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-3d0342fe", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-3d0342f9", "Kassenkunde", 127.1, 127.1, 112.45, 112.45],
+  ["ah-draft-545af54b", "Kassenkunde", 141.75, 141.75, 127.1, 127.1],
+];
+/** offers whose screen total differs from the documents' for reasons OTHER than the zone (the
+ *  services: ah.services vs ahServicesJson, older nested schedules, synthetic shapes) — 84
+ *  controlled cases + one real draft (ah-draft-91fcd12b: schedules nested in tasks; the documents
+ *  print 0, the screen lifts them, ADR 014). Unchanged by the zone decision. */
+const SERVICES_READING_DIFFERS = 85;
+
+describe("zone reading (ADR 028 addendum 2026-11-23)", () => {
+  const totals = (c: (typeof cases)[number], reading: "document" | "screen") => { setConfig(c.config); return mine.ahTotalsOfPayload(c.payload, c.config, reading); };
+  const fig = (t: any) => [t.net, t.gross, t.eigenanteil, t.payer];
+
+  it("the default reading is the old one (already sent)", () => {
+    for (const c of cases) {
+      setConfig(c.config);
+      expect(JSON.stringify(mine.buildAhOfferData(structuredClone(c.payload), H())), c.id).toBe(JSON.stringify(mine.buildAhOfferData(structuredClone(c.payload), H(), "document")));
+    }
+  });
+
+  it("NEW: the documents' zone is the screen's zone for all 543", () => {
+    for (const c of cases) {
+      const z = ahScreenZone(c.payload);
+      expect(ahDocTravel(c.payload, "screen"), c.id).toEqual({ zoneNum: z?.zone ?? 0, travelTimeH: z ? z.billMin / 60 : 0 });
+      expect(ahInputFromPayload(c.payload, c.config).zone, c.id).toEqual(z);
+    }
+  });
+
+  it("NEW: the document's net, gross and Eigenanteil equal the screen's (all 543 but the services-reading cases)", () => {
+    const other: string[] = [];
+    for (const c of cases) {
+      const screen = ahOfferTotals(ahInputFromPayload(c.payload, c.config));
+      const doc = totals(c, "screen");
+      if (JSON.stringify(fig(doc)) !== JSON.stringify(fig(screen))) { other.push(c.id); continue; }
+      // the DOCX fields print the same figures
+      const d = mine.buildAhOfferData(structuredClone(c.payload), H(), "screen");
+      expect(d.AhGesamtNum, c.id).toBe(screen.net);
+      expect(d.AhBetragNum, c.id).toBe(screen.customerAmount);
+      if (screen.payer === "Selbstzahler" && screen.net > 0) expect(d.AhBrutto, c.id).toBe(tpl.fmtCurrency(screen.gross));
+      if (d.AhHasEigenanteil) expect(d.AhEigenanteilNum, c.id).toBe(screen.eigenanteil);
+    }
+    expect(other.length).toBe(SERVICES_READING_DIFFERS);
+    expect(other.filter((id) => !id.startsWith("ah-ctl"))).toEqual(["ah-draft-91fcd12b"]);
+    // ... and for those the zone is not the reason: with the old and the new zone they differ alike
+    for (const id of other) expect(OLD_VS_NEW.some((r) => r[0] === id), id).toBe(false);
+  });
+
+  it("offers whose printed figures differ between the two readings: exactly the listed ones, with both numbers", () => {
+    const differ: [string, string, number, number, number, number][] = [];
+    for (const c of cases) {
+      const o = totals(c, "document"), n = totals(c, "screen");
+      if (JSON.stringify(fig(o)) === JSON.stringify(fig(n))) continue;
+      differ.push([c.id, o.payer, o.net, o.gross, n.net, n.gross]);
+    }
+    expect(differ).toEqual(OLD_VS_NEW);
+    expect(differ.length).toBe(23);
+    expect(differ.filter((r) => r[1] === "Kassenkunde").length).toBe(18);
+    expect(differ.filter((r) => r[1] === "Selbstzahler").length).toBe(5);
+    // the DOCX prints them so
+    for (const [id, payer, , oldGross, newNet, newGross] of OLD_VS_NEW) {
+      const c = cases.find((x) => x.id === id)!;
+      setConfig(c.config);
+      const sent = mine.buildAhOfferData(structuredClone(c.payload), H(), "document"), fresh = mine.buildAhOfferData(structuredClone(c.payload), H(), "screen");
+      expect(fresh.AhGesamtbetrag, id).toBe(tpl.fmtCurrency(newNet));
+      expect(sent.AhGesamtbetrag, id).not.toBe(fresh.AhGesamtbetrag);
+      if (payer === "Selbstzahler") { expect(sent.AhBrutto).toBe(tpl.fmtCurrency(oldGross)); expect(fresh.AhBrutto).toBe(tpl.fmtCurrency(newGross)); }
+      expect(fresh.AhBitrix.zoneNum, id).toBe(ahScreenZone(c.payload)?.zone ?? 0);
     }
   });
 });

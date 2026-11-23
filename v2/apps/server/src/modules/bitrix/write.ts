@@ -8,6 +8,7 @@ import type { PlanningClient } from "../../integrations/planning.js";
 import { BitrixLog, User, UserActionLog } from "../../platform/models.js";
 import { dealSignature } from "../deal-drafts/index.js";
 import { ahTotalsOfPayload } from "../documents/index.js";
+import { ahZoneReadingOf } from "../sends/index.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id }, ...extra });
@@ -98,8 +99,10 @@ export async function registerBitrixWrite(app: FastifyInstance, d: BitrixWriteDe
       if (isAh) {
         let ahPayload: unknown = null;
         try { ahPayload = b.payload ? JSON.parse(b.payload) : null; } catch { /* invalid JSON → AH fields not set this time */ }
-        if (ahPayload) extra = buildAhBitrixFields(ahPayload, deal[AH_FIELD.ANFAHRTSZONE]);
-        ahAmount = ahPayload ? ahTotalsOfPayload(ahPayload).customerAmount : Number.isFinite(provided) && provided > 0 ? provided : 0;
+        // the zone reading of this offer's documents (ADR 028 addendum 2026-11-23): the move follows the send
+        const ahZoneReading = await ahZoneReadingOf(String(b.offerNumber || (ahPayload as any)?.offerNumber || ""));
+        if (ahPayload) extra = buildAhBitrixFields(ahPayload, deal[AH_FIELD.ANFAHRTSZONE], ahZoneReading);
+        ahAmount = ahPayload ? ahTotalsOfPayload(ahPayload, undefined, ahZoneReading).customerAmount : Number.isFinite(provided) && provided > 0 ? provided : 0;
       }
       const amount = isAh ? ahAmount : Number.isFinite(provided) && provided > 0 ? provided : Number(deal.OPPORTUNITY) || 0;
       const currencyId = String(b.currencyId || "").trim() || String(deal.CURRENCY_ID || "").trim() || "EUR";

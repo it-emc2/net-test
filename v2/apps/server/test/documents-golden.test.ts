@@ -31,6 +31,10 @@ beforeAll(async () => {
   const client = mongoose.connection.getClient();
   await client.db("KonfiguratorDB").collection("Products").insertMany(json("docs/products.json"));
   await client.db("vigor").collection("products").insertMany(json("docs/vigor-products.json"));
+  // The snapshots are the legacy rendering, i.e. offers as they went out: their numbers count as
+  // sent by the old app (e-mail log) → the documents' own zone reading (ADR 028 addendum 2026-11-23).
+  const sent = cases.map((c) => String(c.payload?.offerNumber || "")).filter(Boolean);
+  if (sent.length) await client.db("KonfiguratorDB").collection("emaillogs").insertMany(sent.map((offerNumber) => ({ offerNumber })));
   const config = json("pricing/config.json");
   const businessConfig = new BusinessConfig(async () => Object.entries(config).map(([key, value]) => ({ key, value })) as any);
   await businessConfig.init({ info() {}, warn() {}, error() {} } as any);
@@ -90,6 +94,21 @@ describe("DOCX golden master — v2 port", () => {
     }
     expect(seen).toEqual({ bu: 3, bwt: 3, hl: 3, bl: 3 });
   }, 120000);
+
+  // ADR 028 addendum 2026-11-23: the same AH offer under a number that was never sent reads the zone
+  // as the screen does — Hof postcode, travel 0:15 saved as zone 2 → zone 1; only the travel lines move.
+  it("AH offer not sent before: the screen's zone (Hof rule) in the document", async () => {
+    const c = cases.find((x) => x.id === "offers-ah-SZ-775fc1");
+    const sentText = JSON.stringify(snapshots.get("offers-ah-SZ-775fc1__offer").docx);
+    const res = await app.inject({ method: "POST", url: "/docx-template", payload: { ...structuredClone(c.payload), offerNumber: "ANG-NEU-ZONE-1" } });
+    expect(res.statusCode).toBe(200);
+    const text = JSON.stringify(normaliseDocx(res.rawPayload));
+    expect(sentText).toContain("(Zone 2 / 9.0 km)");
+    expect(text).toContain("(Zone 1 / 9.0 km)");
+    expect(sentText).toMatch(/127,10\s€/);
+    expect(text).toMatch(/112,45\s€/);
+    expect(text).not.toMatch(/127,10\s€/);
+  }, 60000);
 
   it("offer PDF goes through the PDF engine", async () => {
     const res = await app.inject({ method: "POST", url: "/docx-template/pdf", payload: structuredClone(cases[0].payload) });

@@ -22,7 +22,7 @@ import ProductModel from "../shims/product-model.js";
 import User from "../shims/user-model.js";
 import pricingFactory from "../shims/pricing.js";
 import cfg from "../shims/config.js";
-import { buildAhOfferData } from "../ah-offer-data.js";
+import { buildAhOfferDataFor } from "../ah-offer-data.js";
 import { replaceTextInDocx, wordingRules } from "./docx-text-replace.js";
 
 
@@ -2146,7 +2146,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === "on",
 
     // ── AH (Alltagshilfe) data ──────────────────────────────────────────
-    ...buildAhOfferData(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS }), // v2: ADR 028
+    ...(await buildAhOfferDataFor(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS })), // v2: ADR 028
   };
 }
 

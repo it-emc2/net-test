@@ -25,8 +25,9 @@ const DOCS_TRANSFORMS = [
   [/function convertDocxToPdf\(docxBuffer\) \{[\s\S]*?\n\}\n/, "function convertDocxToPdf(docxBuffer) {\n  return pdfEngine().docxToPdf(docxBuffer); // v2: Gotenberg (ADR 008)\n}\n"],
   // Alltagshilfe: every amount from ONE function, @oc/pricing ahOfferTotals (ADR 028). The legacy
   // buildAhData stays in the file (exported) as the reference of test/ah-offer-data.test.ts.
-  ['import cfg from "../shims/config.js";', 'import cfg from "../shims/config.js";\nimport { buildAhOfferData } from "../ah-offer-data.js";'],
-  ["    ...buildAhData(body),\n", "    ...buildAhOfferData(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS }), // v2: ADR 028\n"],
+  // The zone reading follows the offer number's send state (ADR 028 addendum 2026-11-23): buildAhOfferDataFor.
+  ['import cfg from "../shims/config.js";', 'import cfg from "../shims/config.js";\nimport { buildAhOfferDataFor } from "../ah-offer-data.js";'],
+  ["    ...buildAhData(body),\n", "    ...(await buildAhOfferDataFor(body, { fmtCurrency, haushaltTasks: AH_GENERIC_HAUSHALT_TASKS, begleitungTasks: AH_GENERIC_BEGLEITUNG_TASKS })), // v2: ADR 028\n"],
   ["  buildAhData,\n};", "  buildAhData,\n  fmtCurrency,\n  AH_GENERIC_HAUSHALT_TASKS,\n  AH_GENERIC_BEGLEITUNG_TASKS,\n};"],
 ];
 

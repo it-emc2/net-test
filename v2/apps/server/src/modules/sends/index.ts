@@ -9,3 +9,4 @@ export { sentOriginalFor } from "./sent-original.js";
 export { registerSends } from "./routes.js";
 export { OfferChangedError, OfferSend, SEND_ID, assertUnchangedSinceSent, beginSend, claimSigningCompletion, finishSend, finishSigningCompletion, handEditedOf, handEditedSentBody, lastSentOffer, migrateOfferSendIndexes, offerChangedBody, patchSend, readSendFile, recordStep, sendForSigning, storeSendFile } from "./store.js";
 export type { SendFile, StepName, StepStatus } from "./store.js";
+export { ahZoneReadingForBody, ahZoneReadingOf } from "./zone-reading.js";
