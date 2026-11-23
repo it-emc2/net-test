@@ -2,7 +2,7 @@
 // offer with quantity, unit price and total, and the ladder of the sums — for checking the
 // calculation. Everything comes from the price (rules.ts); the page stores nothing.
 // Built for Badumbau and Badewannentür and, as its own read-only page, Alltagshilfe (ah/Kosten.tsx, U-051);
-// Badelift and Handlauf still use today's view for this step.
+// Handlauf (hl) as today's page groups it (rules.ts); Badelift still uses today's view for this step.
 import { useQueryClient } from "@tanstack/react-query";
 import { Wrench } from "lucide-react";
 import { useState } from "react";
@@ -68,7 +68,7 @@ export function Kosten() {
   const offer = useOfferStore((s) => s.offer) as Record<string, any> | null;
   const ctx = { type, offer };
   if (type === "ah") return <AhKosten />;
-  if (type !== "bu" && type !== "bwt") {
+  if (type !== "bu" && type !== "bwt" && type !== "hl") {
     return (
       <Card>
         <CardTitle>Kosten</CardTitle>

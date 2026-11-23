@@ -45,11 +45,12 @@ function row(l: RawLine, exempt: ReadonlySet<string>): Row {
 }
 
 export const MATERIAL_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
-/** material lines under their category, in the order of the offer document */
-function grouped(list: RawLine[], exempt: ReadonlySet<string>): Row[] {
+/** material lines under their category, in the order of the offer document (Handlauf: the
+ *  configurations' names in first-seen order, lines without one under "Lieferkosten") */
+function grouped(list: RawLine[], exempt: ReadonlySet<string>, hl = false): Row[] {
   const byCat = new Map<string, RawLine[]>();
-  for (const l of list) { const c = l.category || (l.source === "optional" || l.source === "optional_reha" ? "Zubehör" : "Weiteres"); byCat.set(c, [...(byCat.get(c) ?? []), l]); }
-  return MATERIAL_ORDER.flatMap((cat) => { const g = byCat.get(cat); return g?.length ? [{ subtitle: cat.toUpperCase() }, ...g.map((l) => row(l, exempt))] : []; });
+  for (const l of list) { const c = l.category || (l.source === "optional" || l.source === "optional_reha" ? "Zubehör" : hl ? "Lieferkosten" : "Weiteres"); byCat.set(c, [...(byCat.get(c) ?? []), l]); }
+  return (hl ? [...byCat.keys()] : MATERIAL_ORDER).flatMap((cat) => { const g = byCat.get(cat); return g?.length ? [{ subtitle: cat.toUpperCase() }, ...g.map((l) => row(l, exempt))] : []; });
 }
 const INCLUDED = [/fahrzeugbereitstellung/i, /bereitstellung.*werkzeug/i, /ber.?umung der baustelle/i, /kilometerpauschale/i, /facharbeiter/i, /anfahrt/i];
 
@@ -121,6 +122,15 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
         note: drift2 ? { text: `Preis geändert: ${drift!.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
     ];
   }
+  // Handlauf (today's renderFromData with isHlKostenGrouping): I / II numbered like Badumbau, the
+  // material grouped by configuration, the quantity without its unit (today's material rows drop it), no task rows and no "Optionale Produkte" (the type has no such page)
+  const hl = ctx.type === "hl";
+  const driftNote = drift && Math.abs(delta) >= 0.005 && (drift.lines?.length ?? 0) > 1 ? { text: `Preis geändert: ${drift.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null;
+  if (hl) return [
+    { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
+    { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
+    { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(matLines.map(({ unit: _u, ...l }) => l), exempt, true), footer: `Summe Material: ${eur(matSum)}`, note: driftNote },
+  ];
   return [
     { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
