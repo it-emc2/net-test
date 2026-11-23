@@ -2,7 +2,7 @@
 // updateDealAfterSigning, addTimelineComment, ensurePartnerContact, setDealOfferLink, AH fields).
 // Field ids, enum ids, stage ids and the exact request shapes are unchanged: the contract test
 // records the outgoing calls of legacy and v2 against the same stub and requires them identical.
-import { ahDocHours, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals } from "@oc/pricing";
+import { ahDocHoursFor, ahDocServices, ahDocTravel, ahDocumentInput, ahOfferTotals, type AhZoneReading } from "@oc/pricing";
 import { buildQS, type BitrixBatchResult, type BitrixClient } from "./bitrix.js";
 
 export const DEAL_ENTITY_TYPE_ID = 2;
@@ -60,11 +60,12 @@ export interface AhBitrix {
   gesamtpreisAB: number; gesamtpreisHnD: number; gesamtbetragAB: number; gesamtbetragHnD: number;
 }
 
-/** Exactly legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts. */
-export function ahBitrixFromPayload(body: any): AhBitrix {
-  const raw = ahDocServices(body);
-  const { zoneNum, travelTimeH } = ahDocTravel(body);
-  const p = ahOfferTotals(ahDocumentInput(body, NO_FUNDING_CONFIG)).detail;
+/** Exactly legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts.
+ *  `reading`: the zone and services reading of the offer's documents (ADR 028 addendum 2026-11-23; the caller decides). */
+export function ahBitrixFromPayload(body: any, reading: AhZoneReading = "document"): AhBitrix {
+  const raw = ahDocServices(body, reading);
+  const { zoneNum, travelTimeH } = ahDocTravel(body, reading);
+  const p = ahOfferTotals(ahDocumentInput(body, NO_FUNDING_CONFIG, reading)).detail;
   const hndSvc = raw.find((s) => s.type === "Haushaltsnahedienstleistungen");
   const abSvc = raw.find((s) => s.type === "Alltagsbegleitung");
   const totalMonatlichH = (p.totalMonatlichH || 0) + (p.abTotalMonatlichH || 0);
@@ -75,8 +76,8 @@ export function ahBitrixFromPayload(body: any): AhBitrix {
     zoneNum,
     hasHnD: raw.some((s) => s.type === "Haushaltsnahedienstleistungen"),
     hasAb: raw.some((s) => s.type === "Alltagsbegleitung"),
-    stundenProEinsatz: firstSched ? ahDocHours(firstSched.dauer) : 0,
-    tatsaechlicherStundenumfang: firstSched ? r2(ahDocHours(firstSched.dauer) + travelTimeH) : 0,
+    stundenProEinsatz: firstSched ? ahDocHoursFor(firstSched.dauer, reading) : 0,
+    tatsaechlicherStundenumfang: firstSched ? r2(ahDocHoursFor(firstSched.dauer, reading) + travelTimeH) : 0,
     regelmaessigkeit: firstSched?.regelmaessigkeit || "",
     monatlicherStundenumfang: r2(totalMonatlichH),
     anzahlAnfahrtspauschalen: r2(totalEinsaetze),
@@ -89,8 +90,8 @@ export function ahBitrixFromPayload(body: any): AhBitrix {
 }
 
 /** Legacy buildAhBitrixFields: Anfahrtszone only filled once (never overwritten). */
-export function buildAhBitrixFields(payload: unknown, currentZoneValue: unknown): Record<string, unknown> {
-  const b = ahBitrixFromPayload(payload || {});
+export function buildAhBitrixFields(payload: unknown, currentZoneValue: unknown, reading: AhZoneReading = "document"): Record<string, unknown> {
+  const b = ahBitrixFromPayload(payload || {}, reading);
   const f: Record<string, unknown> = {};
   if (!currentZoneValue) {
     const zoneId = AH_ZONE_ENUM[Math.min(5, Math.max(0, Math.round(b.zoneNum)))];
@@ -138,6 +139,8 @@ export interface SignedOffer {
   total?: number | null; offerNumber?: string; currencyId?: string;
   /** AH: the payload AS SENT gives the AH fields (buildAhBitrixFields); null = not available → left out */
   ah?: boolean; ahPayload?: unknown;
+  /** AH: the zone and services reading of the offer's documents (ADR 028 addendum 2026-11-23); absent = "document" */
+  ahZoneReading?: AhZoneReading;
 }
 /** At a signature the Anfahrtszone is never written: it is filled once, by the first „ANG verschickt“
  *  move, which reads the deal for it — reading it here would cost a second Bitrix call. */
@@ -209,7 +212,7 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
   function signedOfferFields(o: SignedOffer): Record<string, unknown> {
     const f: Record<string, unknown> = {};
     if (o.ah) {
-      if (o.ahPayload) Object.assign(f, buildAhBitrixFields(o.ahPayload, AH_ZONE_KEEP));
+      if (o.ahPayload) Object.assign(f, buildAhBitrixFields(o.ahPayload, AH_ZONE_KEEP, o.ahZoneReading));
       const amount = Number(o.total);
       if (Number.isFinite(amount) && amount > 0) {
         f.opportunity = amount;
