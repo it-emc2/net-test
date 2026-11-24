@@ -56,6 +56,9 @@ const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({
 const adminLayout = () => import("../features/admin/index.js").then((m) => ({ Component: m.AdminLayout }));
 const adminSettings = () => import("../features/admin/index.js").then((m) => ({ Component: m.SettingsPage }));
 const adminUsers = () => import("../features/admin/index.js").then((m) => ({ Component: m.UsersPage }));
+const adminBitrix = () => import("../features/admin/index.js").then((m) => ({ Component: m.BitrixLogsPage }));
+const adminUserLogs = () => import("../features/admin/index.js").then((m) => ({ Component: m.UserLogsPage }));
+const adminPdf = () => import("../features/admin/index.js").then((m) => ({ Component: m.PdfStatsPage }));
 
 export const routes: RouteObject[] = [
   {
@@ -103,6 +106,9 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to="einstellungen/shared" replace /> },
           { path: "einstellungen/:section", lazy: adminSettings },
           { path: "benutzer", lazy: adminUsers },
+          { path: "pdf-engine", lazy: adminPdf },
+          { path: "bitrix-fehler", lazy: adminBitrix },
+          { path: "aktivitaet", lazy: adminUserLogs },
         ],
       },
       { path: "home", element: <Navigate to="/" replace /> },
