@@ -10,8 +10,8 @@ primary_region = 'fra'
   NODE_ENV = 'production'
   HOST = '0.0.0.0'
   PORT = '8080'
-  # the PDF engine runs as its own app on Fly's private network (pdf.fly.toml)
-  GOTENBERG_URL = 'http://oc-emc2-test-pdf.internal:3000'
+  # GOTENBERG_URL is a secret, the same value as today's app: it carries the login of the shared
+  # PDF engine `emc2-gotenberg` (deploy/gotenberg on main). No second PDF app.
 
 [http_service]
   internal_port = 8080
