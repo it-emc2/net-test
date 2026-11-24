@@ -92,6 +92,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerWeb(app, {
     publicDir: cfg.WEB_PUBLIC_DIR ?? LEGACY_PUBLIC, logicDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/src/logic`,
     fontAwesomeDir: `${cfg.DOCUMENTS_ROOT ?? LEGACY_ROOT}/node_modules/@fortawesome/fontawesome-free`, authSecret: cfg.AUTH_SECRET,
+    startUi: cfg.START_UI, secureCookie,
     indexInjections: ['<script src="/v2/addons/deal-link.js" defer></script>', '<script src="/v2/addons/local-store.js" defer></script>', '<script src="/v2/addons/deal-draft.js" defer></script>', '<script src="/v2/addons/ux.js" defer></script>', '<script src="/v2/addons/header.js" defer></script>', '<script src="/v2/addons/quickwins.js" defer></script>', '<script src="/v2/addons/send-guard.js" defer></script>', '<script src="/v2/addons/offer-record.js" defer></script>', '<script src="/v2/addons/kosten-edit.js" defer></script>'],
   });
   await registerCatalog(app, {

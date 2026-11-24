@@ -49,6 +49,9 @@ const EnvSchema = z.object({
   AP_DEFAULT_EMAIL: z.string().optional(),
   /** Legacy-compatible session cookie flags. */
   COOKIE_SECURE: z.enum(["0", "1", "true", "false"]).optional().transform((v) => v === undefined ? undefined : v === "1" || v === "true"),
+  /** Which UI opens at "/" (U-061): "classic" = today's UI (default, parity suites run against it);
+   *  "react" = a bare "/" and "/login" open the React app under /app, today's UI stays at /?classic=1. */
+  START_UI: z.enum(["classic", "react"]).default("classic"),
   /** Bitrix24 inbound webhook base (…/rest/<user>/<token>). No hard-coded fallback (legacy had one). */
   BITRIX_WEBHOOK_BASE: z.string().url().optional(),
   /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */

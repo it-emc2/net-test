@@ -13,6 +13,7 @@ import { WeekCalendar } from "./WeekCalendar.js";
 import type { PlanningEntry } from "./planning-rules.js";
 import { DeviceDrafts } from "./DeviceDrafts.js";
 import { DealDocuments, HomeSearch } from "./HomeSearch.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 export function HomePage() {
   const close = useOfferStore((s) => s.close);
@@ -50,8 +51,8 @@ export function HomePage() {
       <DeviceDrafts />
       {pick ? <OfferPicker entry={pick} onClose={() => setPick(null)} /> : null}
       <SecondOfferHost />
-      <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href="/">Zur bisherigen Ansicht</a>
-        {admin ? <> · <a className="text-primary underline" href="/" data-testid="debug-link">Debug-Ansicht Planung (bisherige Ansicht)</a></> : null}</p>
+      <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href={CLASSIC_HOME}>Zur bisherigen Ansicht</a>
+        {admin ? <> · <a className="text-primary underline" href={CLASSIC_HOME} data-testid="debug-link">Debug-Ansicht Planung (bisherige Ansicht)</a></> : null}</p>
     </Page>
   );
 }

@@ -11,6 +11,7 @@ import type { DealRelation } from "@oc/api-contract";
 import { dealNumberTop, isNewOfferType, type NewOfferType } from "@oc/domain";
 import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -145,7 +146,7 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
       <p className="m-0 text-muted-foreground">{entry.name || "Unbekannt"} · {entry.address || "Ort unbekannt"}</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {TYPES.map(([t, title]) => <Button key={t} variant="outline" size="lg" className="h-auto min-h-20 flex-col" data-offer-key={t} disabled={!!busy} onClick={() => void pickType(t)}>{busy === t ? "Einen Moment …" : title}</Button>)}
-        {NOT_YET.map(([t, title]) => <Button key={t} asChild variant="secondary" size="lg" className="h-auto min-h-20 flex-col whitespace-normal text-center"><a href="/" data-offer-key={t}>{title}<span className="text-[0.95rem] font-normal">in der bisherigen Ansicht</span></a></Button>)}
+        {NOT_YET.map(([t, title]) => <Button key={t} asChild variant="secondary" size="lg" className="h-auto min-h-20 flex-col whitespace-normal text-center"><a href={CLASSIC_HOME} data-offer-key={t}>{title}<span className="text-[0.95rem] font-normal">in der bisherigen Ansicht</span></a></Button>)}
       </div>
     </Modal>
   );
@@ -267,7 +268,7 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
               <p className="m-0">{q.error instanceof ApiFailure && q.error.status !== 0 ? q.error.message : "Die Verbindung zum Server ist fehlgeschlagen."}</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => void q.refetch()}><RefreshCw aria-hidden />Erneut versuchen</Button>
-                <Button asChild variant="outline"><a href="/">Planung in der bisherigen Ansicht</a></Button>
+                <Button asChild variant="outline"><a href={CLASSIC_HOME}>Planung in der bisherigen Ansicht</a></Button>
               </div>
             </div>
           </div>

@@ -165,7 +165,7 @@ describe("opening a result", () => {
     renderApp("/");
     const row = await search(s);
     expect(row.tagName).toBe("A");
-    expect(row).toHaveAttribute("href", "/");
+    expect(row).toHaveAttribute("href", "/?classic=1");
     expect(within(row).getByText("In der bisherigen Ansicht öffnen")).toBeTruthy();
     const wd = screen.getAllByTestId("search-row")[0]!;
     expect(wd.tagName).toBe("A"); // the WD offer
