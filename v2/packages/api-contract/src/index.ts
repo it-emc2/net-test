@@ -512,6 +512,37 @@ export const endpoints = {
   signedDocuments: { method: "GET", path: "/api/signing/status/:offerNumber/signed", response: z.looseObject({ documents: z.array(z.looseObject({ key: z.string().nullish(), filename: z.string(), base64: z.string() })) }) },
   /** a photo or file for the Bitrix deal (type: kasse | vermieter): into the deal's file field and as a timeline note; body: filename, base64. kept false: the field holds only the newest file */
   dealUpload: { method: "POST", path: "/api/bitrix/deal/:id/upload/:type", response: z.looseObject({ ok: z.boolean().nullish(), kept: z.boolean().nullish() }) },
+  // ---------- admin area (role admin; the server checks it on every route, ADR 015) ----------
+  /** every business setting with label, type, section, default and current value */
+  adminConfig: { method: "GET", path: "/admin/api/config", response: z.array(z.looseObject({ key: z.string(), type: z.string().nullish(), section: z.string().nullish() })) },
+  /** body: { <key>: value, … } — unknown keys are dropped by the server */
+  adminConfigSave: { method: "PUT", path: "/admin/api/config", response: z.looseObject({ ok: z.boolean().nullish() }) },
+  /** body: { key } → the default value is stored again */
+  adminConfigReset: { method: "POST", path: "/admin/api/config/reset", response: z.looseObject({ key: z.string().nullish(), value: z.unknown() }) },
+  /** every user (never a password hash or the signature itself) */
+  adminUsers: { method: "GET", path: "/admin/api/users", response: z.array(z.looseObject({ email: z.string(), role: z.string().nullish(), active: z.boolean().nullish(), hasSignature: z.boolean().nullish() })) },
+  /** create or update by e-mail; body: firstName, lastName, email, password (empty = keep), role, active (false = deactivated) */
+  adminUserSave: { method: "POST", path: "/admin/api/users", response: z.looseObject({ email: z.string().nullish() }) },
+  /** body: { dataUrl } (PNG/JPEG as data URL) */
+  adminUserSignature: { method: "POST", path: "/admin/api/users/:email/signature", response: z.looseObject({ hasSignature: z.boolean().nullish() }) },
+  /** failed Bitrix calls (newest first, up to 500) */
+  adminBitrixLogs: { method: "GET", path: "/admin/api/bitrix-logs", response: z.looseObject({ items: z.array(z.looseObject({})) }) },
+  /** the failed call once more with its stored parameters */
+  adminBitrixRetry: { method: "POST", path: "/admin/api/bitrix-logs/:id/retry", response: z.looseObject({}) },
+  /** query: days (1–180) → per kind/engine counts, time saved, last failures */
+  adminPdfStats: { method: "GET", path: "/admin/api/pdf-stats", response: z.looseObject({ rows: z.array(z.looseObject({})), failures: z.array(z.looseObject({})) }) },
+  /** query: event, dealId → the newest 500 entries */
+  adminUserLogs: { method: "GET", path: "/admin/api/user-action-logs", response: z.looseObject({ items: z.array(z.looseObject({})) }) },
+  /** query: q, status → signing links with counts per status */
+  adminSigning: { method: "GET", path: "/admin/api/signing", response: z.looseObject({ items: z.array(z.looseObject({ token: z.string() })) }) },
+  /** files the signed documents of a link in the Bitrix deal again */
+  adminSigningSendBitrix: { method: "POST", path: "/admin/api/signing/:token/send-bitrix", response: z.looseObject({ sent: z.array(z.unknown()).nullish() }) },
+  /** query: q → services of the catalogue (sorted by id) */
+  services: { method: "GET", path: "/api/services", response: z.array(z.looseObject({ serviceId: z.string() })) },
+  /** admins only (ADR 018): body = array of products, upserted by productId */
+  productsBulk: { method: "POST", path: "/api/products/bulk", response: z.looseObject({ ok: z.boolean().nullish() }) },
+  /** admins only (ADR 018): body = array of services, upserted by serviceId */
+  servicesBulk: { method: "POST", path: "/api/services/bulk", response: z.looseObject({ ok: z.boolean().nullish() }) },
 } as const;
 export type EndpointName = keyof typeof endpoints;
 

@@ -2,6 +2,7 @@
 //   /                              Hauptmenü
 //   /neu/:type                     a new offer without a deal number → gets a temporary key
 //   /deal/:dealId/:type[/:step]    an offer of a deal (or of a temporary key)
+//   /admin/…                       the admin area (role admin; the server checks every call)
 // Every feature is its own chunk and is loaded only when its route is opened (ADR 026).
 import { lazy, Suspense } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router";
@@ -53,6 +54,16 @@ const badelift = () => import("../features/steps/index.js").then((m) => ({ Compo
 const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhFinanzierung }));
 const hausmeister = () => import("../features/steps/index.js").then((m) => ({ Component: m.Hausmeister }));
 const winterdienst = () => import("../features/steps/index.js").then((m) => ({ Component: m.Winterdienst }));
+// the admin area: one chunk, loaded only when an admin opens it
+const adminLayout = () => import("../features/admin/index.js").then((m) => ({ Component: m.AdminLayout }));
+const adminSettings = () => import("../features/admin/index.js").then((m) => ({ Component: m.SettingsPage }));
+const adminUsers = () => import("../features/admin/index.js").then((m) => ({ Component: m.UsersPage }));
+const adminBitrix = () => import("../features/admin/index.js").then((m) => ({ Component: m.BitrixLogsPage }));
+const adminUserLogs = () => import("../features/admin/index.js").then((m) => ({ Component: m.UserLogsPage }));
+const adminPdf = () => import("../features/admin/index.js").then((m) => ({ Component: m.PdfStatsPage }));
+const adminSigning = () => import("../features/admin/index.js").then((m) => ({ Component: m.SigningPage }));
+const adminCatalog = () => import("../features/admin/index.js").then((m) => ({ Component: m.CatalogPage }));
+const adminPlanning = () => import("../features/admin/index.js").then((m) => ({ Component: m.PlanningDebugPage }));
 
 export const routes: RouteObject[] = [
   {
@@ -93,6 +104,21 @@ export const routes: RouteObject[] = [
           { path: "wd", lazy: winterdienst },
           { path: "hms", lazy: hausmeister },
           { path: ":step", lazy: stepInLegacy },
+        ],
+      },
+      {
+        path: "admin",
+        lazy: adminLayout,
+        children: [
+          { index: true, element: <Navigate to="einstellungen/shared" replace /> },
+          { path: "einstellungen/:section", lazy: adminSettings },
+          { path: "benutzer", lazy: adminUsers },
+          { path: "katalog", lazy: adminCatalog },
+          { path: "signatur-links", lazy: adminSigning },
+          { path: "pdf-engine", lazy: adminPdf },
+          { path: "bitrix-fehler", lazy: adminBitrix },
+          { path: "aktivitaet", lazy: adminUserLogs },
+          { path: "planung", lazy: adminPlanning },
         ],
       },
       { path: "home", element: <Navigate to="/" replace /> },
