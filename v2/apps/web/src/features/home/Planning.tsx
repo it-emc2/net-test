@@ -14,6 +14,8 @@ import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustom
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
+/** Anrufen opens the customer's Bitrix contact card: a call started there goes through Bitrix telephony and is logged to the contact (U-058) */
+const CONTACT_URL = (id: string) => `https://emczwei.bitrix24.de/crm/contact/details/${encodeURIComponent(id)}/`;
 
 /** today's plan from the lean API; pushed updates (event „today“) replace it. `live`: the stream is connected. */
 export function useToday() {
@@ -303,7 +305,8 @@ export function PlanningToday({ onPick }: { onPick: (e: PlanningEntry) => void }
                     {e.tightBy || e.stageAlert ? <p data-testid="warning" className="m-0 flex items-start gap-2 rounded-lg bg-amber-100 p-2 text-amber-950 dark:bg-amber-950 dark:text-amber-100"><TriangleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />{[e.tightBy ? `Knapp geplant: ${e.tightBy} Min zu wenig Zeit` : "", e.stageAlert].filter(Boolean).join(" · ")}</p> : null}
                     <div className="flex flex-wrap gap-2 pt-1.5">
                       <Button disabled={off} onClick={(ev) => { ev.stopPropagation(); open(e); }}>{off ? <><Ban aria-hidden />Nicht verfügbar</> : "In Konfigurator öffnen"}</Button>
-                      {tel ? <Button asChild variant="secondary"><a href={`tel:${tel}`} aria-label={`Kunde anrufen: ${e.phone}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button> : null}
+                      {e.contactId ? <Button asChild variant="secondary"><a href={CONTACT_URL(String(e.contactId))} target="_blank" rel="noopener" aria-label={`Kunde in Bitrix anrufen: ${e.name || e.phone || ""}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button>
+                        : tel ? <Button asChild variant="secondary"><a href={`tel:${tel}`} aria-label={`Kunde anrufen: ${e.phone}`} onClick={(ev) => ev.stopPropagation()}><Phone aria-hidden />Anrufen</a></Button> : null}
                       {e.address ? <Button asChild variant="secondary"><a href={routeHref(e.address)} target="_blank" rel="noopener" aria-label={`Route zu ${e.address}`} onClick={(ev) => ev.stopPropagation()}>Route</a></Button> : null}
                       {!off && deal && !done.has(deal) ? <Button variant="outline" onClick={(ev) => { ev.stopPropagation(); void asked(e); }}><PhoneOff aria-hidden />Termin hat nicht statt gefunden.</Button> : null}
                     </div>
