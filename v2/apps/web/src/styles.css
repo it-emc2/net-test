@@ -35,6 +35,9 @@
   --step-active: #7c3aed;
   --step-idle: #cbd5e1;
   --radius: 0.75rem;
+  /* the plate a product photo sits on (photos come with a white background): white on the light theme */
+  --photo-plate: #ffffff;
+  --photo-plate-edge: transparent;
 }
 /* per-offer accents, same names and values as today's UI (ThemeManager offerDefaults) */
 :root[data-theme="wohnen"]     { --accent: #75c19f; --accent-weak: #e6f5ee; --primary: #2f7a59; --ring: #3b8a68; --step-done: #75c19f; --step-active: #3b8a68; }
@@ -61,6 +64,9 @@
   --warning-strong: #fcd34d;
   --accent-weak: color-mix(in srgb, var(--accent) 18%, transparent);
   --step-idle: #334155;
+  /* dark: a softened light surface with a quiet edge, so a white-background photo reads as a mounted picture, not a hard white square */
+  --photo-plate: #f0f2f6;
+  --photo-plate-edge: #3b4b60;
 }
 
 @theme inline {
@@ -100,6 +106,11 @@
   h2 { @apply text-xl font-semibold; }
   :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 }
+
+/* Product photo plate (IMG in shared/ui, every role but the decor swatch): the photo itself is never recoloured.
+   Light: a white ground, as before. Dark: an inset light plate with rounded corners and a 1 px edge. */
+.photo-plate { background-color: var(--photo-plate); }
+:root[data-mode="dark"] .photo-plate { padding: 0.25rem; border-radius: 0.5rem; box-shadow: 0 0 0 1px var(--photo-plate-edge); }
 
 /* Badolux Duschabtrennung drawings (badolux-sketch.js). Light drawing on any theme. */
 .bs { display: block; width: 100%; height: auto; }

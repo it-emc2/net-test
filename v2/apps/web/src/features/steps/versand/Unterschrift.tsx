@@ -94,7 +94,7 @@ export function SignOnSite({ via }: { via: "mail" | "post" }) {
     // "contents": the button sits beside the send button of its tab, the status goes below both
     <div className="contents" data-testid={`zf-sign-${via}`}>
       <div>
-        <Button variant="outline" size="lg" data-action="sign" disabled={busy} onClick={() => void start()}>
+        <Button variant="outline" size="lg" data-action="sign" className="!whitespace-normal" disabled={busy} onClick={() => void start()}>
           {busy ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <PenLine aria-hidden className="size-4" />}<span data-part="label">Vor Ort unterschreiben (iPad)</span>
         </Button>
       </div>
