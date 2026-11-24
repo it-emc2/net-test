@@ -22,6 +22,9 @@ export interface OfferState {
   related: DealRelation[];
   /** counts every change — cheap "has it changed?" for autosave and the price request */
   version: number;
+  /** a number for THIS opening of an offer (never reused in a session): `version` starts at 0 each time
+   *  an offer is opened, so anything cached per change (the price) is keyed by both */
+  opening: number;
   /** revision of the draft on the server this offer is based on (0: nothing saved yet) */
   revision: number;
   /** the `version` that is on the server */
@@ -51,7 +54,8 @@ export interface OfferState {
 
 /** which variant an offer that is opened is */
 export interface OpenVariant { id: string; name?: string | undefined; known: boolean }
-const CLOSED = { offer: null, dealId: null, variantId: null, variantName: "", variantKnown: false, related: [] as DealRelation[], version: 0, revision: 0, savedVersion: 0, scratch: {} };
+let openings = 0;
+const CLOSED = { offer: null, dealId: null, variantId: null, variantName: "", variantKnown: false, related: [] as DealRelation[], version: 0, opening: 0, revision: 0, savedVersion: 0, scratch: {} };
 const variantOf = (dealId: string | null, v: OpenVariant | undefined) =>
   dealId ? { variantId: v?.id ?? FIRST_VARIANT_ID, variantName: v?.name ?? "", variantKnown: !!v?.known } : {};
 
@@ -64,10 +68,10 @@ function merged(section: Record<string, unknown> | undefined, fields: Record<str
 
 export const useOfferStore = create<OfferState>()((set) => ({
   ...CLOSED,
-  start: (type, ctx, dealId = null, variant) => set({ ...CLOSED, offer: emptyOffer(type, ctx) as Offer, dealId, ...variantOf(dealId, variant) }),
+  start: (type, ctx, dealId = null, variant) => set({ ...CLOSED, opening: ++openings, offer: emptyOffer(type, ctx) as Offer, dealId, ...variantOf(dealId, variant) }),
   // an opened offer keeps its product line when the tray is switched on later (today's restore: `__dwLineDefaulted`);
   // only a NEW offer (`start`) gets Badolux preselected — see steps/duschwanne `LINE_DEFAULTED`
-  load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, offer, dealId, revision, scratch: { dwLineDefaulted: true }, ...variantOf(dealId, variant) }),
+  load: (offer, dealId = null, revision = 0, variant) => set({ ...CLOSED, opening: ++openings, offer, dealId, revision, scratch: { dwLineDefaulted: true }, ...variantOf(dealId, variant) }),
   setVariantName: (variantName) => set({ variantName }),
   setRelated: (related) => set({ related }),
   close: () => set({ ...CLOSED }),

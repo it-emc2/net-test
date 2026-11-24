@@ -14,11 +14,10 @@ export function usePrice() {
   const version = useOfferStore((s) => s.version);
   const hasOffer = useOfferStore((s) => s.offer !== null);
   const clientPriced = useOfferStore((s) => (s.offer ? isClientPricedOffer(s.offer) : false));
-  // the key names the OFFER as well as its change count: the count starts at 0 for every opened offer,
-  // so without the deal and variant a second offer opened in the same session would be answered from
-  // the first offer's cached price (and show it until the next change)
-  const dealId = useOfferStore((s) => s.dealId ?? "");
-  const variantId = useOfferStore((s) => s.variantId ?? "");
+  // the key names THIS OPENING of an offer as well as its change count: the count starts at 0 every
+  // time an offer is opened, so without it another offer — or the same variant opened again after it
+  // was changed — would be answered from an older cached price (and show it until the next change)
+  const opening = useOfferStore((s) => s.opening);
   const [settled, setSettled] = useState(version);
   useEffect(() => {
     if (version === settled) return;
@@ -27,15 +26,15 @@ export function usePrice() {
   }, [version, settled]);
 
   const query = useQuery({
-    queryKey: ["price", dealId, variantId, settled],
+    queryKey: ["price", opening, settled],
     // the offer is read at request time, so the request always carries the latest state
     queryFn: ({ signal }) => call("price", { body: useOfferStore.getState().offer, signal }),
     // only for a settled version: a hook that saw the offer before it changed (e.g. mounted while the
     // draft was loading, then a device snapshot opened as version 1) would otherwise ask at once for
     // its outdated key — with the same offer as the request that follows for the new key (2 calls)
     enabled: hasOffer && !clientPriced && version === settled,
-    // while the next price is on its way the last one of the SAME offer stays on the page — never another offer's
-    placeholderData: (prev, last) => (last?.queryKey[1] === dealId && last?.queryKey[2] === variantId ? keepPreviousData(prev) : undefined),
+    // while the next price is on its way the last one of the SAME opening stays on the page — never another offer's
+    placeholderData: (prev, last) => (last?.queryKey[1] === opening ? keepPreviousData(prev) : undefined),
     staleTime: Infinity,
     retry: false,
   });
