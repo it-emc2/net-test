@@ -11,5 +11,6 @@ await db.collection("Products").insertMany(j("tests/golden/fixtures/docs/product
 await db.collection("appconfigs").insertMany(Object.entries(j("tests/golden/fixtures/pricing/config.json")).map(([key, value]) => ({ key, value })));
 await db.collection("users").insertOne({ email: "capture@local.test", name: "Capture", role: "admin", active: true });
 const v = j("tests/golden/fixtures/docs/vigor-products.json"); const vdb = mongoose.connection.getClient().db("vigor"); await vdb.dropDatabase(); if (v.length) await vdb.collection("products").insertMany(v);
+const { note, ...model } = j("v2/apps/web/test/fixtures/da-model-vigour.json"); await vdb.collection("models").insertOne({ _id: "vigour", model }); // Duschabtrennung VIGOUR
 console.log("seeded", await db.collection("Products").countDocuments());
 await mongoose.disconnect();
