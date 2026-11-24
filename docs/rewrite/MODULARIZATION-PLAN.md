@@ -465,6 +465,41 @@ Today's admin functions live in `src/public/admin/` (the panel, opened from the 
 | Pricing Playground | old UI page `page-playground`, in no menu | `POST /api/price` | anyone with the address | — | Not built (developer tool, not reachable from today's menus) |
 
 
+### Signing page in React (2026-11-24, branch `claude/v2-signing-page`) — check level Full
+
+The customer's signing page `/sign/<token>` (today `src/public/signpage/index.html` + `app.js`; `src/public/SignaturePadManager.js` is NOT used by it — it belongs to today's Kundendaten/Versand screens) is the last page still served from the old UI. React: `apps/web/src/features/signing/` as its own entry `apps/web/sign.html` → `main.tsx` (no router, no login, no header/menu, no offer store; it reaches only `/api/signing/<its token>…`, `api.ts`). Rules in `rules.ts` (header lists today's rules), `SignPage.tsx` (states), `DocumentView.tsx` (the server's document HTML, with the page's own controls put in place of the server's placeholders), `SignatureField.tsx` + `SignaturePad.tsx` (pointer events: finger, pen, mouse — the shared `sketch-pad.tsx` is a drawing tool with colours/rulers/undo, so a small own pad), `picture.ts` (typed name, uploaded photo → PNG as today). The document itself stays the server's rendering (`documents/ported/signing-docs.ts`, the same source as the signed PDF), so its text, tick boxes, payment terms and fields are not rebuilt. Switch: `SIGNING_UI` (`classic` default | `react`, `packages/config`), wired in `signing/routes.ts` (`GET /sign/:token`): `react` serves `sign.html` of the app build **in place** at the same address (no redirect — the token stays in the one address the customer opened, no Location header, no second log line; `Referrer-Policy: no-referrer`, `Cache-Control: no-store`); no build → today's page. No signing route changed. Recording: `v2/scripts/capture-signing.cjs` → `apps/web/test/fixtures/signing.json` (43 scenarios, local server on :3002 with its own database `oc_signing` via `v2/scripts/seed-signing.mjs`, real GET answers, every POST answered by the script, tokens/date/pictures/owner's name masked); replay `apps/web/test/signing.test.tsx` (43 replays + rules + U-068 + accessibility, 52 tests); switch `apps/server/test/signing-ui.test.ts` (4). Differences: U-068.
+
+| State / step of today's page | Today (texts as shown) | API | React | State |
+|---|---|---|---|---|
+| Open the link: token = path after `/sign/` | „Dokument wird geladen …“; no token → „Ungültiger Link.“ | `GET /api/signing/<token>` (first open: `openedAt` + Bitrix note „👁 Signatur-Link geöffnet“) | same request, same texts | Built |
+| Unknown token | „Ungültiger oder abgelaufener Link“ (server text, 404) | same | same | Built |
+| Server error on open | the server's message (e.g. 500) | same | same; no connection → new text (U-068) | Built |
+| Expired link (date passed) or closed link (newer request, or ADR 027 A: another variant was signed — status `expired`) | „Dieser Link ist abgelaufen“, „Kein Problem – fordern Sie mit einem Klick einen neuen Link an. Wir senden ihn Ihnen per E-Mail zu.“, button „Neuen Link anfordern“, contact block (company, Waldstr. 5, 95032 Hof, phone, e-mail) | `GET` → 410 `{expired, newLinkRequested}` | same; company line „EmC2“ (U-068) | Built |
+| „Neuen Link anfordern“ | „Wird gesendet …“; success „Vielen Dank! Ihre Anfrage ist bei uns eingegangen. Wir senden Ihnen in Kürze einen neuen Link per E-Mail.“ (button gone); failure: server text or „Anfrage fehlgeschlagen. Bitte rufen Sie uns an.“, button again | `POST /api/signing/<token>/request-new-link` (Bitrix task + note; for a variant-closed link with the „Hinweis …“) | same | Built |
+| Asked before | the thank-you text at once, no button | `newLinkRequested: true` | same | Built |
+| Completed request, or every document signed | header „Online-Unterschrift“ + „Vielen Dank! Alle Dokumente wurden unterschrieben und an uns übermittelt. Sie erhalten in Kürze eine Kopie per E-Mail.“ | `completed` / all `signed` | same | Built |
+| Partly signed | opens at the first document not signed | `documents[].status` | same | Built |
+| One document (Selbstzahler: Angebot) | no navigation | `GET …/documents/<key>/html` | same | Built |
+| Several documents (Kassenkunde: Angebot, Vollmacht, Abtretung; AH: Angebot, Zusatzblatt[, Abtretung § 45b]) | „← Zurück“ / „Dokument i von n“ / „Weiter →“; Weiter only up to the furthest document reached; each move loads the document again | same | same | Built |
+| Two signers (partner documents `…_p2`) | progress adds „ – <label>“ (e.g. „Vollmacht für Krankenkasse – Person 2 (Name)“) | label from the server | same | Built |
+| A signed document opened again with „Zurück“ | the server's signed view (no controls) | same | same | Built |
+| Document HTML | the server's document with its own fields; a failure → raw server text | `GET …/html` | same HTML; failure → „Dokument konnte nicht geladen werden.“ (U-068) | Built |
+| Drawing the signature | canvas, finger or mouse; „Bitte unterschreiben Sie mit dem Finger oder der Maus im Feld.“ (server text) | — | pointer pad (U-068) | Built |
+| „Löschen“ | clears the active mode (drawing, typed name or picture) | — | same | Built |
+| „Namen tippen statt zeichnen“ ↔ „Doch lieber zeichnen“ | field „Ihr vollständiger Name“ („Vor- und Nachname“), written in a handwriting font as PNG | — | same | Built |
+| „Bild hochladen“ ↔ „Doch lieber zeichnen“ | „Bild Ihrer Unterschrift (JPG oder PNG)“, preview; not an image „Bitte wählen Sie eine Bilddatei (JPG oder PNG).“, > 10 MB „Die Datei ist zu groß (max. 10 MB).“, read errors; scaled to 800 px | — | same | Built |
+| „Kopieren“ / „Einfügen“ (same signature on the next document, page memory only) | „Kopiert!“ / „Eingefügt!“ for 1.2 s; „Bitte zuerst unterschreiben, bevor Sie kopieren.“, „Es wurde noch keine Unterschrift kopiert.“; paste lands in the drawing | — | same | Built |
+| „✎ Bearbeiten“ / „✓ Fertig“ per section | unlocks / locks the section's fields (Vollmacht, Abtretung incl. Pflegegrad, Zusatzblatt) | — | same | Built |
+| Submit checks, in order | payment term „Bitte wählen Sie eine Zahlungsbedingung aus.“ → required fields „Bitte füllen Sie alle Felder aus: …“ (Vollmacht 9, Abtretung 12 labels) → „Bitte unterschreiben Sie im Feld.“ → Zusatzblatt with a named Bevollmächtigte/r „Bitte lassen Sie den/die Bevollmächtigte/n unterschreiben.“ | — (the server checks the same) | same texts, same order | Built |
+| Submit | „Wird übermittelt …“; body `{signatureImage, extraFields: {paymentTermIdx?, entlastungsguthaben?, budgetWuM?, rechnungPost?, rechnungEmail?, bevollmaechtigterSignature?}, editedFields: {every field of the document, pflegegrad?}}` | `POST /api/signing/<token>/documents/<key>` | same body (replayed) | Built |
+| Server refuses (400 / 409 / 500, e.g. completion failed) | server text under the button, button again | same | same; button keeps the document's wording (U-068) | Built |
+| After a document | next document not signed; `completed` → thank-you card | answer `{ok, status, documents, completed}` | same | Built |
+| On site (rep hands over the iPad) vs. link from the e-mail | same page; a rep's session adds „← Zurück zum Konfigurator“ → `/?offer=<number>` (server sets `data-internal-user`) | — | same (server sets the flag in `sign.html`) | Built |
+| Variants (ADR 027 A) | no variant name on the page; a link closed by another variant's signature is the expired page | — | same | Built |
+| Phone 375 px, iPad portrait, light/dark | not designed for it (30 px controls, cut-off form fields) | — | 44–48 px controls, no sideways scroll, fields one per line < 480 px, dark around a white sheet (U-068); checked on the local server at 375×812 (touch), 834×1194 (touch), 1280 (mouse), light and dark | Built |
+
+Not built / not checked: a real PDF and the completion mail (local Gotenberg/SMTP off — the final signature was answered by the server with the completion error, as today; the replay uses the recorded answers); VoiceOver/TalkBack by hand; a real iPhone/iPad (Chromium device emulation only). `SIGNING_UI` stays `classic` everywhere (also in `deploy/fly/app.fly.toml`) until the owner decides.
+
 ## 4. Risks
 
 | Risk | Mitigation |

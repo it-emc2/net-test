@@ -21,7 +21,7 @@ import {
   type VariantNumbers,
 } from "../deal-drafts/index.js";
 import { tokenFromHeaders, verifyToken } from "../../platform/auth.js";
-import { injectHead } from "../web/index.js";
+import { DEFAULT_APP_DIR, injectHead } from "../web/index.js";
 import {
   DEFAULT_EXPIRY_DAYS, REQUIRED_FIELDS_BY_KEY, baseDocKey, buildGreetingLine, deriveBitrixTarget, deriveCustomerType,
   docKeysFor, docLabel, extractPrefill, hasPaymentChoice, isAhOffer, isExpired, isPartnerKey, recomputeStatus, resolveFields,
@@ -43,6 +43,10 @@ export interface SigningDeps {
   officeEmail?: string | undefined;
   assetsDir: string;
   signPageFile: string;
+  /** SIGNING_UI (U-068): which page /sign/<token> serves — "classic" (default) today's page, "react" the React page (sign.html of the app build) */
+  signingUi?: "classic" | "react" | undefined;
+  /** the built React app (apps/web/dist); default: next to the server in the workspace */
+  appDir?: string | undefined;
   publicBaseUrl?: string | undefined;
   apDefaultEmail: string;
   authSecret: string;
@@ -824,8 +828,25 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
 
   // ---------- the customer page ----------
   // A logged-in rep (session cookie) gets a "back to OC" link; a customer never has the cookie.
+  // SIGNING_UI=react (U-068): the same address serves the React page (sign.html of the app build)
+  // in place — no redirect, so the token stays in the one address the customer opened and never
+  // appears in a Location header, a second log line or a Referer (the page also sets no-referrer).
+  // The page then reads the token from its own address and calls the same /api/signing routes.
+  // Without a build of the React app the classic page is served, so a link always opens.
+  const reactSignPage = d.signingUi === "react" ? path.join(d.appDir ?? DEFAULT_APP_DIR, "sign.html") : null;
+  let warnedNoBuild = false;
   app.get("/sign/:token", PUBLIC, async (req, reply) => {
     const internal = !!verifyToken(tokenFromHeaders(req.headers), d.authSecret);
+    if (reactSignPage) {
+      let page: string | null = null;
+      try { page = fs.readFileSync(reactSignPage, "utf8"); } catch {
+        if (!warnedNoBuild) { warnedNoBuild = true; d.log.warn({ file: reactSignPage }, "SIGNING_UI=react but the React app is not built — serving today's signing page"); }
+      }
+      if (page !== null) {
+        return reply.type("text/html; charset=utf-8").header("Cache-Control", "no-store").header("Referrer-Policy", "no-referrer")
+          .send(page.replace('data-internal-user="false"', `data-internal-user="${internal}"`));
+      }
+    }
     const html = injectHead(fs.readFileSync(d.signPageFile, "utf8").replace('data-internal-user="false"', `data-internal-user="${internal}"`));
     return reply.type("text/html; charset=utf-8").send(html);
   });

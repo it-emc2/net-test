@@ -1,0 +1,36 @@
+/* The signing page: the document is a sheet of paper — white with dark text in light AND dark
+   mode (the page around it follows the device). The server's document HTML keeps its own styles;
+   these rules only make its controls fit fingers and phones (U-068): 44 px targets, 16 px text
+   in fields (no zoom on iOS), labels above fields below 480 px, a visible focus ring. */
+.sign-paper {
+  --background: #f6f7fb; --foreground: #1f2937; --card: #ffffff; --card-foreground: #111827; --muted: #eef0f5;
+  --muted-foreground: #5b6472; --border: #e5e7eb; --input: #6b7280;
+  /* today's blue of the document's own buttons and links (#submitBtn, .si-linkbtn): 5.6:1 on white */
+  --primary: #0066cc; --primary-foreground: #ffffff; --primary-text: #0066cc; --ring: #0066cc;
+  color: #111;
+  color-scheme: light;
+}
+.sign-doc .edit-toggle { min-height: 44px; padding: 8px 16px; font-size: 16px; border-radius: 8px; cursor: pointer; }
+.sign-doc .opt-label { min-height: 44px; align-items: center; font-size: 17px; }
+.sign-doc .opt-label input, .sign-doc .pg-opts input { width: 24px; height: 24px; margin: 0; flex: none; }
+.sign-doc .pg-opts label, .sign-doc .ab-pg label { min-height: 44px; min-width: 44px; }
+.sign-doc .ab-pg input { width: 24px; height: 24px; margin: 0; flex: none; }
+.sign-doc input[data-edit-field] { min-height: 44px; font-size: 16px; }
+.sign-doc img { max-width: 100%; height: auto; }
+.sign-doc :focus-visible, .sign-page a:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .sign-doc .fld, .sign-doc .row { flex-wrap: wrap; }
+  .sign-doc .fld-label, .sign-doc .row .label { min-width: 0; width: 100%; }
+}
+/* the server's own control styles use ids (#submitBtn, #typeName, #sigUpload): 16 px and up here too */
+.sign-doc button#submitBtn { font-size: 17px; min-height: 48px; }
+.sign-doc input#typeName, .sign-doc input#typeName2, .sign-doc input#sigUpload, .sign-doc input#sigUpload2 { font-size: 16px; }
+/* the paper forms (Vollmacht, Abtretung) put several fields on one line: one field per line on phones */
+@media (max-width: 480px) {
+  .sign-doc .vm .vm-grp { flex-wrap: wrap; flex-basis: 100%; }
+  .sign-doc .vm .vm-lbl { flex: 0 0 100%; }
+  .sign-doc .vm .vm-grp .vm-sep { display: none; }
+  .sign-doc .vm .vm-grp input[data-edit-field] { flex: 1 1 100%; }
+  .sign-doc .vm .vm-bev { grid-template-columns: 1fr; }
+  .sign-doc .vm .ab-adr input[data-edit-field] { flex: 1 1 100%; }
+}

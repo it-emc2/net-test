@@ -70,6 +70,12 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ START_UI: "neu" })).toThrow(/START_UI/);
   });
 
+  it("SIGNING_UI: classic by default, react on request, nothing else (U-068)", () => {
+    expect(loadConfig({}).SIGNING_UI).toBe("classic");
+    expect(loadConfig({ SIGNING_UI: "react" }).SIGNING_UI).toBe("react");
+    expect(() => loadConfig({ SIGNING_UI: "neu" })).toThrow(/SIGNING_UI/);
+  });
+
   it("redacts credentials", () => {
     expect(redactUri("mongodb://a:b@host/x")).toBe("mongodb://a:***@host/x");
   });
