@@ -92,6 +92,9 @@ function bwtIncluded(price: Price, _offer: Fields): RawLine[] {
   return out;
 }
 
+/** types whose Kosten page has no numerals and one material list: Badelift, Winterdienst, Hausmeister-Service */
+const flat = (type: string | null | undefined): boolean => type === "bl" || type === "wd" || type === "hms";
+
 /** The sections of the page, from a price (Badumbau; for the Badewannentür and the Badelift with `ctx`). */
 export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
   if (!price) return [];
@@ -131,8 +134,9 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
     { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(matLines.map(({ unit: _u, ...l }) => l), exempt, true), footer: `Summe Material: ${eur(matSum)}`, note: driftNote },
   ];
-  // Badelift: no numerals, the material as one list (today's Kosten groups only Badumbau and Handlauf), no optional products
-  if (ctx.type === "bl") {
+  // Badelift: no numerals, the material as one list (today's Kosten groups only Badumbau and Handlauf), no optional products.
+  // Winterdienst / Hausmeister-Service: the same three sections, drawn from the server's empty shell (all empty, zeros)
+  if (flat(ctx.type)) {
     return [
       { num: "", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
       { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
@@ -153,7 +157,7 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
 /** "Summen": purchase sums → markup → (subtotal → discount / bonus) → net → VAT → total */
 export function sums(price: Price | null, ctx: Ctx = {}): SumRow[] {
   if (!price) return [];
-  const num = (s: string) => (ctx.type === "bwt" || ctx.type === "bl" ? "" : s); // numerals: Badumbau (and Handlauf) only
+  const num = (s: string) => (ctx.type === "bwt" || flat(ctx.type) ? "" : s); // numerals: Badumbau (and Handlauf) only
   const services = (price.services ?? {}) as Fields, materials = (price.materials ?? {}) as Fields;
   const optional = n((price.optionalDisplayUI as Fields | undefined)?.sum), discount = n(price.rabattAmount), bonus = n(price.bonusGross);
   const grabReal = n(price.grabBonusReal), grabMat = n(price.grabBonusMaterial), grabWork = n(price.grabBonusArbeit), base = n(price.markupBase);

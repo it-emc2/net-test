@@ -13,13 +13,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-senden.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [{ email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true }];
 // what the document routes answer: [content type, file name, body] — null: 204 (nothing to attach)
 const FILES = {
@@ -74,6 +74,8 @@ const SCENARIOS = {
   "Badewannentür": { type: "bwt", setup: KUNDE, pre: READY, acts: [["send"], ["close"]] },
   "Alltagshilfe": { type: "ah", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
   "Badelift": { type: "bl", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
+  "Winterdienst": { type: "wd", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
+  "Hausmeister-Service": { type: "hms", setup: KUNDE, pre: READY, acts: [["send"], ["move"]] },
   // main 81f73fc7 / 68b454a9: winwall plates count as wall cladding; rows with an invalid decor are asked
   "winwall plates: no question about the wall cladding": { setup: KUNDE, wv: [["wall"]], pre: READY, acts: [["send"], ALL, ["close"]] },
   "winwall row with an invalid decor: back": { setup: KUNDE, wv: [["wwrow", "23014"]], pre: READY, acts: [["send"], ["hp", "back"]] },

@@ -321,6 +321,8 @@ describe("refusals", () => {
     expect([temp.status, temp.body.error.code]).toEqual([409, "SECOND_OFFER_TEMP_DEAL"]);
     const type = await create(deal, "hms");
     expect([type.status, type.body.error.code]).toEqual([400, "SECOND_OFFER_TYPE_INVALID"]);
+    const wd = await create(deal, "wd"); // a React type, but no Bitrix deal values for a second offer (SECOND_OFFER_TYPES)
+    expect([wd.status, wd.body.error.code]).toEqual([400, "SECOND_OFFER_TYPE_INVALID"]);
     const bad = await call("POST", `/api/deals/${deal}/second-offer`, { offerType: "ah", creationId: "x" });
     expect([bad.status, bad.body.error.code]).toEqual([400, "BAD_REQUEST"]);
     const none = await create(newDealNo(), "ah");

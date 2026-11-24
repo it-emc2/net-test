@@ -14,6 +14,7 @@ type Num = number | null | undefined;
 /** null unless a Kassenkunde: what the price answer says about the subsidy */
 export function selfPayParts(payer: unknown, p: Record<string, Num | string> | null): SelfPay | null {
   if (payer !== "Kassenkunde" || !p || typeof p.total !== "number") return null;
+  if ((p as Record<string, unknown>)._clientSideOffer === true) return null; // Winterdienst / Hausmeister-Service: the server's empty shell, no price (today: „–“)
   const subsidy = Number(p.subsidyAmount) || 0, max = Number(p.subsidyAmount_max ?? subsidy) || 0;
   return {
     total: p.total, subsidy, prior: Math.max(0, subsidy - max), selfPay: Number(p.selfPayAmount) || 0,

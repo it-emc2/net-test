@@ -114,7 +114,7 @@ describe("app shell", () => {
 
   it("unknown offer type, bad draft key or unknown step: back to a valid place", async () => {
     fakeServer({ ...BASE, "GET /api/deals/*/draft": NO_DRAFT });
-    const r1 = renderApp("/neu/hms");
+    const r1 = renderApp("/neu/xy");
     await screen.findByRole("heading", { name: "Hauptmenü" });
     expect(r1.state.location.pathname).toBe("/");
   });

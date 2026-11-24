@@ -10,7 +10,7 @@
 // device for the source deal, so closing and reopening the dialog continues the same creation
 // instead of starting a second one. The server answers a repeat of the same id from its record.
 import { CREATION_ID_RE, type DealRelatedResponse, type DealRelation, type VariantStatus } from "@oc/api-contract";
-import { NEW_OFFER_TYPES, type NewOfferType } from "@oc/domain";
+import { SECOND_OFFER_TYPES, type NewOfferType, type SecondOfferType } from "@oc/domain";
 import { ApiFailure } from "../../../shared/api/index.js";
 import { OFFER_TITLES } from "../steps.js";
 
@@ -21,7 +21,8 @@ export function newCreationId(): string {
 }
 
 /** the types a second offer can be of: every type except the open one */
-export const otherTypes = (open: string): NewOfferType[] => NEW_OFFER_TYPES.filter((t) => t !== open);
+/** the types a „Weiteres Angebot“ can be (SECOND_OFFER_TYPES: not Winterdienst / Hausmeister-Service) */
+export const otherTypes = (open: string): SecondOfferType[] => SECOND_OFFER_TYPES.filter((t) => t !== open);
 export const typeTitle = (t: string): string => OFFER_TITLES[t as NewOfferType] ?? t;
 
 /** one related deal as the screens show it; `status` undefined: not asked yet */
@@ -139,7 +140,7 @@ export function outcomeOf(err: unknown): Outcome {
 }
 
 // ---- an open creation kept on the device (per source deal) ----
-export interface Pending { creationId: string; sourceDealId: string; offerType: NewOfferType; outcome: Outcome }
+export interface Pending { creationId: string; sourceDealId: string; offerType: SecondOfferType; outcome: Outcome }
 const KEY = (deal: string) => `oc.secondOffer.${deal}`;
 export function readPending(deal: string): Pending | null {
   try {

@@ -9,13 +9,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-rahmen.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [
   { email: "ap.eins@local.test", name: "AP Eins", firstName: "AP", lastName: "Eins", hasSignature: true },
   { email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true },
@@ -43,6 +43,8 @@ const SCENARIOS = {
   "Handlauf": { type: "hl" },
   "Badelift": { type: "bl" },
   "Alltagshilfe": { type: "ah" },
+  "Winterdienst": { type: "wd" },
+  "Hausmeister-Service": { type: "hms" },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

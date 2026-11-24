@@ -159,16 +159,15 @@ describe("opening a result", () => {
     expect(s.after.server.revision).toBe(1);
   });
 
-  it("an hms / wd result opens in today's view: a link, nothing copied", async () => {
+  it("hms and wd results are React rows now (U-066 / U-067): buttons, no link to today's view", async () => {
     const s = scen("open an hms draft");
     const { imports } = dealServer({ [searchKey(s.q)]: { body: { rows: rowsOf(s) } } });
     renderApp("/");
     const row = await search(s);
-    expect(row.tagName).toBe("A");
-    expect(row).toHaveAttribute("href", "/?classic=1");
-    expect(within(row).getByText("In der bisherigen Ansicht öffnen")).toBeTruthy();
+    expect(row.tagName).toBe("BUTTON"); // the HMS draft
+    expect(within(row).queryByText("In der bisherigen Ansicht öffnen")).toBeNull();
     const wd = screen.getAllByTestId("search-row")[0]!;
-    expect(wd.tagName).toBe("A"); // the WD offer
+    expect(wd.tagName).toBe("BUTTON"); // the WD offer: Winterdienst is built in React (U-066)
     expect(imports).toEqual([]);
     expect(s.after.offerType).toBe("hms"); // today opens it in its own form
   });

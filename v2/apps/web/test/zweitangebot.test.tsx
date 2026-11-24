@@ -75,6 +75,8 @@ describe("second offer — the rules", () => {
   it("the other types: never the open one", () => {
     expect(otherTypes("bu")).toEqual(["bwt", "hl", "bl", "ah"]);
     expect(otherTypes("ah")).not.toContain("ah");
+    // Winterdienst / Hausmeister-Service: never the target (no Bitrix deal values), a Winterdienst offer can start any of the five (U-066)
+    expect(otherTypes("wd")).toEqual(["bu", "bwt", "hl", "bl", "ah"]);
   });
   it("relations: draft and /related once per deal, the status from /related", () => {
     const rows = mergeRelated([REL as never, { ...REL, dealId: "5002", offerType: "hl", createdAt: "2026-11-20T10:00:00.000Z" } as never], [{ ...REL, status: "sent" } as never]);
