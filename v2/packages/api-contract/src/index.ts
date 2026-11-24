@@ -191,6 +191,26 @@ export type SaveDealDraftRequest = z.infer<typeof SaveDealDraftRequestSchema>;
 export const SaveDealDraftResponseSchema = z.object({ dealId: z.string(), revision: z.number().int(), changed: z.boolean() });
 export type SaveDealDraftResponse = z.infer<typeof SaveDealDraftResponseSchema>;
 
+/** One saved version of a deal's draft (variant): what the „Versionen“ list shows. Newest first. */
+export const DealDraftRevisionSchema = z.object({
+  revision: z.number().int(),
+  at: z.union([z.string(), z.date()]),
+  /** e-mail of who saved it — shown as initials only */
+  by: z.string().nullish(),
+  kind: z.enum(["save", "restore", "import", "copy"]),
+  /** top-level offer fields this version changed */
+  sections: z.array(z.string()).default([]),
+  /** e.g. „Version 2 wiederhergestellt“, „Übernommen aus Angebot …“ */
+  note: z.string().nullish(),
+  offerType: z.string().nullish(),
+});
+export type DealDraftRevision = z.infer<typeof DealDraftRevisionSchema>;
+export const DealDraftRevisionsResponseSchema = z.object({ dealId: z.string(), variantId: z.string().optional(), revisions: z.array(DealDraftRevisionSchema) });
+export type DealDraftRevisionsResponse = z.infer<typeof DealDraftRevisionsResponseSchema>;
+/** „Wiederherstellen“: the content of `revision` becomes a NEW version (history is never rewritten); `baseRevision` as for a save (409 when the draft moved on) */
+export const RestoreDealDraftRequestSchema = z.object({ revision: z.number().int().min(1), baseRevision: z.number().int().min(0) });
+export type RestoreDealDraftRequest = z.infer<typeof RestoreDealDraftRequestSchema>;
+
 /** A deal number, or the temporary key of an offer started without one ("t-" + 24 hex). */
 export const DEAL_NUMBER_RE = /^\d{1,12}$/;
 export const TEMP_DRAFT_KEY_RE = /^t-[0-9a-f]{24}$/;
@@ -451,6 +471,10 @@ export const endpoints = {
   traySuggest: { method: "GET", path: "/api/trays/suggest", response: TraySuggestResponseSchema },
   suggestDistance: { method: "POST", path: "/api/routing/suggest-distance", request: SuggestDistanceRequestSchema, response: SuggestDistanceResponseSchema },
   saveDealDraft: { method: "PUT", path: "/api/deals/:dealId/draft", request: SaveDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
+  /** the saved versions of the deal's draft (query variant=…), newest first */
+  dealDraftRevisions: { method: "GET", path: "/api/deals/:dealId/draft/revisions", response: DealDraftRevisionsResponseSchema },
+  /** an earlier version becomes the newest one (query variant=…); REVISION_CONFLICT when the draft moved on */
+  restoreDealDraft: { method: "POST", path: "/api/deals/:dealId/draft/restore", request: RestoreDealDraftRequestSchema, response: SaveDealDraftResponseSchema },
   /** the variants of a deal (ADR 027 A) with their derived status */
   dealVariants: { method: "GET", path: "/api/deals/:dealId/variants", response: DealVariantsResponseSchema },
   /** a new variant: a copy of another one without offer number and send status; it becomes the variant opened last */

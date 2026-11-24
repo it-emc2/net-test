@@ -57,13 +57,15 @@ describe("today's UI from the React app", () => {
       expect(all.length).toBe(2);
       for (const a of all) expect(a).toHaveAttribute("href", CLASSIC_HOME);
     });
-    it("in an offer: „Versionen“ in the header and in the step drawer", async () => {
+    it("in an offer: „Versionen“ in the header and in the step drawer is the React panel now (U-062), no link to today's UI", async () => {
       fakeServer({ ...BASE });
       renderApp("/deal/65462/bu/Kundendaten");
-      expect(await screen.findByRole("link", { name: "Versionen" })).toHaveAttribute("href", CLASSIC_HOME);
+      expect(await screen.findByRole("button", { name: "Versionen" })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Versionen" })).toBeNull();
       await userEvent.click(screen.getByRole("button", { name: "Schritte öffnen" }));
       const drawer = await screen.findByRole("dialog", { name: "Schritte" });
-      expect(within(drawer).getByRole("link", { name: "Versionen" })).toHaveAttribute("href", CLASSIC_HOME);
+      expect(within(drawer).getByRole("button", { name: "Versionen" })).toBeInTheDocument();
+      expect(within(drawer).queryByRole("link", { name: "Versionen" })).toBeNull();
     });
   });
 });

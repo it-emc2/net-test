@@ -5,7 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { LogoTile } from "../../app/Brand.js";
 import { useOfferLines } from "./HeaderOffer.js";
 import { useNav } from "./model/nav.js";
-import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
+import { openVersionsPanel } from "./model/versions-panel.js";
 
 export function StepDrawer({ onHome, total, children }: { onHome: () => void; total: ReactNode; children: ReactNode }) {
   const { drawer, setDrawer } = useNav();
@@ -47,7 +47,7 @@ export function StepDrawer({ onHome, total, children }: { onHome: () => void; to
           </div>
           <div className="grid gap-2 border-t border-border p-3">
             {total}
-            <a href={CLASSIC_HOME} className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground no-underline hover:bg-muted"><History aria-hidden className="size-4" />Versionen</a>
+            <button type="button" aria-haspopup="dialog" data-testid="versions-button-drawer" onClick={() => { setDrawer(false); openVersionsPanel(); }} className="flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground hover:bg-muted"><History aria-hidden className="size-4" />Versionen</button>
           </div>
         </div>
       ) : null}
