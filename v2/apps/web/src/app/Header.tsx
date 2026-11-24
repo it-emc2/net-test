@@ -117,8 +117,9 @@ function UserMenu() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 overflow-hidden border-b border-border bg-card/95 px-4 backdrop-blur">
-      <div className="min-w-[12rem] flex-1"><Suspense fallback={<Brand />}><HeaderLeft /></Suspense></div>
+    // below 480 px (U-059): tighter gaps and no 12 rem minimum on the left, so the right side never overlaps; 480 px and up unchanged (U-056)
+    <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 overflow-hidden border-b border-border bg-card/95 px-4 backdrop-blur max-[479px]:gap-2 max-[479px]:px-3">
+      <div className="min-w-[12rem] flex-1 max-[479px]:min-w-0"><Suspense fallback={<Brand />}><HeaderLeft /></Suspense></div>
       <div className="flex min-w-0 shrink items-center gap-2">
         <Suspense fallback={null}><SaveState /></Suspense>
         <UserMenu />
