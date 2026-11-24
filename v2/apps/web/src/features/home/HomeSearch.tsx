@@ -2,7 +2,7 @@
 // (rules: search-rules.ts; opening: open.ts). One request per pause in typing (220 ms), an older
 // answer never wins; the list closes with Escape or when the focus leaves it.
 import { DEAL_NUMBER_RE, HOME_SEARCH_DELAY_MS, HOME_SEARCH_LIMIT, type HomeSearchRow } from "@oc/api-contract";
-import { History, LoaderCircle, RefreshCw, Search } from "lucide-react";
+import { FilePlus, History, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
@@ -11,8 +11,8 @@ import { Alert, Button, Card, Input, Label, cn } from "../../shared/ui/index.js"
 import { typeTitle } from "../offer/index.js";
 import { classifyOpen } from "./rules.js";
 import { openOfferNumber, openRow, sourceLabel, takeOver, type Outcome } from "./open.js";
-import { Modal } from "./Planning.js";
-import { TEXT, moveActive, reactTypeOf, rowView } from "./search-rules.js";
+import { Modal } from "./Modal.js";
+import { TEXT, moveActive, reactTypeOf, rowView, storedIntro, type AutosavedInfo } from "./search-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 type Ask = Extract<Outcome, { kind: "ask" }>;
@@ -87,25 +87,61 @@ export function useOpenOutcome() {
   return { handle, dialog, message, setMessage };
 }
 
-/** The rows of a deal's stored drafts and offers (today's deal dialog), under „Für Auftrag … gibt es noch kein Angebot“. */
-export function DealDocuments({ dealId }: { dealId: string }) {
-  const [rows, setRows] = useState<HomeSearchRow[] | null>(null);
+/** Stored drafts/offers that open on a tap (U-057: copied into the deal's draft, asked when it differs). */
+export function StoredRows({ rows }: { rows: readonly HomeSearchRow[] }) {
   const [busy, setBusy] = useState("");
   const { handle, dialog, message } = useOpenOutcome();
+  const open = async (r: HomeSearchRow) => { setBusy(r.id + r.offerNumber); handle(await openRow(r)); setBusy(""); };
+  return (
+    <>
+      <div className="grid gap-1">{rows.map((r) => <ResultRow key={r.kind + r.id + r.offerNumber} row={r} busy={busy === r.id + r.offerNumber} onOpen={(x) => void open(x)} />)}</div>
+      {message ? <Alert kind="error" className="my-0">{message}</Alert> : null}
+      {dialog}
+    </>
+  );
+}
+
+/** The rows of a deal's stored drafts and offers (today's deal dialog), under „Für Auftrag … gibt es noch kein Angebot“.
+ *  `source`: the lookup already under way (U-063); otherwise asked here. */
+export function DealDocuments({ dealId, source }: { dealId: string; source?: Promise<HomeSearchRow[]> | undefined }) {
+  const [rows, setRows] = useState<HomeSearchRow[] | null>(null);
   useEffect(() => {
     const c = new AbortController();
+    let live = true;
     // best effort, as today: the list never blocks starting a new offer
-    call("homeByDeal", { params: { dealId }, signal: c.signal }).then((r) => setRows(r.rows), () => setRows([]));
-    return () => c.abort();
-  }, [dealId]);
+    (source ?? call("homeByDeal", { params: { dealId }, signal: c.signal }).then((r) => r.rows))
+      .then((r) => { if (live) setRows(r); }, () => { if (live) setRows([]); });
+    return () => { live = false; c.abort(); };
+  }, [dealId, source]);
   if (!rows?.length) return null;
-  const open = async (r: HomeSearchRow) => { setBusy(r.id + r.offerNumber); handle(await openRow(r)); setBusy(""); };
   return (
     <div className="grid gap-2" data-testid="deal-documents">
       <h3 className="m-0 text-lg">{TEXT.dealList}</h3>
-      <div className="grid gap-1">{rows.map((r) => <ResultRow key={r.kind + r.id} row={r} busy={busy === r.id + r.offerNumber} onOpen={(x) => void open(x)} />)}</div>
-      {message ? <Alert kind="error" className="my-0">{message}</Alert> : null}
-      {dialog}
+      <StoredRows rows={rows} />
+    </div>
+  );
+}
+
+/**
+ * U-063: a deal with stored drafts/offers, opened from an appointment or by its number — the list
+ * first, then ONE way on without them: the autosaved draft, or a new empty offer.
+ */
+export function DealStart({ dealId, rows, draft, continueLabel, onContinue, onBack }: {
+  dealId: string; rows: readonly HomeSearchRow[]; draft: (AutosavedInfo & { title: string }) | null;
+  continueLabel: string; onContinue: () => void; onBack?: (() => void) | undefined;
+}) {
+  return (
+    <div className="grid min-w-0 gap-3 [&>*]:min-w-0" data-testid="deal-start">
+      <p className="m-0" data-part="intro">{storedIntro(dealId, draft)}</p>
+      <div className="grid gap-2" data-testid="deal-documents">
+        <h3 className="m-0 text-lg">{TEXT.dealList}</h3>
+        <StoredRows rows={rows} />
+      </div>
+      <p className="m-0 text-muted-foreground">{TEXT.storedOr}</p>
+      <Button size="lg" variant="outline" className="h-auto min-h-12 w-full whitespace-normal break-words text-left" data-action="continue" onClick={onContinue}>
+        {draft ? <History aria-hidden /> : <FilePlus aria-hidden />}<span className="min-w-0 whitespace-normal break-words">{continueLabel}</span>
+      </Button>
+      {onBack ? <Button variant="ghost" className="min-h-12 justify-self-start" data-action="back" onClick={onBack}>{TEXT.back}</Button> : null}
     </div>
   );
 }
