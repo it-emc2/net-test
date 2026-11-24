@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import { registerWeb } from "../src/modules/web/register.js";
-import { registerSecurity } from "../src/modules/web/security.js";
+import { ownOrigins, registerSecurity } from "../src/modules/web/security.js";
 import { createToken } from "../src/platform/auth.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -65,6 +65,20 @@ describe("web layer", () => {
     expect(addon.body).toContain("btnLoadDeal");
   });
 
+  it("the server's own address is an allowed origin (test app under another address); a foreign one stays refused", async () => {
+    expect(ownOrigins({ PUBLIC_BASE_URL: "https://ocv2.emc2.de/", FLY_APP_NAME: "ocv2-react" })).toEqual(["https://ocv2.emc2.de", "https://ocv2-react.fly.dev"]);
+    expect(ownOrigins({ PUBLIC_BASE_URL: "not an address", FLY_APP_NAME: "x.evil.example/" })).toEqual([]);
+    expect(ownOrigins({})).toEqual([]);
+    const make = async (own?: string[]) => { const a = Fastify(); await registerSecurity(a, own); a.post("/api/auth/login", async () => ({ ok: true })); return a; };
+    const post = (a: Awaited<ReturnType<typeof make>>, origin: string) => a.inject({ method: "POST", url: "/api/auth/login", headers: { origin }, payload: {} });
+    const plain = await make();
+    expect((await post(plain, "https://ocv2.emc2.de")).statusCode).toBe(500); // what the test app answered on 2026-11-24
+    const own = await make(["https://ocv2.emc2.de"]);
+    const ok = await post(own, "https://ocv2.emc2.de");
+    expect([ok.statusCode, ok.headers["access-control-allow-origin"]]).toEqual([200, "https://ocv2.emc2.de"]);
+    expect((await post(own, "https://oc.emc2.de")).statusCode).toBe(200); // today's list still applies
+    expect((await post(own, "https://ocv2.emc2.de.evil.example")).statusCode).toBe(500);
+  });
   it("the React app under /app: built files, hashed assets cached for good, any other address → its index.html; no login needed", async () => {
     const appDir = fs.mkdtempSync(path.join(os.tmpdir(), "oc-app-"));
     fs.mkdirSync(path.join(appDir, "assets"));

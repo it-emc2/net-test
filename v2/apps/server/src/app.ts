@@ -7,7 +7,7 @@ import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import type { AppConfig } from "@oc/config";
 import { dbState } from "./platform/db.js";
 import { registerAuthGate } from "./platform/auth-gate.js";
-import { registerSecurity } from "./modules/web/index.js";
+import { ownOrigins, registerSecurity } from "./modules/web/index.js";
 
 /** Hook for error aggregation (GlitchTip/Sentry wiring lands with self-hosting, ADR 009). */
 export type ErrorReporter = (err: unknown, ctx: { requestId: string; route?: string }) => void;
@@ -43,7 +43,8 @@ export async function buildApp(cfg: AppConfig, opts: BuildOptions = {}): Promise
     bodyLimit: 25 * 1024 * 1024, // parity with legacy express.json({ limit: "25mb" })
   });
 
-  await registerSecurity(app); // legacy order: helmet → cors → auth gate
+  // legacy order: helmet → cors → auth gate; the server's own address is always an allowed origin
+  await registerSecurity(app, ownOrigins({ PUBLIC_BASE_URL: cfg.PUBLIC_BASE_URL, FLY_APP_NAME: process.env.FLY_APP_NAME }));
   registerAuthGate(app, cfg.AUTH_SECRET);
 
   app.addHook("onSend", async (req, reply) => {
