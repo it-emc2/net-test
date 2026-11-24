@@ -1,0 +1,33 @@
+# OC v2 as a second Fly.io app beside today's app (owner decision 2026-11-24, CUTOVER.md §1a).
+# Deploy from the repository root (the image needs the legacy assets next to v2/):
+#   flyctl deploy . --config v2/deploy/fly/app.fly.toml --dockerfile v2/Dockerfile \
+#     --ignorefile v2/Dockerfile.dockerignore --remote-only
+# Secrets are set once with `flyctl secrets import` — never in this file.
+app = 'oc-emc2-test'
+primary_region = 'fra'
+
+[env]
+  NODE_ENV = 'production'
+  HOST = '0.0.0.0'
+  PORT = '8080'
+  # the PDF engine runs as its own app on Fly's private network (pdf.fly.toml)
+  GOTENBERG_URL = 'http://oc-emc2-test-pdf.internal:3000'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/api/health'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '30s'
+
+[[vm]]
+  memory = '1gb'
+  cpus = 1
