@@ -18,14 +18,16 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 | # | Decided | Effect on this plan |
 |---|---|---|
 | D1 | **Fly.io, as today** ("for now") — no VPS | §1.1 and §2.3–2.4 as written (compose, Caddy, DNS to a server) do not apply for now; v2 runs as a second Fly app, see §1a. `v2/deploy/docker-compose.yml` stays for a later move |
-| D2 | follows from D1: `flyctl deploy` (files in `v2/deploy/fly/`) | Caddy is not needed on Fly (Fly ends HTTPS); Gotenberg runs as its own Fly app |
+| D2 | follows from D1: `flyctl deploy` (files in `v2/deploy/fly/`) | Caddy is not needed on Fly (Fly ends HTTPS); Gotenberg is the existing Fly app `emc2-gotenberg`, shared with today's app |
 | D3 | **open** | date after the staff spot-check on the test app |
 | D4 | **open** — settings "same as main's on Fly.io", so the admin database login stays for now | recommendation stands: least-privilege user before the switch |
 | D5 | **yes** | migrations 001–005, after a backup, dry run first; needed before the test app can save a variant |
 
 ## 1a. Parallel test app on Fly.io (owner idea 2026-11-24, replaces the staging server of §1.5)
 
-v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), `v2/deploy/fly/pdf.fly.toml` (Gotenberg, private network only), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Not deployed yet; the Fly files are untested** (no `flyctl` on the build machine).
+v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Not deployed yet; the Fly files are untested.**
+
+PDF engine: the test app uses the **existing** Fly app `emc2-gotenberg` (Gotenberg 8.40.0, login required, found on Fly 2026-11-24) — the same one today's app uses. No second PDF app (owner decision 2026-11-24). Consequence: test PDFs and live PDFs share one machine.
 
 **With the same settings as main this is not a sandbox**: same production database, real Bitrix, real mail, real letters. An offer sent from the test app reaches the customer and moves the deal. Rule until the switch: **test deals and test contacts only** (accepted by the owner 2026-11-24: live database and real Bitrix, no copy).
 
@@ -34,19 +36,17 @@ Settings = today's Fly secrets, except:
 | Setting | Value on the test app | Why |
 |---|---|---|
 | `PUBLIC_BASE_URL`, `OFFER_LINK_BASE`, `OC_DOMAIN` | the test address | signing links and the offer link in Bitrix must open in v2 (variants, new signing forms) |
-| `GOTENBERG_URL` | set in `app.fly.toml` | v2 makes PDFs with Gotenberg |
 | `EXTERNAL_API_KEY` | set | v2 keeps the external lookup closed without it |
 | `COOKIE_SECURE` | `true` | |
 | `AUTH_SECRET` | same as today | same users; the login itself is per address |
 
 Owner steps (money and secrets — not done by the build agent):
-1. `flyctl apps create oc-emc2-test` and `flyctl apps create oc-emc2-test-pdf` (names can differ; then change both toml files and `GOTENBERG_URL`).
-2. `flyctl deploy --config v2/deploy/fly/pdf.fly.toml`.
-3. Copy the secrets of today's app to the test app with the differences above (`flyctl secrets import -a oc-emc2-test`).
-4. Backup, then migrations 001–005: dry run, then `--apply` (D5).
-5. First deploy (command in `app.fly.toml`), check `/api/health`.
-6. Address: `flyctl certs add ocv2.emc2.de -a oc-emc2-test`, DNS record as Fly prints it.
-7. For later deploys: deploy token of the test app as repository secret `FLY_API_TOKEN_V2_TEST`, variable `FLY_V2_TEST_DEPLOY` = `on`.
+1. `flyctl apps create ocv2-react` (the name can differ; then change `app.fly.toml`).
+2. Copy the secrets of today's app to the test app with the differences above (`flyctl secrets import -a ocv2-react`). `GOTENBERG_URL` is copied unchanged — it carries the login of `emc2-gotenberg`.
+3. Backup, then migrations 001–005: dry run, then `--apply` (D5).
+4. First deploy (command in `app.fly.toml`), check `/api/health`.
+5. Address: `flyctl certs add ocv2.emc2.de -a ocv2-react`, DNS record as Fly prints it.
+6. For later deploys: deploy token of the test app as repository secret `FLY_API_TOKEN_V2_TEST`, variable `FLY_V2_TEST_DEPLOY` = `on`.
 
 Open points:
 - Both apps write the same database at the same time. Drafts are separate (`deal_drafts` is v2 only); sent offers, signing records and customers are shared by design (ADR 002). Not checked under real parallel use: two users sending for the **same deal** from both apps at once — avoid until the switch.
@@ -102,7 +102,7 @@ Open points:
 ## Open items before the switch
 
 - [ ] Owner decisions: D1, D2, D5 decided 2026-11-24 (see above); **D3 and D4 open**.
-- [ ] Parallel test app on Fly.io (§1a): owner steps 1–7.
+- [ ] Parallel test app on Fly.io (§1a): owner steps 1–6.
 - [ ] Variants step 3 on a Bitrix **test deal** with the owner (send A, send B, sign A — field checklist in the step-3 PR). New collection `deal_variant_choices` needs no migration (keyed by `_id`); the old app ignores it on the way back.
 - [x] Rollback export tool `deal_drafts → drafts` (§4.2): `node apps/server/dist/cli/migrate.js rollback-export [--apply]` — insert-only, idempotent, tested; dry run on the copy 2026-11-06: 0 (no deal drafts exist yet).
 - [ ] Second offer type (ADR 027 B, step 3): the first real creation with the owner on a **test contact** (test pipeline via `SECOND_OFFER_*` if needed). Right after creation the new deal must show:

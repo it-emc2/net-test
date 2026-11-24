@@ -16,11 +16,23 @@ export function toInches(v: string | undefined, dflt = 18 / MM_PER_INCH) {
 }
 
 export class Gotenberg implements PdfEngine {
-  constructor(private readonly c: { baseUrl: string; timeoutMs?: number; fetchImpl?: typeof fetch }) {}
+  private readonly base: string;
+  private readonly headers: Record<string, string>;
+
+  /** `baseUrl` may carry a login (http://USER:PASS@host:3000), as main's GOTENBERG_URL does for the
+   *  shared engine on Fly: fetch refuses such a URL, so the login goes into a Basic header instead. */
+  constructor(private readonly c: { baseUrl: string; timeoutMs?: number; fetchImpl?: typeof fetch }) {
+    const u = new URL(c.baseUrl);
+    this.headers = u.username
+      ? { Authorization: "Basic " + Buffer.from(`${decodeURIComponent(u.username)}:${decodeURIComponent(u.password)}`).toString("base64") }
+      : {};
+    u.username = ""; u.password = "";
+    this.base = u.toString().replace(/\/+$/, "");
+  }
 
   private async post(route: string, form: FormData): Promise<Buffer> {
     const f = this.c.fetchImpl ?? fetch;
-    const res = await f(`${this.c.baseUrl.replace(/\/+$/, "")}${route}`, { method: "POST", body: form, signal: AbortSignal.timeout(this.c.timeoutMs ?? 120_000) });
+    const res = await f(`${this.base}${route}`, { method: "POST", body: form, headers: this.headers, signal: AbortSignal.timeout(this.c.timeoutMs ?? 120_000) });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new Error(`PDF engine error: HTTP ${res.status}${detail ? ` - ${detail.slice(0, 200)}` : ""}`);

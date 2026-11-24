@@ -23,6 +23,19 @@ describe("Gotenberg client", () => {
     await expect(g.docxToPdf(Buffer.from("x"))).rejects.toThrow("PDF engine error: HTTP 503 - boom");
     expect(seen[1].url).toBe("http://pdf.test/forms/libreoffice/convert");
   });
+  it("a login in the address goes into a Basic header, never into the request URL (main's GOTENBERG_URL on Fly)", async () => {
+    const seen: { url: string; auth?: string }[] = [];
+    const fetchImpl = (async (url: string, init: any) => {
+      // the real fetch throws on a URL that carries a login
+      if (/\/\/[^/]*@/.test(url)) throw new TypeError("Request cannot be constructed from a URL that includes credentials");
+      seen.push({ url, auth: init.headers?.Authorization });
+      return new Response("%PDF-1");
+    }) as unknown as typeof fetch;
+    await new Gotenberg({ baseUrl: "http://pdf-user:p%40ss%3Aword@pdf.internal:3000", fetchImpl }).docxToPdf(Buffer.from("x"));
+    await new Gotenberg({ baseUrl: "http://pdf.internal:3000", fetchImpl }).docxToPdf(Buffer.from("x"));
+    expect(seen[0]).toEqual({ url: "http://pdf.internal:3000/forms/libreoffice/convert", auth: "Basic " + Buffer.from("pdf-user:p@ss:word").toString("base64") });
+    expect(seen[1]).toEqual({ url: "http://pdf.internal:3000/forms/libreoffice/convert", auth: undefined });
+  });
 });
 
 describe("PDF engine: main sync 2026-11-12", () => {
