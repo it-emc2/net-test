@@ -4,11 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Car, Coffee, House, Mail, MapPin, Phone, PhoneOff, RefreshCw, Route, TriangleAlert, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { call, ApiFailure, dealCustomerQuery } from "../../shared/api/index.js";
+import { CONTACT_DEALS, call, ApiFailure, contactDealsQuery, dealCustomerQuery, type ContactDeal } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import type { DealRelation } from "@oc/api-contract";
-import { isNewOfferType, type NewOfferType } from "@oc/domain";
+import { dealNumberTop, isNewOfferType, type NewOfferType } from "@oc/domain";
 import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 
@@ -46,6 +46,10 @@ export function useStartFromAppointment() {
       const c = e.contactId ? await call("bitrixContact", { params: { id: String(e.contactId) } }).then((r) => r.result ?? null, () => null) : null;
       return c ? enrichmentOf(c) : null;
     })();
+    // an appointment without deal: the contact's deals (today's fetchAndSetDeal) — one becomes the
+    // offer's deal number, several wait in Kundendaten's pick list „Deal:“
+    const contactId = !e.importDealId && e.contactId ? String(e.contactId) : "";
+    const deals = contactId ? qc.fetchQuery(contactDealsQuery(contactId)).catch(() => [] as ContactDeal[]) : null;
     prefillNextOffer(key, () => {
       const st = useOfferStore.getState(), o = st.offer as Record<string, any>;
       st.patch("Kundendaten", kunde as never);
@@ -56,6 +60,12 @@ export function useStartFromAppointment() {
         const patch = enrichmentPatch(f, (now.offer as Record<string, any>).Kundendaten ?? {});
         if (Object.keys(patch).length) now.patch("Kundendaten", patch as never);
       });
+      void deals?.then((list) => {
+        const now = useOfferStore.getState();
+        if (now.dealId !== key || !now.offer) return; // the offer was left meanwhile
+        if (list.length === 1) now.setTop(dealNumberTop(now.offer as Record<string, any>, list[0]!.id));
+        else if (list.length > 1) now.remember(CONTACT_DEALS, { contactId, deals: list });
+      });
     });
     nav(`/deal/${key}/${type}`);
   };
@@ -64,7 +74,7 @@ export function useStartFromAppointment() {
 const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"]];
 const NOT_YET: [string, string][] = [["wd", "Winterdienst"], ["hms", "Hausmeister-Service"]];
 
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => ref.current?.focus(), []);
   return (

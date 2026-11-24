@@ -49,8 +49,8 @@ describe("Hauptmenü", () => {
     await userEvent.click(screen.getByRole("button", { name: "Deal 65462 öffnen" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/deal/65462/bwt"));
   });
-  it("deal without a draft: message, tiles start its offer; text goes to today's UI", async () => {
-    fakeServer({ ...BASE, "GET /api/planning/v2/today": { body: { ok: true, plan: null } } });
+  it("deal without a draft: message, tiles start its offer; text searches the stored drafts and offers (home-entwurf.test)", async () => {
+    const srv = fakeServer({ ...BASE, "GET /api/planning/v2/today": { body: { ok: true, plan: null } }, "GET /api/offers/v2/search*": { body: { rows: [] } }, "GET /api/offers/v2/by-deal/777": { body: { rows: [] } } });
     renderApp("/");
     await screen.findByText("Keine Planungstermine für heute gefunden");
     await userEvent.type(screen.getByLabelText("Öffnen"), "777{Enter}");
@@ -58,6 +58,7 @@ describe("Hauptmenü", () => {
     expect(screen.getByRole("link", { name: /Badumbau/ })).toHaveAttribute("href", "/deal/777/bu");
     await userEvent.clear(screen.getByLabelText("Öffnen"));
     await userEvent.type(screen.getByLabelText("Öffnen"), "Müller");
-    expect(screen.getByRole("link", { name: "In der bisherigen Ansicht suchen" })).toHaveAttribute("href", "/");
+    await screen.findByText("Keine Treffer in Entwürfen oder Angeboten.");
+    expect(srv.calls.filter((c) => c.key.startsWith("GET /api/offers/v2/search")).at(-1)!.key).toBe("GET /api/offers/v2/search?q=M%C3%BCller&limit=20");
   });
 });

@@ -116,13 +116,14 @@ export function SketchPad({ value, onChange }: { value: Partial<Sketch> | null |
     });
   };
 
-  // the canvas measures itself: drawn once it has a size, and again when the size changes
+  // the canvas measures itself: drawn once it has a size, and again when the size changes. With a
+  // ResizeObserver the first drawing is its first report (after the browser's own layout, before
+  // the frame is painted): measuring right here forced a whole-page layout inside the step's first
+  // render — on the iPad the largest part of opening Badelift (load-time work, 2026-11)
   useEffect(() => {
     const c = canvas.current;
     if (!c) return;
-    fit();
-    void paint(opsRef.current);
-    if (typeof ResizeObserver !== "function") return;
+    if (typeof ResizeObserver !== "function") { fit(); void paint(opsRef.current); return; }
     const ro = new ResizeObserver(() => { fit(); void paint(opsRef.current); });
     ro.observe(c);
     return () => ro.disconnect();

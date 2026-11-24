@@ -2,6 +2,8 @@
 // src/routes/offers.js and src/routes/drafts.js; success bodies identical (contract test).
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
+import { DEAL_NUMBER_RE, ERROR_AREAS, ERROR_CODES, homeSearchRow } from "@oc/api-contract";
+import { reportError } from "../../platform/error-events.js";
 import { mapSearchResult, nameSearchRegex } from "./search.js";
 import { Draft, Offer } from "../../platform/models.js";
 
@@ -23,42 +25,72 @@ export const SEARCH_FIELDS = [
 const byDate = (a: any, b: any) =>
   new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
 
+/** GET /api/offers/search-all (today's matching and order): q trimmed, empty → nothing; limit 1–50 (default 20) */
+async function searchAll(rawQ: string, rawLimit: unknown): Promise<any[]> {
+  const q = rawQ.trim();
+  const limit = Math.min(Math.max(Number.parseInt(String(rawLimit), 10) || 20, 1), 50);
+  if (!q) return [];
+  const re = nameSearchRegex(q);
+  const mongoQuery = { $or: SEARCH_FIELDS.map((f) => ({ [f]: re })) };
+  const [drafts, offers] = await Promise.all([
+    Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean(),
+    Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean(),
+  ]);
+  const results = [
+    ...drafts.map((d) => mapSearchResult(d, "draft", q)),
+    ...offers.map((d) => mapSearchResult(d, "offer", q)),
+  ];
+  results.sort((a: any, b: any) => (b._score !== a._score ? b._score - a._score : byDate(a, b)));
+  return results.slice(0, limit);
+}
+
+/** GET /api/offers/by-deal/:dealId: up to 20 drafts + 20 offers of the deal, newest first */
+async function byDeal(dealId: string): Promise<any[]> {
+  if (!dealId) return [];
+  const mongoQuery = {
+    $or: [
+      { dealId }, { "payload.auftragId": dealId }, { "payload.postal.auftragId": dealId }, { "payload.dealId": dealId },
+      { "payload.Kundendaten.dealId": dealId }, { "payload.Zusammenfassung.dealId": dealId }, { "payload.bitrixDealId": dealId },
+    ],
+  };
+  const [drafts, offers] = await Promise.all([
+    Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean(),
+    Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean(),
+  ]);
+  const results = [...drafts.map((d) => mapSearchResult(d, "draft", "")), ...offers.map((d) => mapSearchResult(d, "offer", ""))];
+  results.sort(byDate);
+  return results;
+}
+
 export async function registerOffersRead(app: FastifyInstance) {
   app.get("/api/offers/search-all", async (req) => {
     const query = req.query as Record<string, string | undefined>;
-    const q = String(query.q || "").trim();
-    const limit = Math.min(Math.max(Number.parseInt(String(query.limit), 10) || 20, 1), 50);
-    if (!q) return [];
-    const re = nameSearchRegex(q);
-    const mongoQuery = { $or: SEARCH_FIELDS.map((f) => ({ [f]: re })) };
-    const [drafts, offers] = await Promise.all([
-      Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean(),
-      Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean(),
-    ]);
-    const results = [
-      ...drafts.map((d) => mapSearchResult(d, "draft", q)),
-      ...offers.map((d) => mapSearchResult(d, "offer", q)),
-    ];
-    results.sort((a: any, b: any) => (b._score !== a._score ? b._score - a._score : byDate(a, b)));
-    return results.slice(0, limit);
+    return searchAll(String(query.q || ""), query.limit);
   });
 
-  app.get("/api/offers/by-deal/:dealId", async (req) => {
+  app.get("/api/offers/by-deal/:dealId", async (req) => byDeal(String((req.params as { dealId: string }).dealId || "").trim()));
+
+  // ---- the React Hauptmenü („Öffnen“): the same matching, only what a row shows (homeSearchRow) ----
+  // Never Bitrix: drafts and offers of this app's database. Logs and error events carry no search words.
+  app.get("/api/offers/v2/search", async (req, reply) => {
+    const query = req.query as Record<string, string | undefined>;
+    try {
+      const rows = await searchAll(String(query.q || ""), query.limit);
+      return { rows: rows.map((r) => homeSearchRow(r, "search")) };
+    } catch (err) {
+      reportError(req, { area: ERROR_AREAS.homeSearch, code: ERROR_CODES.OFFER_SEARCH_FAILED, message: `search failed: ${(err as Error)?.name || "error"}` });
+      return fail(req, reply, 500, ERROR_CODES.OFFER_SEARCH_FAILED, "Die Suche ist gerade nicht möglich.");
+    }
+  });
+  app.get("/api/offers/v2/by-deal/:dealId", async (req, reply) => {
     const dealId = String((req.params as { dealId: string }).dealId || "").trim();
-    if (!dealId) return [];
-    const mongoQuery = {
-      $or: [
-        { dealId }, { "payload.auftragId": dealId }, { "payload.postal.auftragId": dealId }, { "payload.dealId": dealId },
-        { "payload.Kundendaten.dealId": dealId }, { "payload.Zusammenfassung.dealId": dealId }, { "payload.bitrixDealId": dealId },
-      ],
-    };
-    const [drafts, offers] = await Promise.all([
-      Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean(),
-      Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean(),
-    ]);
-    const results = [...drafts.map((d) => mapSearchResult(d, "draft", "")), ...offers.map((d) => mapSearchResult(d, "offer", ""))];
-    results.sort(byDate);
-    return results;
+    if (!DEAL_NUMBER_RE.test(dealId)) return fail(req, reply, 400, "BAD_DEAL_ID", "Ungültige Deal-Nummer");
+    try {
+      return { rows: (await byDeal(dealId)).map((r) => homeSearchRow(r, "deal")) };
+    } catch (err) {
+      reportError(req, { area: ERROR_AREAS.homeSearch, code: ERROR_CODES.OFFER_SEARCH_FAILED, message: `by-deal failed: ${(err as Error)?.name || "error"}`, dealId });
+      return fail(req, reply, 500, ERROR_CODES.OFFER_SEARCH_FAILED, "Die gespeicherten Entwürfe und Angebote dieses Deals konnten nicht geladen werden.");
+    }
   });
 
   app.get("/api/offers/:offerNumber", async (req, reply) => {
