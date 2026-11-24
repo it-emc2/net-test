@@ -29,7 +29,7 @@ import { registerRouting, registerTodaysCustomers } from "./modules/planning/ind
 import { registerMagic } from "./modules/catalog/index.js";
 import { registerSigning } from "./modules/signing/index.js";
 import { registerCatalog, registerCatalogBulk, registerProductsRead, registerVigorPrices } from "./modules/catalog/index.js";
-import { registerDocuments } from "./modules/documents/index.js";
+import { ahTotalsOfPayload, registerDocuments } from "./modules/documents/index.js";
 import { registerRetired } from "./modules/web/index.js";
 import { registerWeb } from "./modules/web/index.js";
 import { Gotenberg, withPdfLog, type PdfEngine } from "./integrations/gotenberg.js";
@@ -115,6 +115,8 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   });
   const deals = dealWrites(bitrix, { offerLinkBase: cfg.OFFER_LINK_BASE });
   await registerDealDrafts(app, {
+    // the monthly amount of a handed-over Alltagshilfe offer, for the variant panel (ADR 028)
+    ahAmountOf: (payload, reading) => ahTotalsOfPayload(payload, undefined, reading).customerAmount,
     // a new variant is the signed-in user's document, like "Neue Version" (ADR 027 A)
     resolveContact: (kd, user) => resolveAnsprechpartner({ ...kd, ansprechpartner: user?.email ?? "" }, user, cfg.AP_DEFAULT_EMAIL ?? ""),
     // a second offer type for the same customer: a new deal in „Neue Anfragen“ (ADR 027 B)

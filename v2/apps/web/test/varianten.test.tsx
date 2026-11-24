@@ -179,6 +179,20 @@ describe("variants — the selector", () => {
     expect(screen.getByTestId("variant-switch")).toHaveTextContent("Günstig");
   });
 
+  it("an on-site handed-over variant shows its total (the server derives it from the stored offer), one without any stays without", async () => {
+    const handed = list(
+      row(V1, "Variante 1", { status: "sent", sentAt: "2026-11-22T09:00:00Z", sentChannel: "onsite", total: 4321.5, offerNumber: "ANG2026-1122-090000" }),
+      row(V2, "Günstig", { isDefault: true, status: "sent", sentAt: "2026-11-22T09:30:00Z", sentChannel: "onsite", total: null, offerNumber: "ANG2026-1122-093000" }),
+    );
+    fakeServer({ ...BASE, [`GET /api/deals/4711/draft?variant=${V1}`]: draftOf(V1, "Variante 1", "Hof"), "GET /api/deals/4711/variants": handed });
+    renderApp(`/deal/4711/bu/Kundendaten?variante=${V1}`);
+    await screen.findByLabelText("Vorname");
+    await openPanel();
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    expect(within(rows()[0]!).getByText("4.321,50 €")).toHaveAttribute("data-part", "total");
+    expect(rows()[1]!.querySelector('[data-part="total"]')).toBeNull();
+  });
+
   it("a save that fails stops the switch: the input stays, the variant stays", async () => {
     fakeServer({ ...BASE, [`GET /api/deals/4711/draft?variant=${V1}`]: draftOf(V1, "Variante 1", "Hof"), "GET /api/deals/4711/variants": TWO,
       [`PUT /api/deals/4711/draft?variant=${V1}`]: { status: 409, body: { error: { code: "REVISION_CONFLICT", message: "x", requestId: "t" } } } });

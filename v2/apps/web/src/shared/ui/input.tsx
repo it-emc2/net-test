@@ -6,7 +6,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
     <input
       className={cn(
         "min-h-12 w-full rounded-lg border-2 border-input bg-card px-3.5 text-foreground placeholder:text-muted-foreground",
-        "aria-[invalid=true]:border-destructive disabled:opacity-60",
+        "aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/40 disabled:opacity-60",
         className,
       )}
       {...props}

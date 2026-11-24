@@ -11,7 +11,7 @@ import {
   adoptTempDraft, defaultOf, getDealDraft, listRevisions, liveVariants, payloadAt, publicVariantId, RevisionConflictError, saveDealDraft, TEMP_KEY,
   touchOpened, VariantIndexMissingError,
 } from "./store.js";
-import { createVariant, deleteVariant, listVariants, renameVariant, VariantError, variantNameOf } from "./variants.js";
+import { createVariant, deleteVariant, listVariants, renameVariant, setAhAmountOf, VariantError, variantNameOf, type AhAmountOf } from "./variants.js";
 import { relatedOf, relationsOf, secondOffer, SecondOfferError, type SecondOfferDeps } from "./second-offer.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
@@ -25,6 +25,8 @@ const OFFER_TYPES = new Set(["bu", "bwt", "hl", "bl", "ah"]); // HMS/WD dropped 
 export interface DealDraftDeps {
   /** the contact person of a new variant: the signed-in user, as "Neue Version" does (offers resolveAnsprechpartner) */
   resolveContact?: (kundendaten: Record<string, unknown>, user: { email?: string } | undefined) => Promise<Record<string, unknown>>;
+  /** the AH monthly amount of a stored offer (the variant panel's total of a handed-over AH offer); absent → none */
+  ahAmountOf?: AhAmountOf;
   /** a second offer type for the same customer (ADR 027 B): Bitrix deal writes + settings; absent → the route is not registered */
   secondOffer?: Omit<SecondOfferDeps, "resolveContact">;
 }
@@ -83,6 +85,7 @@ function assertSameType(variants: any[], variantId: string, offerType: string) {
 }
 
 export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDeps = {}) {
+  setAhAmountOf(deps.ahAmountOf ?? null);
   // every route validates the deal id (and a given variant id) first
   app.addHook("preHandler", async (req, reply) => {
     if (!req.routeOptions.url?.startsWith("/api/deals/")) return;
