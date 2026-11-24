@@ -19,7 +19,7 @@
 // one create, ONE batch for the two timeline notes (their failure does not fail the creation).
 import mongoose from "mongoose";
 import { ERROR_AREAS, ERROR_CODES, FIRST_VARIANT_ID, type ErrorCode, type SecondOfferResponse } from "@oc/api-contract";
-import { applyChanges, dealNumberTop, emptyOffer, isNewOfferType, newOfferPatch, restoreChanges, type NewOfferType } from "@oc/domain";
+import { applyChanges, dealNumberTop, emptyOffer, isSecondOfferType, newOfferPatch, restoreChanges, type SecondOfferType } from "@oc/domain";
 import type { SecondOfferSettings } from "@oc/config";
 import type { FastifyRequest } from "fastify";
 import { BitrixError } from "../../integrations/bitrix.js";
@@ -32,7 +32,7 @@ import { berlinToday, listVariants } from "./variants.js";
 export const SECOND_OFFER_ORIGINATOR = "oc-second-offer";
 /** a claim that is busy longer than this was cut off (crash, restart) */
 export const SECOND_OFFER_STALE_MS = 10 * 60 * 1000;
-export const OFFER_TYPE_LABELS: Record<NewOfferType, string> = { bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Barrierefreies Leben", ah: "Alltagshilfe" };
+export const OFFER_TYPE_LABELS: Record<SecondOfferType, string> = { bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Barrierefreies Leben", ah: "Alltagshilfe" };
 
 export interface SecondOfferDeps {
   deals: Pick<DealWrites, "createDeal" | "findDealByOrigin" | "addTimelineComments" | "getDealContactId">;
@@ -81,7 +81,7 @@ export function customerNameText(kd: Record<string, unknown>): string {
 }
 
 /** the create request's fields for one target type (pure; the test pins it per type) */
-export function newDealOf(s: SecondOfferSettings, a: { offerType: NewOfferType; contactId: number; creationId: string; kundendaten: Record<string, unknown> }) {
+export function newDealOf(s: SecondOfferSettings, a: { offerType: SecondOfferType; contactId: number; creationId: string; kundendaten: Record<string, unknown> }) {
   const v = s.values, t = v.byType[a.offerType];
   if (!t) throw new Error(`no deal values for offer type ${a.offerType}`);
   const name = customerNameText(a.kundendaten);
@@ -100,7 +100,7 @@ export function newDealOf(s: SecondOfferSettings, a: { offerType: NewOfferType; 
  * source applied by the „Kunde suchen“ rule, date today (Berlin) and the contact person as for a
  * new offer, and the new deal number in all three places an offer carries it.
  */
-export function secondOfferPayload(a: { offerType: NewOfferType; sourceKundendaten: Record<string, unknown>; newDealId: string; today: string; contact?: Record<string, unknown>; pricingRules?: Record<string, unknown> | undefined }) {
+export function secondOfferPayload(a: { offerType: SecondOfferType; sourceKundendaten: Record<string, unknown>; newDealId: string; today: string; contact?: Record<string, unknown>; pricingRules?: Record<string, unknown> | undefined }) {
   let o = emptyOffer(a.offerType, { date: a.today, ...(a.pricingRules ? { pricingRules: a.pricingRules } : {}) }) as Record<string, any>;
   o = applyChanges(o, restoreChanges(o, structuredClone(a.sourceKundendaten), a.offerType));
   // date and contact person as for any new offer (the Kundendaten part of newOfferPatch; a new offer is not sent anyway)
@@ -171,7 +171,8 @@ export function secondOffer(deps: SecondOfferDeps) {
   async function create(input: SecondOfferInput, req: FastifyRequest | null = null): Promise<SecondOfferResponse> {
     const { dealId, creationId } = input;
     if (TEMP_KEY.test(dealId)) throw err(ERROR_CODES.SECOND_OFFER_TEMP_DEAL, 409, M.temp);
-    if (!isNewOfferType(input.offerType)) throw err(ERROR_CODES.SECOND_OFFER_TYPE_INVALID, 400, M.typeInvalid);
+    // Winterdienst / Hausmeister-Service: no deal values for a new deal of these types (SECOND_OFFER_TYPES)
+    if (!isSecondOfferType(input.offerType)) throw err(ERROR_CODES.SECOND_OFFER_TYPE_INVALID, 400, M.typeInvalid);
     const offerType = input.offerType;
 
     // ---- an earlier request with this creation id ----
@@ -268,7 +269,7 @@ export function secondOffer(deps: SecondOfferDeps) {
     // 2) the deal
     let newId: number;
     try {
-      newId = await deps.deals.createDeal(newDealOf(deps.settings, { offerType: claim.offerType as NewOfferType, contactId, creationId: claim._id, kundendaten: kd }));
+      newId = await deps.deals.createDeal(newDealOf(deps.settings, { offerType: claim.offerType as SecondOfferType, contactId, creationId: claim._id, kundendaten: kd }));
     } catch (e) {
       if (createOutcome(e) === "definite") {
         await move(claim._id, "creating", { state: "failed", contactId, code: ERROR_CODES.SECOND_OFFER_BITRIX_FAILED });
@@ -286,7 +287,7 @@ export function secondOffer(deps: SecondOfferDeps) {
   /** the claim is ours ("finishing") and the deal exists: draft, relations, notes, done */
   async function finish(claim: Claim, newId: number, input: SecondOfferInput, req: FastifyRequest | null): Promise<SecondOfferResponse> {
     const newDeal = String(newId);
-    const offerType = claim.offerType as NewOfferType;
+    const offerType = claim.offerType as SecondOfferType;
     const createdAt = claim.startedAt ?? new Date();
     let revision: number;
     try {

@@ -440,7 +440,7 @@ function useTwoPersonsTexts(type: string | null) {
 }
 
 export function Kundendaten() {
-  const type = useOfferType(); // Badelift has no Aufschlag / Rabatt step: its markup is entered here (as today)
+  const type = useOfferType(); // Badelift, Winterdienst and Hausmeister-Service have no Aufschlag / Rabatt step: their markup is entered here (as today)
   useTwoPersonsTexts(type);
   useAutoRoute(); // the way to the customer is worked out as soon as the address is known (U-011 B4)
   const ah = type === "ah"; // the Alltagshilfe-only blocks (U-052) in today's order on the page
@@ -453,7 +453,7 @@ export function Kundendaten() {
       <Address />
       <ContactPerson />
       <Payer />
-      {type === "bl" ? <Markup /> : null}
+      {markupTextSection(type) === "Kundendaten" ? <Markup /> : null}
       <CareLevel />
       {ah ? <AhTwoPersons /> : <SecondPerson />}
       {ah ? <AhHints /> : null}

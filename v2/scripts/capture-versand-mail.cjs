@@ -10,13 +10,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-mail.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [{ email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true }, { email: "ap.eins@local.test", name: "AP Eins", firstName: "AP", lastName: "Eins", hasSignature: true }];
 const KUNDE = [["radio", "salutation", "Frau"], ["text", "firstName", "Erika"], ["text", "lastName", "Muster"], ["text", "email", "kunde@example.test"]];
 const TWO = [...KUNDE, ["radio", "hasPflegegrad", "Ja"], ["radio", "pflegegrad", "3"], ["check", "twoPersons", "on"], ["text", "partnerSalutation", "Herr"], ["text", "partnerFirstName", "Max"], ["text", "partnerLastName", "Beispiel"]];
@@ -53,6 +53,7 @@ const SCENARIOS = {
   "Badelift": { type: "bl", setup: KUNDE },
   "Alltagshilfe": { type: "ah", setup: KUNDE, acts: [["tile", "AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf"]] },
   "Alltagshilfe, Selbstzahler": { type: "ah", setup: [...KUNDE, ["radio", "payer", "Selbstzahler"]] },
+  "Winterdienst": { type: "wd", setup: KUNDE },
   "Neukundenbonus ticked": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"]] },
   "Neukundenbonus ticked, the total below the threshold": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"], ["small"]] },
 };

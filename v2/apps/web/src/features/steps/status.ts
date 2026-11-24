@@ -16,6 +16,7 @@ import { finOf, touched as finTouched, vpValue, warningsOf as finWarnings } from
 import { isOn as isDv } from "./duschvorhang/rules.js";
 import { hasContent as blHasContent } from "./bl/rules.js";
 import { bwtMissing } from "./bwt/rules.js";
+import { hasContent as serviceHasContent } from "./wd/rules.js";
 
 type F = Record<string, any>;
 const obj = (v: unknown): F => (v && typeof v === "object" ? (v as F) : {});
@@ -44,6 +45,8 @@ function content(step: string, o: F): boolean | undefined {
     // Alltagshilfe · Kosten (read-only): done once a service is booked (the table has rows)
     case "Kosten": return ahHasContent(obj(o.ah));
     case "ah": return ahHasContent(obj(o.ah)); // Alltagshilfe: a service with a duration and a rhythm (over budget is a choice, not a warning)
+    // Winterdienst / Hausmeister-Service: done once something is entered on the page (it has no check)
+    case "wd": case "hms": return serviceHasContent(step as "wd" | "hms", obj(o[step]));
     case "bl": return blHasContent(obj(o.bl)); // Badelift: done once a product or a free item is chosen (a new offer has the main product)
     // Alltagshilfe: done once the page was used or a source is ticked (Selbstzahler: nothing to do → not counted)
     case "Finanzierung": { if (String(obj(o.Kundendaten).payer || "") === "Selbstzahler") return undefined; const x = finOf(o.Finanzierung); return finTouched(o.Finanzierung) || x.eb || x.um || vpValue(x) > 0; }
@@ -61,7 +64,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "hl" ? ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : type === "bwt" ? ["Kundendaten", "Arbeitszeit", "bwtArbeiten", "bwt", "Rabatt"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "hl" ? ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : type === "wd" ? ["Kundendaten", "Arbeitszeit", "wd"] : type === "bwt" ? ["Kundendaten", "Arbeitszeit", "bwtArbeiten", "bwt", "Rabatt"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }

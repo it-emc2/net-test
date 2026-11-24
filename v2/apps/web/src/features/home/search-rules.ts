@@ -15,7 +15,7 @@
 //  - opening (React): a row of a type the React app has (bu, bwt, hl, bl, ah) becomes the draft of its
 //    deal — the stored document is copied into it as a new version (POST …/draft/import). Without a
 //    deal number: under a new temporary key. When the deal already has a draft that differs, the user
-//    is asked first (open.ts). hms / wd: today's view.
+//    is asked first (open.ts). hms: today's view.
 //  - U-063: a deal opened from an appointment (offer picker) or by its number lists its stored drafts
 //    and offers FIRST when it has any — before a new empty offer is started and also when the deal
 //    already has an autosaved draft (which before hid them). The list waits for the lookup at most
@@ -93,7 +93,7 @@ export function rowView(r: HomeSearchRow): RowView {
   };
 }
 
-/** the offer type of a row in the React app, or null: it opens in today's view (hms, wd, unknown) */
+/** the offer type of a row in the React app, or null: it opens in today's view (hms, unknown) */
 export const reactTypeOf = (r: HomeSearchRow): NewOfferType | null => {
   const t = r.offerType.trim().toLowerCase();
   return isNewOfferType(t) ? t : null;

@@ -11,7 +11,7 @@
 // The offer is a new one under a temporary key; outside services are those of the preview (dead).
 const crypto = require("node:crypto");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";

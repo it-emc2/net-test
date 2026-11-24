@@ -10,13 +10,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-dokumente.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [{ email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true }];
 const FILES = { // what the document routes answer in this recording
   "/docx-template": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Angebot_TEST.docx", "docx"],
@@ -53,6 +53,7 @@ const SCENARIOS = {
   "Handlauf": { type: "hl" },
   "Badelift": { type: "bl", setup: OK, acts: [["click", "downloadKalkulation"]] },
   "Alltagshilfe": { type: "ah", setup: OK, acts: [["click", "downloadDocxAsPdf"], ["click", "previewKalkulation"]] },
+  "Winterdienst": { type: "wd", setup: OK, acts: [["click", "downloadDocxAsPdf"], ["click", "downloadKalkulation"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

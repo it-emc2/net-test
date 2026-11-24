@@ -10,13 +10,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-anpassungen.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [{ email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true }];
 const T = ["add", "text"], P = ["add", "price"], H = ["add", "hint"];
 // on the page: ["add", "text" | "price" | "hint"] a new row · ["from" | "to", row, text] · ["amount", row, text] ·
@@ -41,6 +41,7 @@ const SCENARIOS = {
   "the internal note": { acts: [["note", "Kunde ist nur vormittags erreichbar."]] },
   "Badewannentür": { type: "bwt", acts: [P, ["amount", 1, "50"], H, ["hint", 1, "Hinweis"]] },
   "Alltagshilfe": { type: "ah", acts: [T, ["from", 1, "Betreuung"], ["to", 1, "Begleitung"]] },
+  "Winterdienst": { type: "wd", acts: [T, ["from", 1, "Betreuung"], ["to", 1, "Begleitung"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

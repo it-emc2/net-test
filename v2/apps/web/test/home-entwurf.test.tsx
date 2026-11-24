@@ -159,7 +159,7 @@ describe("opening a result", () => {
     expect(s.after.server.revision).toBe(1);
   });
 
-  it("an hms / wd result opens in today's view: a link, nothing copied", async () => {
+  it("an hms result opens in today's view: a link, nothing copied; a wd result is a React row (U-066)", async () => {
     const s = scen("open an hms draft");
     const { imports } = dealServer({ [searchKey(s.q)]: { body: { rows: rowsOf(s) } } });
     renderApp("/");
@@ -168,7 +168,7 @@ describe("opening a result", () => {
     expect(row).toHaveAttribute("href", "/?classic=1");
     expect(within(row).getByText("In der bisherigen Ansicht öffnen")).toBeTruthy();
     const wd = screen.getAllByTestId("search-row")[0]!;
-    expect(wd.tagName).toBe("A"); // the WD offer
+    expect(wd.tagName).toBe("BUTTON"); // the WD offer: Winterdienst is built in React (U-066)
     expect(imports).toEqual([]);
     expect(s.after.offerType).toBe("hms"); // today opens it in its own form
   });

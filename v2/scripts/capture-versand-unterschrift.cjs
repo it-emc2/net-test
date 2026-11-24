@@ -12,13 +12,13 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "apps", "web", "test", "fixtures", "versand-unterschrift.json");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me";
 
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", wd: "WD-Winterdienst", hms: "HMS-Hausmeister-Service" };
 const USERS = [{ email: "capture@local.test", name: "Capture", firstName: "Cap", lastName: "Ture", hasSignature: true }];
 // what the document routes answer: [content type, file name, body] — null: 204 (nothing to attach)
 const FILES = {
@@ -64,6 +64,7 @@ const SCENARIOS = {
   "bwt: signed on site": { type: "bwt", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "bl: signed on site": { type: "bl", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "bl: signed documents posted in test mode": { type: "bl", setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["psigned"]] },
+  "wd: signed on site": { type: "wd", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "signed from the Post tab: the signed documents can be posted": { setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["tab", "mail"], ["tab", "post"]] },
   "signed from the mail tab: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], via: "" }]], ...POST] },
   "signature not complete: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], status: "opened" }]], ...POST] },

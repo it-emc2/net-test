@@ -15,7 +15,7 @@ export const CHIPS = [35, 40, 45, 50, 60] as const;
 
 /** where the typed text is stored; null: this offer type has no markup (Alltagshilfe) */
 export function markupTextSection(type: string | null): "rabatt" | "Kundendaten" | null {
-  return type === "bu" || type === "bwt" || type === "hl" ? "rabatt" : type === "bl" ? "Kundendaten" : null;
+  return type === "bu" || type === "bwt" || type === "hl" ? "rabatt" : type === "bl" || type === "wd" || type === "hms" ? "Kundendaten" : null;
 }
 
 /** "37,5" / "40 %" → 37.5 / 40; no number → NaN (today's parseAufschlagPercent) */

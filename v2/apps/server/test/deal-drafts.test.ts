@@ -155,6 +155,8 @@ describe("deal drafts", () => {
   it("validation: bad deal id, dropped offer types, missing fields, no auth", async () => {
     expect((await put("abc", { offerType: "bu", payload: {}, baseRevision: 0 })).statusCode).toBe(400);
     expect((await put("5005", { offerType: "hms", payload: {}, baseRevision: 0 })).statusCode).toBe(400);
+    expect((await put("5005", { offerType: "xy", payload: {}, baseRevision: 0 })).statusCode).toBe(400);
+    expect((await put("5006", { offerType: "wd", payload: { activeOffer: "wd" }, baseRevision: 0 })).statusCode).toBe(200); // Winterdienst is a React type again (U-066)
     expect((await put("5005", { offerType: "bu", baseRevision: 0 })).statusCode).toBe(400);
     expect((await put("5005", { offerType: "bu", payload: {} })).statusCode).toBe(400);
     expect((await app.inject({ url: "/api/deals/1001/draft" })).statusCode).toBe(401);

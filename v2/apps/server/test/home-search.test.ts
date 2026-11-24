@@ -103,4 +103,9 @@ describe("opening a result = import into the deal's draft", () => {
     const hms = String((await Draft.findOne({ offerType: "hms" }).lean())!._id);
     expect((await post("/api/deals/70099/draft/import", { kind: "draft", id: hms, baseRevision: 0 })).json().error.code).toBe("UNSUPPORTED_TYPE");
   });
+  it("a Winterdienst offer is taken over like the other React types (U-066)", async () => {
+    const r = await post("/api/deals/70098/draft/import", { kind: "offer", offerNumber: "ANG2026-1107-100000", baseRevision: 0 });
+    expect(r.statusCode).toBe(200);
+    expect((await get("/api/deals/70098/draft")).json()).toMatchObject({ offerType: "wd", revision: 1 });
+  });
 });
