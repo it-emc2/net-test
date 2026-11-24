@@ -15,7 +15,7 @@
   --muted: #eef0f5;
   --muted-foreground: #5b6472; /* a little darker than today's #6b7280 → 4.5:1 on the page background */
   --border: #e5e7eb;
-  --input: #d1d5db;
+  --input: #6b7280;          /* boundary of every field, button and choice card: ≥ 3:1 on card and page (was #d1d5db, 1.5:1) */
   --destructive: #dc2626;
   --success: #16a34a;
   /* boundary of a tick box, chip or stepper button (≥ 3:1 on card and page) and status pills */
@@ -29,6 +29,7 @@
   --accent-weak: #ede9fe;    /* active / hover background */
   --primary: #7c3aed;        /* filled buttons: the "strong" accent, readable with white text */
   --primary-foreground: #ffffff;
+  --primary-text: var(--primary); /* the accent as TEXT / outline on card and page (dark: lifted to ≥ 4.5:1) */
   --ring: #7c3aed;
   --step-done: #a78bfa;
   --step-active: #7c3aed;
@@ -49,10 +50,11 @@
   --muted: #131f30;
   --muted-foreground: #9ca3af;
   --border: #1e2d3d;
-  --input: #334155;
+  --input: #7d8ba1;
   --destructive: #f87171;
   --success: #22c55e;
   --control: #7d8ba1;
+  --primary-text: color-mix(in srgb, var(--primary) 45%, white);
   --success-weak: #0b2e1b;
   --success-strong: #86efac;
   --warning-weak: #3a2306;
@@ -81,6 +83,7 @@
   --color-accent-weak: var(--accent-weak);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-text: var(--primary-text);
   --color-ring: var(--ring);
   --color-step-done: var(--step-done);
   --color-step-active: var(--step-active);

@@ -75,7 +75,7 @@ async function play(s: Scenario, router: Awaited<ReturnType<typeof open>>["route
     else if (kind === "apply") await user.click(screen.getByRole("button", { name: "In Fläche übernehmen" }));
     else if (kind === "next") await user.click(screen.getByRole("link", { name: /^Weiter zu/ }));
     else if (kind === "open") opened(a as Fields);
-    else if (kind === "goto") { await router.navigate(`/deal/${KEY}/bu/${a}`); await screen.findByRole("heading", { name: a === "Fussboden" ? "Fußboden" : String(a) }); }
+    else if (kind === "goto") { await router.navigate(`/deal/${KEY}/bu/${a}`); await screen.findByRole("heading", { name: a === "Fussboden" ? "Fußboden" : String(a) }, { timeout: STEP_LOADS }); }
     else if (kind === "wvon") await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
     else if (kind === "wvclassic") await user.click(screen.getByRole("button", { name: "Alter Konfigurator (Wandplan, Zeilen)" }));
     else if (kind === "wvplate") await user.click(within(screen.getByTestId("wvs")).getByRole("button", { name: `Mehr ${PLATE[String(a)]}` }));
@@ -85,10 +85,14 @@ async function play(s: Scenario, router: Awaited<ReturnType<typeof open>>["route
     else if (kind === "wvwidth") fireEvent.change(screen.getByLabelText(`Breite ${WALL_NAMES[a as string]} in cm`), { target: { value: b } });
     else if (kind === "wvwall") await user.click(screen.getByRole("button", { name: `Dekor für ${WALL_NAMES[a as string]} wählen` }));
     else if (kind === "wvdecor") { const wall = screen.getAllByTestId("kc-wall").find((x) => x.dataset.wall === a)!; await user.click(wall.querySelectorAll<HTMLElement>('[data-testid="kc-tiles"] button')[Number(b) - 1]!); }
-    else if (kind === "use") { await user.click(await screen.findByRole("button", { name: "Als Fußboden verwenden" })); await screen.findByRole("heading", { name: "Fußboden" }); }
+    else if (kind === "use") { await user.click(await screen.findByRole("button", { name: "Als Fußboden verwenden" }, { timeout: STEP_LOADS })); await screen.findByRole("heading", { name: "Fußboden" }, { timeout: STEP_LOADS }); }
     else throw new Error(`step not handled: ${kind}`);
   }
 }
+// A step page is a lazily loaded chunk (router.tsx → the whole steps bundle, the wall's Wandverkleidung page is the heaviest):
+// on a busy machine the 3 s default of the setup is not enough to show its heading after `router.navigate` — the cause of the
+// rare "Unable to find role="heading" and name "Wandverkleidung"". Wait for the same condition, longer (the test's own limit is 20 s).
+const STEP_LOADS = 15000;
 const plateSize = (code: string) => ({ 13: "100 × 205 cm", 15: "100 × 250 cm", 16: "125 × 250 cm", 17: "150 × 250 cm" } as Record<string, string>)[code]!;
 const sorted = (v: unknown): unknown => (Array.isArray(v) ? v.map(sorted) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted((v as Record<string, unknown>)[k])])) : v);
 const same = (a: unknown, b: unknown) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));

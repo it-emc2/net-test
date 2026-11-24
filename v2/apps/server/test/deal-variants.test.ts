@@ -4,7 +4,9 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { readFileSync } from "node:fs";
 import { loadConfig } from "@oc/config";
+import { ahDocumentInput, ahOfferTotals } from "@oc/pricing";
 import { variantCopyPayload, newOfferPatch } from "@oc/domain";
 import { buildApp } from "../src/app.js";
 import { createToken } from "../src/platform/auth.js";
@@ -17,6 +19,9 @@ import { claimNumber } from "../src/modules/sends/numbers.js";
 import { claimSendLock } from "../src/modules/email/send-lock.js";
 import { EmailSend } from "../src/platform/models.js";
 
+// what compose.ts passes in (THE AH total of the documents module), here with the default business settings
+const AH_CFG = { entlastungsbetragMonat: 131, steuerabsetzPct: 20, steuerabsetzCapJahr: 4000 };
+const AH_AMOUNT = (p: unknown, r: "document" | "screen") => ahOfferTotals(ahDocumentInput(p as any, AH_CFG, r)).customerAmount;
 const SECRET = "deal-variant-test-secret-0123456789";
 let mongod: MongoMemoryServer;
 let app: FastifyInstance;
@@ -30,6 +35,7 @@ beforeAll(async () => {
   await migrateDealDraftIndexes();
   app = await buildApp(cfg, {
     register: (a) => registerDealDrafts(a, {
+      ahAmountOf: AH_AMOUNT,
       // stands in for offers' resolveAnsprechpartner: the signed-in user becomes the contact person
       resolveContact: async (kd, user) => ({ ...kd, ansprechpartner: user?.email, emc2_contact: `Name of ${user?.email}` }),
     }),
@@ -250,6 +256,40 @@ describe("variants", () => {
     expect(l[0].notChosenAt).not.toBeNull();
     expect(l[1]).toMatchObject({ variantId: B, status: "signed", sentChannel: "post", total: 999, notChosenAt: null });
     expect(l[2]).toMatchObject({ variantId: C, status: "not-chosen", sentAt: null, total: 5 });
+  });
+
+  it("total of a handed-over offer: the send record has none, the stored offer does (U-polish)", async () => {
+    const at = new Date("2026-11-22T10:00:00Z");
+    const sendsC = db().collection("offer_sends"), offersC = db().collection("offers");
+    // non-AH: on-site hand-over record without total; the stored offer's pricing.total
+    await put("6021", { offerType: "bu", payload: OFFER("ANG-6021", { zusammenfassung: {} }), baseRevision: 0 });
+    await sendsC.insertOne({ sendId: "s-6021", dealId: "6021", offerNumber: "ANG-6021", status: "done", channel: "onsite", startedAt: at, finishedAt: at });
+    await offersC.insertOne({ offerNumber: "ANG-6021", offerType: "bu", payload: {}, pricing: { total: 4321.5 } });
+    expect((await variants("6021")).variants[0]).toMatchObject({ status: "sent", sentChannel: "onsite", total: 4321.5 });
+    // a record that carries a total keeps it (the stored one is not consulted)
+    await put("6022", { offerType: "bu", payload: OFFER("ANG-6022", { zusammenfassung: {} }), baseRevision: 0 });
+    await sendsC.insertOne({ sendId: "s-6022", dealId: "6022", offerNumber: "ANG-6022", status: "done", channel: "email", total: 100, startedAt: at, finishedAt: at });
+    await offersC.insertOne({ offerNumber: "ANG-6022", offerType: "bu", payload: {}, pricing: { total: 999 } });
+    expect((await variants("6022")).variants[0]).toMatchObject({ total: 100 });
+    // nothing stored under the number → no total, no new price calculation
+    await put("6023", { offerType: "bu", payload: OFFER("ANG-6023", { zusammenfassung: {} }), baseRevision: 0 });
+    await sendsC.insertOne({ sendId: "s-6023", dealId: "6023", offerNumber: "ANG-6023", status: "done", channel: "onsite", startedAt: at, finishedAt: at });
+    expect((await variants("6023")).variants[0]).toMatchObject({ status: "sent", total: null });
+    // a stored offer without a usable price → none
+    await put("6024", { offerType: "bu", payload: OFFER("ANG-6024", { zusammenfassung: {} }), baseRevision: 0 });
+    await sendsC.insertOne({ sendId: "s-6024", dealId: "6024", offerNumber: "ANG-6024", status: "done", channel: "onsite", startedAt: at, finishedAt: at });
+    await offersC.insertOne({ offerNumber: "ANG-6024", offerType: "bu", payload: {}, pricing: {} });
+    expect((await variants("6024")).variants[0]).toMatchObject({ total: null });
+    // AH: the monthly amount of the stored payload (ADR 028), not pricing.total
+    const ROOT = new URL("../../../../", import.meta.url).pathname;
+    const AH: any = structuredClone((JSON.parse(readFileSync(ROOT + "tests/golden/fixtures/ah/payloads.json", "utf8")) as any[])[0].payload);
+    AH.activeOffer = "ah"; AH.offerNumber = "ANG-6025";
+    const want = AH_AMOUNT(AH, "document");
+    expect(want).toBeGreaterThan(0);
+    await put("6025", { offerType: "ah", payload: AH, baseRevision: 0 });
+    await sendsC.insertOne({ sendId: "s-6025", dealId: "6025", offerNumber: "ANG-6025", status: "done", channel: "onsite", ahZoneReading: "document", startedAt: at, finishedAt: at });
+    await offersC.insertOne({ offerNumber: "ANG-6025", offerType: "ah", payload: AH, pricing: { total: 1 } });
+    expect((await variants("6025")).variants[0]).toMatchObject({ status: "sent", total: want });
   });
 
   it("status from the offer itself: only a versand with how and when counts as sent (a new offer carries an empty object) — step 2 fix", async () => {

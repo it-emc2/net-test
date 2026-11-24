@@ -254,7 +254,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
         <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</p>
         {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
-        <BarMoney base={base} fallback={<Total />} />
+        <BarMoney base={base} fallback={<Total />} className="max-[479px]:min-w-0 max-[479px]:shrink" />
       </div> : null}
       <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} q={q} current={step} statuses={statuses} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>

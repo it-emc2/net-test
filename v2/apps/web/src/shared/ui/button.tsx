@@ -10,11 +10,11 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "border-2 border-primary text-primary bg-transparent hover:bg-accent-weak",
+        secondary: "border-2 border-primary text-primary-text bg-transparent hover:bg-accent-weak",
         outline: "border-2 border-input bg-card text-foreground hover:bg-muted",
         ghost: "text-foreground hover:bg-muted",
         destructive: "bg-destructive text-white hover:bg-destructive/90",
-        link: "text-primary underline underline-offset-4",
+        link: "text-primary-text underline underline-offset-4",
       },
       size: { default: "min-h-12 px-5", lg: "min-h-14 px-6 text-lg", icon: "size-12" },
     },
