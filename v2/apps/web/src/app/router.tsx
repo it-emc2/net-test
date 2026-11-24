@@ -59,6 +59,9 @@ const adminUsers = () => import("../features/admin/index.js").then((m) => ({ Com
 const adminBitrix = () => import("../features/admin/index.js").then((m) => ({ Component: m.BitrixLogsPage }));
 const adminUserLogs = () => import("../features/admin/index.js").then((m) => ({ Component: m.UserLogsPage }));
 const adminPdf = () => import("../features/admin/index.js").then((m) => ({ Component: m.PdfStatsPage }));
+const adminSigning = () => import("../features/admin/index.js").then((m) => ({ Component: m.SigningPage }));
+const adminCatalog = () => import("../features/admin/index.js").then((m) => ({ Component: m.CatalogPage }));
+const adminPlanning = () => import("../features/admin/index.js").then((m) => ({ Component: m.PlanningDebugPage }));
 
 export const routes: RouteObject[] = [
   {
@@ -106,9 +109,12 @@ export const routes: RouteObject[] = [
           { index: true, element: <Navigate to="einstellungen/shared" replace /> },
           { path: "einstellungen/:section", lazy: adminSettings },
           { path: "benutzer", lazy: adminUsers },
+          { path: "katalog", lazy: adminCatalog },
+          { path: "signatur-links", lazy: adminSigning },
           { path: "pdf-engine", lazy: adminPdf },
           { path: "bitrix-fehler", lazy: adminBitrix },
           { path: "aktivitaet", lazy: adminUserLogs },
+          { path: "planung", lazy: adminPlanning },
         ],
       },
       { path: "home", element: <Navigate to="/" replace /> },

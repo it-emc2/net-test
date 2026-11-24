@@ -3,21 +3,14 @@
 // page (today: a browser alert).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApiFailure, call } from "../../shared/api/index.js";
 import { Alert, Button, Field } from "../../shared/ui/index.js";
-import { Badge, Confirm, Empty, Refresh, Select, Stats, TD, Table } from "./parts.js";
+import { Badge, Confirm, Empty, Refresh, Select, Stats, TD, Table, useSettled } from "./parts.js";
 import { PDF_DAYS, PDF_ENGINE, PDF_KIND, USER_EVENTS, fmtMs, fmtTs, pdfBaseline, pdfSummary, queryOf, sortPdfRows } from "./rules.js";
 
 const failText = (e: unknown) => (e instanceof ApiFailure ? e.message : "Fehler beim Laden.");
 type Row = Record<string, any>;
-
-/** the text after the last key stroke (today: 300 ms) */
-function useSettled(value: string, ms = 300): string {
-  const [v, setV] = useState(value);
-  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
-  return v;
-}
 
 // ---------- Bitrix-Fehler ----------
 const BX_KEY = ["admin", "bitrix-logs"] as const;

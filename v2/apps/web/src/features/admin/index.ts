@@ -4,3 +4,6 @@ export { SettingsPage } from "./Settings.js";
 export { UsersPage } from "./Users.js";
 export { isAdmin } from "./rules.js";
 export { BitrixLogsPage, PdfStatsPage, UserLogsPage } from "./Logs.js";
+export { SigningPage } from "./Signing.js";
+export { CatalogPage } from "./Catalog.js";
+export { PlanningDebugPage } from "./PlanningDebug.js";

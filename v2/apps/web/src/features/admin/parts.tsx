@@ -1,7 +1,7 @@
 // Small building blocks of the admin pages: the confirmation dialog (an in-page <dialog>, never
 // window.confirm), counters, a table that scrolls sideways on a phone, badges, a refresh button.
 import { RotateCw, X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, cn } from "../../shared/ui/index.js";
 
 /** Asks before a change takes effect. Esc, "Abbrechen", the X and a tap outside cancel. */
@@ -85,4 +85,11 @@ export function Select({ id, label, value, onChange, options }: { id: string; la
       </select>
     </label>
   );
+}
+
+/** the value after the last key stroke (today's search fields: 250–300 ms) */
+export function useSettled(value: string, ms = 300): string {
+  const [v, setV] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
+  return v;
 }

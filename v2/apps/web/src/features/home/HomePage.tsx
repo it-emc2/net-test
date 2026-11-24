@@ -3,7 +3,7 @@
 // search in stored drafts and offers — HomeSearch), saved on this device (U-016).
 import { NEW_OFFER_TYPES } from "@oc/domain";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useSession } from "../auth/index.js";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { OFFER_TITLES, SecondOfferHost, useOfferStore } from "../offer/index.js";
@@ -52,7 +52,7 @@ export function HomePage() {
       {pick ? <OfferPicker entry={pick} onClose={() => setPick(null)} /> : null}
       <SecondOfferHost />
       <p className="text-[0.95rem] text-muted-foreground"><a className="text-primary underline" href={CLASSIC_HOME}>Zur bisherigen Ansicht</a>
-        {admin ? <> · <a className="text-primary underline" href={CLASSIC_HOME} data-testid="debug-link">Debug-Ansicht Planung (bisherige Ansicht)</a></> : null}</p>
+        {admin ? <> · <Link className="text-primary underline" to="/admin/planung" data-testid="debug-link">Diagnose Planung</Link></> : null}</p>
     </Page>
   );
 }
