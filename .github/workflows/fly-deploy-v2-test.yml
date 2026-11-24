@@ -1,0 +1,23 @@
+# Deploys OC v2 to its own Fly.io app (the parallel test app, docs/rewrite/CUTOVER.md §1a).
+# Off until the owner has created the app: runs only when the repository variable
+# FLY_V2_TEST_DEPLOY is "on". Needs the secret FLY_API_TOKEN_V2_TEST (a deploy token of that app).
+# Today's production deploy (fly-deploy.yml, push to main) is not touched.
+name: Fly Deploy v2 test app
+on:
+  push:
+    branches:
+      - rewrite/v2
+jobs:
+  deploy:
+    name: Deploy v2 test app
+    if: vars.FLY_V2_TEST_DEPLOY == 'on'
+    runs-on: ubuntu-latest
+    concurrency: deploy-v2-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: >
+          flyctl deploy . --config v2/deploy/fly/app.fly.toml --dockerfile v2/Dockerfile
+          --ignorefile v2/Dockerfile.dockerignore --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_V2_TEST }}
