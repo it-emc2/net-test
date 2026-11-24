@@ -25,7 +25,9 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 
 ## 1a. Parallel test app on Fly.io (owner idea 2026-11-24, replaces the staging server of §1.5)
 
-v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Not deployed yet; the Fly files are untested.**
+v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Deployed 2026-11-24** as Fly app `ocv2-react`, address `ocv2.emc2.de` (certificate issued, DNS set): health check green, database connected, login requests from both addresses accepted (after the own-origin fix). A real login and a real PDF through `emc2-gotenberg` are not confirmed yet. The automatic deploy (step 6) is still off.
+
+**Migrations 001–005 applied to the live database 2026-11-24** (owner go, backup by the owner; run on the test app with `migrate.js --apply`): 001 three indexes, 002 one customer record (empty `customerNumber` removed), 003 six indexes, 004 two indexes, 005 nothing left to do. A second dry run reports nothing to change.
 
 PDF engine: the test app uses the **existing** Fly app `emc2-gotenberg` (Gotenberg 8.40.0, login required, found on Fly 2026-11-24) — the same one today's app uses. No second PDF app (owner decision 2026-11-24). Consequence: test PDFs and live PDFs share one machine.
 
