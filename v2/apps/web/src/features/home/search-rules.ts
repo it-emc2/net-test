@@ -16,6 +16,11 @@
 //    deal — the stored document is copied into it as a new version (POST …/draft/import). Without a
 //    deal number: under a new temporary key. When the deal already has a draft that differs, the user
 //    is asked first (open.ts). hms / wd: today's view.
+//  - U-063: a deal opened from an appointment (offer picker) or by its number lists its stored drafts
+//    and offers FIRST when it has any — before a new empty offer is started and also when the deal
+//    already has an autosaved draft (which before hid them). The list waits for the lookup at most
+//    DEAL_DOCS_WAIT_MS after the draft answered; failing or slow → the deal opens as before. An
+//    offer row with the autosaved draft's own offer number does not count (it IS that draft).
 import type { HomeSearchRow } from "@oc/api-contract";
 import { isNewOfferType, type NewOfferType } from "@oc/domain";
 
@@ -32,7 +37,46 @@ export const TEXT = {
   dealList: "Vorhandene Entwürfe / Angebote für diesen Deal",
   notFound: "Angebot wurde nicht gefunden.",
   openFailed: "Der Treffer konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
+  // U-063
+  storedTitle: "Gespeicherte Entwürfe und Angebote",
+  storedOr: "Oder ohne gespeichertes Dokument weiter:",
+  back: "Zurück",
 } as const;
+
+/** how long a deal's opening waits for its stored drafts/offers after the draft answered (U-063) */
+export const DEAL_DOCS_WAIT_MS = 1500;
+
+/** the deal's autosaved draft as the texts name it */
+export interface AutosavedInfo { offerType: string; updatedAt: string | Date; revision: number }
+/** „23.11.2026, 10:15“ — the date of an autosaved state (as the question of U-057) */
+export const savedWhen = (at: string | Date): string =>
+  new Date(at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+/** the button that continues with the autosaved draft (same words as U-057) */
+export const autosavedButton = (d: AutosavedInfo): string => `Automatisch gespeicherten Stand öffnen (${savedWhen(d.updatedAt)}, Version ${d.revision})`;
+
+/**
+ * U-063: are there stored drafts/offers to show before the deal opens? `rows` null = unknown
+ * (lookup failed or too slow) → no. An offer with the autosaved draft's own number is that draft.
+ */
+export function storedFirst(rows: readonly HomeSearchRow[] | null | undefined, draftOfferNumber = ""): boolean {
+  const own = draftOfferNumber.trim();
+  return !!rows?.some((r) => !(own && r.kind === "offer" && r.offerNumber === own));
+}
+
+/** the sentence above the list (U-063) */
+export function storedIntro(dealId: string, draft: (AutosavedInfo & { title: string }) | null): string {
+  return draft
+    ? `Zu Auftrag ${dealId} gibt es einen automatisch gespeicherten Stand (${draft.title}, ${savedWhen(draft.updatedAt)}, Version ${draft.revision}) und gespeicherte Entwürfe oder Angebote. Öffnen Sie eines davon oder arbeiten Sie mit dem automatisch gespeicherten Stand weiter.`
+    : `Zu Auftrag ${dealId} gibt es gespeicherte Entwürfe oder Angebote. Öffnen Sie eines davon oder beginnen Sie ein neues Angebot.`;
+}
+
+/** resolves with the answer, or null when it fails or takes longer than `ms` (never rejects) */
+export function within<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(null), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, () => { clearTimeout(t); resolve(null); });
+  });
+}
 
 /** today's date column: `new Date(…).toLocaleString("de-DE")` */
 export const dateText = (iso: string | null): string => (iso ? new Date(iso).toLocaleString("de-DE") : "");

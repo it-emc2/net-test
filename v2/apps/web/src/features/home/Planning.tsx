@@ -7,11 +7,14 @@ import { useNavigate } from "react-router";
 import { CONTACT_DEALS, call, ApiFailure, contactDealsQuery, dealCustomerQuery, type ContactDeal } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
-import type { DealRelation } from "@oc/api-contract";
+import type { DealDraftResponse, DealRelation, HomeSearchRow } from "@oc/api-contract";
 import { dealNumberTop, isNewOfferType, type NewOfferType } from "@oc/domain";
 import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
+import { Modal } from "./Modal.js";
+import { DealStart } from "./HomeSearch.js";
+import { DEAL_DOCS_WAIT_MS, TEXT, autosavedButton, storedFirst, within } from "./search-rules.js";
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
@@ -77,52 +80,66 @@ export function useStartFromAppointment() {
 const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"]];
 const NOT_YET: [string, string][] = [["wd", "Winterdienst"], ["hms", "Hausmeister-Service"]];
 
-export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => ref.current?.focus(), []);
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4" data-testid="planning-modal">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
-      <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
-        className={cn("relative grid max-h-[90dvh] w-full gap-4 overflow-y-auto rounded-xl border border-border bg-card p-5 text-card-foreground shadow-xl outline-none", wide ? "max-w-3xl" : "max-w-lg")}>
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="m-0">{title}</h3>
-          <button type="button" aria-label="Schließen" onClick={onClose} className="grid size-11 shrink-0 place-items-center rounded-lg border border-border"><X aria-hidden className="size-5" /></button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+export { Modal };
 
 /** what the picker shows when the deal already has an offer of ANOTHER type (ADR 027 B: no silent redirect) */
 interface Choice { type: NewOfferType; dealId: string; existing: NewOfferType; variantId?: string | undefined; customer: string; related: readonly DealRelation[]; same?: { dealId: string } | undefined }
 
-/** „Welche Angebotsart möchten Sie öffnen?“ — also what a tap in the week calendar opens */
+/** the stored drafts/offers shown before the deal opens (U-063) */
+interface Stored { type: string; rows: HomeSearchRow[]; draft: DealDraftResponse | null }
+
+/** „Welche Angebotsart möchten Sie öffnen?“ — also what a tap in the week calendar opens.
+ *  U-063: a deal with stored drafts/offers lists them first (before a new empty offer, and also when the
+ *  deal has an autosaved draft); without any, or when the lookup fails or is slow, as before. */
 export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose: () => void }) {
   const start = useStartFromAppointment();
   const qc = useQueryClient();
   const nav = useNavigate();
   const deal = entry.importDealId ? String(entry.importDealId) : "";
-  // asked when the picker opens, so a tap does not wait for it: the deal's draft (its type) and its related deals
+  // asked when the picker opens, so a tap does not wait for it: the deal's draft (its type), its related deals and its stored drafts/offers
   const draftQuery = { queryKey: ["picker-draft", deal], queryFn: () => call("dealDraft", { params: { dealId: deal } }), staleTime: 30_000, retry: false } as const;
   const relatedQuery = { queryKey: relatedKey(deal), queryFn: () => call("dealRelated", { params: { dealId: deal } }), staleTime: 5_000, retry: false } as const;
+  const docsQuery = { queryKey: ["picker-docs", deal], queryFn: () => call("homeByDeal", { params: { dealId: deal } }).then((r) => r.rows), staleTime: 30_000, retry: false } as const;
   useQuery({ ...draftQuery, enabled: !!deal });
   useQuery({ ...relatedQuery, enabled: !!deal });
+  useQuery({ ...docsQuery, enabled: !!deal });
   const [choice, setChoice] = useState<Choice | null>(null);
+  const [stored, setStored] = useState<Stored | null>(null);
   const [busy, setBusy] = useState("");
-  const pickType = async (t: string) => {
-    if (busy) return;
-    if (!deal || !isNewOfferType(t)) { start(entry, t); onClose(); return; }
-    setBusy(t);
+  /** today's way on: start the offer, or the choice of ADR 027 B when the deal's draft is of another type */
+  const proceed = async (t: NewOfferType, d: DealDraftResponse | null) => {
     // no draft yet, or it cannot be asked (offline): as before — the offer frame opens the deal's own offer and says so
-    const d = await qc.fetchQuery(draftQuery).catch(() => null);
     if (!d || d.offerType === t || !isNewOfferType(d.offerType)) { start(entry, t); onClose(); return; }
+    setBusy(t);
     const rel = await qc.fetchQuery(relatedQuery).then((r) => r.related, () => d.related ?? []);
     const same = relatedOfType(rel.map((r) => ({ ...r, createdAt: String(r.createdAt) })), t);
     setBusy("");
     setChoice({ type: t, dealId: deal, existing: d.offerType, variantId: d.variantId, customer: customerName((d.payload as Record<string, any>).Kundendaten), related: d.related ?? [], same: same ? { dealId: same.dealId } : undefined });
   };
+  const pickType = async (t: string) => {
+    if (busy) return;
+    if (!deal || !isNewOfferType(t)) { start(entry, t); onClose(); return; }
+    setBusy(t);
+    const docs = qc.fetchQuery(docsQuery);
+    docs.catch(() => {}); // a failing lookup only means: as before
+    const d = await qc.fetchQuery(draftQuery).catch(() => null);
+    const rows = await within(docs, DEAL_DOCS_WAIT_MS);
+    if (rows && storedFirst(rows, String((d?.payload as Record<string, unknown> | undefined)?.offerNumber ?? ""))) { setBusy(""); setStored({ type: t, rows, draft: d }); return; }
+    setBusy("");
+    await proceed(t, d);
+  };
+  if (stored && !choice) {
+    const t = stored.type as NewOfferType, d = stored.draft;
+    const other = !!d && isNewOfferType(d.offerType) && d.offerType !== t;
+    const info = d ? { offerType: d.offerType, updatedAt: String(d.updatedAt), revision: d.revision, title: typeTitle(d.offerType) } : null;
+    return (
+      <Modal title={TEXT.storedTitle} onClose={onClose} wide>
+        <DealStart dealId={deal} rows={stored.rows} draft={info}
+          continueLabel={other ? `Weiter mit ${typeTitle(t)}` : info ? autosavedButton(info) : `Neues leeres Angebot beginnen (${typeTitle(t)})`}
+          onContinue={() => void proceed(t, d)} onBack={() => setStored(null)} />
+      </Modal>
+    );
+  }
   if (choice) {
     const has = typeTitle(choice.existing), want = typeTitle(choice.type);
     return (
