@@ -23233,7 +23233,11 @@ async function suggestDistanceFromAddress(opts = {}) {
     const res = await fetch("/api/routing/suggest-distance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ Kundendaten: kundendaten }),
+      body: JSON.stringify({
+        Kundendaten: kundendaten,
+        // AH routes from Waldstraße 5 (server-side); everything else from the Handwerk base.
+        ...(String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah" ? { origin: "ah" } : {}),
+      }),
       credentials: "include",
     });
 
