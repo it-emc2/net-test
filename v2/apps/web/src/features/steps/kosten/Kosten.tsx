@@ -1,7 +1,7 @@
 // Kosten (Kosten-Details; ADR 026, phase 4): the internal overview of every position of the
 // offer with quantity, unit price and total, and the ladder of the sums — for checking the
 // calculation. Everything comes from the price (rules.ts); the page stores nothing.
-// Built for Badumbau, Badewannentür, Handlauf (as today's page groups it, rules.ts), Badelift and Winterdienst (the
+// Built for Badumbau, Badewannentür, Handlauf (as today's page groups it, rules.ts), Badelift, Winterdienst and Hausmeister-Service (the
 // server's empty shell: all sections empty, zeros) and, as its own
 // read-only page, Alltagshilfe (ah/Kosten.tsx, U-051).
 import { useQueryClient } from "@tanstack/react-query";
@@ -69,7 +69,7 @@ export function Kosten() {
   const offer = useOfferStore((s) => s.offer) as Record<string, any> | null;
   const ctx = { type, offer };
   if (type === "ah") return <AhKosten />;
-  if (type !== "bu" && type !== "bwt" && type !== "hl" && type !== "bl" && type !== "wd") {
+  if (type !== "bu" && type !== "bwt" && type !== "hl" && type !== "bl" && type !== "wd" && type !== "hms") {
     return (
       <Card>
         <CardTitle>Kosten</CardTitle>

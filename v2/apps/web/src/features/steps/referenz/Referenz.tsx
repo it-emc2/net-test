@@ -25,7 +25,8 @@ function Page({ kind, manifest = MANIFEST }: { kind: Kind; manifest?: Manifest }
   const [flash, setFlash] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const base = `/deal/${dealId}/${type}`;
-  const offerTitle = (OFFER_TITLES as Record<string, string>)[type] ?? "dieses Angebot";
+  // today's photo pages name Hausmeister-Service „Hausmeisterservice“ (referenzbilder.js OFFER_LABELS); the other types as the step list
+  const offerTitle = type === "hms" ? "Hausmeisterservice" : (OFFER_TITLES as Record<string, string>)[type] ?? "dieses Angebot";
 
   const projects = projectsOf(manifest, type, kind);
   const filter = validFilter(projects, filterRaw ?? null);

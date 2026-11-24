@@ -1,5 +1,5 @@
-// Price parity for Winterdienst (and Hausmeister-Service): the pricing engine must answer every price
-// request today's UI sent on the recorded pages (apps/web/test/fixtures/winterdienst.json, recorded by
+// Price parity for Winterdienst and Hausmeister-Service: the pricing engine must answer every price
+// request today's UI sent on the recorded pages (apps/web/test/fixtures/winterdienst.json, hausmeister.json, recorded by
 // v2/scripts/capture-wd-hms.cjs against the running server) with the same answer — the empty shell
 // (`_clientSideOffer`), whatever the page holds — and so must an offer as the React page writes it.
 import { readFileSync } from "node:fs";
@@ -11,7 +11,7 @@ import { deps, ProductModel } from "./fixtures.js";
 
 type F = Record<string, any>;
 const load = (f: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../../apps/web/test/fixtures/${f}`, import.meta.url)), "utf8"));
-const RECORDINGS: { type: "wd"; scenarios: F[] }[] = [load("winterdienst.json")];
+const RECORDINGS: { type: "wd" | "hms"; scenarios: F[] }[] = [load("winterdienst.json"), load("hausmeister.json")];
 const engine = createPricingEngine(ProductModel, deps);
 beforeAll(() => { vi.spyOn(console, "info").mockImplementation(() => {}); });
 afterAll(() => { vi.restoreAllMocks(); });

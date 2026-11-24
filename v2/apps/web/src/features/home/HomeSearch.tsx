@@ -18,7 +18,7 @@ import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 type Ask = Extract<Outcome, { kind: "ask" }>;
 const isAbort = (e: unknown) => (e as Error)?.name === "AbortError";
 
-/** One row of today's lists: a button (React types) or a link to today's view (hms …). */
+/** One row of today's lists: a button (React types) or a link to today's view (unknown types). */
 export function ResultRow({ row, active, busy, onOpen, id }: { row: HomeSearchRow; active?: boolean; busy?: boolean; onOpen: (r: HomeSearchRow) => void; id?: string }) {
   const v = rowView(row);
   const legacy = !reactTypeOf(row);
@@ -80,7 +80,7 @@ export function useOpenOutcome() {
     if (o.kind === "go") nav(o.path);
     else if (o.kind === "ask") setAsk(o);
     else if (o.kind === "failed") setMessage(o.message);
-    else window.location.assign(CLASSIC_HOME); // today's view (hms)
+    else window.location.assign(CLASSIC_HOME); // today's view (unknown types)
   };
   // in the page's body: a card around the field must not become the dialog's frame (it clipped it)
   const dialog = ask ? createPortal(<TakeOverQuestion q={ask} onClose={() => setAsk(null)} onOutcome={handle} />, document.body) : null;

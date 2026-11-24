@@ -22,6 +22,7 @@ export { AhLeistungen } from "./ah/Leistungen.js";
 export { AhFinanzierung } from "./ah/Finanzierung.js";
 export { Badelift } from "./bl/Badelift.js";
 export { Winterdienst } from "./wd/Winterdienst.js";
+export { Hausmeister } from "./hms/Hausmeister.js";
 
 // what "Weiter" asks for on these steps before it goes on
 import { setStepCheck, setStepStatuses } from "../offer/index.js";

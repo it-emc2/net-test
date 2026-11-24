@@ -21,7 +21,7 @@ const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: st
 const DEAL_NUMBER = /^\d{1,12}$/;
 /** a deal number, or the temporary key of a draft started without one (option A) */
 const DEAL_ID = { test: (v: string) => DEAL_NUMBER.test(v) || TEMP_KEY.test(v) };
-/** the offer types the React app builds (@oc/domain NEW_OFFER_TYPES; ADR 011 dropped HMS/WD, Winterdienst is back on request: U-066) */
+/** the offer types the React app builds (@oc/domain NEW_OFFER_TYPES; ADR 011 dropped HMS/WD, both are back on request: U-066 / U-067) */
 const OFFER_TYPES = new Set<string>(NEW_OFFER_TYPES);
 
 export interface DealDraftDeps {

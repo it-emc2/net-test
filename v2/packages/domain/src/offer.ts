@@ -11,13 +11,15 @@ import bl from "./empty/bl.json" with { type: "json" };
 import bu from "./empty/bu.json" with { type: "json" };
 import bwt from "./empty/bwt.json" with { type: "json" };
 import hl from "./empty/hl.json" with { type: "json" };
+import hms from "./empty/hms.json" with { type: "json" };
 import wd from "./empty/wd.json" with { type: "json" };
 
-const EMPTY = { bu, bwt, hl, bl, ah, wd } as const;
+const EMPTY = { bu, bwt, hl, bl, ah, hms, wd } as const;
 
-/** Offer types the new UI builds, in the order of today's Hauptmenü. Winterdienst (`wd`) was left out
- *  by ADR 011 (U-001) and is built again on request (UX-CHANGES U-066, proposed). */
-export const NEW_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah", "wd"] as const;
+/** Offer types the new UI builds, in the order of today's Hauptmenü. Hausmeister-Service (`hms`) and
+ *  Winterdienst (`wd`) were left out by ADR 011 (U-001) and are built again on request (UX-CHANGES
+ *  U-066 / U-067, proposed). */
+export const NEW_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah", "hms", "wd"] as const;
 export type NewOfferType = (typeof NEW_OFFER_TYPES)[number];
 export const isNewOfferType = (v: unknown): v is NewOfferType => typeof v === "string" && (NEW_OFFER_TYPES as readonly string[]).includes(v);
 /** Target types of „Weiteres Angebot“ (ADR 027 B): a new Bitrix deal needs per-type deal values
@@ -47,6 +49,7 @@ export type BwtOffer = Offer<"bwt">;
 export type HlOffer = Offer<"hl">;
 export type BlOffer = Offer<"bl">;
 export type AhOffer = Offer<"ah">;
+export type HmsOffer = Offer<"hms">;
 export type WdOffer = Offer<"wd">;
 
 /** Name of a section (an object-valued top-level key) of an offer. */

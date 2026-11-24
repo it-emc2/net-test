@@ -79,6 +79,7 @@ const SCENARIOS = {
   "bwt: sent in test mode": { type: "bwt", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
   "bl: sent in test mode": { type: "bl", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
   "wd: sent in test mode": { type: "wd", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
+  "hms: sent in test mode": { type: "hms", setup: ADDR, pre: POST, acts: [["psend"], ["close"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

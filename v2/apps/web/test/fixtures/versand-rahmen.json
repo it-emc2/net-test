@@ -3124,6 +3124,57 @@
     }
    },
    "acts": []
+  },
+  {
+   "name": "Hausmeister-Service",
+   "type": "hms",
+   "setup": [],
+   "offer": {},
+   "view": {
+    "heading": "Zusammenfassung",
+    "contact": {
+     "label": "Ansprechpartner",
+     "options": [
+      {
+       "value": "ap.eins@local.test",
+       "label": "AP Eins"
+      },
+      {
+       "value": "capture@local.test",
+       "label": "Capture"
+      },
+      {
+       "value": "ap.drei@local.test",
+       "label": "AP Drei"
+      }
+     ],
+     "value": "capture@local.test"
+    },
+    "two": null,
+    "status": "Noch nicht versendet.",
+    "docs": {
+     "title": "Mitgesendete Unterlagen",
+     "text": "Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.",
+     "items": [
+      {
+       "id": "abtretung",
+       "label": "Abtretungserklärung zur Abrechnung mit der Krankenkasse",
+       "checked": true
+      },
+      {
+       "id": "vollmacht",
+       "label": "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI",
+       "checked": true
+      },
+      {
+       "id": "barrierefrei",
+       "label": "Flyer „Barrierefreies Wohnen“",
+       "checked": true
+      }
+     ]
+    }
+   },
+   "acts": []
   }
  ],
  "bases": {
@@ -4629,6 +4680,209 @@
     "to": "",
     "subject": "emc2 | Ihr Angebot ANG2026-1124-171852 zum Winterdienst",
     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1124-171852\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+   }
+  },
+  "hms": {
+   "Kundendaten": {
+    "bitrixContactId": "",
+    "date": "2026-11-24",
+    "firstName": "",
+    "lastName": "",
+    "p2FirstName": "",
+    "p2LastName": "",
+    "phone": "",
+    "email": "",
+    "emailCc": "",
+    "street": "",
+    "city": "",
+    "state": "",
+    "postalCode": "",
+    "deployment": "",
+    "customerType": "Neu",
+    "hasContactPerson": "Nein",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_email": "",
+    "cp_street": "",
+    "cp_city": "",
+    "cp_state": "",
+    "cp_postalCode": "",
+    "emc2_contact": "Capture",
+    "ansprechpartner": "capture@local.test",
+    "payer": "Kassenkunde",
+    "kk_geburtsdatum": "",
+    "kk_versichertennr": "",
+    "kassenkundeName": "",
+    "kk_krankenkasseAdresse": "",
+    "kk_pflegegradSeit": "",
+    "kk_rechnungskopie": "nein",
+    "sonderaufschlagValue": "50",
+    "copayAmount": 0,
+    "partnerSalutation": "",
+    "wohnumfeldDone": "Nein",
+    "ah_mobilitaet": "",
+    "ah_allergien": "",
+    "ah_demenz": "",
+    "ah_sprache": "",
+    "ah_sonstiges": "",
+    "parkDetails": "",
+    "notes": "",
+    "aufschlag": "50%",
+    "customerNumber": "",
+    "budgetOptionsPanel": "",
+    "kundenName": "",
+    "greetingLine": "",
+    "wohnumfeld": {
+     "done": false,
+     "amount": 0,
+     "entries": []
+    }
+   },
+   "duschwanne": {},
+   "wandverkleidung": {},
+   "duschabtrennung": {},
+   "optional": {},
+   "rabatt": {},
+   "bwt": {},
+   "hl": {},
+   "ah": {},
+   "Finanzierung": {},
+   "hms": {
+    "ahEinsatzUmfang": "",
+    "ahMonatUmfang": "",
+    "hmsNote": "",
+    "hmsSketchDataUrl": "",
+    "hmsSketchJson": "",
+    "sketch": {
+     "json": "",
+     "dataUrl": ""
+    }
+   },
+   "wd": {},
+   "pricingRules": {
+    "kleinInAufschlag": true,
+    "azMinutes": {
+     "remove_tub": 45,
+     "install_bathtub": 90,
+     "install_bathtub_screen": 60,
+     "remove_showertub": 30,
+     "install_tray": 75,
+     "install_sitzbath": 120,
+     "remove_shower_curtain": 15,
+     "remove_enclosure": 25,
+     "install_shower_curtain": 15,
+     "install_enclosure": 60,
+     "install_distance_profile": 20,
+     "trockenbau_duschbereich": 0,
+     "close_valve": 45,
+     "relocate_faucet": 90,
+     "relocate_drain": 30,
+     "install_lifting_unit": 0,
+     "convert_faucet": 90,
+     "replace_thermostat": 30,
+     "replace_shower_no_thermo": 30,
+     "replace_shower_with_thermo": 45,
+     "install_shower_basket": 15,
+     "remove_sink": 30,
+     "install_sink": 45,
+     "replace_sink_faucet": 30,
+     "remove_furniture": 20,
+     "install_furniture": 30,
+     "remove_toilet": 50,
+     "install_toilet": 20,
+     "install_shower_wc": 60,
+     "trockenbau_wc": 0,
+     "wv997": 30,
+     "wv1497": 40,
+     "silikon": 10,
+     "flooring_m2": 8,
+     "flooring_flat": 25,
+     "grab": 30
+    },
+    "bwtKmFreeThreshold": 0,
+    "bwtTravelTimeFreeHours": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000
+   },
+   "bl": {},
+   "offerNumber": "ANG2026-1124-173441",
+   "Arbeitszeit": {
+    "totalHoursHHMM": "7:00",
+    "totalHoursNumeric": 7,
+    "ReiseHoursNumeric": 0,
+    "ArbeitHoursNumeric": 7,
+    "workDays": 1,
+    "uebernachten": 0,
+    "travelDays": 1,
+    "laborHoursHHMM": "07:00",
+    "travelTimeHHMM": "",
+    "distanceKm": "",
+    "ahTravelZone": 0,
+    "travelSecondWorkerRate": 35,
+    "laborHoursSource": "manual",
+    "autoSuggestedHoursHHMM": "00:00",
+    "autoSuggestedHoursNumeric": 0,
+    "autoSuggestedTasks": [],
+    "travelCostDebug": {
+     "laborRate": 69.5,
+     "secondWorkerRate": 35,
+     "workCost": 973,
+     "travelDriverCost": 0,
+     "travelSecondWorkerCost": 0,
+     "totalCost": 973
+    }
+   },
+   "activeOffer": "hms",
+   "includeOurSignature": true,
+   "ourSignatureUser": "capture",
+   "postal": {
+    "auftragId": "",
+    "recipient": {
+     "firstName": "",
+     "lastName": "",
+     "street": "",
+     "zipCode": "",
+     "city": "",
+     "country": "Deutschland"
+    },
+    "attachments": [
+     {
+      "id": "abtretung",
+      "type": "static",
+      "filename": "Abtretungserklärung.pdf",
+      "label": "Default",
+      "size": 0
+     },
+     {
+      "id": "vollmacht",
+      "type": "static",
+      "filename": "Vollmacht.pdf",
+      "label": "Default",
+      "size": 0
+     }
+    ]
+   },
+   "docSelection": {
+    "abtretung": true,
+    "vollmacht": true,
+    "barrierefrei": true
+   },
+   "zusammenfassung": {
+    "versand": {
+     "art": null,
+     "versendetAm": null
+    },
+    "checkliste": {
+     "skizzeErstellt": false,
+     "fotosErstellt": false
+    },
+    "checkAck": {}
+   },
+   "mail": {
+    "auftragId": "",
+    "to": "",
+    "subject": "emc2 | Ihr Angebot ANG2026-1124-173441 zum Hausmeisterservice",
+    "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1124-173441\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
    }
   }
  },

@@ -1,6 +1,6 @@
-// Winterdienst (step `wd`) must store and show what today's UI does for the same inputs; its Kosten
-// page and total too. Reference: fixtures/winterdienst.json, recorded from today's UI by
-// v2/scripts/capture-wd-hms.cjs. On purpose different (UX-CHANGES U-066, proposed): an opened offer
+// Winterdienst (step `wd`) and Hausmeister-Service (step `hms`, the same page today) must store and show what
+// today's UI does for the same inputs; their Kosten page and total too. Reference: fixtures/winterdienst.json and hausmeister.json, recorded from today's UI by
+// v2/scripts/capture-wd-hms.cjs. On purpose different (UX-CHANGES U-066 / U-067, proposed): an opened offer
 // shows and keeps its choices and hours (today's restore fills only the note and the sketch, so they
 // are gone with the next save), and the second choice reads „Haushaltsnahe Dienstleistungen“ (the
 // v2 add-on's label). The test environment has no canvas (see wv-skizze.test.tsx).
@@ -12,6 +12,7 @@ import { useOfferStore } from "../src/features/offer/index.js";
 import { sections, sums } from "../src/features/steps/kosten/rules.js";
 import { statuses } from "../src/features/steps/status.js";
 import { ART, HEADING, NOTE_PLACEHOLDER, REGULARITY, TEXT, type ServiceType } from "../src/features/steps/wd/rules.js";
+import hms from "./fixtures/hausmeister.json" with { type: "json" };
 import wd from "./fixtures/winterdienst.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 
@@ -104,7 +105,7 @@ const viewWanted = (v: F, kept: F, opened: F | null) => ({
 });
 
 interface Rec { type: ServiceType; base: F; scenarios: F[] }
-const RECORDINGS: Rec[] = [wd as unknown as Rec];
+const RECORDINGS: Rec[] = [wd as unknown as Rec, hms as unknown as Rec];
 
 describe.each(RECORDINGS.map((r) => [r.type, r] as const))("%s stores and shows what today's UI does", (t, rec) => {
   const OPENED = (s: F) => s.steps[0]?.[0] === "open";
@@ -131,7 +132,7 @@ describe.each(RECORDINGS.map((r) => [r.type, r] as const))("%s stores and shows 
 
   it.each(rec.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, s) => {
     const opened = OPENED(s) ? (s.steps[0][1] as F) : null;
-    const stored = opened ? { ...emptyOffer(t as "wd", { date: "2026-11-24" }), [t]: opened } : undefined;
+    const stored = opened ? { ...emptyOffer(t, { date: "2026-11-24" }), [t]: opened } : undefined;
     const { router, base, server } = await open(t, stored, s.price);
     const next = await play(s.steps, router);
     if (s.next) expect(next).toBe(s.next);
@@ -168,6 +169,19 @@ describe.each(RECORDINGS.map((r) => [r.type, r] as const))("%s · Kosten shows w
     expect(sections(s.price, { type: t }).map((x) => [x.num, x.title])).toEqual(lists.map((x) => [x.num, x.title]));
     const last = sums(s.price, { type: t }).at(-1) as F;
     expect([last.label, flat(last.value), last.total]).toEqual(["Gesamt (brutto):", flat(totals.sums.at(-1).value), true]);
+  });
+});
+
+describe("Hausmeister-Service — step list and Referenzbilder", () => {
+  it("done once something is entered on the page, open before", () => {
+    const o = emptyOffer("hms", { date: "" }) as F;
+    expect(statuses("hms", o, null).hms).toEqual({ kind: "open" });
+    expect(statuses("hms", { ...o, hms: { ...o.hms, ahArt: "Alltagsbegleitung" } }, null).hms).toEqual({ kind: "done" });
+  });
+  it("the photo pages are in the step list (as today) and name the type as today („Hausmeisterservice“)", async () => {
+    fakeServer({ ...BASE, "POST /api/price": { body: hms.scenarios[0]!.price } });
+    renderApp(`/deal/${KEY}/hms/referenzVorher`);
+    expect(await screen.findByText("· Hausmeisterservice")).toBeTruthy();
   });
 });
 

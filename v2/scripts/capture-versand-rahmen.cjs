@@ -44,6 +44,7 @@ const SCENARIOS = {
   "Badelift": { type: "bl" },
   "Alltagshilfe": { type: "ah" },
   "Winterdienst": { type: "wd" },
+  "Hausmeister-Service": { type: "hms" },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

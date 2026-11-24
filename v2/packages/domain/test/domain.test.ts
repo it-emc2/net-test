@@ -134,15 +134,22 @@ describe("emptyOffer — what today's UI stores for a new offer", () => {
     expect(b.duschwanne).toBe(a.duschwanne); // untouched sections are shared, not copied
   });
 
-  it("isNewOfferType: the types of the new UI (Winterdienst again, U-066), not HMS yet", () => {
+  it("isNewOfferType: the types of the new UI (Winterdienst and Hausmeister-Service again, U-066 / U-067)", () => {
     expect(NEW_OFFER_TYPES.every(isNewOfferType)).toBe(true);
-    expect([isNewOfferType("wd"), isNewOfferType("hms"), isNewOfferType("BU"), isNewOfferType(null)]).toEqual([true, false, false, false]);
+    expect([...NEW_OFFER_TYPES]).toEqual(["bu", "bwt", "hl", "bl", "ah", "hms", "wd"]);
+    expect([isNewOfferType("wd"), isNewOfferType("hms"), isNewOfferType("BU"), isNewOfferType("xy"), isNewOfferType(null)]).toEqual([true, true, false, false, false]);
   });
 
   it("„Weiteres Angebot“ targets: the five types with Bitrix deal values, not Winterdienst / Hausmeister-Service", () => {
     expect([...SECOND_OFFER_TYPES]).toEqual(["bu", "bwt", "hl", "bl", "ah"]);
     expect(SECOND_OFFER_TYPES.every(isNewOfferType)).toBe(true);
     expect([isSecondOfferType("wd"), isSecondOfferType("hms"), isSecondOfferType("bl")]).toEqual([false, false, true]);
+  });
+
+  it("Hausmeister-Service: a new offer is today's (the page's empty fields, no price of its own)", () => {
+    const o: any = emptyOffer("hms", { date: "2026-11-24" });
+    expect(o.hms).toEqual({ ahEinsatzUmfang: "", ahMonatUmfang: "", sketch: { dataUrl: "", json: "" }, hmsNote: "", hmsSketchDataUrl: "", hmsSketchJson: "" });
+    expect(isClientPricedOffer(o)).toBe(true);
   });
 
   it("Winterdienst: a new offer is today's (the page's empty fields, no price of its own)", () => {

@@ -54,6 +54,7 @@ const SCENARIOS = {
   "Alltagshilfe": { type: "ah", setup: KUNDE, acts: [["tile", "AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf"]] },
   "Alltagshilfe, Selbstzahler": { type: "ah", setup: [...KUNDE, ["radio", "payer", "Selbstzahler"]] },
   "Winterdienst": { type: "wd", setup: KUNDE },
+  "Hausmeister-Service": { type: "hms", setup: KUNDE },
   "Neukundenbonus ticked": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"]] },
   "Neukundenbonus ticked, the total below the threshold": { setup: KUNDE, rb: [["big"], ["rabatt"], ["b300"], ["small"]] },
 };

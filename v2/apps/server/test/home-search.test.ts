@@ -97,11 +97,12 @@ describe("opening a result = import into the deal's draft", () => {
     expect(again.statusCode).toBe(409);
     expect(again.json().error.code).toBe("REVISION_CONFLICT");
   });
-  it("a draft under a temporary key; an hms draft is refused (not a React type)", async () => {
+  it("a draft under a temporary key; an hms draft is taken over (a React type again, U-067)", async () => {
     const id = String((await Draft.findOne({ offerType: "hl" }).lean())!._id);
     expect((await post("/api/deals/t-0123456789abcdef01234567/draft/import", { kind: "draft", id, baseRevision: 0 })).statusCode).toBe(200);
     const hms = String((await Draft.findOne({ offerType: "hms" }).lean())!._id);
-    expect((await post("/api/deals/70099/draft/import", { kind: "draft", id: hms, baseRevision: 0 })).json().error.code).toBe("UNSUPPORTED_TYPE");
+    expect((await post("/api/deals/70099/draft/import", { kind: "draft", id: hms, baseRevision: 0 })).statusCode).toBe(200);
+    expect((await get("/api/deals/70099/draft")).json()).toMatchObject({ offerType: "hms", revision: 1 });
   });
   it("a Winterdienst offer is taken over like the other React types (U-066)", async () => {
     const r = await post("/api/deals/70098/draft/import", { kind: "offer", offerNumber: "ANG2026-1107-100000", baseRevision: 0 });

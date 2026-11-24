@@ -77,9 +77,8 @@ export function useStartFromAppointment() {
   };
 }
 
-// today's order of the picker (PLANNING_OFFER_TYPES); NOT_YET: still in today's view
-const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"], ["wd", "Winterdienst"]];
-const NOT_YET: [string, string][] = [["hms", "Hausmeister-Service"]];
+// today's order of the picker (PLANNING_OFFER_TYPES)
+const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"], ["wd", "Winterdienst"], ["hms", "Hausmeister-Service"]];
 
 export { Modal };
 
@@ -165,7 +164,6 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
       <p className="m-0 text-muted-foreground">{entry.name || "Unbekannt"} · {entry.address || "Ort unbekannt"}</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {TYPES.map(([t, title]) => <Button key={t} variant="outline" size="lg" className="h-auto min-h-20 flex-col" data-offer-key={t} disabled={!!busy} onClick={() => void pickType(t)}>{busy === t ? "Einen Moment …" : title}</Button>)}
-        {NOT_YET.map(([t, title]) => <Button key={t} asChild variant="secondary" size="lg" className="h-auto min-h-20 flex-col whitespace-normal text-center"><a href={CLASSIC_HOME} data-offer-key={t}>{title}<span className="text-[0.95rem] font-normal">in der bisherigen Ansicht</span></a></Button>)}
       </div>
     </Modal>
   );

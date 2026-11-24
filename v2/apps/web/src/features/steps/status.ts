@@ -64,7 +64,7 @@ function content(step: string, o: F): boolean | undefined {
 export function statuses(type: NewOfferType, offer: unknown, price: unknown): Record<string, StepStatus> {
   const o = obj(offer);
   const out: Record<string, StepStatus> = {};
-  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "hl" ? ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : type === "wd" ? ["Kundendaten", "Arbeitszeit", "wd"] : type === "bwt" ? ["Kundendaten", "Arbeitszeit", "bwtArbeiten", "bwt", "Rabatt"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
+  const steps = type === "bu" ? ["Kundendaten", "Arbeitszeit", "Arbeiten", "Duschwanne", "Fussboden", "Wandverkleidung", "DuschabtrennungNeu", "Duschvorhang", "Optional", "Rabatt", "Angebotscheck"] : type === "ah" ? ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten"] : type === "hl" ? ["Kundendaten", "Arbeitszeit", "hlArbeiten", "hlk", "Rabatt"] : type === "bl" ? ["Kundendaten", "Arbeitszeit", "bl"] : type === "wd" || type === "hms" ? ["Kundendaten", "Arbeitszeit", type] : type === "bwt" ? ["Kundendaten", "Arbeitszeit", "bwtArbeiten", "bwt", "Rabatt"] : ["Kundendaten", "Arbeitszeit", "Rabatt"];
   for (const step of steps) {
     if (step === "Angebotscheck") {
       if (!price) { out[step] = { kind: "none" }; continue; }

@@ -27030,6 +27030,718 @@
      }
     }
    ]
+  },
+  {
+   "name": "hms: sent in test mode",
+   "type": "hms",
+   "setup": [
+    [
+     "radio",
+     "salutation",
+     "Frau"
+    ],
+    [
+     "text",
+     "firstName",
+     "Erika"
+    ],
+    [
+     "text",
+     "lastName",
+     "Muster"
+    ],
+    [
+     "text",
+     "email",
+     "kunde@example.test"
+    ],
+    [
+     "radio",
+     "vermieterGenehmigungErforderlich",
+     "Nein"
+    ],
+    [
+     "text",
+     "street",
+     "Musterweg 4"
+    ],
+    [
+     "text",
+     "postalCode",
+     "95028"
+    ],
+    [
+     "text",
+     "city",
+     "Hof"
+    ]
+   ],
+   "pre": [
+    [
+     "deal",
+     "65418"
+    ],
+    [
+     "tab",
+     "post"
+    ]
+   ],
+   "answers": [],
+   "offer": {
+    "Kundendaten": {
+     "bitrixContactId": "",
+     "salutation": "Frau",
+     "date": "2026-11-24",
+     "firstName": "Erika",
+     "lastName": "Muster",
+     "p2FirstName": "",
+     "p2LastName": "",
+     "phone": "",
+     "email": "kunde@example.test",
+     "emailCc": "",
+     "street": "Musterweg 4",
+     "city": "Hof",
+     "state": "",
+     "postalCode": "95028",
+     "deployment": "",
+     "customerType": "Neu",
+     "hasContactPerson": "Nein",
+     "cp_name": "",
+     "cp_phone": "",
+     "cp_email": "",
+     "cp_street": "",
+     "cp_city": "",
+     "cp_state": "",
+     "cp_postalCode": "",
+     "emc2_contact": "Capture",
+     "ansprechpartner": "capture@local.test",
+     "payer": "Kassenkunde",
+     "kk_geburtsdatum": "",
+     "kk_versichertennr": "",
+     "kassenkundeName": "",
+     "kk_krankenkasseAdresse": "",
+     "kk_pflegegradSeit": "",
+     "kk_rechnungskopie": "nein",
+     "sonderaufschlagValue": "50",
+     "copayAmount": 0,
+     "partnerSalutation": "",
+     "wohnumfeldDone": "Nein",
+     "ah_mobilitaet": "",
+     "ah_allergien": "",
+     "ah_demenz": "",
+     "ah_sprache": "",
+     "ah_sonstiges": "",
+     "parkDetails": "",
+     "notes": "",
+     "aufschlag": "50%",
+     "customerNumber": "",
+     "budgetOptionsPanel": "",
+     "kundenName": "",
+     "greetingLine": "",
+     "wohnumfeld": {
+      "done": false,
+      "amount": 0,
+      "entries": []
+     }
+    },
+    "Arbeitszeit": {
+     "totalHoursHHMM": "7:06",
+     "totalHoursNumeric": 7.1,
+     "ReiseHoursNumeric": 0.1,
+     "ArbeitHoursNumeric": 7,
+     "workDays": 1,
+     "uebernachten": 0,
+     "travelDays": 1,
+     "laborHoursHHMM": "07:00",
+     "travelTimeHHMM": "0:03",
+     "distanceKm": "2.0",
+     "ahTravelZone": 0,
+     "travelSecondWorkerRate": 35,
+     "laborHoursSource": "manual",
+     "autoSuggestedHoursHHMM": "00:00",
+     "autoSuggestedHoursNumeric": 0,
+     "autoSuggestedTasks": [],
+     "travelCostDebug": {
+      "laborRate": 69.5,
+      "secondWorkerRate": 35,
+      "workCost": 973,
+      "travelDriverCost": 6.95,
+      "travelSecondWorkerCost": 3.5,
+      "totalCost": 983.45
+     }
+    },
+    "auftragId": "65418",
+    "postal": {
+     "auftragId": "65418",
+     "recipient": {
+      "firstName": "Erika",
+      "lastName": "Muster",
+      "street": "Musterweg 4",
+      "zipCode": "95028",
+      "city": "Hof",
+      "country": "Deutschland"
+     },
+     "attachments": [
+      {
+       "id": "abtretung",
+       "type": "static",
+       "filename": "Abtretungserklärung.pdf",
+       "label": "Default",
+       "size": 0
+      },
+      {
+       "id": "vollmacht",
+       "type": "static",
+       "filename": "Vollmacht.pdf",
+       "label": "Default",
+       "size": 0
+      }
+     ]
+    },
+    "mail": {
+     "auftragId": "65418",
+     "to": "kunde@example.test",
+     "subject": "emc2 | Ihr Angebot ANG2026-1124-173547 zum Hausmeisterservice",
+     "body": "Sehr geehrte Frau Muster,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1124-173547\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+    }
+   },
+   "view": {
+    "step": "Zusammenfassung",
+    "send": {
+     "label": "An Kunden senden",
+     "disabled": false,
+     "edited": false
+    },
+    "bitrix": {
+     "label": "Nur in Bitrix ablegen",
+     "disabled": false
+    },
+    "docx": {
+     "title": "Angebot in Word angepasst?",
+     "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+     "remove": false,
+     "note": ""
+    },
+    "attachments": [
+     {
+      "name": "<number>.pdf",
+      "meta": "Angebots-PDF"
+     },
+     {
+      "name": "Abtretungserklärung.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "emc2_Barrierefreies_Wohnen.pdf",
+      "meta": "Default"
+     },
+     {
+      "name": "Vollmacht.pdf",
+      "meta": "Default"
+     }
+    ],
+    "count": "4 Dateien",
+    "bitrixFiles": [],
+    "bitrixCount": "0 Dateien",
+    "deal": {
+     "value": "65418",
+     "invalid": false
+    },
+    "note": "",
+    "status": null,
+    "hp": null,
+    "stage": null,
+    "ask": null,
+    "versand": "Noch nicht versendet.",
+    "tab": "post",
+    "tabs": [
+     "Angebot per E-Mail",
+     "Angebot per Post"
+    ],
+    "mailShown": false,
+    "post": {
+     "shown": true,
+     "title": "Angebot per Post senden",
+     "warning": "",
+     "fields": {
+      "deal": {
+       "label": "Lead ID / Auftrag ID",
+       "value": "65418",
+       "invalid": false
+      },
+      "firstName": {
+       "label": "Vorname",
+       "value": "Erika",
+       "invalid": false
+      },
+      "lastName": {
+       "label": "Nachname",
+       "value": "Muster",
+       "invalid": false
+      },
+      "street": {
+       "label": "Straße",
+       "value": "Musterweg 4",
+       "invalid": false
+      },
+      "zipCode": {
+       "label": "PLZ",
+       "value": "95028",
+       "invalid": false
+      },
+      "city": {
+       "label": "Ort",
+       "value": "Hof",
+       "invalid": false
+      },
+      "country": {
+       "label": "Land",
+       "value": "Deutschland",
+       "invalid": false
+      }
+     },
+     "focus": "",
+     "upload": "Zusätzliche Anhänge (optional, PDF)",
+     "files": [
+      {
+       "name": "<number>.pdf",
+       "meta": "Angebots-PDF",
+       "fixed": true
+      },
+      {
+       "name": "Abtretungserklärung.pdf",
+       "meta": "Default",
+       "fixed": false
+      },
+      {
+       "name": "Vollmacht.pdf",
+       "meta": "Default",
+       "fixed": false
+      }
+     ],
+     "listTitle": "Im Postversand enthalten",
+     "hint": "Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.",
+     "send": {
+      "label": "Per Post senden",
+      "disabled": false
+     },
+     "status": null,
+     "signed": false
+    },
+    "release": null,
+    "live": null,
+    "opened": []
+   },
+   "acts": [
+    {
+     "act": [
+      "psend"
+     ],
+     "requests": [
+      {
+       "path": "/api/post/config"
+      },
+      {
+       "path": "/docx-template/pdf",
+       "sent": {}
+      },
+      {
+       "path": "/docx-template",
+       "sent": {}
+      },
+      {
+       "path": "/kalkulation/pdf-v2",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/badolux-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=csv",
+       "sent": {}
+      },
+      {
+       "path": "/material-overview/winwall-cart?format=json",
+       "sent": {}
+      },
+      {
+       "path": "/api/post/send",
+       "body": {
+        "forceResend": false,
+        "auftragId": "65418",
+        "recipient": {
+         "name": "Erika Muster",
+         "street": "Musterweg 4",
+         "zipCode": "95028",
+         "city": "Hof",
+         "country": "Deutschland"
+        },
+        "docWarnings": [],
+        "internalNote": "",
+        "dealIdOverride": null,
+        "meta": {
+         "offerNumber": "<number>",
+         "dealId": "65418"
+        }
+       },
+       "document": {
+        "filename": "<number>.pdf",
+        "content": "%PDF-1.4 angebot"
+       },
+       "attachments": [
+        {
+         "type": "static",
+         "id": "abtretung",
+         "filename": "Abtretungserklärung.pdf"
+        },
+        {
+         "type": "static",
+         "id": "vollmacht",
+         "filename": "Vollmacht.pdf"
+        }
+       ],
+       "bitrixDocs": [
+        "ANGEBOT_TEST.docx",
+        "Kalkulation_TEST.pdf"
+       ]
+      },
+      {
+       "path": "/api/offers",
+       "offerNumber": "<number>",
+       "offerType": "hms",
+       "payload": {}
+      },
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_shown",
+        "offerNumber": "<number>",
+        "offerType": "hms"
+       }
+      }
+     ],
+     "toasts": [
+      [
+       "success",
+       "Gespeichert",
+       "Angebot <number> wurde gespeichert."
+      ]
+     ],
+     "alerts": [],
+     "stored": {
+      "zusammenfassung": {
+       "versand": {
+        "art": "post",
+        "versendetAm": "2026-11-24T16:35:52.491Z"
+       },
+       "checkliste": {
+        "skizzeErstellt": false,
+        "fotosErstellt": false
+       },
+       "checkAck": {}
+      }
+     },
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": null,
+      "hp": null,
+      "stage": {
+       "title": "✅ Brief übergeben",
+       "text": "Anhänge: <number>.pdf, Abtretungserklärung.pdf, Vollmacht.pdf, ANGEBOT_TEST.docx, Kalkulation_TEST.pdf",
+       "body": "",
+       "buttons": [
+        {
+         "label": "Deal auf „ANG verschickt\" verschieben",
+         "disabled": false
+        },
+        {
+         "label": "Schließen",
+         "disabled": false
+        }
+       ]
+      },
+      "ask": null,
+      "versand": "✅ Versendet per Post am 24.11.2026 um 17:35 Uhr.",
+      "tab": "post",
+      "tabs": [
+       "Angebot per E-Mail",
+       "Angebot per Post"
+      ],
+      "mailShown": false,
+      "post": {
+       "shown": true,
+       "title": "Angebot per Post senden",
+       "warning": "",
+       "fields": {
+        "deal": {
+         "label": "Lead ID / Auftrag ID",
+         "value": "65418",
+         "invalid": false
+        },
+        "firstName": {
+         "label": "Vorname",
+         "value": "Erika",
+         "invalid": false
+        },
+        "lastName": {
+         "label": "Nachname",
+         "value": "Muster",
+         "invalid": false
+        },
+        "street": {
+         "label": "Straße",
+         "value": "Musterweg 4",
+         "invalid": false
+        },
+        "zipCode": {
+         "label": "PLZ",
+         "value": "95028",
+         "invalid": false
+        },
+        "city": {
+         "label": "Ort",
+         "value": "Hof",
+         "invalid": false
+        },
+        "country": {
+         "label": "Land",
+         "value": "Deutschland",
+         "invalid": false
+        }
+       },
+       "focus": "",
+       "upload": "Zusätzliche Anhänge (optional, PDF)",
+       "files": [
+        {
+         "name": "<number>.pdf",
+         "meta": "Angebots-PDF",
+         "fixed": true
+        },
+        {
+         "name": "Abtretungserklärung.pdf",
+         "meta": "Default",
+         "fixed": false
+        },
+        {
+         "name": "Vollmacht.pdf",
+         "meta": "Default",
+         "fixed": false
+        }
+       ],
+       "listTitle": "Im Postversand enthalten",
+       "hint": "Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.",
+       "send": {
+        "label": "Per Post senden",
+        "disabled": true
+       },
+       "status": {
+        "type": "success",
+        "text": "Testmodus: Auftrag PJ-4711 liegt im onlinebrief24-Warenkorb · Anlagen: 2"
+       },
+       "signed": false
+      },
+      "release": null,
+      "live": null,
+      "opened": []
+     }
+    },
+    {
+     "act": [
+      "close"
+     ],
+     "requests": [
+      {
+       "path": "/api/bitrix/deal/<id>/log-dialog-event",
+       "deal": "65418",
+       "body": {
+        "event": "move_dialog_dismissed",
+        "offerNumber": "<number>",
+        "offerType": "hms"
+       }
+      }
+     ],
+     "toasts": [],
+     "alerts": [],
+     "stored": {},
+     "view": {
+      "step": "Zusammenfassung",
+      "send": {
+       "label": "An Kunden senden",
+       "disabled": false,
+       "edited": false
+      },
+      "bitrix": {
+       "label": "Nur in Bitrix ablegen",
+       "disabled": false
+      },
+      "docx": {
+       "title": "Angebot in Word angepasst?",
+       "text": "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des automatisch erzeugten Angebots als PDF versendet.",
+       "remove": false,
+       "note": ""
+      },
+      "attachments": [
+       {
+        "name": "<number>.pdf",
+        "meta": "Angebots-PDF"
+       },
+       {
+        "name": "Abtretungserklärung.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "emc2_Barrierefreies_Wohnen.pdf",
+        "meta": "Default"
+       },
+       {
+        "name": "Vollmacht.pdf",
+        "meta": "Default"
+       }
+      ],
+      "count": "4 Dateien",
+      "bitrixFiles": [],
+      "bitrixCount": "0 Dateien",
+      "deal": {
+       "value": "65418",
+       "invalid": false
+      },
+      "note": "",
+      "status": null,
+      "hp": null,
+      "stage": null,
+      "ask": null,
+      "versand": "✅ Versendet per Post am 24.11.2026 um 17:35 Uhr.",
+      "tab": "post",
+      "tabs": [
+       "Angebot per E-Mail",
+       "Angebot per Post"
+      ],
+      "mailShown": false,
+      "post": {
+       "shown": true,
+       "title": "Angebot per Post senden",
+       "warning": "",
+       "fields": {
+        "deal": {
+         "label": "Lead ID / Auftrag ID",
+         "value": "65418",
+         "invalid": false
+        },
+        "firstName": {
+         "label": "Vorname",
+         "value": "Erika",
+         "invalid": false
+        },
+        "lastName": {
+         "label": "Nachname",
+         "value": "Muster",
+         "invalid": false
+        },
+        "street": {
+         "label": "Straße",
+         "value": "Musterweg 4",
+         "invalid": false
+        },
+        "zipCode": {
+         "label": "PLZ",
+         "value": "95028",
+         "invalid": false
+        },
+        "city": {
+         "label": "Ort",
+         "value": "Hof",
+         "invalid": false
+        },
+        "country": {
+         "label": "Land",
+         "value": "Deutschland",
+         "invalid": false
+        }
+       },
+       "focus": "",
+       "upload": "Zusätzliche Anhänge (optional, PDF)",
+       "files": [
+        {
+         "name": "<number>.pdf",
+         "meta": "Angebots-PDF",
+         "fixed": true
+        },
+        {
+         "name": "Abtretungserklärung.pdf",
+         "meta": "Default",
+         "fixed": false
+        },
+        {
+         "name": "Vollmacht.pdf",
+         "meta": "Default",
+         "fixed": false
+        }
+       ],
+       "listTitle": "Im Postversand enthalten",
+       "hint": "Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.",
+       "send": {
+        "label": "Per Post senden",
+        "disabled": true
+       },
+       "status": {
+        "type": "success",
+        "text": "Testmodus: Auftrag PJ-4711 liegt im onlinebrief24-Warenkorb · Anlagen: 2"
+       },
+       "signed": false
+      },
+      "release": null,
+      "live": null,
+      "opened": []
+     }
+    }
+   ]
   }
  ],
  "users": [
@@ -28336,6 +29048,209 @@
     "to": "",
     "subject": "emc2 | Ihr Angebot ANG2026-1124-171930 zum Winterdienst",
     "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1124-171930\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
+   }
+  },
+  "hms": {
+   "Kundendaten": {
+    "bitrixContactId": "",
+    "date": "2026-11-24",
+    "firstName": "",
+    "lastName": "",
+    "p2FirstName": "",
+    "p2LastName": "",
+    "phone": "",
+    "email": "",
+    "emailCc": "",
+    "street": "",
+    "city": "",
+    "state": "",
+    "postalCode": "",
+    "deployment": "",
+    "customerType": "Neu",
+    "hasContactPerson": "Nein",
+    "cp_name": "",
+    "cp_phone": "",
+    "cp_email": "",
+    "cp_street": "",
+    "cp_city": "",
+    "cp_state": "",
+    "cp_postalCode": "",
+    "emc2_contact": "Capture",
+    "ansprechpartner": "capture@local.test",
+    "payer": "Kassenkunde",
+    "kk_geburtsdatum": "",
+    "kk_versichertennr": "",
+    "kassenkundeName": "",
+    "kk_krankenkasseAdresse": "",
+    "kk_pflegegradSeit": "",
+    "kk_rechnungskopie": "nein",
+    "sonderaufschlagValue": "50",
+    "copayAmount": 0,
+    "partnerSalutation": "",
+    "wohnumfeldDone": "Nein",
+    "ah_mobilitaet": "",
+    "ah_allergien": "",
+    "ah_demenz": "",
+    "ah_sprache": "",
+    "ah_sonstiges": "",
+    "parkDetails": "",
+    "notes": "",
+    "aufschlag": "50%",
+    "customerNumber": "",
+    "budgetOptionsPanel": "",
+    "kundenName": "",
+    "greetingLine": "",
+    "wohnumfeld": {
+     "done": false,
+     "amount": 0,
+     "entries": []
+    }
+   },
+   "duschwanne": {},
+   "wandverkleidung": {},
+   "duschabtrennung": {},
+   "optional": {},
+   "rabatt": {},
+   "bwt": {},
+   "hl": {},
+   "ah": {},
+   "Finanzierung": {},
+   "hms": {
+    "ahEinsatzUmfang": "",
+    "ahMonatUmfang": "",
+    "hmsNote": "",
+    "hmsSketchDataUrl": "",
+    "hmsSketchJson": "",
+    "sketch": {
+     "json": "",
+     "dataUrl": ""
+    }
+   },
+   "wd": {},
+   "pricingRules": {
+    "kleinInAufschlag": true,
+    "azMinutes": {
+     "remove_tub": 45,
+     "install_bathtub": 90,
+     "install_bathtub_screen": 60,
+     "remove_showertub": 30,
+     "install_tray": 75,
+     "install_sitzbath": 120,
+     "remove_shower_curtain": 15,
+     "remove_enclosure": 25,
+     "install_shower_curtain": 15,
+     "install_enclosure": 60,
+     "install_distance_profile": 20,
+     "trockenbau_duschbereich": 0,
+     "close_valve": 45,
+     "relocate_faucet": 90,
+     "relocate_drain": 30,
+     "install_lifting_unit": 0,
+     "convert_faucet": 90,
+     "replace_thermostat": 30,
+     "replace_shower_no_thermo": 30,
+     "replace_shower_with_thermo": 45,
+     "install_shower_basket": 15,
+     "remove_sink": 30,
+     "install_sink": 45,
+     "replace_sink_faucet": 30,
+     "remove_furniture": 20,
+     "install_furniture": 30,
+     "remove_toilet": 50,
+     "install_toilet": 20,
+     "install_shower_wc": 60,
+     "trockenbau_wc": 0,
+     "wv997": 30,
+     "wv1497": 40,
+     "silikon": 10,
+     "flooring_m2": 8,
+     "flooring_flat": 25,
+     "grab": 30
+    },
+    "bwtKmFreeThreshold": 0,
+    "bwtTravelTimeFreeHours": 0,
+    "bonusNeuGross": 250,
+    "bonusNeuThreshold": 5000
+   },
+   "bl": {},
+   "offerNumber": "ANG2026-1124-173547",
+   "Arbeitszeit": {
+    "totalHoursHHMM": "7:00",
+    "totalHoursNumeric": 7,
+    "ReiseHoursNumeric": 0,
+    "ArbeitHoursNumeric": 7,
+    "workDays": 1,
+    "uebernachten": 0,
+    "travelDays": 1,
+    "laborHoursHHMM": "07:00",
+    "travelTimeHHMM": "",
+    "distanceKm": "",
+    "ahTravelZone": 0,
+    "travelSecondWorkerRate": 35,
+    "laborHoursSource": "manual",
+    "autoSuggestedHoursHHMM": "00:00",
+    "autoSuggestedHoursNumeric": 0,
+    "autoSuggestedTasks": [],
+    "travelCostDebug": {
+     "laborRate": 69.5,
+     "secondWorkerRate": 35,
+     "workCost": 973,
+     "travelDriverCost": 0,
+     "travelSecondWorkerCost": 0,
+     "totalCost": 973
+    }
+   },
+   "activeOffer": "hms",
+   "includeOurSignature": true,
+   "ourSignatureUser": "capture",
+   "postal": {
+    "auftragId": "",
+    "recipient": {
+     "firstName": "",
+     "lastName": "",
+     "street": "",
+     "zipCode": "",
+     "city": "",
+     "country": "Deutschland"
+    },
+    "attachments": [
+     {
+      "id": "abtretung",
+      "type": "static",
+      "filename": "Abtretungserklärung.pdf",
+      "label": "Default",
+      "size": 0
+     },
+     {
+      "id": "vollmacht",
+      "type": "static",
+      "filename": "Vollmacht.pdf",
+      "label": "Default",
+      "size": 0
+     }
+    ]
+   },
+   "docSelection": {
+    "abtretung": true,
+    "vollmacht": true,
+    "barrierefrei": true
+   },
+   "zusammenfassung": {
+    "versand": {
+     "art": null,
+     "versendetAm": null
+    },
+    "checkliste": {
+     "skizzeErstellt": false,
+     "fotosErstellt": false
+    },
+    "checkAck": {}
+   },
+   "mail": {
+    "auftragId": "",
+    "to": "",
+    "subject": "emc2 | Ihr Angebot ANG2026-1124-173547 zum Hausmeisterservice",
+    "body": "Sehr geehrte Damen und Herren,\n\nvielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:\n\n• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.\n• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.\n• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.\n• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.\n\nUnser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.\n\nIm Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:\n\n1. Ihr Angebot ANG2026-1124-173547\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI\n4. Unseren aktuellen Flyer \"Barrierefreies Wohnen\"\n\nBitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.\n\nKeine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:\n\n{{SIGN_LINK}}\n\nSobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung."
    }
   }
  }

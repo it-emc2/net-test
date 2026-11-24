@@ -65,6 +65,7 @@ const SCENARIOS = {
   "bl: signed on site": { type: "bl", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "bl: signed documents posted in test mode": { type: "bl", setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["psigned"]] },
   "wd: signed on site": { type: "wd", setup: ADDR, pre: DEAL, acts: [["sign"]] },
+  "hms: signed on site": { type: "hms", setup: ADDR, pre: DEAL, acts: [["sign"]] },
   "signed from the Post tab: the signed documents can be posted": { setup: ADDR, pre: [["signings", DONE_POST], ...POST], acts: [["tab", "mail"], ["tab", "post"]] },
   "signed from the mail tab: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], via: "" }]], ...POST] },
   "signature not complete: nothing to post": { setup: ADDR, pre: [["signings", [{ ...DONE_POST[0], status: "opened" }]], ...POST] },

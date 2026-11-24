@@ -415,7 +415,24 @@ Inventory of today's type (legacy: `index.html` `#page-wd` / `form-wd`, `script.
 | — | Price | Full | `usePrice` asks the server as today (only Alltagshilfe is priced in the browser); no total of its own („–“, no Eigenanteil / „Zuschuss wählen“ for the shell). Parity: `packages/pricing/test/wd-hms-parity.test.ts` — every recorded request gets the recorded answer and the offer as the React page stores it gets the same answer (38 + 38) |
 | — | Hauptmenü, picker, search, opening | — | tile „Winterdienst“ (`NEW_OFFER_TYPES`), planning picker (today's order), search rows and stored drafts / offers open in React (`reactTypeOf`; server: deal drafts and `…/draft/import` accept `wd`); „Weiteres Angebot“: a WD offer can start one of the five other types, a WD cannot be created that way (no Bitrix deal values: `SECOND_OFFER_TYPES`, owner question) |
 
-Measured at 834×1194, 6× CPU (own server, `v2/scripts/ipad-check.cjs v2/scripts/ipad-actions-wd-hms.cjs wd`): open of the step ≈ 400 ms blocked, every tap / typed field 0 ms blocked and one price call per change; no control under 48 px; no sideways scroll at 834 and 375 px (page and Kosten); light and dark checked on screenshots (the sketch pad's colour row scrolls inside its box at 375 px, as on every sketch page).
+Measured at 834×1194, 6× CPU (own server, `v2/scripts/ipad-check.cjs v2/scripts/ipad-actions-wd-hms.cjs wd`): open of the step ≈ 400 ms blocked, every tap / typed field 0 ms blocked and one price call per change; no control under 48 px; no sideways scroll at 834 and 375 px (page and Kosten); light and dark checked on screenshots (the sketch pad's colour row scrolls inside its box at 375 px, as on every sketch page). Hausmeister-Service (`… ipad-actions-wd-hms.cjs hms`): open ≈ 435 ms blocked, every change 0 ms and one price call, no control under 48 px, no sideways scroll at 834 / 375 px, light and dark checked.
+
+### HMS (Hausmeister-Service) build order (2026-11-24, on request — ADR 011 / U-001 had dropped it; U-067 proposed)
+
+Steps of today's sidebar (`STEPS.hms`, snapshot `hms-steps.txt`): Kundendaten → Arbeitszeit → hms („Hausmeister-Service“ by the add-on C1) → Kosten → Zusammenfassung, plus the Referenzbilder pages Vorher / Nachher (outside Weiter / Zurück, as for Badumbau). Today's `#page-hms` / `form-hms` is the Winterdienst page with its own heading „HMS · Hausmeisterservice“, note placeholder („… Hinweise zum Hausmeisterservice …“) and section `hms` (`hmsNote`, `hmsSketchJson`, `hmsSketchDataUrl`, `sketch`); restore (`restoreHms`) fills only the note. Price, Kosten, documents (Badumbau template), Versand (subject „… zum Hausmeisterservice“, services only) and Hauptmenü (tile `HMS-Hausmeister-Service` hidden in v2, planning picker lists it) exactly as Winterdienst above; Referenzbilder from `referenz-manifest.js` `hms` (named „Hausmeisterservice“ on the photo pages). No HMS offer or draft in production (DATA-SHAPES.md).
+
+| # | Step | Level | State |
+|---|---|---|---|
+| 1 | Kundendaten | Full | **Built (shared)**; gap check: 69 Hausmeister-Service recordings added to `kundendaten-*.json` (`TYPES=hms`) — replayed green (the markup card on Kundendaten as for Winterdienst) |
+| 2 | Arbeitszeit | Full | **Built (shared)**; gap check: 23 recordings added to `arbeitszeit.json` — replayed green |
+| 3 | Hausmeister-Service (`hms`) | Full (stored `hms`) | **Built 2026-11-24** — `features/steps/hms` (`rules.ts` = the Winterdienst rules, `Hausmeister.tsx` = `ServicePage type="hms"`). 38 recordings (`hausmeister.json`, `capture-wd-hms.cjs` `TYPE=hms`) replayed in `wd-hms.test.tsx`: stored `hms` byte-equal, page equal, Kosten equal; differences U-067 (= U-066) |
+| 4 | Kosten | Full | **Built** — as Winterdienst (`kosten/rules.ts` `flat`) |
+| 5 | Zusammenfassung / Versand | Full | **Built (shared)**; gap check: one Hausmeister-Service scenario each in `versand-rahmen`, `-mail`, `-dokumente`, `-anpassungen`, `-senden`, `-post`, `-unterschrift` — replayed green, no code change beyond the Winterdienst ones |
+| — | Referenzbilder Vorher / Nachher | Light | **Built (shared)** — the existing photo pages with the `hms` manifest; title „· Hausmeisterservice“ as today (`Referenz.tsx`) |
+| — | Price | Full | the server's shell as today; parity `wd-hms-parity.test.ts` (77 HMS cases equal) |
+| — | Hauptmenü, picker, search, opening | — | tile „Hausmeister-Service“, picker after Winterdienst (today's order), search rows / stored drafts and offers open in React; the „in der bisherigen Ansicht“ buttons of the picker are gone (no type left in today's UI); no „Weiteres Angebot“ of this type (`SECOND_OFFER_TYPES`) |
+
+Measured as Winterdienst: see the measurement line of the WD section.
 
 ### Markup (Aufschlag) — where it lives
 

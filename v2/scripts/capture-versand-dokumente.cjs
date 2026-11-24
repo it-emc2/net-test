@@ -54,6 +54,7 @@ const SCENARIOS = {
   "Badelift": { type: "bl", setup: OK, acts: [["click", "downloadKalkulation"]] },
   "Alltagshilfe": { type: "ah", setup: OK, acts: [["click", "downloadDocxAsPdf"], ["click", "previewKalkulation"]] },
   "Winterdienst": { type: "wd", setup: OK, acts: [["click", "downloadDocxAsPdf"], ["click", "downloadKalkulation"]] },
+  "Hausmeister-Service": { type: "hms", setup: OK, acts: [["click", "downloadDocxAsPdf"], ["click", "downloadKalkulation"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;

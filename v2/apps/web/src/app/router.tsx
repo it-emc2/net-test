@@ -51,6 +51,7 @@ const rabatt = () => import("../features/steps/index.js").then((m) => ({ Compone
 const ahLeistungen = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhLeistungen }));
 const badelift = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badelift }));
 const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhFinanzierung }));
+const hausmeister = () => import("../features/steps/index.js").then((m) => ({ Component: m.Hausmeister }));
 const winterdienst = () => import("../features/steps/index.js").then((m) => ({ Component: m.Winterdienst }));
 
 export const routes: RouteObject[] = [
@@ -90,6 +91,7 @@ export const routes: RouteObject[] = [
           { path: "Finanzierung", lazy: ahFinanzierung },
           { path: "bl", lazy: badelift },
           { path: "wd", lazy: winterdienst },
+          { path: "hms", lazy: hausmeister },
           { path: ":step", lazy: stepInLegacy },
         ],
       },

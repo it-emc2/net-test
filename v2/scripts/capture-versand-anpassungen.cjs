@@ -42,6 +42,7 @@ const SCENARIOS = {
   "Badewannentür": { type: "bwt", acts: [P, ["amount", 1, "50"], H, ["hint", 1, "Hinweis"]] },
   "Alltagshilfe": { type: "ah", acts: [T, ["from", 1, "Betreuung"], ["to", 1, "Begleitung"]] },
   "Winterdienst": { type: "wd", acts: [T, ["from", 1, "Betreuung"], ["to", 1, "Begleitung"]] },
+  "Hausmeister-Service": { type: "hms", acts: [T, ["from", 1, "Betreuung"], ["to", 1, "Begleitung"]] },
 };
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;
