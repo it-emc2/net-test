@@ -108,4 +108,86 @@ describe("web layer", () => {
     const r = await app.inject({ url: "/app/" });
     expect([r.statusCode, r.json().error.code]).toEqual([503, "APP_NOT_BUILT"]);
   });
+
+  describe("START_UI (U-061)", () => {
+    const make = async (startUi?: "classic" | "react", secureCookie?: boolean) => {
+      const app = Fastify();
+      await registerSecurity(app);
+      await registerWeb(app, {
+        publicDir: ROOT + "src/public", logicDir: ROOT + "src/logic", fontAwesomeDir: ROOT + "node_modules/@fortawesome/fontawesome-free", authSecret: SECRET,
+        ...(startUi ? { startUi } : {}), ...(secureCookie !== undefined ? { secureCookie } : {}),
+      });
+      return app;
+    };
+    const page = { accept: "text/html,application/xhtml+xml" };
+    const CHOSEN = { cookie: "oc_ui=classic" };
+    const both = () => ({ cookie: `${cookie().cookie}; oc_ui=classic` });
+    type App = Awaited<ReturnType<typeof make>>;
+    const get = (app: App, url: string, headers: Record<string, string> = {}) => app.inject({ url, headers: { ...page, ...headers } });
+    const where = async (app: App, url: string, headers: Record<string, string> = {}) => {
+      const r = await get(app, url, headers);
+      return [r.statusCode, r.headers.location ?? null, r.headers["set-cookie"] ?? null];
+    };
+    const isIndex = (body: string) => body.includes("/v2/addons/error-compat.js") && !body.includes("/login.js");
+    const isLogin = (body: string) => body.includes('<script src="/login.js">');
+
+    it("react: a bare / page request opens the React app, logged in or not; a background fetch of / does not", async () => {
+      const app = await make("react");
+      expect(await where(app, "/")).toEqual([302, "/app", null]);
+      expect(await where(app, "/", cookie())).toEqual([302, "/app", null]);
+      const sw = await app.inject({ url: "/", headers: { accept: "*/*", ...cookie() } }); // the old UI's service worker warming its shell
+      expect([sw.statusCode, sw.headers["set-cookie"]]).toEqual([200, undefined]);
+      expect(isIndex(sw.body)).toBe(true);
+    });
+    it("react: with the cookie oc_ui=classic, / behaves as today (login gate, then today's UI)", async () => {
+      const app = await make("react");
+      expect((await where(app, "/", CHOSEN)).slice(0, 2)).toEqual([302, "/login"]);
+      const r = await get(app, "/", both());
+      expect(r.statusCode).toBe(200);
+      expect(isIndex(r.body)).toBe(true);
+    });
+    it("react: /?classic=1 sets the session cookie and continues at a clean / that does not bounce to /app", async () => {
+      const app = await make("react");
+      expect(await where(app, "/?classic=1")).toEqual([302, "/", "oc_ui=classic; Path=/; SameSite=Lax"]);
+      expect(await where(app, "/?classic=1&deal=9001", cookie())).toEqual([302, "/?deal=9001", "oc_ui=classic; Path=/; SameSite=Lax"]);
+      const secure = await make("react", true);
+      expect((await where(secure, "/?classic=1"))[2]).toBe("oc_ui=classic; Path=/; SameSite=Lax; Secure");
+      const next = await get(app, "/", both()); // the redirected request carries the cookie
+      expect([next.statusCode, isIndex(next.body)]).toEqual([200, true]);
+    });
+    it("react: / with another query is today's UI as before, and serving today's page remembers the choice", async () => {
+      const app = await make("react");
+      expect(await where(app, "/?offer=1")).toEqual([302, "/login?next=%2F%3Foffer%3D1", null]);
+      for (const url of ["/?offer=1", "/?deal=9001", "/?entwurf=t-0123456789abcdef01234567"]) {
+        const r = await get(app, url, cookie());
+        expect([url, r.statusCode, r.headers["set-cookie"], isIndex(r.body)]).toEqual([url, 200, "oc_ui=classic; Path=/; SameSite=Lax", true]);
+      }
+      const s = await get(app, "/irgendwo/tief", cookie()); // SPA fallback = today's UI too
+      expect([s.statusCode, s.headers["set-cookie"]]).toEqual([200, "oc_ui=classic; Path=/; SameSite=Lax"]);
+    });
+    it("react: /login opens the React app; /login?next=… and a browser that chose today's UI keep today's login page", async () => {
+      const app = await make("react");
+      expect(await where(app, "/login")).toEqual([302, "/app", null]);
+      const deep = await get(app, "/login?next=%2F%3Foffer%3D1");
+      expect([deep.statusCode, isLogin(deep.body)]).toEqual([200, true]);
+      const chosen = await get(app, "/login", CHOSEN); // logout in today's UI
+      expect([chosen.statusCode, isLogin(chosen.body)]).toEqual([200, true]);
+    });
+    it("classic (default) and explicit classic: nothing changes, no cookie anywhere", async () => {
+      for (const app of [await make(), await make("classic")]) {
+        expect(await where(app, "/")).toEqual([302, "/login", null]);
+        const home = await get(app, "/", cookie());
+        expect([home.statusCode, home.headers["set-cookie"], isIndex(home.body)]).toEqual([200, undefined, true]);
+        const cl = await get(app, "/?classic=1", cookie());
+        expect([cl.statusCode, cl.headers["set-cookie"], isIndex(cl.body)]).toEqual([200, undefined, true]);
+        expect(await where(app, "/?offer=1")).toEqual([302, "/login?next=%2F%3Foffer%3D1", null]);
+        const offer = await get(app, "/?offer=1", cookie());
+        expect([offer.statusCode, offer.headers["set-cookie"]]).toEqual([200, undefined]);
+        for (const url of ["/login", "/login?next=%2F"]) {
+          const l = await get(app, url);
+          expect([url, l.statusCode, isLogin(l.body)]).toEqual([url, 200, true]);
+        }
+      }
+    });
+  });
 });

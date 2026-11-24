@@ -9,6 +9,7 @@ import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { Chip } from "./Planning.js";
 import { mondayKey, todayModel, typeTone, weekBadge, weekModel, type PlanningEntry, type TodayPayload, type WeekPayload } from "./planning-rules.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 /** true once the element has been on screen (without IntersectionObserver: at once) */
 function useSeen<T extends Element>() {
@@ -49,7 +50,7 @@ export function WeekCalendar({ onPick }: { onPick: (e: PlanningEntry) => void })
           <Button variant="outline" size="icon" aria-label="Nächste Woche" title="Nächste Woche" onClick={() => setOffset(offset + 1)}><ChevronRight aria-hidden /></Button>
         </div>
       </div>
-      {q.isError ? <p role="alert" className="m-0">Die Wochenplanung konnte nicht geladen werden. <Button variant="link" onClick={() => void q.refetch()}>Erneut versuchen</Button> <a className="text-primary underline" href="/">Planung in der bisherigen Ansicht</a></p>
+      {q.isError ? <p role="alert" className="m-0">Die Wochenplanung konnte nicht geladen werden. <Button variant="link" onClick={() => void q.refetch()}>Erneut versuchen</Button> <a className="text-primary underline" href={CLASSIC_HOME}>Planung in der bisherigen Ansicht</a></p>
         : !seen || q.isPending ? <p className="m-0">Lade Wochenplanung…</p> : !view?.days.length ? (
           <p className="m-0 flex items-center gap-2"><CalendarX aria-hidden className="size-5" />Keine Planungstermine in dieser Woche</p>
         ) : (

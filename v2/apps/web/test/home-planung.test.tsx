@@ -131,7 +131,7 @@ describe("panel", () => {
     renderApp("/");
     await screen.findByText("Planungstermine konnten nicht geladen werden");
     expect(screen.getByText(/PLANNING_API_KEY fehlt/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Planung in der bisherigen Ansicht" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Planung in der bisherigen Ansicht" })).toHaveAttribute("href", "/?classic=1");
     expect(screen.getByTestId("planning-meta")).toHaveTextContent("Planungsdaten konnten nicht geladen werden");
     expect(srv.calls.some((c) => c.key.includes("/api/planning/current"))).toBe(false); // never the 2 MB endpoint
     await userEvent.click(screen.getByRole("button", { name: /Erneut versuchen/ }));

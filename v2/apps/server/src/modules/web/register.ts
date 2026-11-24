@@ -25,7 +25,18 @@ export interface WebDeps {
   indexInjections?: string[];
   /** built files of the React app (apps/web/dist); default: next to the server in the workspace */
   appDir?: string;
+  /** START_UI: which UI a bare "/" (and "/login" without `next`) opens; default "classic" = as today */
+  startUi?: "classic" | "react";
+  /** Secure flag of the oc_ui cookie (same rule as the session cookie) */
+  secureCookie?: boolean;
 }
+
+/** Session cookie "stay in today's UI" (START_UI=react). Not HttpOnly: the React app clears it on start. */
+export const CLASSIC_COOKIE = "oc_ui";
+const classicCookie = (secure: boolean) => `${CLASSIC_COOKIE}=classic; Path=/; SameSite=Lax${secure ? "; Secure" : ""}`;
+const acceptsHtml = (req: FastifyRequest) => String(req.headers.accept || "").includes("text/html");
+const wantsClassic = (req: FastifyRequest) =>
+  String(req.headers.cookie || "").split(";").some((c) => c.trim() === `${CLASSIC_COOKIE}=classic`);
 
 /** Loaded first in every page v2 serves: v2 error objects → the text today's screens expect. */
 export const HEAD_SHIM = '<script src="/v2/addons/error-compat.js"></script>';
@@ -57,10 +68,27 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
     if (file === "index.html" && injected) html = html.replace("</body>", `${injected}\n</body>`);
     return reply.type("text/html; charset=UTF-8").send(html);
   };
-  const sendIndex = (reply: FastifyReply) => sendHtml(reply, "index.html");
+  const reactStart = d.startUi === "react";
+  // START_UI=react: whoever gets today's main page stays in today's UI for this browser session —
+  // today's UI drops ?offer= / ?deal= from its address after loading (script.js, deal-link.js), so
+  // a reload there asks for a bare "/" again and must not jump to the React app. Page loads only:
+  // the old UI's service worker fetches "/" in the background (Accept */*) to warm its offline
+  // shell, and that must not switch the browser to today's UI.
+  const sendIndex = (reply: FastifyReply) => {
+    if (reactStart && acceptsHtml(reply.request)) reply.header("set-cookie", classicCookie(!!d.secureCookie));
+    return sendHtml(reply, "index.html");
+  };
+  /** 302 like Express res.redirect() for an HTML client */
+  const found = (reply: FastifyReply, to: string) =>
+    reply.status(302).header("Location", to).type("text/html; charset=utf-8").send(`<p>Found. Redirecting to ${escapeHtml(to)}</p>`);
 
   // ---- login page (public) and offline pricing sources (login required, like legacy)
-  app.get("/login", { config: { public: true } }, (_req, reply) => sendHtml(reply, "login.html"));
+  // START_UI=react: a plain /login is the React app's own login form; /login?next=… (deep links,
+  // expired session in today's UI) and a browser that chose today's UI keep today's login page
+  app.get("/login", { config: { public: true } }, (req, reply) => {
+    if (reactStart && !wantsClassic(req) && !new URL(req.url, "http://x").searchParams.get("next")) return found(reply, "/app");
+    return sendHtml(reply, "login.html");
+  });
   const logic = Object.fromEntries(LOGIC_FILES.map((f) => [f, fs.readFileSync(path.join(d.logicDir, f), "utf8")]));
   const js = (f: string) => async (_req: FastifyRequest, reply: FastifyReply) => reply.type("application/javascript; charset=utf-8").send(logic[f]);
   app.get("/logic/pricing-core.js", js("pricing-core.js"));
@@ -131,15 +159,26 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
     const p = decodeURIComponent(url.pathname);
     if (p.startsWith("/api/")) return reply.status(404).send({ error: { code: "NOT_FOUND", message: "Not found", requestId: req.id } });
 
+    // START_UI=react (U-061): a bare "/" page request opens the React app; "/?classic=1" (the
+    // React app's links to today's UI) remembers the choice for this browser session and continues
+    // at a clean "/"; any other query (?offer=, ?deal= …) is today's UI as before
+    if (reactStart && url.pathname === "/") {
+      if (url.searchParams.get("classic") === "1") {
+        url.searchParams.delete("classic");
+        reply.header("set-cookie", classicCookie(!!d.secureCookie));
+        return found(reply, "/" + (url.search || ""));
+      }
+      if (!url.search && !wantsClassic(req) && acceptsHtml(req)) return found(reply, "/app");
+    }
+
     const publicPath = isPublicAsset(p) || isPublicSigning(p) || isAlwaysPublic(p);
     if (!publicPath && !loggedIn(req)) {
-      const acceptsHtml = String(req.headers.accept || "").includes("text/html");
-      if (acceptsHtml) {
+      if (acceptsHtml(req)) {
         // keep deep links (/?offer=123 from Bitrix) across the login; login.js validates `next`
         const dest = req.url || "/";
         const to = dest.startsWith("/?offer=") ? `/login?next=${encodeURIComponent(dest)}` : "/login";
         // same response as Express 5 res.redirect() for an HTML client
-        return reply.status(302).header("Location", to).type("text/html; charset=utf-8").send(`<p>Found. Redirecting to ${escapeHtml(to)}</p>`);
+        return found(reply, to);
       }
       return reply.status(401).send({ error: { code: "UNAUTHORIZED", message: "Unauthorized", requestId: req.id } });
     }

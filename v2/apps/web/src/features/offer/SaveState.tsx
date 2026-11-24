@@ -5,6 +5,7 @@ import { usePrefs } from "../../shared/lib/prefs.js";
 import { Button, cn } from "../../shared/ui/index.js";
 import { flushDraft, useSaveStatus } from "./model/draft.js";
 import { useOfferStore } from "./model/store.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 const hhmm = (d: Date) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
@@ -34,7 +35,7 @@ export function SaveState() {
       ) : null}
       {!auto && dirty ? <Button variant="secondary" className="min-h-11 px-4" onClick={() => { void flushDraft(); }}>Speichern</Button> : null}
       {/* the list of saved versions is still in today's UI; below 480 px the user menu's „Zur bisherigen Ansicht“ (same address) stands in for it, so the avatar never covers it (U-059) */}
-      {open ? <a href="/" aria-label="Versionen" title="Versionen" className="flex min-h-11 min-w-11 shrink-0 max-[479px]:hidden items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground no-underline hover:bg-muted"><History aria-hidden className="size-4" /><span className="hidden min-[900px]:inline">Versionen</span></a> : null}
+      {open ? <a href={CLASSIC_HOME} aria-label="Versionen" title="Versionen" className="flex min-h-11 min-w-11 shrink-0 max-[479px]:hidden items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground no-underline hover:bg-muted"><History aria-hidden className="size-4" /><span className="hidden min-[900px]:inline">Versionen</span></a> : null}
     </div>
   );
 }

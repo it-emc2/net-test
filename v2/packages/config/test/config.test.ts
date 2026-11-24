@@ -64,6 +64,12 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ DB_READONLY: "maybe" })).toThrow(/DB_READONLY/);
   });
 
+  it("START_UI: classic by default, react on request, nothing else (U-061)", () => {
+    expect(loadConfig({}).START_UI).toBe("classic");
+    expect(loadConfig({ START_UI: "react" }).START_UI).toBe("react");
+    expect(() => loadConfig({ START_UI: "neu" })).toThrow(/START_UI/);
+  });
+
   it("redacts credentials", () => {
     expect(redactUri("mongodb://a:b@host/x")).toBe("mongodb://a:***@host/x");
   });

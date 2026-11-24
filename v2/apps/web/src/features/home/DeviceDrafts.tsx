@@ -7,6 +7,7 @@ import { useNavigate } from "react-router";
 import { Button, Card, CardTitle } from "../../shared/ui/index.js";
 import { deviceDrafts, removeDeviceDraft } from "./device.js";
 import { draftState, isTempKey, shownDrafts, type DeviceDraft } from "./rules.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 const TYPE_DE: Record<string, string> = { bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Badelift", ah: "Alltagshilfe" };
 const when = (t?: number) => (t ? new Date(t).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
@@ -48,7 +49,7 @@ export function DeviceDrafts() {
             <li key={r.key} data-testid="device-draft" className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
               <span className="min-w-60 flex-1">{label}</span>
               <strong>{draftState(r)}</strong>
-              {onlyHere ? <Button asChild variant="secondary"><a href="/">Öffnen</a></Button>
+              {onlyHere ? <Button asChild variant="secondary"><a href={CLASSIC_HOME}>Öffnen</a></Button>
                 : <Button onClick={() => nav(`/deal/${r.key}/${r.offerType}`)}>Öffnen</Button>}
               <Button variant="secondary" aria-label={`Vom Gerät löschen: ${label}`} onClick={() => void del(r)}>
                 {confirm === r.key ? "Wirklich löschen (nicht übertragen)" : "✕"}

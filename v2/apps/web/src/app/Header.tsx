@@ -15,6 +15,7 @@ const HeaderLeft = lazy(() => import("../features/offer/HeaderOffer.js").then((m
 const SaveState = lazy(() => import("../features/offer/SaveState.js").then((m) => ({ default: m.SaveState })));
 import { THEMES, usePrefs, type Mode } from "../shared/lib/prefs.js";
 import { Switch } from "../shared/ui/index.js";
+import { CLASSIC_HOME } from "../shared/lib/classic-ui.js";
 
 /** Initials only — the full name is never shown (org rule). Prefers the e-mail's parts: m.muster → MM. */
 export const initials = (email: string) => {
@@ -105,7 +106,7 @@ function UserMenu() {
         </label>
 
         <hr className="mx-1 my-2 border-0 border-t border-border" />
-        <a className={ITEM} href="/"><PanelsTopLeft aria-hidden className="size-5 text-muted-foreground" />Zur bisherigen Ansicht</a>
+        <a className={ITEM} href={CLASSIC_HOME}><PanelsTopLeft aria-hidden className="size-5 text-muted-foreground" />Zur bisherigen Ansicht</a>
         <button type="button" className={ITEM} onClick={() => { void reloadApp(); }}><RotateCw aria-hidden className="size-5 text-muted-foreground" />App neu laden</button>
         <hr className="mx-1 my-2 border-0 border-t border-border" />
         <button type="button" className={`${ITEM} text-muted-foreground`} onClick={() => logout.mutate()}><LogOut aria-hidden className="size-5" />Abmelden</button>

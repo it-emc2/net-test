@@ -13,6 +13,7 @@ import { classifyOpen } from "./rules.js";
 import { openOfferNumber, openRow, sourceLabel, takeOver, type Outcome } from "./open.js";
 import { Modal } from "./Planning.js";
 import { TEXT, moveActive, reactTypeOf, rowView } from "./search-rules.js";
+import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 
 type Ask = Extract<Outcome, { kind: "ask" }>;
 const isAbort = (e: unknown) => (e as Error)?.name === "AbortError";
@@ -38,7 +39,7 @@ export function ResultRow({ row, active, busy, onOpen, id }: { row: HomeSearchRo
     </>
   );
   return legacy
-    ? <a id={id} href="/" className={cls} data-testid="search-row" data-kind={row.kind}>{body}</a>
+    ? <a id={id} href={CLASSIC_HOME} className={cls} data-testid="search-row" data-kind={row.kind}>{body}</a>
     : <button id={id} type="button" className={cls} data-testid="search-row" data-kind={row.kind} disabled={busy} onClick={() => onOpen(row)}>{body}</button>;
 }
 
@@ -79,7 +80,7 @@ export function useOpenOutcome() {
     if (o.kind === "go") nav(o.path);
     else if (o.kind === "ask") setAsk(o);
     else if (o.kind === "failed") setMessage(o.message);
-    else window.location.assign("/"); // today's view (hms, wd)
+    else window.location.assign(CLASSIC_HOME); // today's view (hms, wd)
   };
   // in the page's body: a card around the field must not become the dialog's frame (it clipped it)
   const dialog = ask ? createPortal(<TakeOverQuestion q={ask} onClose={() => setAsk(null)} onOutcome={handle} />, document.body) : null;
@@ -153,7 +154,7 @@ export function HomeSearch({ onDeal, onTyping }: { onDeal: (id: string) => void;
       // P7-1: a deal or an offer number opens that one
       if (kind === "deal" && DEAL_NUMBER_RE.test(value)) { stop(); setOpen(false); onDeal(value); return; }
       if (kind === "offer") { stop(); setOpen(false); setBusy("number"); handle(await openOfferNumber(value)); setBusy(""); return; }
-      if (rows?.length && open) { const r = rows[Math.max(active, 0)]; if (r) { if (reactTypeOf(r)) void openOne(r); else window.location.assign("/"); } return; }
+      if (rows?.length && open) { const r = rows[Math.max(active, 0)]; if (r) { if (reactTypeOf(r)) void openOne(r); else window.location.assign(CLASSIC_HOME); } return; }
       if (text.trim()) run(text.trim());
       return;
     }

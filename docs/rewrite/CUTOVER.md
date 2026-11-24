@@ -39,6 +39,9 @@ Settings = today's Fly secrets, except:
 | `EXTERNAL_API_KEY` | set | v2 keeps the external lookup closed without it |
 | `COOKIE_SECURE` | `true` | |
 | `AUTH_SECRET` | same as today | same users; the login itself is per address |
+| `START_UI` | `react` (in `app.fly.toml`, not a secret) | the React app is the start (U-061), see below |
+
+**Start page of the test app (U-061, `START_UI=react`):** `/` and `/login` without `next` open the React app (`/app`, its own login). Today's UI is one click away: the React app links to `/?classic=1` (session cookie `oc_ui=classic`; with it `/` and `/login` are today's UI and today's login, reloads and logout included). Opening the React app clears the cookie. Deep links (`/?offer=`, `/?deal=`, `/deal/<id>`, `/login?next=`) and signing pages behave as today. Today's UI has no link to `/app`; the React app is reached by typing `/app` or by closing the browser (the cookie lasts the browser session). Production (`main`) keeps the default `classic`.
 
 Owner steps (money and secrets — not done by the build agent):
 1. `flyctl apps create ocv2-react` (the name can differ; then change `app.fly.toml`).

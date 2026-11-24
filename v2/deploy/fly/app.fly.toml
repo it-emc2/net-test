@@ -10,6 +10,8 @@ primary_region = 'fra'
   NODE_ENV = 'production'
   HOST = '0.0.0.0'
   PORT = '8080'
+  # the React app is the start of the test app (U-061); today's UI stays reachable at /?classic=1
+  START_UI = 'react'
   # GOTENBERG_URL is a secret, the same value as today's app: it carries the login of the shared
   # PDF engine `emc2-gotenberg` (deploy/gotenberg on main). No second PDF app.
 
