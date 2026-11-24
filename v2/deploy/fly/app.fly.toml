@@ -3,7 +3,7 @@
 #   flyctl deploy . --config v2/deploy/fly/app.fly.toml --dockerfile v2/Dockerfile \
 #     --ignorefile v2/Dockerfile.dockerignore --remote-only
 # Secrets are set once with `flyctl secrets import` — never in this file.
-app = 'oc-emc2-test'
+app = 'ocv2-react'
 primary_region = 'fra'
 
 [env]

@@ -41,11 +41,11 @@ Settings = today's Fly secrets, except:
 | `AUTH_SECRET` | same as today | same users; the login itself is per address |
 
 Owner steps (money and secrets — not done by the build agent):
-1. `flyctl apps create oc-emc2-test` (the name can differ; then change `app.fly.toml`).
-2. Copy the secrets of today's app to the test app with the differences above (`flyctl secrets import -a oc-emc2-test`). `GOTENBERG_URL` is copied unchanged — it carries the login of `emc2-gotenberg`.
+1. `flyctl apps create ocv2-react` (the name can differ; then change `app.fly.toml`).
+2. Copy the secrets of today's app to the test app with the differences above (`flyctl secrets import -a ocv2-react`). `GOTENBERG_URL` is copied unchanged — it carries the login of `emc2-gotenberg`.
 3. Backup, then migrations 001–005: dry run, then `--apply` (D5).
 4. First deploy (command in `app.fly.toml`), check `/api/health`.
-5. Address: `flyctl certs add ocv2.emc2.de -a oc-emc2-test`, DNS record as Fly prints it.
+5. Address: `flyctl certs add ocv2.emc2.de -a ocv2-react`, DNS record as Fly prints it.
 6. For later deploys: deploy token of the test app as repository secret `FLY_API_TOKEN_V2_TEST`, variable `FLY_V2_TEST_DEPLOY` = `on`.
 
 Open points:
