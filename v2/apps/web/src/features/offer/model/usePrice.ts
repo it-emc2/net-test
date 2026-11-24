@@ -25,7 +25,10 @@ export function usePrice() {
     queryKey: ["price", settled],
     // the offer is read at request time, so the request always carries the latest state
     queryFn: ({ signal }) => call("price", { body: useOfferStore.getState().offer, signal }),
-    enabled: hasOffer && !clientPriced,
+    // only for a settled version: a hook that saw the offer before it changed (e.g. mounted while the
+    // draft was loading, then a device snapshot opened as version 1) would otherwise ask at once for
+    // its outdated key — with the same offer as the request that follows for the new key (2 calls)
+    enabled: hasOffer && !clientPriced && version === settled,
     placeholderData: keepPreviousData,
     staleTime: Infinity,
     retry: false,
