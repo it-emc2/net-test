@@ -14,7 +14,12 @@ const OWN_SIZE = [/aspect-square w-full object-cover/, /max-h-\[80vh\]/, /max-h-
 describe("the picture standard", () => {
   // in rem: at the app's text size (18 px) that is 45 / 72 / 90 / 108 px and 144 px tall — before: 28 to 96 px in eight sizes
   it("the sizes: mini 2.5 rem, a row picture 4 rem, a swatch 5 rem, a tile 6 rem, a product photo 8 rem tall", () => {
-    expect(IMG).toEqual({ mini: "size-10", row: "size-16", swatch: "size-20", tile: "size-24", product: "h-32" });
+    expect(IMG).toEqual({ mini: "size-10 photo-plate", row: "size-16 photo-plate", swatch: "size-20", tile: "size-24 photo-plate", product: "h-32 photo-plate" });
+  });
+
+  it("product photos sit on the photo plate (white light, inset light plate dark); a decor swatch does not (U-059)", () => {
+    for (const role of ["mini", "row", "tile", "product"] as const) expect(IMG[role]).toContain("photo-plate");
+    expect(IMG.swatch).not.toContain("photo-plate");
   });
 
   it("every picture on a step takes its size from the standard", () => {

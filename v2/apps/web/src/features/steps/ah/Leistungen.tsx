@@ -120,7 +120,8 @@ function BudgetCard({ offer, used, own, any }: { offer: F; used: number; own: nu
     <Card data-testid="ah-budget" className="gap-2">
       <p className="m-0 text-muted-foreground">Gesamt pro Monat</p>
       <p className="m-0 text-[1.9rem] font-bold leading-tight tabular-nums" data-part="big">{euro(used)}</p>
-      {none === "nicht-angerechnet" ? <p className="m-0" data-part="hint">Entlastungsbetrag wird nicht angerechnet · <Link to={`${pathname.replace(/\/ah$/, "/Finanzierung")}${search}`} className="font-semibold text-foreground underline underline-offset-2">Finanzierung</Link></p> : null}
+      {/* the link is a 48 px tap area; its negative margin keeps the sentence's line height (U-059) */}
+      {none === "nicht-angerechnet" ? <p className="m-0" data-part="hint">Entlastungsbetrag wird nicht angerechnet · <Link to={`${pathname.replace(/\/ah$/, "/Finanzierung")}${search}`} className="-my-3 inline-flex min-h-12 items-center px-1 align-middle font-semibold text-foreground underline underline-offset-2">Finanzierung</Link></p> : null}
     </Card>
   );
   // the pill says what the customer pays: the Eigenanteil after ALL sources — the offer document's figure

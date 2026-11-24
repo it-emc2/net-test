@@ -1,4 +1,5 @@
-// The door section of Badewannentür: five equal tiles in one row (the tile is the control; one door
+// The door section of Badewannentür: five equal tiles in one row (3 + 2 below 760 px, two columns below 480 px so the
+// names break between words, U-059) (the tile is the control; one door
 // at a time), and below them one full-width panel for the chosen door — specs, sizes (Wien, Wien
 // Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-034): the stored fields and
 // the rules are slice 1's (rules.ts).
@@ -22,19 +23,19 @@ function Tile({ d, b, invalid }: { d: Door; b: Fields; invalid: boolean }) {
     <label data-testid="bwt-door" data-key={d.key} className={cn("relative grid min-w-0 cursor-pointer grid-rows-[6rem_auto] gap-2 rounded-lg border-2 bg-card p-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring", on ? "border-primary bg-accent-weak" : "border-input")}>
       <input type="checkbox" name="bwtDoorType" className="sr-only" aria-label={d.value} aria-invalid={invalid || undefined} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
       <img src={d.img} alt="" loading="lazy" className={cn(IMG.tile, "mx-auto object-contain")} />
-      <strong className="grid min-h-[2.75rem] min-w-0 content-center hyphens-auto break-words text-[0.95rem] leading-tight">{d.value}</strong>
+      <strong className="grid min-h-[2.75rem] min-w-0 content-center break-words text-[0.95rem] leading-tight">{d.value}</strong>
       {on ? <span aria-hidden data-part="tick" className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-primary text-primary-foreground"><Tick className="size-4" /></span> : null}
     </label>
   );
 }
 
-/** the quantity of the door: the shared − / + stepper (48 px buttons) with the typed field in the middle; never below 1 */
-function Qty({ field, b, door }: { field: string; b: Fields; door: string }) {
+/** a quantity (door, grab bar): the shared − / + stepper (48 px buttons) with the typed field in the middle; never below 1 */
+export function Qty({ field, b, label, inputLabel }: { field: string; b: Fields; label: string; inputLabel: string }) {
   const now = Number.parseInt(str(b[field]), 10);
   const step = (dir: 1 | -1) => set(field, String(Math.max(1, (Number.isFinite(now) ? now : dir > 0 ? 0 : 1) + dir)));
   return (
-    <Stepper label={`Menge ${door}`} words={["weniger", "mehr"]} value={str(b[field])} canDown={!Number.isFinite(now) || now > 1} canUp onStep={step}>
-      <Input type="number" aria-label="Menge" inputMode="numeric" min={1} step={1} className="w-20 text-center tabular-nums" value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
+    <Stepper label={label} words={["weniger", "mehr"]} value={str(b[field])} canDown={!Number.isFinite(now) || now > 1} canUp onStep={step}>
+      <Input type="number" aria-label={inputLabel} inputMode="numeric" min={1} step={1} className="w-20 text-center tabular-nums" value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
     </Stepper>
   );
 }
@@ -73,7 +74,7 @@ function Panel({ d, b }: { d: Door; b: Fields }) {
         </div>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1"><span className="font-semibold">Menge</span><Qty field={d.qty} b={b} door={d.value} /></div>
+        <div className="grid gap-1"><span className="font-semibold">Menge</span><Qty field={d.qty} b={b} label={`Menge ${d.value}`} inputLabel="Menge" /></div>
         {colors ? (
           <div className="grid gap-1" role="radiogroup" aria-label={label}>
             <span className="font-semibold">{label}</span>
@@ -99,7 +100,7 @@ export function Doors({ b, invalid }: { b: Fields; invalid: boolean }) {
   return (
     <Card aria-labelledby="bwt-tuer">
       <CardTitle id="bwt-tuer">Wählen Sie Ihren gewünschten Tür-Typen</CardTitle>
-      <div className={cn("grid grid-cols-3 gap-3 min-[760px]:grid-cols-5", invalid && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>{DOORS.map((d) => <Tile key={d.key} d={d} b={b} invalid={invalid} />)}</div>
+      <div className={cn("grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 min-[760px]:grid-cols-5", invalid && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>{DOORS.map((d) => <Tile key={d.key} d={d} b={b} invalid={invalid} />)}</div>
       {chosen ? <Panel key={chosen.key} d={chosen} b={b} /> : null}
     </Card>
   );

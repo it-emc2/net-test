@@ -41,10 +41,11 @@ export function VariantSwitch() {
       <button
         type="button" data-testid="variant-switch" aria-haspopup="dialog" aria-expanded={open} aria-label={`Variante: ${name} – Varianten anzeigen${related ? ` · ${SECOND.markerLabel(related)}` : ""}`} title={`Variante: ${name}${related ? ` · ${SECOND.markerLabel(related)}` : ""}`}
         onClick={() => openVariantPanel("list")}
-        className="flex min-h-12 max-w-[11rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] text-foreground hover:bg-muted"
+        className="flex min-h-12 max-w-[11rem] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[0.9rem] max-[479px]:px-2 text-foreground hover:bg-muted"
       >
         <Layers aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate" data-part="name">{name}</span>
+        {/* below 480 px the pill is icon-only so the customer line keeps its room; the name stays in the button's label and in the panel (U-059) */}
+        <span className="truncate max-[479px]:hidden" data-part="name">{name}</span>
         {related ? <span aria-hidden data-part="related" className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[0.75rem] font-bold leading-none text-primary-foreground">+{related}</span> : null}
         <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       </button>
