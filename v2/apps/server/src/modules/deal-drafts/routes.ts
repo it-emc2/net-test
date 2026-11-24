@@ -5,6 +5,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import mongoose from "mongoose";
 import { CREATION_ID_RE, ERROR_AREAS, ERROR_CODES, FIRST_VARIANT_ID, isVariantId, type ErrorCode } from "@oc/api-contract";
+import { NEW_OFFER_TYPES } from "@oc/domain";
 import { reportError } from "../../platform/error-events.js";
 import { Draft, Offer } from "../../platform/models.js";
 import {
@@ -20,7 +21,8 @@ const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: st
 const DEAL_NUMBER = /^\d{1,12}$/;
 /** a deal number, or the temporary key of a draft started without one (option A) */
 const DEAL_ID = { test: (v: string) => DEAL_NUMBER.test(v) || TEMP_KEY.test(v) };
-const OFFER_TYPES = new Set(["bu", "bwt", "hl", "bl", "ah"]); // HMS/WD dropped (ADR 011)
+/** the offer types the React app builds (@oc/domain NEW_OFFER_TYPES; ADR 011 dropped HMS/WD, both are back on request: U-066 / U-067) */
+const OFFER_TYPES = new Set<string>(NEW_OFFER_TYPES);
 
 export interface DealDraftDeps {
   /** the contact person of a new variant: the signed-in user, as "Neue Version" does (offers resolveAnsprechpartner) */

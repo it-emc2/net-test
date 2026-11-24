@@ -4,7 +4,7 @@
 // `openSecondOffer`; it is mounted by the offer header (VariantSwitch) and by the Hauptmenü
 // (planning), never both at once. Rules and texts: model/second-offer.ts.
 import type { DealRelation } from "@oc/api-contract";
-import type { NewOfferType } from "@oc/domain";
+import type { NewOfferType, SecondOfferType } from "@oc/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FilePlus2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -33,10 +33,10 @@ export interface SecondOfferSource {
   /** the relations known when the dialog opens (the draft's `related`) */
   related?: readonly DealRelation[];
 }
-interface DialogState { source: SecondOfferSource | null; target: NewOfferType | null; set: (source: SecondOfferSource | null, target?: NewOfferType | null) => void }
+interface DialogState { source: SecondOfferSource | null; target: SecondOfferType | null; set: (source: SecondOfferSource | null, target?: SecondOfferType | null) => void }
 const useDialog = create<DialogState>((set) => ({ source: null, target: null, set: (source, target = null) => set({ source, target }) }));
 /** opens the dialog; `target` given (planning): straight to the confirmation */
-export const openSecondOffer = (source: SecondOfferSource, target?: NewOfferType) => useDialog.getState().set(source, target ?? null);
+export const openSecondOffer = (source: SecondOfferSource, target?: SecondOfferType) => useDialog.getState().set(source, target ?? null);
 
 /** the open offer as the source */
 export function sourceOfOpenOffer(): SecondOfferSource | null {
@@ -136,7 +136,7 @@ export function SecondOfferHost({ onCreateVariant }: { onCreateVariant?: () => v
   return <SecondOfferDialog key={`${source.dealId}|${target ?? ""}`} source={source} target={target} onCreateVariant={onCreateVariant} />;
 }
 
-function SecondOfferDialog({ source, target, onCreateVariant }: { source: SecondOfferSource; target: NewOfferType | null; onCreateVariant?: (() => void) | undefined }) {
+function SecondOfferDialog({ source, target, onCreateVariant }: { source: SecondOfferSource; target: SecondOfferType | null; onCreateVariant?: (() => void) | undefined }) {
   const ref = useRef<HTMLDialogElement>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -145,7 +145,7 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
   const id = useRef(pending?.creationId ?? newCreationId());
   const running = useRef(false);
   const [step, setStep] = useState<Step>(pending ? "result" : target ? "confirm" : "type");
-  const [type, setType] = useState<NewOfferType | null>(pending?.offerType ?? target);
+  const [type, setType] = useState<SecondOfferType | null>(pending?.offerType ?? target);
   const [outcome, setOutcome] = useState<Outcome | null>(pending?.outcome ?? null);
   const [busy, setBusy] = useState<"" | "create" | "check">("");
   const [note, setNote] = useState("");

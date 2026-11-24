@@ -11,13 +11,23 @@ import bl from "./empty/bl.json" with { type: "json" };
 import bu from "./empty/bu.json" with { type: "json" };
 import bwt from "./empty/bwt.json" with { type: "json" };
 import hl from "./empty/hl.json" with { type: "json" };
+import hms from "./empty/hms.json" with { type: "json" };
+import wd from "./empty/wd.json" with { type: "json" };
 
-const EMPTY = { bu, bwt, hl, bl, ah } as const;
+const EMPTY = { bu, bwt, hl, bl, ah, hms, wd } as const;
 
-/** Offer types the new UI builds (HMS/WD are not part of v2, ADR 011). */
-export const NEW_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah"] as const;
+/** Offer types the new UI builds, in the order of today's Hauptmenü. Hausmeister-Service (`hms`) and
+ *  Winterdienst (`wd`) were left out by ADR 011 (U-001) and are built again on request (UX-CHANGES
+ *  U-066 / U-067, proposed). */
+export const NEW_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah", "hms", "wd"] as const;
 export type NewOfferType = (typeof NEW_OFFER_TYPES)[number];
 export const isNewOfferType = (v: unknown): v is NewOfferType => typeof v === "string" && (NEW_OFFER_TYPES as readonly string[]).includes(v);
+/** Target types of „Weiteres Angebot“ (ADR 027 B): a new Bitrix deal needs per-type deal values
+ *  (SECOND_OFFER_VALUES_JSON `byType`), which exist for these five only — Winterdienst / Hausmeister-Service
+ *  can be the source of a second offer but not its target (owner question, U-066). */
+export const SECOND_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah"] as const satisfies readonly NewOfferType[];
+export type SecondOfferType = (typeof SECOND_OFFER_TYPES)[number];
+export const isSecondOfferType = (v: unknown): v is SecondOfferType => typeof v === "string" && (SECOND_OFFER_TYPES as readonly string[]).includes(v);
 
 /** JSON inference gives `never[]` for empty lists, `null` for unset values and `{}` for empty
  *  sections — widen those so the fields can actually be filled. Known keys keep their type. */
@@ -39,6 +49,8 @@ export type BwtOffer = Offer<"bwt">;
 export type HlOffer = Offer<"hl">;
 export type BlOffer = Offer<"bl">;
 export type AhOffer = Offer<"ah">;
+export type HmsOffer = Offer<"hms">;
+export type WdOffer = Offer<"wd">;
 
 /** Name of a section (an object-valued top-level key) of an offer. */
 export type SectionKey<O extends Offer> = { [K in keyof O]: O[K] extends Record<string, unknown> ? K : never }[keyof O];

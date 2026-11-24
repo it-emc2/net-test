@@ -10,10 +10,16 @@ import { useOfferStore } from "./store.js";
 
 export const DEBOUNCE_MS = 250;
 
+/** Alltagshilfe is priced in the browser (model/ah-price.ts), no price request. Winterdienst and
+ *  Hausmeister-Service are asked like today: the server answers its empty shell (`_clientSideOffer`,
+ *  @oc/domain isClientPricedOffer) — the Kosten page shows its zeros, the total shows „–“ (as today). */
+const SHELL_TYPES = ["wd", "hms"];
+const browserPriced = (offer: Record<string, unknown>): boolean => isClientPricedOffer(offer) && !SHELL_TYPES.includes(String(offer.activeOffer ?? "").toLowerCase());
+
 export function usePrice() {
   const version = useOfferStore((s) => s.version);
   const hasOffer = useOfferStore((s) => s.offer !== null);
-  const clientPriced = useOfferStore((s) => (s.offer ? isClientPricedOffer(s.offer) : false));
+  const clientPriced = useOfferStore((s) => (s.offer ? browserPriced(s.offer) : false));
   // the key names THIS OPENING of an offer as well as its change count: the count starts at 0 every
   // time an offer is opened, so without it another offer — or the same variant opened again after it
   // was changed — would be answered from an older cached price (and show it until the next change)
@@ -41,5 +47,7 @@ export function usePrice() {
   // a client-priced offer (Alltagshilfe: model/ah-price.ts) never shows a server price — not even
   // one cached for the same key by another offer opened before (the key counts changes, not offers)
   if (clientPriced) return { data: null, total: null, selfPay: null, pending: false, error: null };
-  return { data: query.data ?? null, total: query.data?.total ?? null, selfPay: query.data?.selfPayAmount ?? null, pending: query.isFetching || version !== settled, error: query.error };
+  // the empty shell of Winterdienst / Hausmeister-Service has no total of its own (today's summary shows „–“)
+  const shell = (query.data as { _clientSideOffer?: unknown } | undefined)?._clientSideOffer === true;
+  return { data: query.data ?? null, total: shell ? null : query.data?.total ?? null, selfPay: query.data?.selfPayAmount ?? null, pending: query.isFetching || version !== settled, error: query.error };
 }

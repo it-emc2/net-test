@@ -1,7 +1,7 @@
 // Dokumentenstudio — the rules of today's UI (reference: test/fixtures/versand-dokumente.json,
 // v2/scripts/capture-versand-dokumente.cjs):
 //  - three cards: Angebot (DOCX, PDF, preview), Hassmann Warenkorb (CSV, preview; not for
-//    Alltagshilfe), Kalkulation (DOCX, PDF, preview, new version)
+//    Alltagshilfe, Hausmeister-Service, Winterdienst: services only), Kalkulation (DOCX, PDF, preview, new version)
 //  - every button first asks whether Kundendaten and the markup are complete (as "Weiter" does)
 //  - DOCX and PDF of offer and Kalkulation give the offer a NEW number (`offerNumber`) — also
 //    when the entries turn out to be incomplete; the new version of the Kalkulation, the CSV and
@@ -18,15 +18,15 @@ export interface Button { id: ActionId; label: string; look: "docx" | "pdf" | "p
 export interface DocCard { badge: string; format: string; title: string; text: string; buttons: Button[] }
 
 const PREVIEW_LABEL = "Vorschau anzeigen";
-const CARDS: readonly (DocCard & { notFor?: string })[] = [
+const CARDS: readonly (DocCard & { notFor?: readonly string[] })[] = [
   { badge: "Angebot", format: "DOCX + PDF", title: "Angebot", text: "Angebot als bearbeitbare DOCX-Datei oder als kundenfähiges PDF herunterladen",
     buttons: [{ id: "downloadDocx", label: "DOCX", look: "docx" }, { id: "downloadDocxAsPdf", label: "PDF", look: "pdf" }, { id: "previewOfferPdf", label: PREVIEW_LABEL, look: "preview" }] },
-  { badge: "Export", format: "CSV", title: "Hassmann Warenkorb", text: "CSV für Hassmann aus der Materialliste exportieren", notFor: "ah", // services only: no material list
+  { badge: "Export", format: "CSV", title: "Hassmann Warenkorb", text: "CSV für Hassmann aus der Materialliste exportieren", notFor: ["ah", "hms", "wd"], // services only: no material list (today: data-offer="bu,bwt,hl,bl")
     buttons: [{ id: "downloadHassmannCart", label: "CSV herunterladen", look: "docx" }, { id: "previewHassmannCart", label: PREVIEW_LABEL, look: "preview" }] },
   { badge: "Intern", format: "DOCX + PDF", title: "Kalkulation", text: "Interne Kalkulation als bearbeitbare Datei oder als PDF anzeigen",
     buttons: [{ id: "downloadKalkulationDocx", label: "DOCX", look: "docx" }, { id: "downloadKalkulation", label: "PDF", look: "pdf" }, { id: "previewKalkulation", label: PREVIEW_LABEL, look: "preview" }, { id: "downloadKalkulationV2", label: "Neue Version", look: "new" }] },
 ];
-export const cardsOf = (type: string | null): DocCard[] => CARDS.filter((c) => c.notFor !== type).map(({ notFor: _n, ...c }) => c);
+export const cardsOf = (type: string | null): DocCard[] => CARDS.filter((c) => !c.notFor?.includes(String(type))).map(({ notFor: _n, ...c }) => c);
 
 export const ACTIONS: Record<ActionId, Download | OpenPreview> = {
   downloadDocx: { kind: "download", path: "/docx-template", fallback: "Angebot.docx", stamp: true, save: false, failed: "Das Angebot (DOCX) konnte nicht erstellt werden." },

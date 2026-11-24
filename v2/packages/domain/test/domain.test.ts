@@ -87,7 +87,7 @@ describe("loose scalars", () => {
 });
 
 // ---- the typed offer (ADR 026) ----
-import { NEW_OFFER_TYPES, emptyOffer, isNewOfferType, withSection, type BuOffer } from "../src/index.js";
+import { NEW_OFFER_TYPES, SECOND_OFFER_TYPES, emptyOffer, isNewOfferType, isSecondOfferType, withSection, type BuOffer } from "../src/index.js";
 
 describe("emptyOffer — what today's UI stores for a new offer", () => {
   const ctx = { date: "2026-11-12", ansprechpartner: "ap@example.test", contactName: "AP", signatureUser: "ap", pricingRules: { bonusNeuGross: 250 } };
@@ -134,9 +134,28 @@ describe("emptyOffer — what today's UI stores for a new offer", () => {
     expect(b.duschwanne).toBe(a.duschwanne); // untouched sections are shared, not copied
   });
 
-  it("isNewOfferType: the five types of the new UI, not HMS/WD", () => {
+  it("isNewOfferType: the types of the new UI (Winterdienst and Hausmeister-Service again, U-066 / U-067)", () => {
     expect(NEW_OFFER_TYPES.every(isNewOfferType)).toBe(true);
-    expect([isNewOfferType("hms"), isNewOfferType("wd"), isNewOfferType("BU"), isNewOfferType(null)]).toEqual([false, false, false, false]);
+    expect([...NEW_OFFER_TYPES]).toEqual(["bu", "bwt", "hl", "bl", "ah", "hms", "wd"]);
+    expect([isNewOfferType("wd"), isNewOfferType("hms"), isNewOfferType("BU"), isNewOfferType("xy"), isNewOfferType(null)]).toEqual([true, true, false, false, false]);
+  });
+
+  it("„Weiteres Angebot“ targets: the five types with Bitrix deal values, not Winterdienst / Hausmeister-Service", () => {
+    expect([...SECOND_OFFER_TYPES]).toEqual(["bu", "bwt", "hl", "bl", "ah"]);
+    expect(SECOND_OFFER_TYPES.every(isNewOfferType)).toBe(true);
+    expect([isSecondOfferType("wd"), isSecondOfferType("hms"), isSecondOfferType("bl")]).toEqual([false, false, true]);
+  });
+
+  it("Hausmeister-Service: a new offer is today's (the page's empty fields, no price of its own)", () => {
+    const o: any = emptyOffer("hms", { date: "2026-11-24" });
+    expect(o.hms).toEqual({ ahEinsatzUmfang: "", ahMonatUmfang: "", sketch: { dataUrl: "", json: "" }, hmsNote: "", hmsSketchDataUrl: "", hmsSketchJson: "" });
+    expect(isClientPricedOffer(o)).toBe(true);
+  });
+
+  it("Winterdienst: a new offer is today's (the page's empty fields, no price of its own)", () => {
+    const o: any = emptyOffer("wd", { date: "2026-11-24" });
+    expect(o.wd).toEqual({ ahEinsatzUmfang: "", ahMonatUmfang: "", sketch: { dataUrl: "", json: "" }, wdNote: "", wdSketchDataUrl: "", wdSketchJson: "" });
+    expect(isClientPricedOffer(o)).toBe(true);
   });
 });
 

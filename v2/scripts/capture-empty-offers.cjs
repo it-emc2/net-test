@@ -5,17 +5,20 @@
 //
 //   bash v2/scripts/preview.sh &                 (local preview on :3001, nothing leaves the machine)
 //   node v2/scripts/capture-empty-offers.cjs     → v2/packages/domain/src/empty/<type>.json
+//   TYPES=wd,hms node v2/scripts/capture-empty-offers.cjs   (only these types)
 //
 // Day-, user- and settings-dependent values are blanked; emptyOffer() takes them from its context.
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { chromium } = require("../../node_modules/playwright");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "../../node_modules/playwright");
 
 const BASE = process.env.CAPTURE_BASE || "http://localhost:3001";
 const OUT = path.join(__dirname, "..", "packages", "domain", "src", "empty");
 const SECRET = process.env.AUTH_SECRET || "dev-only-auth-secret-change-me"; // v2 dev default
-const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe" };
+const TILES = { bu: "BU-Badumbau", bwt: "BWT-Badewannentür", hl: "HL-Handlauf", bl: "BL-Badelift", ah: "AH-Alltagshilfe", hms: "HMS-Hausmeister-Service", wd: "WD-Winterdienst" };
+/** TYPES=wd,hms records only these types (the other files stay as they are) */
+const ONLY_TYPES = process.env.TYPES ? process.env.TYPES.split(",") : null;
 
 const token = (() => {
   const payload = `${Date.now() + 3600e3}:capture@local.test`;
@@ -28,6 +31,7 @@ const sortKeys = (v) => Array.isArray(v) ? v.map(sortKeys)
   const browser = await chromium.launch({ headless: true });
   fs.mkdirSync(OUT, { recursive: true });
   for (const [type, tile] of Object.entries(TILES)) {
+    if (ONLY_TYPES && !ONLY_TYPES.includes(type)) continue;
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
     await ctx.addCookies([{ name: "net_session", value: token, url: BASE }]);
     const page = await ctx.newPage();

@@ -8,7 +8,7 @@ import { CONTACT_DEALS, call, ApiFailure, contactDealsQuery, dealCustomerQuery, 
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import type { DealDraftResponse, DealRelation, HomeSearchRow } from "@oc/api-contract";
-import { dealNumberTop, isNewOfferType, type NewOfferType } from "@oc/domain";
+import { dealNumberTop, isNewOfferType, isSecondOfferType, type NewOfferType } from "@oc/domain";
 import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
@@ -77,8 +77,8 @@ export function useStartFromAppointment() {
   };
 }
 
-const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"]];
-const NOT_YET: [string, string][] = [["wd", "Winterdienst"], ["hms", "Hausmeister-Service"]];
+// today's order of the picker (PLANNING_OFFER_TYPES)
+const TYPES: [string, string][] = [["bu", "Badumbau"], ["bwt", "Badewannentür"], ["bl", "Badelift"], ["hl", "Handlauf"], ["ah", "Alltagshilfe"], ["wd", "Winterdienst"], ["hms", "Hausmeister-Service"]];
 
 export { Modal };
 
@@ -149,10 +149,11 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
           {choice.same ? <p className="m-0" data-testid="picker-same">Für diesen Kunden gibt es auch schon ein Angebot {want}: Auftrag {choice.same.dealId}.</p> : null}
           {choice.same ? <Button size="lg" data-action="open-same" onClick={() => { nav(`/deal/${choice.same!.dealId}/${choice.type}`); onClose(); }}>Angebot {want} öffnen (Auftrag {choice.same.dealId})</Button> : null}
           <Button size="lg" variant={choice.same ? "outline" : "default"} data-action="open-existing" onClick={() => { nav(`/deal/${choice.dealId}/${choice.existing}`); onClose(); }}>Bestehendes Angebot ({has}) öffnen</Button>
-          <Button size="lg" variant="outline" className="h-auto min-h-14 whitespace-normal" data-action="second-offer"
-            onClick={() => { openSecondOffer({ dealId: choice.dealId, type: choice.existing, variantId: choice.variantId, customer: choice.customer, inOffer: false, related: choice.related }, choice.type); onClose(); }}>
+          {/* Winterdienst / Hausmeister-Service cannot be a „Weiteres Angebot“ (SECOND_OFFER_TYPES) */}
+          {isSecondOfferType(choice.type) ? <Button size="lg" variant="outline" className="h-auto min-h-14 whitespace-normal" data-action="second-offer"
+            onClick={() => { if (isSecondOfferType(choice.type)) openSecondOffer({ dealId: choice.dealId, type: choice.existing, variantId: choice.variantId, customer: choice.customer, inOffer: false, related: choice.related }, choice.type); onClose(); }}>
             Weiteres Angebot ({want}) für diesen Kunden anlegen
-          </Button>
+          </Button> : null}
           <Button variant="ghost" className="justify-self-start" onClick={() => setChoice(null)}>Zurück</Button>
         </div>
       </Modal>
@@ -163,7 +164,6 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
       <p className="m-0 text-muted-foreground">{entry.name || "Unbekannt"} · {entry.address || "Ort unbekannt"}</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {TYPES.map(([t, title]) => <Button key={t} variant="outline" size="lg" className="h-auto min-h-20 flex-col" data-offer-key={t} disabled={!!busy} onClick={() => void pickType(t)}>{busy === t ? "Einen Moment …" : title}</Button>)}
-        {NOT_YET.map(([t, title]) => <Button key={t} asChild variant="secondary" size="lg" className="h-auto min-h-20 flex-col whitespace-normal text-center"><a href={CLASSIC_HOME} data-offer-key={t}>{title}<span className="text-[0.95rem] font-normal">in der bisherigen Ansicht</span></a></Button>)}
       </div>
     </Modal>
   );

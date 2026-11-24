@@ -52,6 +52,8 @@ const rabatt = () => import("../features/steps/index.js").then((m) => ({ Compone
 const ahLeistungen = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhLeistungen }));
 const badelift = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badelift }));
 const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhFinanzierung }));
+const hausmeister = () => import("../features/steps/index.js").then((m) => ({ Component: m.Hausmeister }));
+const winterdienst = () => import("../features/steps/index.js").then((m) => ({ Component: m.Winterdienst }));
 // the admin area: one chunk, loaded only when an admin opens it
 const adminLayout = () => import("../features/admin/index.js").then((m) => ({ Component: m.AdminLayout }));
 const adminSettings = () => import("../features/admin/index.js").then((m) => ({ Component: m.SettingsPage }));
@@ -99,6 +101,8 @@ export const routes: RouteObject[] = [
           { path: "ah", lazy: ahLeistungen },
           { path: "Finanzierung", lazy: ahFinanzierung },
           { path: "bl", lazy: badelift },
+          { path: "wd", lazy: winterdienst },
+          { path: "hms", lazy: hausmeister },
           { path: ":step", lazy: stepInLegacy },
         ],
       },
