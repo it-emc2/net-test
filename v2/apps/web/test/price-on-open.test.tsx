@@ -32,4 +32,20 @@ describe("price on opening an offer", () => {
     expect(s.count("POST /api/price")).toBe(1);
     expect((s.calls.find((c) => c.key === "POST /api/price")!.body as any).Kundendaten.city).toBe("Neu");
   });
+  // the price cache names the offer: the change count alone starts at 0 for every opened offer
+  it("a second offer opened in the same session gets its own price — never the first offer's cached one", async () => {
+    const second = { body: { ...draft.body, dealId: "4712", payload: { activeOffer: "bu", Kundendaten: { city: "Zweite" } } } };
+    const s = fakeServer({ ...BASE, "GET /api/deals/4711/draft": draft, "GET /api/deals/4712/draft": second,
+      "POST /api/price": (body) => ({ body: { total: (body as any).Kundendaten.city === "Zweite" ? 222 : 111 } }) });
+    const router = renderApp("/deal/4711/bu/Kundendaten");
+    expect(await screen.findByLabelText("Vorname")).toBeInTheDocument();
+    await waitFor(() => expect(s.count("POST /api/price")).toBe(1));
+    await router.navigate("/deal/4712/bu/Kundendaten");
+    await waitFor(() => expect(useOfferStore.getState().offer?.Kundendaten.city).toBe("Zweite"));
+    await waitFor(() => expect(s.count("POST /api/price")).toBe(2));
+    const bodies = s.calls.filter((c) => c.key === "POST /api/price").map((c) => (c.body as any).Kundendaten.city);
+    expect(bodies).toEqual(["Alt", "Zweite"]);
+    await wait(700);
+    expect(s.count("POST /api/price")).toBe(2);
+  });
 });
