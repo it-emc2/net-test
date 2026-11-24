@@ -2,6 +2,7 @@
 //   /                              Hauptmenü
 //   /neu/:type                     a new offer without a deal number → gets a temporary key
 //   /deal/:dealId/:type[/:step]    an offer of a deal (or of a temporary key)
+//   /admin/…                       the admin area (role admin; the server checks every call)
 // Every feature is its own chunk and is loaded only when its route is opened (ADR 026).
 import { lazy, Suspense } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router";
@@ -51,6 +52,10 @@ const rabatt = () => import("../features/steps/index.js").then((m) => ({ Compone
 const ahLeistungen = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhLeistungen }));
 const badelift = () => import("../features/steps/index.js").then((m) => ({ Component: m.Badelift }));
 const ahFinanzierung = () => import("../features/steps/index.js").then((m) => ({ Component: m.AhFinanzierung }));
+// the admin area: one chunk, loaded only when an admin opens it
+const adminLayout = () => import("../features/admin/index.js").then((m) => ({ Component: m.AdminLayout }));
+const adminSettings = () => import("../features/admin/index.js").then((m) => ({ Component: m.SettingsPage }));
+const adminUsers = () => import("../features/admin/index.js").then((m) => ({ Component: m.UsersPage }));
 
 export const routes: RouteObject[] = [
   {
@@ -89,6 +94,15 @@ export const routes: RouteObject[] = [
           { path: "Finanzierung", lazy: ahFinanzierung },
           { path: "bl", lazy: badelift },
           { path: ":step", lazy: stepInLegacy },
+        ],
+      },
+      {
+        path: "admin",
+        lazy: adminLayout,
+        children: [
+          { index: true, element: <Navigate to="einstellungen/shared" replace /> },
+          { path: "einstellungen/:section", lazy: adminSettings },
+          { path: "benutzer", lazy: adminUsers },
         ],
       },
       { path: "home", element: <Navigate to="/" replace /> },
