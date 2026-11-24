@@ -6,6 +6,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { DealDraftRevisionsResponseSchema, RestoreDealDraftRequestSchema, SaveDealDraftResponseSchema } from "@oc/api-contract";
 import { loadConfig } from "@oc/config";
 import { buildApp } from "../src/app.js";
 import { createToken } from "../src/platform/auth.js";
@@ -114,6 +115,26 @@ describe("deal drafts", () => {
     const list = (await get("/api/deals/1001/draft/revisions")).json().revisions;
     expect(list[0]).toMatchObject({ kind: "restore", note: "Version 1 wiederhergestellt" });
     expect(list).toHaveLength(before.revision + 1);
+  });
+
+  it("„Versionen“ (U-062): list and restore answer in the contract's shape; a restore never touches stored offers or sends", async () => {
+    const db = mongoose.connection.db!;
+    const offer = await db.collection("offers").findOne({});
+    await db.collection("sends").insertOne({ sendId: "s-versionen-test", channel: "email", status: "done", dealId: "6006", offerNumber: offer!.offerNumber, startedAt: new Date() });
+    const snapO = EJSON.stringify(await db.collection("offers").find({}).sort({ _id: 1 }).toArray());
+    const snapS = EJSON.stringify(await db.collection("sends").find({}).sort({ _id: 1 }).toArray());
+    const sent = { offerNumber: offer!.offerNumber, zusammenfassung: { versand: { art: "email", versendetAm: "24.11.2026" } }, Kundendaten: { city: "Hof" } };
+    expect((await put("6006", { offerType: "bu", payload: { offerNumber: offer!.offerNumber, Kundendaten: { city: "Hof" } }, baseRevision: 0 })).statusCode).toBe(200);
+    expect((await put("6006", { offerType: "bu", payload: sent, baseRevision: 1 })).statusCode).toBe(200);
+    const list = DealDraftRevisionsResponseSchema.parse((await get("/api/deals/6006/draft/revisions")).json());
+    expect(list.revisions.map((r) => r.revision)).toEqual([2, 1]);
+    const res = await app.inject({ method: "POST", url: "/api/deals/6006/draft/restore", headers: auth(), payload: RestoreDealDraftRequestSchema.parse({ revision: 1, baseRevision: 2 }) });
+    expect(SaveDealDraftResponseSchema.parse(res.json())).toEqual({ dealId: "6006", revision: 3, changed: true });
+    // a stale base is refused (409), nothing written
+    expect((await app.inject({ method: "POST", url: "/api/deals/6006/draft/restore", headers: auth(), payload: { revision: 2, baseRevision: 2 } })).statusCode).toBe(409);
+    expect(DealDraftRevisionsResponseSchema.parse((await get("/api/deals/6006/draft/revisions")).json()).revisions[0]).toMatchObject({ revision: 3, kind: "restore", note: "Version 1 wiederhergestellt" });
+    expect(EJSON.stringify(await db.collection("offers").find({}).sort({ _id: 1 }).toArray())).toBe(snapO);
+    expect(EJSON.stringify(await db.collection("sends").find({}).sort({ _id: 1 }).toArray())).toBe(snapS);
   });
 
   it("import copies a legacy draft/offer; the legacy document stays byte-identical", async () => {
