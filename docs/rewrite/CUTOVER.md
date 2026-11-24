@@ -27,7 +27,7 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 
 v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), `v2/deploy/fly/pdf.fly.toml` (Gotenberg, private network only), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Not deployed yet; the Fly files are untested** (no `flyctl` on the build machine).
 
-**With the same settings as main this is not a sandbox**: same production database, real Bitrix, real mail, real letters. An offer sent from the test app reaches the customer and moves the deal. Rule until the switch: **test deals and test contacts only**.
+**With the same settings as main this is not a sandbox**: same production database, real Bitrix, real mail, real letters. An offer sent from the test app reaches the customer and moves the deal. Rule until the switch: **test deals and test contacts only** (accepted by the owner 2026-11-24: live database and real Bitrix, no copy).
 
 Settings = today's Fly secrets, except:
 
