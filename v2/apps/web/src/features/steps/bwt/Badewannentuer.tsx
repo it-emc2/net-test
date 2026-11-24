@@ -2,17 +2,13 @@
 // cards, the hinge and the four grab bars. The stored fields are exactly today's
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
-import { Card, CardTitle, Check, Choices, IMG, Input, Label, cn } from "../../../shared/ui/index.js";
+import { Card, CardTitle, Check, Choices, IMG, cn } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { Anschlag } from "./Anschlag.js";
-import { Doors } from "./Doors.js";
+import { Doors, Qty } from "./Doors.js";
 import { Extras } from "./Extras.js";
 import { set, str, useBwt, write, type Fields } from "./store.js";
 import { GRIPS, MATERIALS, SHAPES, UMBAU, gripOn, setMaterial, toggleGrip, toggleUmbau, umbauOn, bwtMissing, bwtProblem } from "./rules.js";
-
-const Num = ({ label, field, b, step = 1, min }: { label: string; field: string; b: Fields; step?: number; min?: number }) => (
-  <Input type="number" aria-label={label} inputMode="decimal" step={step} min={min} value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
-);
 
 export function Badewannentuer() {
   const b = useBwt();
@@ -37,16 +33,20 @@ export function Badewannentuer() {
       </Card>
       <Card aria-labelledby="bwt-zubehoer">
         <CardTitle id="bwt-zubehoer">Optionale Haltegriffe</CardTitle>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
+        {/* every tile keeps the room of its quantity, and is wide enough (15 rem) for the bold ticked name on one line, so ticking one never makes the row jump (U-059) */}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(15rem,100%),1fr))] gap-3">
           {GRIPS.map((g) => {
             const on = gripOn(b, g.n);
             return (
-              <div key={g.n} data-testid="bwt-grip" data-n={g.n} className="grid content-start gap-2 rounded-lg border-2 border-input bg-card p-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
+              <div key={g.n} data-testid="bwt-grip" data-n={g.n} className="grid content-start gap-2 rounded-lg border-2 border-control bg-card p-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
                 <div className="grid justify-items-center gap-2">
-                  <img src="/assets/5b817c33100c0121ede70f11e341601c.jpg" alt="" loading="lazy" data-part="grip-image" className={cn(IMG.row, "rounded-md object-cover")} />
+                  <img src="/assets/5b817c33100c0121ede70f11e341601c.jpg" alt="" loading="lazy" data-part="grip-image" className={cn(IMG.row, "rounded-md object-contain")} />
                   <Check id={`bwt-grip-${g.n}`} checked={on} onChange={() => write((x) => toggleGrip(x, g.n))}>{g.label}</Check>
                 </div>
-                {on ? <div className="grid gap-1"><Label>Menge {g.label}</Label><Num label={`Menge ${g.label}`} field={g.qty} b={b} min={1} /></div> : null}
+                <div data-part="grip-qty" aria-hidden={!on || undefined} className={cn("grid justify-items-center gap-1", !on && "invisible")}>
+                  <span className="font-semibold">Menge</span>
+                  <Qty field={g.qty} b={b} label={g.label} inputLabel={`Menge ${g.label}`} />
+                </div>
               </div>
             );
           })}

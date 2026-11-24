@@ -46,6 +46,18 @@ describe("step status", () => {
     await waitFor(() => expect(state(/^Optionale Produkte/)).toBe("done"));
   });
 
+  it("Badewannentür: Arbeiten and the door step have a status; the door step warns while the tub shape or door is missing (U-031)", async () => {
+    fakeServer({ ...BASE });
+    renderApp(`/deal/${KEY}/bwt/Rabatt`);
+    await screen.findByRole("navigation", { name: "Schritte" });
+    patch("bwt", { bwtShape: "", bwtDoorType: undefined, workTasks: [], extraTasks: [] });
+    await waitFor(() => expect(state(/^Badewannentür/)).toBe("warn"));
+    expect(state(/^Arbeiten/)).toBe("open");
+    patch("bwt", { bwtShape: "Normal, rechteckig", bwtDoorType: "Universal / Standard Tür", workTasks: ["deliver_install_bwt_door"] });
+    await waitFor(() => expect(state(/^Badewannentür/)).toBe("done"));
+    expect(state(/^Arbeiten/)).toBe("done");
+  });
+
   it("Angebotscheck: red with the number of open rows", async () => {
     await open();
     await waitFor(() => expect(state(/^Angebotscheck/)).toBe("check"));

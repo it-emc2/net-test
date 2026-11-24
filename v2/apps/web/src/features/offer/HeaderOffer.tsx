@@ -35,7 +35,7 @@ export function HeaderLeft() {
   const { drawer, sidebar, setDrawer, toggleSidebar } = useNav();
   if (!open) return <Brand />;
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3 max-[479px]:gap-2">
       <button
         id="offer-burger" type="button" aria-label="Schritte öffnen" aria-expanded={wide ? sidebar : drawer}
         onClick={() => (wide ? toggleSidebar() : setDrawer(true))}

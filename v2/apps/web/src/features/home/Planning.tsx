@@ -14,7 +14,7 @@ import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustom
 
 export const TODAY_KEY = ["planning-today"];
 const DEAL_URL = (id: string) => `https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(id)}/`;
-/** Anrufen opens the customer's Bitrix contact card: a call started there goes through Bitrix telephony and is logged to the contact (U-058) */
+/** Anrufen opens the customer's Bitrix contact card: a call started there goes through Bitrix telephony and is logged to the contact (U-060) */
 const CONTACT_URL = (id: string) => `https://emczwei.bitrix24.de/crm/contact/details/${encodeURIComponent(id)}/`;
 
 /** today's plan from the lean API; pushed updates (event „today“) replace it. `live`: the stream is connected. */

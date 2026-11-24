@@ -139,7 +139,7 @@ export function StepInLegacy() {
 export function LegacyLink({ dealId, step, children }: { dealId: string; step: string; children: string }) {
   const type = useOfferStore((s) => s.offer?.activeOffer as NewOfferType | undefined);
   return (
-    <Button asChild variant="secondary" className="justify-self-start">
+    <Button asChild variant="secondary" className="justify-self-start !whitespace-normal">
       <a
         href={legacyAddress(dealId, step)}
         onClick={(e) => {
@@ -252,7 +252,11 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
       {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
       {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
         {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
-        <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</p>
+        {/* below 480 px the bar keeps one row (U-056) and leaves ~50 px for the text: „4/7“ instead of a cut „Sc…“; the full name stays for screen readers (U-059) */}
+        <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">
+          <span className="max-[479px]:sr-only">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</span>
+          <span aria-hidden data-part="step-short" className="min-[480px]:hidden">{inFlow ? `${at + 1}/${steps.length}` : stepLabel(step)}</span>
+        </p>
         {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
         <BarMoney base={base} fallback={<Total />} className="max-[479px]:min-w-0 max-[479px]:shrink" />
       </div> : null}

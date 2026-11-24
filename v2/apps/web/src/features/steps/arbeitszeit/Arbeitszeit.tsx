@@ -30,9 +30,10 @@ function Duration({ id, label, field, manual }: { id: string; label: string; fie
       <div className="flex flex-wrap items-center gap-2">
         {/* the width is on a wrapper: the input's own w-full must not be overridden (see cn) */}
         <div className="w-28 shrink-0"><Input id={id} inputMode="numeric" autoComplete="off" placeholder="HH:MM" value={value} onChange={(e) => set(typed(value, e.target.value))} onBlur={(e) => { const v = leaveDuration(e.target.value); if (v !== value) set(v); }} /></div>
-        <div className="flex gap-2" role="group" aria-label={`${label}: Schnellwahl`}>
+        {/* four equal buttons that shrink with the screen (375 px: the row no longer pushes the page sideways) */}
+        <div className="grid min-w-0 grid-cols-4 gap-2 max-[479px]:w-full" role="group" aria-label={`${label}: Schnellwahl`}>
           {[-15, -5, 5, 15].map((d) => (
-            <Button key={d} variant="outline" className="px-3" aria-label={`${label} ${d > 0 ? "plus" : "minus"} ${Math.abs(d)} Minuten`} onClick={() => set(addMinutes(value, d))}>{d > 0 ? `+${d}m` : `−${-d}m`}</Button>
+            <Button key={d} variant="outline" className="min-w-12 !px-1 min-[480px]:!px-3" aria-label={`${label} ${d > 0 ? "plus" : "minus"} ${Math.abs(d)} Minuten`} onClick={() => set(addMinutes(value, d))}>{d > 0 ? `+${d}m` : `−${-d}m`}</Button>
           ))}
         </div>
       </div>
@@ -56,7 +57,7 @@ function Way() {
   return (
     <Card aria-labelledby="az-way">
       <CardTitle id="az-way">Anfahrt</CardTitle>
-      <div><Button variant="secondary" onClick={() => { void askRoute(true); }}>Strecke aus Adresse vorschlagen</Button></div>
+      <div><Button variant="secondary" className="!whitespace-normal" onClick={() => { void askRoute(true); }}>Strecke aus Adresse vorschlagen</Button></div>
       {hint.text ? <p className="m-0 text-muted-foreground" role="status" data-testid="az-routing">{hint.text}{hint.basis ? <><br /><span className="text-[0.9rem]">{hint.basis}</span></> : null}</p> : null}
       {ah ? (
         <div className="grid gap-2">
@@ -116,7 +117,7 @@ function Travel() {
         <div className="max-w-sm"><SelectField label="2. Mitarbeiter bei Reisezeit" id="az-second" value={String(rate === 35 ? 35 : 25)} onChange={(v) => write({ travelSecondWorkerRate: Number(v) })} options={[{ value: "25", label: "25 €/h (alt)" }, { value: "35", label: "35 €/h (neu / Standard)" }]} /></div>
       </div>
       <details>
-        <summary className="cursor-pointer text-muted-foreground">Hinweis anzeigen</summary>
+        <summary className="min-h-12 cursor-pointer py-2.5 text-muted-foreground">Hinweis anzeigen</summary>
         <p className="mb-0 mt-2 text-[0.95rem]"><strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet: Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h. Für neue Angebote ist 35 €/h der Standard. Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h erhalten.</p>
       </details>
     </Card>
@@ -146,7 +147,7 @@ function ExtraWork() {
           <Button variant="ghost" size="icon" aria-label={`Extra-Arbeitszeit ${i + 1} entfernen`} onClick={() => set(rows.filter((_, j) => j !== i))}><Trash2 aria-hidden /></Button>
         </div>
       ))}
-      <div><Button variant="outline" onClick={() => set([...rows, EMPTY_EXTRA])}><Plus aria-hidden />Extra-Arbeitszeit hinzufügen</Button></div>
+      <div><Button variant="outline" className="!whitespace-normal" onClick={() => set([...rows, EMPTY_EXTRA])}><Plus aria-hidden />Extra-Arbeitszeit hinzufügen</Button></div>
     </Card>
   );
 }

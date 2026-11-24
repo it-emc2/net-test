@@ -24,8 +24,8 @@ function FreeItems() {
   const focus = (field: keyof Row) => setTimeout(() => box.current?.querySelector<HTMLInputElement>(`[data-testid="bwt-row"]:last-of-type [data-field="${field}"]`)?.focus());
   const add = () => { const r = addRow(rows); if (r.missing) focus(r.missing); else { put(r.rows); focus("price"); } };
   const cell = (i: number, field: keyof Row, label: string, placeholder: string, more: Record<string, unknown> = {}) => (
-    <label className="grid gap-1 text-[0.95rem] font-semibold">{label}
-      <Input data-field={field} placeholder={placeholder} value={rows[i]![field]} onChange={(e) => edit(i, field, e.target.value)} {...more} />
+    <label className="grid min-w-0 gap-1 text-[0.95rem] font-semibold">{label}
+      <Input data-field={field} className="min-w-0" placeholder={placeholder} value={rows[i]![field]} onChange={(e) => edit(i, field, e.target.value)} {...more} />
     </label>
   );
   return (
@@ -34,17 +34,16 @@ function FreeItems() {
         <Button variant="outline" size="icon" aria-label="Weitere Position hinzufügen" onClick={add}><Plus aria-hidden /></Button>
       </legend>
       {rows.map((_, i) => (
-        <div key={i} data-testid="bwt-row" className="grid grid-cols-[1fr_auto] items-end gap-2 rounded-lg border-2 border-input p-3">
-          <div className="grid gap-2 sm:grid-cols-2">
+        <div key={i} data-testid="bwt-row" className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-lg border-2 border-control p-3">
+          <div className="grid min-w-0 gap-2 sm:grid-cols-2">
             {cell(i, "name", "Bezeichnung", "z. B. Sonderanfertigung Glas")}
             {cell(i, "price", "Preis", "z. B. 799,00", { type: "text", inputMode: "decimal", onBlur: () => { if (parseMoney(rows[i]!.price) > 0 && !rows[i]!.qty.trim()) edit(i, "qty", "1"); } })}
             {cell(i, "qty", "Menge", "", { type: "number", inputMode: "numeric", min: 1, step: 1 })}
             {cell(i, "id", "ID", "z. B. BWT-CUS-001")}
           </div>
-          <div className="flex items-center gap-3 self-end">
-            {lineTotal(rows[i]!) ? <span data-part="line-total" className="whitespace-nowrap tabular-nums text-[0.95rem] text-muted-foreground">{lineTotal(rows[i]!)}</span> : null}
-            <Button variant="outline" size="icon" aria-label="Diese Zeile entfernen" onClick={() => put(removeRow(rows, i))}><Trash2 aria-hidden /></Button>
-          </div>
+          <Button variant="outline" size="icon" aria-label="Diese Zeile entfernen" onClick={() => put(removeRow(rows, i))}><Trash2 aria-hidden /></Button>
+          {/* its own line under the fields: beside them it squeezed the fields and pushed the page sideways at 375 px */}
+          {lineTotal(rows[i]!) ? <span data-part="line-total" className="col-span-2 justify-self-end text-right tabular-nums text-[0.95rem] text-muted-foreground">{lineTotal(rows[i]!)}</span> : null}
         </div>
       ))}
       <small id="bwt-extras-help" className="text-muted-foreground">Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.</small>
@@ -58,7 +57,7 @@ function NoteText({ id, tick, text, label }: { id: string; tick: string; text: s
   return (
     <div className="grid gap-2">
       <Check id={id} checked={b[tick] === "on"} onChange={(on) => write(() => ({ [tick]: on ? "on" : undefined }))}>{label}</Check>
-      <textarea aria-label={label} rows={4} value={str(b[text])} onChange={(e) => set(text, e.target.value)} className="w-full rounded-lg border-2 border-input bg-card px-3.5 py-2.5 text-foreground" />
+      <textarea aria-label={label} rows={4} value={str(b[text])} onChange={(e) => set(text, e.target.value)} className="w-full rounded-lg border-2 border-control bg-card px-3.5 py-2.5 text-foreground" />
     </div>
   );
 }
@@ -80,7 +79,8 @@ export function Extras() {
         {open ? (
           <div className="grid gap-4 pt-3">
             <TextAreaField id="bwt-note" label="Zusätzliche Hinweise zur Badewannentür (für das Angebot)" placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen." rows={20} value={str(b.bwtNote)} onChange={(v) => set("bwtNote", v)} />
-            <SketchPad value={sketch} onChange={store} />
+            {/* the pad's colour row does not wrap: on a phone it scrolls inside its own box, the page never sideways (as Badelift) */}
+            <div className="min-w-0 overflow-x-auto"><SketchPad value={sketch} onChange={store} /></div>
           </div>
         ) : null}
       </details>

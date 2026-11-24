@@ -24,7 +24,7 @@ function FreeTasks() {
       <div className="grid gap-2 p-3 pt-0">
         {rows.map((text, i) => (
           <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-start gap-1">
-            <textarea aria-label="Zusätzliche Aufgabe" rows={2} placeholder="z. B. Demontage der alten Duschabtrennung" value={text} onChange={(e) => set(rows.map((r, j) => (j === i ? e.target.value : r)))} className="w-full rounded-lg border-2 border-input bg-card px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground" />
+            <textarea aria-label="Zusätzliche Aufgabe" rows={2} placeholder="z. B. Demontage der alten Duschabtrennung" value={text} onChange={(e) => set(rows.map((r, j) => (j === i ? e.target.value : r)))} className="w-full rounded-lg border-2 border-control bg-card px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground" />
             <Button variant="ghost" size="icon" aria-label="Nach oben verschieben" disabled={rows.length <= 1 || i === 0} onClick={() => swap(i, i - 1)}><ChevronUp aria-hidden /></Button>
             <Button variant="ghost" size="icon" aria-label="Nach unten verschieben" disabled={rows.length <= 1 || i === rows.length - 1} onClick={() => swap(i, i + 1)}><ChevronDown aria-hidden /></Button>
             <Button variant="ghost" size="icon" aria-label="Diese Zeile entfernen" onClick={() => set(rows.filter((_, j) => j !== i))}><Trash2 aria-hidden /></Button>
@@ -49,7 +49,7 @@ export function BwtArbeiten() {
         <details className={GROUP} open>
           <summary className={SUMMARY}><span>1. Badewannentür<Badge n={on ? 1 : 0} id="bwt-door-count" /></span><ChevronDown aria-hidden className="size-5" /></summary>
           <div className="grid gap-2 p-3 pt-0">
-            <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border-2 border-input bg-card px-4 py-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
+            <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border-2 border-control bg-card px-4 py-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
               <input type="checkbox" className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" checked={on} onChange={(e) => write(() => ({ workTasks: e.target.checked ? [DOOR_TASK.value] : [] }))} />
               <span className={cn(on && "font-bold")}>{DOOR_TASK.title}</span>
             </label>
