@@ -56,7 +56,7 @@ export function SigningPage() {
     <section className="grid gap-4" data-testid="admin-signing">
       <div className="flex flex-wrap items-center gap-3"><h2 className="m-0 flex-1 text-[1.3rem]">Signatur-Links</h2><Refresh busy={q.isFetching} onClick={() => void q.refetch()} /></div>
       <Stats items={SIGN_STAT_ORDER.map((s) => ({ value: counts[s] || 0, label: SIGN_STATUS[s]! }))} />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2">
         <Field id="sign-q" label="Suche" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Angebot, Name, E-Mail" />
         <Select id="sign-status" label="Status" value={status} onChange={setStatus} options={[{ value: "", label: "Alle Status" }, ...SIGN_STAT_ORDER.map((s) => ({ value: s, label: SIGN_STATUS[s]! }))]} />
       </div>

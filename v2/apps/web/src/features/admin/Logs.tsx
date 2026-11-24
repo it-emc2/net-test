@@ -68,7 +68,7 @@ export function UserLogsPage() {
   return (
     <section className="grid gap-4" data-testid="admin-userlogs">
       <div className="flex flex-wrap items-center gap-3"><h2 className="m-0 flex-1 text-[1.3rem]">Aktivitäts-Log</h2><Refresh busy={q.isFetching} onClick={() => void q.refetch()} /></div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2">
         <Select id="ulog-event" label="Ereignis" value={event} onChange={setEvent} options={USER_EVENTS} />
         <Field id="ulog-dealid" label="Deal-ID" inputMode="numeric" value={deal} onChange={(e) => setDeal(e.target.value)} placeholder="Deal-ID…" />
       </div>

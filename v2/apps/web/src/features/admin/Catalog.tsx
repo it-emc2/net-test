@@ -55,7 +55,7 @@ function Products() {
     <div className="grid gap-4">
       <form className="grid gap-3 rounded-xl border border-border bg-card p-4" onSubmit={(e) => { e.preventDefault(); start(); }} aria-labelledby="ap-title">
         <h3 id="ap-title" className="m-0">Neues Produkt / Produkt aktualisieren</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
           <Field id="ap_productId" label="Produkt-ID (z.B. V4FK600)" required value={f.productId} onChange={(e) => put({ productId: e.target.value })} />
           <Field id="ap_name" label="Bezeichnung" required value={f.name} onChange={(e) => put({ name: e.target.value })} />
           <Field id="ap_price" label="Preis (netto, EUR)" required inputMode="decimal" placeholder="z.B. 199,90" value={f.price} onChange={(e) => put({ price: e.target.value })} />
@@ -123,7 +123,7 @@ function Services() {
     <div className="grid gap-4">
       <form className="grid gap-3 rounded-xl border border-border bg-card p-4" onSubmit={(e) => { e.preventDefault(); start(); }} aria-labelledby="as-title">
         <h3 id="as-title" className="m-0">Neuer Service / Service aktualisieren</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
           <Field id="as_serviceId" label="Service-ID" required value={f.serviceId} onChange={(e) => put({ serviceId: e.target.value })} />
           <Field id="as_name" label="Name" required value={f.name} onChange={(e) => put({ name: e.target.value })} />
           <Field id="as_internal_name" label="Interner Name" value={f.internal_name} onChange={(e) => put({ internal_name: e.target.value })} />

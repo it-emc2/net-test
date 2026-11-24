@@ -86,7 +86,7 @@ export function UsersPage() {
       <h2 className="m-0 text-[1.3rem]">Benutzer</h2>
       <form className="grid gap-3 rounded-xl border border-border bg-card p-4" onSubmit={(e) => { e.preventDefault(); startSave(); }} aria-labelledby="user-form-title">
         <h3 id="user-form-title" className="m-0">{editing ? `Benutzer bearbeiten: ${form.email}` : "Benutzer hinzufügen / bearbeiten"}</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
           <Field id="u-first" label="Vorname" value={form.firstName} onChange={(e) => put({ firstName: e.target.value })} autoComplete="off" />
           <Field id="u-last" label="Nachname" value={form.lastName} onChange={(e) => put({ lastName: e.target.value })} autoComplete="off" />
           <Field id="u-email" label="E-Mail" type="email" value={form.email} readOnly={editing} onChange={(e) => put({ email: e.target.value })} autoComplete="off"

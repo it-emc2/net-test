@@ -1,7 +1,7 @@
 // The admin area (/admin/…): only for the role "admin". The client check only hides the pages; every
 // /admin/api route checks the role on the server again (admin guard, ADR 015) — a forged role in
 // the browser gets 403 answers, nothing else.
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useSession } from "../auth/index.js";
 import { Alert, ButtonLink, Page, cn } from "../../shared/ui/index.js";
 import { PAGES, SETTINGS_SECTIONS, isAdmin } from "./rules.js";
@@ -18,7 +18,8 @@ function Nav() {
   const pending = (section: string) => items.filter((i) => i.section === section && i.key in changes).length;
   return (
     <nav aria-label="Verwaltung" className="grid gap-3" data-testid="admin-nav">
-      <div>
+      <PhonePicker pending={pending} />
+      <div className="max-sm:hidden">
         <p className="m-0 mb-1.5 text-[0.8rem] font-bold uppercase tracking-wider text-muted-foreground">Einstellungen</p>
         <div className="flex flex-wrap gap-2">
           {SETTINGS_SECTIONS.map((s) => {
@@ -32,13 +33,33 @@ function Nav() {
           })}
         </div>
       </div>
-      <div>
+      <div className="max-sm:hidden">
         <p className="m-0 mb-1.5 text-[0.8rem] font-bold uppercase tracking-wider text-muted-foreground">Verwaltung und Protokolle</p>
         <div className="flex flex-wrap gap-2">
           {PAGES.map((p) => <NavLink key={p.path} to={p.path} className={pill}>{p.label}</NavLink>)}
         </div>
       </div>
     </nav>
+  );
+}
+
+/** below 640 px one list to choose the page from instead of 15 buttons (they would fill the screen) */
+function PhonePicker({ pending }: { pending: (section: string) => number }) {
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  const here = pathname.replace(/^.*\/admin\/?/, "");
+  return (
+    <label htmlFor="admin-page" className="grid gap-1.5 sm:hidden">
+      <span className="font-semibold">Bereich</span>
+      <select id="admin-page" value={here} onChange={(e) => nav(e.target.value)} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-3.5 text-foreground">
+        <optgroup label="Einstellungen">
+          {SETTINGS_SECTIONS.map((s) => { const n = pending(s.id); return <option key={s.id} value={`einstellungen/${s.id}`}>{s.label}{n ? ` (${n} ungespeichert)` : ""}</option>; })}
+        </optgroup>
+        <optgroup label="Verwaltung und Protokolle">
+          {PAGES.map((p) => <option key={p.path} value={p.path}>{p.label}</option>)}
+        </optgroup>
+      </select>
+    </label>
   );
 }
 
