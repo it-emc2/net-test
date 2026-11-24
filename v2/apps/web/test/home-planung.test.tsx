@@ -94,7 +94,7 @@ describe("panel", () => {
     renderApp("/");
     await waitFor(() => expect(card("a1")).toBeTruthy());
     expect(screen.getByTestId("planning-meta")).toHaveTextContent(/^4 Termin\(e\) für Dienstag, 17. November 2026 · aktualisiert \d\d:\d\d/);
-    expect(within(card("a1")).getByRole("link", { name: /Kunde anrufen/ })).toHaveAttribute("href", "tel:+499281000001");
+    expect(within(card("a1")).getByRole("link", { name: /Kunde in Bitrix anrufen/ })).toHaveAttribute("href", "https://emczwei.bitrix24.de/crm/contact/details/5001/");
     expect(within(card("d4")).getByRole("button", { name: /Nicht verfügbar/ })).toBeDisabled();
     await userEvent.type(screen.getByLabelText("Termine suchen"), "beispiel");
     expect(card("a1")).toBeNull();
