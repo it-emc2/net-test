@@ -1,9 +1,9 @@
 // The header (as in today's UI since U-008): logo and title on the left; on the right how
 // saving stands (while an offer is open) and ONE user menu — name, colour theme, dark mode,
-// automatic saving, reload, today's UI, log out.
+// automatic saving, the admin area (admins only), reload, today's UI, log out.
 // The menu is a native popover: the browser closes it on Escape or a tap outside, without any
 // library in the start script.
-import { LogOut, PanelsTopLeft, RotateCw } from "lucide-react";
+import { LogOut, PanelsTopLeft, RotateCw, Settings } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -106,6 +106,11 @@ function UserMenu() {
         </label>
 
         <hr className="mx-1 my-2 border-0 border-t border-border" />
+        {user.role === "admin" ? (
+          <Link className={ITEM} to="/admin" data-testid="menu-admin" onClick={() => document.getElementById("user-menu")?.hidePopover?.()}>
+            <Settings aria-hidden className="size-5 text-muted-foreground" />Verwaltung
+          </Link>
+        ) : null}
         <a className={ITEM} href={CLASSIC_HOME}><PanelsTopLeft aria-hidden className="size-5 text-muted-foreground" />Zur bisherigen Ansicht</a>
         <button type="button" className={ITEM} onClick={() => { void reloadApp(); }}><RotateCw aria-hidden className="size-5 text-muted-foreground" />App neu laden</button>
         <hr className="mx-1 my-2 border-0 border-t border-border" />
