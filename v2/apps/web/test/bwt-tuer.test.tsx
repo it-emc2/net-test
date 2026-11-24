@@ -124,11 +124,12 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     expect(screen.getAllByTestId("bwt-door")).toHaveLength(5);
     expect(screen.getAllByTestId("bwt-door-panel")).toHaveLength(1);
     const panel = within(screen.getByTestId("bwt-door-panel"));
-    await user.click(panel.getByRole("button", { name: "Menge erhöhen" }));
+    const less = () => panel.getByRole("button", { name: "Menge Universal / Standard Tür weniger" });
+    await user.click(panel.getByRole("button", { name: "Menge Universal / Standard Tür mehr" }));
     expect(offer().bwt.bwtDoorStdQty).toBe("2");
-    await user.click(panel.getByRole("button", { name: "Menge verringern" }));
-    await user.click(panel.getByRole("button", { name: "Menge verringern" }));
-    expect(offer().bwt.bwtDoorStdQty).toBe("1"); // never below 1
+    await user.click(less());
+    expect(offer().bwt.bwtDoorStdQty).toBe("1");
+    expect(less()).toBeDisabled(); // never below 1 (shared stepper)
     await user.click(within(cardOf("wien")).getByRole("checkbox"));
     const wien = within(screen.getByTestId("bwt-door-panel"));
     expect(screen.getAllByTestId("bwt-door-panel")).toHaveLength(1);

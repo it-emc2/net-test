@@ -48,4 +48,21 @@ describe("price on opening an offer", () => {
     await wait(700);
     expect(s.count("POST /api/price")).toBe(2);
   });
+
+  // found 2026-11-24 with two variants: back on the first one the page showed the price it had when it was first opened
+  it("the same offer opened again after it changed gets a new price — not the one cached at its first opening", async () => {
+    let opened = 0;
+    const second = { body: { ...draft.body, dealId: "4712", payload: { activeOffer: "bu", Kundendaten: { city: "Zweite" } } } };
+    const s = fakeServer({ ...BASE, "GET /api/deals/4712/draft": second,
+      "GET /api/deals/4711/draft": () => ({ body: { ...draft.body, payload: { activeOffer: "bu", Kundendaten: { city: opened++ === 0 ? "Alt" : "Geändert" } } } }),
+      "POST /api/price": (body) => ({ body: { total: (body as any).Kundendaten.city.length } }) });
+    const router = renderApp("/deal/4711/bu/Kundendaten");
+    await waitFor(() => expect(s.count("POST /api/price")).toBe(1));
+    await router.navigate("/deal/4712/bu/Kundendaten");
+    await waitFor(() => expect(s.count("POST /api/price")).toBe(2));
+    await router.navigate("/deal/4711/bu/Kundendaten");
+    await waitFor(() => expect(useOfferStore.getState().offer?.Kundendaten.city).toBe("Geändert"));
+    await waitFor(() => expect(s.count("POST /api/price")).toBe(3));
+    expect(s.calls.filter((c) => c.key === "POST /api/price").map((c) => (c.body as any).Kundendaten.city)).toEqual(["Alt", "Zweite", "Geändert"]);
+  });
 });

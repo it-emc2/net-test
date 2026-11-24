@@ -2,8 +2,8 @@
 // at a time), and below them one full-width panel for the chosen door — specs, sizes (Wien, Wien
 // Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-034): the stored fields and
 // the rules are slice 1's (rules.ts).
-import { Check as Tick, Info, Minus, Plus } from "lucide-react";
-import { Card, CardTitle, IMG, Input, cn } from "../../../shared/ui/index.js";
+import { Check as Tick, Info } from "lucide-react";
+import { Card, CardTitle, IMG, Input, Stepper, cn } from "../../../shared/ui/index.js";
 import { COLORS, DIMS, DOORS, dimField, doorOn, toggleDoor, type Door } from "./rules.js";
 import { set, str, write, type Fields } from "./store.js";
 
@@ -19,25 +19,23 @@ function colorsOf(d: Door): readonly (readonly [string, string, string])[] | nul
 function Tile({ d, b, invalid }: { d: Door; b: Fields; invalid: boolean }) {
   const on = doorOn(b, d);
   return (
-    <label data-testid="bwt-door" data-key={d.key} className={cn("relative grid cursor-pointer grid-rows-[6rem_auto] gap-2 rounded-lg border-2 bg-card p-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring", on ? "border-primary bg-accent-weak" : "border-input")}>
+    <label data-testid="bwt-door" data-key={d.key} className={cn("relative grid min-w-0 cursor-pointer grid-rows-[6rem_auto] gap-2 rounded-lg border-2 bg-card p-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring", on ? "border-primary bg-accent-weak" : "border-input")}>
       <input type="checkbox" name="bwtDoorType" className="sr-only" aria-label={d.value} aria-invalid={invalid || undefined} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
       <img src={d.img} alt="" loading="lazy" className={cn(IMG.tile, "mx-auto object-contain")} />
-      <strong className="grid min-h-[2.75rem] content-center text-[0.95rem] leading-tight">{d.value}</strong>
+      <strong className="grid min-h-[2.75rem] min-w-0 content-center hyphens-auto break-words text-[0.95rem] leading-tight">{d.value}</strong>
       {on ? <span aria-hidden data-part="tick" className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-primary text-primary-foreground"><Tick className="size-4" /></span> : null}
     </label>
   );
 }
 
-function Stepper({ field, b }: { field: string; b: Fields }) {
+/** the quantity of the door: the shared − / + stepper (48 px buttons) with the typed field in the middle; never below 1 */
+function Qty({ field, b, door }: { field: string; b: Fields; door: string }) {
   const now = Number.parseInt(str(b[field]), 10);
-  const to = (n: number) => set(field, String(Math.max(1, n)));
-  const btn = "grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border-2 border-input bg-card text-foreground";
+  const step = (dir: 1 | -1) => set(field, String(Math.max(1, (Number.isFinite(now) ? now : dir > 0 ? 0 : 1) + dir)));
   return (
-    <div className="flex items-center gap-2">
-      <button type="button" aria-label="Menge verringern" className={btn} onClick={() => to((Number.isFinite(now) ? now : 1) - 1)}><Minus aria-hidden className="size-4" /></button>
+    <Stepper label={`Menge ${door}`} words={["weniger", "mehr"]} value={str(b[field])} canDown={!Number.isFinite(now) || now > 1} canUp onStep={step}>
       <Input type="number" aria-label="Menge" inputMode="numeric" min={1} step={1} className="w-20 text-center tabular-nums" value={str(b[field])} onChange={(e) => set(field, e.target.value)} />
-      <button type="button" aria-label="Menge erhöhen" className={btn} onClick={() => to((Number.isFinite(now) ? now : 0) + 1)}><Plus aria-hidden className="size-4" /></button>
-    </div>
+    </Stepper>
   );
 }
 
@@ -75,7 +73,7 @@ function Panel({ d, b }: { d: Door; b: Fields }) {
         </div>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1"><span className="font-semibold">Menge</span><Stepper field={d.qty} b={b} /></div>
+        <div className="grid gap-1"><span className="font-semibold">Menge</span><Qty field={d.qty} b={b} door={d.value} /></div>
         {colors ? (
           <div className="grid gap-1" role="radiogroup" aria-label={label}>
             <span className="font-semibold">{label}</span>
@@ -83,7 +81,7 @@ function Panel({ d, b }: { d: Door; b: Fields }) {
               {colors.map(([value, text, dot]) => (
                 <button key={value} type="button" role="radio" aria-checked={str(b[d.color]) === value} onClick={() => set(d.color, value)}
                   className={cn("inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border-2 px-3", str(b[d.color]) === value ? "border-primary bg-accent-weak font-bold" : "border-input bg-card")}>
-                  <span aria-hidden className="size-4 rounded-full border border-border" style={{ background: dot }} />{text}
+                  <span aria-hidden className="size-4 shrink-0 rounded-full border border-control" style={{ background: dot }} />{text}
                 </button>
               ))}
             </div>
