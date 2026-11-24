@@ -44,7 +44,7 @@ describe("header", () => {
     await userEvent.type(screen.getByLabelText(/^Vorname$/), "Max");
     expect(screen.getByTestId("header-offer")).toHaveTextContent(/^Muster, Max$/);
     expect(screen.getByTestId("header-deal")).toHaveTextContent("Badumbau · Deal 65462");
-    expect(screen.getByRole("link", { name: "Versionen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Versionen" })).toBeInTheDocument();
   });
   it("in an offer that is saved the pill is there (icon, full text in title)", async () => {
     fakeServer({ ...BASE });
@@ -101,7 +101,7 @@ describe("header room", () => {
     const pill = await screen.findByTitle("Änderungen werden gleich gespeichert");
     expect(pill).toHaveTextContent(/^Speichert …$/);
     expect(screen.getByTestId("header-offer")).toHaveTextContent("Muster-Lange-Name");
-    expect(screen.getByRole("link", { name: "Versionen" })).toHaveAttribute("title", "Versionen");
+    expect(screen.getByRole("button", { name: "Versionen" })).toHaveAttribute("title", "Versionen");
   });
   it("the logo sits on a light tile (readable in dark mode too)", async () => {
     fakeServer({ ...BASE, "GET /api/planning/current": { body: { planning: null } } });
