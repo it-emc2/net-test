@@ -52,6 +52,10 @@ const EnvSchema = z.object({
   /** Which UI opens at "/" (U-061): "classic" = today's UI (default, parity suites run against it);
    *  "react" = a bare "/" and "/login" open the React app under /app, today's UI stays at /?classic=1. */
   START_UI: z.enum(["classic", "react"]).default("classic"),
+  /** Which page a customer's signing link /sign/<token> opens (U-068): "classic" = today's page
+   *  (default); "react" = the React signing page of apps/web (sign.html) at the same address —
+   *  links already sent keep working either way, the signing API is the same. */
+  SIGNING_UI: z.enum(["classic", "react"]).default("classic"),
   /** Bitrix24 inbound webhook base (…/rest/<user>/<token>). No hard-coded fallback (legacy had one). */
   BITRIX_WEBHOOK_BASE: z.string().url().optional(),
   /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */

@@ -31,6 +31,9 @@ export interface WebDeps {
   secureCookie?: boolean;
 }
 
+/** the built files of the React app (apps/web/dist) — from src/ and from the built dist/ alike */
+export const DEFAULT_APP_DIR = fileURLToPath(new URL("../../../../web/dist/", import.meta.url));
+
 /** Session cookie "stay in today's UI" (START_UI=react). Not HttpOnly: the React app clears it on start. */
 export const CLASSIC_COOKIE = "oc_ui";
 const classicCookie = (secure: boolean) => `${CLASSIC_COOKIE}=classic; Path=/; SameSite=Lax${secure ? "; Secure" : ""}`;
@@ -121,7 +124,7 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   // ---- the React app (ADR 026) under /app: the built files of apps/web. Any other /app address
   // gets its index.html (the app reads the address itself). The files carry no data — data comes
   // from /api and needs a login — so they are public like the login page.
-  const appDir = d.appDir ?? fileURLToPath(new URL("../../../../web/dist/", import.meta.url));
+  const appDir = d.appDir ?? DEFAULT_APP_DIR;
   const reactApp = async (req: FastifyRequest, reply: FastifyReply) => {
     let rest: string;
     try { rest = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/app\/?/, ""); }
