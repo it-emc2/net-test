@@ -1615,7 +1615,9 @@ ${isSelbstzahler || $antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen 
     ]
       .filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"))
       // AH/HMS/WD sell services only — no products, so no Hassmann cart or order note.
-      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && /hassmann|online-orders/.test(j.endpoint)));
+      .filter((j) => !(SERVICE_ONLY_OFFERS.includes(offerTypeOf(payload)) && /hassmann|online-orders/.test(j.endpoint)))
+      // Badolux/winwall products exist only in the BU configurator (no type = legacy BU).
+      .filter((j) => !/badolux-cart|winwall-cart/.test(j.endpoint) || ["", "bu"].includes(offerTypeOf(payload)));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
