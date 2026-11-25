@@ -1,8 +1,9 @@
 // Duschwanne (Badumbau; ADR 026, phase 4): the switch, the product line, the size with the
 // trays that fit it, the Slate colour, accessories and a free item. The stored fields are
 // exactly today's (test/duschwanne.test.tsx compares with what today's UI stores and shows
-// for the same inputs). Each tray row and "Ihre Auswahl" show a picture of the tray (rules.ts `trayImage`:
-// Products.image, else the series picture, else an outline to scale).
+// for the same inputs). The trays are cards with a big picture on top, "Ihre Auswahl" a hero picture above
+// the name (owner 2026-11-25); the picture: rules.ts `trayImage` — Products.image, else the series picture,
+// else an outline to scale.
 import { useQuery } from "@tanstack/react-query";
 import { Check as Tick, Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -41,24 +42,35 @@ function useTrays(query: string | undefined) {
 
 /** A neutral outline in the tray's width : length ratio (long side across) — when there is no picture. */
 function TrayOutline({ size }: { size: { w: number; l: number } | null }) {
-  const long = size ? Math.max(size.w, size.l) : 1, short = size ? Math.min(size.w, size.l) : 1;
-  const rw = 52, rh = Math.max(6, (52 * short) / long);
+  const ratio = size ? Math.min(size.w, size.l) / Math.max(size.w, size.l) : 1;
+  const rw = Math.min(88, 52 / ratio), rh = Math.max(8, rw * ratio); // fits a 88 × 52 box, long side across
   return (
-    <svg viewBox="0 0 64 64" aria-hidden className="size-full text-muted-foreground">
-      <rect x={(64 - rw) / 2} y={(64 - rh) / 2} width={rw} height={rh} rx={2} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeWidth={2} />
+    <svg viewBox="0 0 100 60" aria-hidden className="size-full text-muted-foreground">
+      <rect x={(100 - rw) / 2} y={(60 - rh) / 2} width={rw} height={rh} rx={2} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
-/** The picture of a tray; a missing file falls back to the outline (no broken-image icon). */
-function TrayPicture({ src, size }: { src: string | null; size: { w: number; l: number } | null }) {
+/** The picture of a tray, the whole tray visible on the photo plate: `card` in a tray card (IMG.product),
+ *  `hero` in „Ihre Auswahl“ (IMG.hero). A missing file falls back to the outline (no broken-image icon).
+ *  `on`: the chosen card — a filled tick badge in the picture's corner (the look of shared/ui/swatch.tsx). */
+function TrayPicture({ src, size, big, on }: { src: string | null; size: { w: number; l: number } | null; big?: boolean; on?: boolean }) {
   const [failed, setFailed] = useState<string | null>(null);
   const show = src && failed !== src ? src : null;
   return (
-    <span data-part="picture" data-src={show ?? ""} className={cn("grid size-16 shrink-0 place-items-center overflow-hidden rounded", show ? "" : "bg-muted p-1")}>
-      {show ? <img src={show} alt="" loading="lazy" decoding="async" className={cn(IMG.row, "rounded object-contain")} onError={() => setFailed(show)} /> : <TrayOutline size={size} />}
+    <span data-part="picture" data-src={show ?? ""} className="relative block w-full">
+      {show ? <img src={show} alt="" loading="lazy" decoding="async" className={cn(big ? IMG.hero : IMG.product, "mx-auto block w-auto max-w-full rounded-lg object-contain")} onError={() => setFailed(show)} />
+        : <span className={cn("grid w-full place-items-center rounded-lg bg-muted", big ? "h-52 p-4" : "h-32 p-3")}><TrayOutline size={size} /></span>}
+      {on ? (
+        <span aria-hidden data-part="check" className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card">
+          <Tick className="size-5" strokeWidth={3} />
+        </span>
+      ) : null}
     </span>
   );
 }
+
+/** the grid of tray cards: 3 across on the tablet, 2 on a wide phone, 1 on a narrow one */
+const TRAY_GRID = "grid min-w-0 grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3";
 
 function TrayCard({ tray, line, best, selected, pinned, onPick }: { tray: Tray; line: Line; best: boolean; selected: boolean; pinned?: boolean; onPick: () => void }) {
   const title = trayTitle(tray, line);
@@ -66,20 +78,20 @@ function TrayCard({ tray, line, best, selected, pinned, onPick }: { tray: Tray; 
   const extras = trayExtras(tray, title);
   return (
     <label data-testid="tray-card" data-id={tray.productId} data-selected={selected} data-pinned={!!pinned} title={tray.name ?? ""}
-      className={cn("flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border-2 bg-card px-4 py-2", selected ? "border-primary bg-accent-weak" : "border-input")}>
-      <input type="radio" name="traySuggestion" className="size-5 shrink-0 accent-[var(--primary)]" value={tray.productId} checked={selected} onChange={onPick} />
-      <TrayPicture src={trayImage(tray, tray.productId, line)} size={trayFootprint(tray)} />
-      <span className="grid min-w-0 flex-1 gap-0.5">
-        <span data-part="title" className={cn(selected && "font-bold")}>{title}</span>
-        <span data-part="sub" className="flex flex-wrap gap-x-2 text-[0.9rem] text-muted-foreground">
-          {best ? <span className="font-semibold text-foreground">Beste Übereinstimmung</span> : null}
+      className={cn("relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-xl border-2 p-1.5 pb-3 text-foreground transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
+        selected ? "border-primary bg-primary/10 ring-1 ring-primary dark:bg-primary/25" : "border-border bg-card hover:border-input")}>
+      <input type="radio" name="traySuggestion" className="sr-only" value={tray.productId} checked={selected} onChange={onPick} />
+      <TrayPicture src={trayImage(tray, tray.productId, line)} size={trayFootprint(tray)} on={selected} />
+      <span className="grid min-w-0 gap-1 px-1.5 hyphens-auto [overflow-wrap:break-word]">
+        <span data-part="title" className={cn("leading-snug", selected ? "font-bold" : "font-semibold")}>{title}</span>
+        <span data-part="sub" className="flex flex-wrap gap-x-2 text-[0.9rem] leading-snug text-muted-foreground">
+          {best ? <span className="w-full font-semibold text-foreground">Beste Übereinstimmung</span> : null}
           {stock ? <span className={cn(stock.kind === "in" && "text-success", stock.kind === "out" && "text-destructive")} title={tray.stockText ?? ""}>{stock.text}</span> : null}
           {extras ? <span>{extras}</span> : null}
           <span>{line === "standard" ? "Badolux" : "Hassmann"}</span>
         </span>
       </span>
-      <span data-part="price" className="shrink-0 font-semibold">{priceText(tray)}</span>
-      {selected ? <Tick aria-hidden className="size-5 shrink-0 text-primary" /> : null}
+      <span data-part="price" className="mt-auto px-1.5 text-lg font-bold">{priceText(tray)}</span>
     </label>
   );
 }
@@ -126,7 +138,7 @@ function Search({ line }: { line: Line }) {
           {pinned ? (
             <div className="grid gap-2 rounded-lg border-2 border-dashed border-border p-3">
               <p className="m-0 font-semibold" data-testid="tray-note">⚑ Gespeicherte Auswahl aus der Linie {LINE_TEXT[other].name}</p>
-              <TrayCard tray={pinned} line={other} best={false} selected pinned onPick={() => {}} />
+              <div className={TRAY_GRID}><TrayCard tray={pinned} line={other} best={false} selected pinned onPick={() => {}} /></div>
               <p className="m-0 text-[0.95rem]" data-testid="tray-note">Linie und Preis bleiben unverändert, wie gespeichert. Ein Wechsel tauscht auch Ablaufgarnitur und Kleinmaterial und ändert damit den Angebotspreis.</p>
               <div><Button variant="secondary" onClick={() => toLine(other, true)}>Auf {LINE_TEXT[other].name} umstellen</Button></div>
             </div>
@@ -137,8 +149,12 @@ function Search({ line }: { line: Line }) {
               {dropped.searchW || dropped.searchL ? <div><Button variant="secondary" onClick={() => write(changeSize(dropped.searchW, dropped.searchL))}>Vorherige Maße zurück</Button></div> : null}
             </div>
           ) : null}
-          <p className="m-0 text-sm font-bold uppercase tracking-wide text-muted-foreground" data-testid="tray-heading">{pinned ? `Weitere ${LINE_TEXT[line].name}-Duschwannen` : `${LINE_TEXT[line].name}-Duschwannen`}</p>
-          {active.slice(0, 3).map((p, i) => <TrayCard key={p.productId} tray={p} line={line} best={i === 0} selected={p.productId === chosen} onPick={() => pick(p)} />)}
+          <p className="m-0 text-sm font-bold uppercase tracking-wide text-muted-foreground" id="dw-tray-heading" data-testid="tray-heading">{pinned ? `Weitere ${LINE_TEXT[line].name}-Duschwannen` : `${LINE_TEXT[line].name}-Duschwannen`}</p>
+          {active.length ? (
+            <div className={TRAY_GRID} role="radiogroup" aria-labelledby="dw-tray-heading">
+              {active.slice(0, 3).map((p, i) => <TrayCard key={p.productId} tray={p} line={line} best={i === 0} selected={p.productId === chosen} onPick={() => pick(p)} />)}
+            </div>
+          ) : null}
           {!active.length && pinned && !dropped ? <p className="m-0 text-muted-foreground">Keine passenden Vorschläge gefunden.</p> : null}
           {!pinned && !dropped && !active.length ? (
             <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="tray-note">
@@ -187,14 +203,12 @@ function Chosen({ line, tray }: { line: Line; tray: Tray | undefined }) {
         </fieldset>
       ) : null}
       {sum ? (
-        <div className="grid gap-1 rounded-lg border-2 border-border p-3" data-testid="tray-summary">
+        <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="tray-summary">
           <p className="m-0 text-sm font-bold uppercase tracking-wide text-muted-foreground">Ihre Auswahl</p>
-          <div className="flex items-center gap-3">
-            <TrayPicture src={trayImage(tray, chosen, line, color)} size={trayFootprint(tray, dw.traySize)} />
-            <div className="grid min-w-0 gap-0.5">
-              <p className="m-0"><strong>{sum.title}</strong></p>
-              <p className="m-0 text-muted-foreground">{sum.sub}</p>
-            </div>
+          <TrayPicture src={trayImage(tray, chosen, line, color)} size={trayFootprint(tray, dw.traySize)} big />
+          <div className="grid min-w-0 gap-0.5">
+            <p className="m-0 text-lg leading-snug"><strong>{sum.title}</strong></p>
+            <p className="m-0 text-muted-foreground">{sum.sub}</p>
           </div>
           {sum.items.length ? <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">{sum.items.map((i) => <li key={i}>{i}</li>)}</ul> : null}
         </div>

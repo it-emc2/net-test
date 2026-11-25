@@ -4,7 +4,7 @@
 // stores and shows for the same inputs). The mode "Wandverkleidung als Fußboden" (wand.ts) uses
 // wall panels as the covering, with the rest of the wall cladding where there is one.
 import { useQuery } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
@@ -17,7 +17,7 @@ import {
 } from "./rules.js";
 import * as w from "./wand.js";
 import { useWallSettings } from "./settings.js";
-import { DecorPalette, PlateCards, PlateShape } from "../../../shared/ui/winwall.js";
+import { DecorPalette, PLATE_PX, PlateCards, PlateOnBaseline, plateCard } from "../../../shared/ui/winwall.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { scalePlates } from "../../../shared/ui/plate-scale.js";
 
@@ -66,17 +66,18 @@ function Calculator({ onApply, store = "floorCalcRows" }: { onApply: (area: stri
   );
 }
 
+/** the floor coverings: the same tiles as every decor in both steps (shared/ui/swatch.tsx) */
 function Tiles({ tiles, picked, onPick }: { tiles: readonly Tile[]; picked: string; onPick: (value: string) => void }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <SwatchGrid>
       {tiles.map((t) => (
-        <label key={t.value} data-testid="fb-tile" data-value={t.value} className="grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
+        <label key={t.value} data-testid="fb-tile" data-value={t.value} className={swatchTile(picked === t.value)}>
           <input type="checkbox" name="fb-covering" className="sr-only" checked={picked === t.value} onChange={() => onPick(t.value)} />
-          <img src={t.img} alt="" className={cn(IMG.tile, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+          <SwatchFace on={picked === t.value} img={t.img} />
           <span data-part="caption">{t.caption}</span>
         </label>
       ))}
-    </div>
+    </SwatchGrid>
   );
 }
 
@@ -167,10 +168,14 @@ const typedArea = () => { if (session().autoArea != null) remember("wcSession", 
 type Ask = { title: string; message: string; confirm: string; cancel: string; onCancel: () => void };
 
 /** winwall: the four plates with − / +, the total and "↻ Vorschlag aus Fläche" (wand.ts `platesOf`). */
-function Plates({ p, onStep, onResync }: { p: w.Plates; onStep: (fmt: string, d: number) => void; onResync: () => void }) {
+function Plates({ p, decor, onStep, onResync }: { p: w.Plates; decor: { label: string; img: string }; onStep: (fmt: string, d: number) => void; onResync: () => void }) {
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-plates">
       <legend className="mb-1.5 p-0 font-semibold">Platten – Vorschlag aus der Fläche, mit − / + anpassen</legend>
+      {/* which decor the plates are in (the Wandverkleidung shows it as its decor chip); the floor has one decor */}
+      <p className="m-0 flex min-h-12 w-fit max-w-full items-center gap-2 rounded-full border-2 border-primary bg-card px-3 font-semibold" data-testid="wc-decor-chip">
+        <i aria-hidden className="size-7 shrink-0 rounded-full border border-border bg-muted bg-cover bg-center" style={decor.img ? { backgroundImage: `url("${decor.img}")` } : undefined} /><span data-part="text">{decor.label}</span>
+      </p>
       <PlateCards plates={p.plates.map((x) => ({ ...x, note: x.best }))} onStep={onStep} testId="wc-plate" notePart="best" />
       <p className={cn("m-0 flex flex-wrap justify-between gap-2 font-semibold", p.total.short && "text-destructive")} data-testid="wc-total" data-short={p.total.short}>
         <span data-part="text">{p.total.text}</span><small data-part="small" className="font-normal">{p.total.small}</small>
@@ -221,7 +226,8 @@ function Wall() {
     const q = prev.code ? w.leavingRest(next, prev.code, r) : null;
     if (q) setAsk({ ...q, onCancel: () => write(w.setFloorDecor(prev.code!), true) });
   };
-  const cards = w.cardsOf(dw, sug, prices.data), cardBoxes = scalePlates(cards.map((c) => ({ width: c.widthMm, height: c.heightMm })), 96), picked = String(dw.wallCladdingPanelSize ?? "");
+  const cards = w.cardsOf(dw, sug, prices.data), cardBoxes = scalePlates(cards.map((c) => ({ width: c.widthMm, height: c.heightMm })), PLATE_PX), picked = String(dw.wallCladdingPanelSize ?? "");
+  const qtyNow = Math.round(Number(dw.wallCladdingQty) || 0);
   const rows = w.selection(dw, rest, full.data, adhesive.data || 0, settings.own);
   const note = w.restNote(w.restArea(dw, credit), credit), hint = w.customHint(dw);
   const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-3 py-1 text-left";
@@ -245,7 +251,7 @@ function Wall() {
         <div><Button variant="outline" aria-expanded={calcOpen} onClick={() => setCalcOpen(!calcOpen)}>{calcOpen ? "Flächenrechner schließen" : "Flächenrechner öffnen"}</Button></div>
         {calcOpen ? <Calculator store="wcCalcRows" onApply={(area) => write({ wallCladdingArea: area }, true)} /> : null}
       </div>
-      {ww ? <Plates p={w.platesOf(dw, credit)} onStep={(fmt, d) => write(w.stepPlate(dwNow(), fmt, d))} onResync={() => { remember("wcWwLast", null); write(w.qtyFields(w.zero()), true, null); }} /> : null}
+      {ww ? <Plates p={w.platesOf(dw, credit)} decor={{ label: (w.decorOf(dw).code ? w.decorOf(dw) : w.decorOf({ wallCladdingWwDecor: "WS203" })).label, img: w.swatchOf(w.decorOf(dw).code || "WS203") }} onStep={(fmt, d) => write(w.stepPlate(dwNow(), fmt, d))} onResync={() => { remember("wcWwLast", null); write(w.qtyFields(w.zero()), true, null); }} /> : null}
       {ask ? (
         <div role="alertdialog" aria-labelledby="wc-ask-title" className="grid gap-2 rounded-lg border-2 border-destructive p-3" data-testid="wc-ask">
           <strong id="wc-ask-title">{ask.title}</strong>
@@ -267,18 +273,35 @@ function Wall() {
       {cards.length ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-cards">
           <legend className="mb-1.5 p-0 font-semibold">Plattenformat</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/* VIGOUR holds ONE format and its number (wallCladdingPanelSize + wallCladdingQty): the formats as
+              panels to scale on one baseline; tapping one picks it with the number for the area, the chosen
+              one carries − / + ("Menge", can be typed) */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {cards.map((c, i) => (
-              <button key={c.size} type="button" data-testid="wc-card" data-size={c.size} data-qty={c.qty} aria-pressed={c.selected} onClick={() => write(w.pickCard(c))} className={cn("grid cursor-pointer gap-1 rounded-lg border-2 bg-card p-3 text-left text-foreground", c.selected ? "border-primary bg-accent-weak" : "border-input")}>
-                <span className="flex flex-wrap items-center justify-between gap-2"><strong data-part="title">{c.title}</strong>{c.best ? <span data-part="best" className="rounded-full bg-primary px-2 py-0.5 text-[0.8rem] font-semibold text-primary-foreground">Empfehlung</span> : null}</span>
-                <span aria-hidden className="flex items-end gap-3"><PlateShape w={cardBoxes.boxes[i]!.w} h={cardBoxes.boxes[i]!.h} img={w.COLORS.find((x) => x.value === w.colorOf(dw))?.img} /><span data-part="count" className="text-[1.1rem] font-semibold">{c.count}</span></span>
-                <span data-part="coverage" className="text-[0.9rem] text-muted-foreground">{c.coverage}</span>
-                {c.price || c.unit ? <span><span data-part="price" className="font-semibold">{c.price}</span> <span data-part="unit" className="text-[0.9rem] text-muted-foreground">{c.unit}</span></span> : null}
-                <span data-part="label" className="font-semibold text-primary">{c.label}</span>
-              </button>
+              <div key={c.size} className={plateCard(c.selected, "content-between")}>
+                <button type="button" data-testid="wc-card" data-size={c.size} data-qty={c.qty} aria-pressed={c.selected} onClick={() => write(w.pickCard(c))}
+                  className="grid w-full min-w-0 cursor-pointer justify-items-center gap-1 rounded-lg border-0 bg-transparent p-0 text-center text-foreground focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                  <PlateOnBaseline w={cardBoxes.boxes[i]!.w} h={cardBoxes.boxes[i]!.h} height={cardBoxes.height} img={w.COLORS.find((x) => x.value === w.colorOf(dw))?.img} />
+                  <strong data-part="title" className="whitespace-nowrap text-[0.9rem]">{c.title}</strong>
+                  {c.best ? <span data-part="best" className="rounded-full bg-primary px-2 py-0.5 text-[0.8rem] font-semibold text-primary-foreground">Empfehlung</span> : null}
+                  <span data-part="count" className="font-semibold">{c.count}</span>
+                  <small data-part="coverage" className="text-muted-foreground">{c.coverage}</small>
+                  {c.price || c.unit ? <span className="text-[0.9rem]"><span data-part="price" className="font-semibold">{c.price}</span> <span data-part="unit" className="text-muted-foreground">{c.unit}</span></span> : null}
+                  <span data-part="label" className="text-[0.9rem] font-semibold text-primary-text">{c.label}</span>
+                </button>
+                {c.selected && picked ? (
+                  <div className="grid justify-items-center gap-1">
+                    <span className="flex items-center">
+                      <Button variant="outline" size={null} className="size-10 sm:size-12" aria-label="Weniger Paneele" onClick={() => write(w.setQty(String(Math.max(1, qtyNow - 1))))}><Minus aria-hidden /></Button>
+                      <span className="w-10 sm:w-11"><Input id="wc-qty" aria-label="Anzahl Paneele (Stück)" type="number" min={1} step={1} inputMode="numeric" className="min-h-10 px-0.5! text-center sm:min-h-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" value={dw.wallCladdingQty == null ? "" : String(dw.wallCladdingQty)} onChange={(e) => write(w.setQty(e.target.value))} /></span>
+                      <Button variant="outline" size={null} className="size-10 sm:size-12" aria-label="Mehr Paneele" onClick={() => write(w.setQty(String(qtyNow + 1)))}><Plus aria-hidden /></Button>
+                    </span>
+                    <small className="text-muted-foreground">Menge</small>
+                  </div>
+                ) : null}
+              </div>
             ))}
           </div>
-          {picked ? <div className="w-48"><Field id="wc-qty" label="Anzahl Paneele (Stück)" type="number" min={1} step={1} inputMode="numeric" value={dw.wallCladdingQty == null ? "" : String(dw.wallCladdingQty)} onChange={(e) => write(w.setQty(e.target.value))} /></div> : null}
         </fieldset>
       ) : null}
       {note ? <p className="m-0 rounded-lg border-2 border-border p-3" data-testid="wc-rest-note">{note}</p> : null}
