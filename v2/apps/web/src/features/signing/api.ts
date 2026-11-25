@@ -1,7 +1,7 @@
 // The signing page's only way to the server: the public routes of ONE token
 // (/api/signing/<token>…). Nothing else of the app's API is reachable from this page — no
 // login, no other customer's data. Same requests as today's page (signpage/app.js).
-import { TEXT, errorText, type SignRequest } from "./rules.js";
+import { TEXT, errorText, submitErrorText, type SignRequest } from "./rules.js";
 
 export class SignApiError extends Error {
   constructor(message: string, readonly status: number, readonly body: Record<string, unknown> | null) { super(message); }
@@ -9,10 +9,10 @@ export class SignApiError extends Error {
 
 const base = (token: string) => `/api/signing/${encodeURIComponent(token)}`;
 
-async function json(res: Response, fallback: string): Promise<any> {
+async function json(res: Response, fallback: string, text: (status: number, body: unknown) => string | null = (_s, b) => errorText(b)): Promise<any> {
   let body: any = null;
   try { body = await res.json(); } catch { /* not JSON */ }
-  if (!res.ok) throw new SignApiError(errorText(body) ?? fallback, res.status, body && typeof body === "object" ? body : null);
+  if (!res.ok) throw new SignApiError(text(res.status, body) ?? fallback, res.status, body && typeof body === "object" ? body : null);
   if (body === null) throw new SignApiError(fallback, res.status, null);
   return body;
 }
@@ -40,7 +40,7 @@ export async function submitDocument(token: string, key: string, body: Submissio
   const res = await fetch(`${base(token)}/documents/${encodeURIComponent(key)}`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }).catch(offline);
-  return json(res, TEXT.submitFailed);
+  return json(res, TEXT.submitFailed, submitErrorText);
 }
 
 export async function requestNewLink(token: string): Promise<unknown> {

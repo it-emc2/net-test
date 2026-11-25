@@ -18,7 +18,7 @@ type Screen =
 
 const toTop = () => { try { window.scrollTo(0, 0); } catch { /* not in every environment */ } };
 
-export function SignPage({ pathname = window.location.pathname, internal = document.body.dataset.internalUser === "true" }: { pathname?: string; internal?: boolean }) {
+export function SignPage({ pathname = window.location.pathname, internal = document.body.dataset.internalUser === "true", company = companyOfPage() }: { pathname?: string; internal?: boolean; company?: string }) {
   const [token] = useState(() => tokenFromPath(pathname));
   const [screen, setScreen] = useState<Screen>({ kind: "loading" });
   const [docs, setDocs] = useState<SignDoc[]>([]);
@@ -82,7 +82,7 @@ export function SignPage({ pathname = window.location.pathname, internal = docum
       {screen.kind === "fatal" ? (
         <Sheet><p id="fatal" role="alert" className="whitespace-pre-line border border-[#b71c1c] bg-[#fdecea] px-3.5 py-3 text-[#7f1d1d]">{screen.message}</p></Sheet>
       ) : null}
-      {screen.kind === "expired" ? <Expired token={token} requested={screen.requested} /> : null}
+      {screen.kind === "expired" ? <Expired token={token} requested={screen.requested} company={company} /> : null}
       {screen.kind === "app" ? (
         <Sheet as="main">
           <header className="mb-1">
@@ -123,7 +123,7 @@ function Sheet({ as: Tag = "div", children }: { as?: "div" | "main"; children: R
 }
 
 /** expired (or closed) link: today's contact block and the one-click request for a new link */
-function Expired({ token, requested }: { token: string; requested: boolean }) {
+function Expired({ token, requested, company }: { token: string; requested: boolean; company: string }) {
   const [state, setState] = useState<{ sending: boolean; done: boolean; error: string | null }>({ sending: false, done: requested, error: null });
   const ask = () => {
     setState({ sending: true, done: false, error: null });
@@ -147,7 +147,7 @@ function Expired({ token, requested }: { token: string; requested: boolean }) {
         ) : null}
         <p className="contact mt-6 text-base leading-relaxed text-[#333]">
           Fragen? Wir helfen gern:<br />
-          <strong>{COMPANY}</strong><br />
+          <strong>{company}</strong><br />
           Waldstr. 5, 95032 Hof<br />
           Tel.: <a className="underline" href="tel:+4992815915900">+49 9281 5915900</a><br />
           E-Mail: <a className="underline" href="mailto:service@e-m-c-2.de">service@e-m-c-2.de</a>
@@ -156,5 +156,7 @@ function Expired({ token, requested }: { token: string; requested: boolean }) {
     </Sheet>
   );
 }
-/** today's page names the company with its owner's full name; no personal names in code (U-068) */
-const COMPANY = "EmC2";
+/** the company line: the setting COMPANY_NAME, handed over by the server as `data-company` on the
+ *  page (U-071); without it (a page not served by the server) the short name (U-068) */
+const COMPANY_FALLBACK = "EmC2";
+const companyOfPage = () => { try { return document.body.dataset.company?.trim() || COMPANY_FALLBACK; } catch { return COMPANY_FALLBACK; } };

@@ -45,6 +45,8 @@ export interface SigningDeps {
   signPageFile: string;
   /** SIGNING_UI (U-068): which page /sign/<token> serves — "classic" (default) today's page, "react" the React page (sign.html of the app build) */
   signingUi?: "classic" | "react" | undefined;
+  /** COMPANY_NAME (U-071): the company line of the React page's contact block, handed to the page as `data-company` */
+  companyName?: string | undefined;
   /** the built React app (apps/web/dist); default: next to the server in the workspace */
   appDir?: string | undefined;
   publicBaseUrl?: string | undefined;
@@ -708,12 +710,19 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       });
       return { ran: true, ok: true };
     } catch (err) {
+      // the detail goes to the error log, the customer gets a plain text (U-071)
+      reportError({ log: d.log as any }, { area: ERROR_AREAS.signingCompletion, code: ERROR_CODES.SIGNING_COMPLETION_FAILED, severity: "error",
+        message: `completion failed: ${msg(err)}`.slice(0, 300), ...(sr.bitrixEntityType === "deal" && sr.bitrixEntityId ? { dealId: String(sr.bitrixEntityId) } : {}) });
       await finishSigningCompletion(sr.token, { ok: false, error: msg(err) }).catch(() => {});
       await onRequest({ ok: false, startedAt, email: "skipped", bitrixTimeline: "skipped", partnerFiling: "skipped", dealMove: "skipped", error: msg(err) });
       return { ran: true, ok: false, error: msg(err) };
     }
   }
   const docsView = (sr: any) => sr.documents.map((x: any) => ({ key: x.key, status: x.status }));
+  /** the completion failed AFTER every signature was stored: today's answer (the classic page shows
+   *  `message`) plus `signatureStored`, so the React page can say so truthfully (U-071) */
+  const completionFailed = (req: FastifyRequest, reply: FastifyReply, error: string | undefined) =>
+    reply.status(500).send({ error: { code: "SIGNING_FAILED", message: error, requestId: req.id, signatureStored: true } });
 
   // The document is already signed: a repeated submit (double tap, retry after a dropped
   // connection, second device) gets the first result. If the completion failed before, it is
@@ -723,7 +732,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
     const allSigned = sr.documents.length > 0 && sr.documents.every((x: any) => x.status === "signed");
     if (cur?.status === "signed" && allSigned) {
       const c = await runCompletion(sr);
-      if (c.ran && !c.ok) return reply.status(500).send({ error: { code: "SIGNING_FAILED", message: c.error, requestId: req.id } });
+      if (c.ran && !c.ok) return completionFailed(req, reply, c.error);
       if (c.ran || cur.signatureImage === sig) return { ok: true, status: sr.status, documents: docsView(sr), completed: true, duplicate: true };
     } else if (cur?.status === "signed" && cur.signatureImage === sig) {
       return { ok: true, status: sr.status, documents: docsView(sr), completed: false, duplicate: true };
@@ -819,11 +828,14 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       let completion: { completed: boolean } = { completed: false };
       if (sr.status === "completed") {
         const c = await runCompletion(sr);
-        if (c.ran && !c.ok) return reply.status(500).send({ error: { code: "SIGNING_FAILED", message: c.error, requestId: req.id } });
+        if (c.ran && !c.ok) return completionFailed(req, reply, c.error);
         completion = { completed: true }; // also when a parallel request ran the completion
       }
       return { ok: true, status: sr.status, documents: docsView(sr), ...completion };
-    } catch (err) { return err500(req, reply, "POST signing document", err); }
+    } catch (err) {
+      reportError(req, { area: ERROR_AREAS.signingCompletion, code: ERROR_CODES.SIGNING_SUBMIT_FAILED, severity: "error", message: `submit failed: ${msg(err)}`.slice(0, 300) });
+      return err500(req, reply, "POST signing document", err);
+    }
   });
 
   // ---------- the customer page ----------
@@ -835,6 +847,8 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
   // Without a build of the React app the classic page is served, so a link always opens.
   const reactSignPage = d.signingUi === "react" ? path.join(d.appDir ?? DEFAULT_APP_DIR, "sign.html") : null;
   let warnedNoBuild = false;
+  const escAttr = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const companyAttr = String(d.companyName ?? "").trim() ? ` data-company="${escAttr(String(d.companyName).trim())}"` : "";
   app.get("/sign/:token", PUBLIC, async (req, reply) => {
     const internal = !!verifyToken(tokenFromHeaders(req.headers), d.authSecret);
     if (reactSignPage) {
@@ -844,7 +858,7 @@ export async function registerSigning(app: FastifyInstance, d: SigningDeps) {
       }
       if (page !== null) {
         return reply.type("text/html; charset=utf-8").header("Cache-Control", "no-store").header("Referrer-Policy", "no-referrer")
-          .send(page.replace('data-internal-user="false"', `data-internal-user="${internal}"`));
+          .send(page.replace('data-internal-user="false"', `data-internal-user="${internal}"${companyAttr}`));
       }
     }
     const html = injectHead(fs.readFileSync(d.signPageFile, "utf8").replace('data-internal-user="false"', `data-internal-user="${internal}"`));

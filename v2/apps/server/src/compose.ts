@@ -141,7 +141,7 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
       smtpEmail: cfg.SMTP_EMAIL, smtpUser: cfg.SMTP_USER, smtpPass: cfg.SMTP_PASS, replyTo: cfg.SMTP_REPLY_TO,
       ...(deps.mailTls ? { tls: deps.mailTls } : {}),
     }),
-    officeEmail: cfg.SIGNING_OFFICE_EMAIL, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, signPageFile: LEGACY_SIGN_PAGE, signingUi: cfg.SIGNING_UI,
+    officeEmail: cfg.SIGNING_OFFICE_EMAIL, assetsDir: cfg.ASSETS_DIR ?? LEGACY_ASSETS, signPageFile: LEGACY_SIGN_PAGE, signingUi: cfg.SIGNING_UI, companyName: cfg.COMPANY_NAME,
     publicBaseUrl: cfg.PUBLIC_BASE_URL, apDefaultEmail: cfg.AP_DEFAULT_EMAIL ?? "", authSecret: cfg.AUTH_SECRET, log: app.log,
   });
   const ownSigning: SigningPort = {

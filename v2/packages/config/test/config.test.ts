@@ -70,6 +70,12 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ START_UI: "neu" })).toThrow(/START_UI/);
   });
 
+  it("COMPANY_NAME: the signing page's company line from a setting, short name by default (U-071)", () => {
+    expect(loadConfig({}).COMPANY_NAME).toBe("EmC2");
+    expect(loadConfig({ COMPANY_NAME: "  Testfirma GmbH " }).COMPANY_NAME).toBe("Testfirma GmbH");
+    expect(() => loadConfig({ COMPANY_NAME: "x".repeat(121) })).toThrow(/COMPANY_NAME/);
+  });
+
   it("SIGNING_UI: classic by default, react on request, nothing else (U-068)", () => {
     expect(loadConfig({}).SIGNING_UI).toBe("classic");
     expect(loadConfig({ SIGNING_UI: "react" }).SIGNING_UI).toBe("react");

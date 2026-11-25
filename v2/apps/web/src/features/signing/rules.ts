@@ -34,6 +34,10 @@ export const TEXT = {
   submit: "Unterschreiben & weiter",
   submitting: "Wird übermittelt …",
   submitFailed: "Übermittlung fehlgeschlagen.",
+  /** U-071: the server stored every signature, only the completion (PDFs, mail, filing) failed */
+  signedNotFinished: "Ihre Unterschrift wurde gespeichert, die Unterlagen konnten aber noch nicht fertiggestellt werden. Wir melden uns bei Ihnen.",
+  /** U-071: the server failed and did not say the signature is stored — nothing is claimed */
+  submitServerFailed: "Die Übermittlung hat leider nicht geklappt. Bitte versuchen Sie es in einigen Minuten erneut oder rufen Sie uns an.",
   choosePayment: "Bitte wählen Sie eine Zahlungsbedingung aus.",
   fillAll: "Bitte füllen Sie alle Felder aus: ",
   signHere: "Bitte unterschreiben Sie im Feld.",
@@ -117,6 +121,18 @@ export const FIELD_NAMES: Record<string, string> = {
 };
 
 /** an answer of the signing routes as today's page reads it: v2's error object or a plain text */
+/**
+ * The text for a refused submit (U-071): a server failure (5xx) never shows the server's own text
+ * (technical, e.g. „PDF-Erzeugung fehlgeschlagen“ — it is in the error log); when the server says
+ * every signature is stored (`error.signatureStored`), the customer is told so. A 4xx (a missing
+ * field, a payment term …) keeps the server's text, as today.
+ */
+export function submitErrorText(status: number, body: unknown): string | null {
+  if (status < 500) return errorText(body);
+  const e = (body as { error?: { signatureStored?: unknown } } | null)?.error;
+  return e && typeof e === "object" && e.signatureStored === true ? TEXT.signedNotFinished : TEXT.submitServerFailed;
+}
+
 export function errorText(body: unknown): string | null {
   const e = (body as { error?: unknown } | null)?.error;
   if (typeof e === "string") return e || null;
