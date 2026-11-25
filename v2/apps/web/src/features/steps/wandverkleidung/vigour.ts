@@ -16,6 +16,10 @@ import { VG_COLORS } from "./colors.js";
 type Fields = Record<string, unknown>;
 export interface VRow { size: 997 | 1497; qty: number; color: string }
 export const SIZES = [997, 1497] as const;
+/** panel height in mm (the width is the size: 997 / 1497 mm) */
+export const HEIGHT_MM = 2550;
+/** the two widths as panels drawn to scale (cm from the numbers above) */
+export const FORMATS = SIZES.map((w) => ({ code: String(w), size: `${w} × ${HEIGHT_MM} mm`, widthCm: w / 10, heightCm: HEIGHT_MM / 10 }));
 export const SONDER = "Sonderdekor";
 export const colorLabel = (value: string): string => (value === SONDER ? "Sonderdruck (Vigour)" : value);
 export const colorImage = (value: unknown): string => VG_COLORS.find((c) => c.value === value)?.img ?? "";

@@ -39,7 +39,7 @@ async function play(steps: (string | number)[][]) {
     else if (kind === "row+") await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Farbe oder Sonderdruck)" }));
     else if (kind === "row") await user.click(screen.getAllByTestId("vg-row")[Number(a) - 1]!.querySelector("button")!);
     else if (kind === "tile") await user.click(screen.getByTestId("vg-tiles").querySelector(`button[data-value="${a}"]`)!);
-    else if (kind === "size") await user.selectOptions(screen.getByLabelText(`Breite Zeile ${a}`), String(b));
+    else if (kind === "size") await user.click(within(screen.getByRole("radiogroup", { name: `Breite Zeile ${a}` })).getByRole("radio", { name: `Breite Zeile ${a}: ${b} × 2550 mm` })); // the widths are panels to scale (was a list)
     else if (kind === "qty") await user.click(screen.getByRole("button", { name: `Zeile ${a}: ${b === "+" ? "mehr" : "weniger"}` }));
     else if (kind === "row-") await user.click(screen.getByRole("button", { name: `Zeile ${a} entfernen` }));
     else if (kind === "sonder") await user.type(screen.getByLabelText("Konfigurations-Nr. von Vigour"), String(a));
@@ -73,7 +73,7 @@ describe("Wandverkleidung, line VIGOUR, stores and shows what today's UI does", 
     expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(LINE[v.line]!);
     if (v.line !== "premium") return; // the other lines have their own tests
 
-    expect(screen.queryAllByTestId("vg-row").map((r) => ({ title: part(r, "title"), small: part(r, "note"), color: r.dataset.color, size: r.querySelector("select")!.value, qty: part(r, "qty"), open: r.dataset.open === "true" }))).toEqual(v.rows);
+    expect(screen.queryAllByTestId("vg-row").map((r) => ({ title: part(r, "title"), small: part(r, "note"), color: r.dataset.color, size: r.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')!.dataset.code, qty: part(r, "qty"), open: r.dataset.open === "true" }))).toEqual(v.rows);
     expect(screen.queryByText("Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.")?.textContent ?? "").toBe(v.rowsEmpty);
     expect(!!screen.queryByTestId("vg-tiles")).toBe(v.tilesShown);
     if (v.tilesShown) expect(Array.from(screen.getByTestId("vg-tiles").querySelectorAll('button[aria-pressed="true"]')).map((b) => (b as HTMLElement).dataset.value)).toEqual(v.tileActive);

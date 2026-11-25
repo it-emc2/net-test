@@ -15,6 +15,9 @@ import { suggest } from "./rules.js";
 
 type Fields = Record<string, unknown>;
 export interface KRow { pid: string; name: string; qty: number }
+/** a Keramico panel in cm (areaOf: 0,95 × 2,55 m) — one format only */
+export const PANEL_CM = { width: 95, height: 255 } as const;
+export const FORMATS = [{ code: "95x255", size: `${PANEL_CM.width} × ${PANEL_CM.height} cm`, widthCm: PANEL_CM.width, heightCm: PANEL_CM.height }];
 export const SONDER = "WP007";
 export const SONDER_NAME = "Wandpaneel Sonder-Dekor";
 export const SONDER_PRICE = 136; // KERAMICO_SONDER_PRICE of the price rules: fixed, no discount
@@ -44,7 +47,7 @@ export function rowsOf(wv: Fields): KRow[] {
 }
 export const totalPanels = (rows: readonly KRow[]): number => rows.reduce((a, r) => a + (r.qty || 0), 0);
 /** m² of the panels — the sealing sets follow it */
-export const areaOf = (rows: readonly KRow[]): number => totalPanels(rows) * 2.4225;
+export const areaOf = (rows: readonly KRow[]): number => totalPanels(rows) * 2.4225; // = PANEL_CM 0,95 × 2,55 m
 
 const NO_PANELS = { "1497x2550": { color: "", enabled: false, overrideColor: "", qty: 0 }, "997x2550": { color: "", enabled: false, overrideColor: "", qty: 0 } };
 const CONSUMABLES = ["wvSealingSelected", "wvFlachenSelected", "wvSilikonSelected", "wvEndProfileSelected"];

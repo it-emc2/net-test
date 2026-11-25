@@ -4,14 +4,15 @@
 // for the same inputs). Also the wall calculator of the line winwall (calc.ts, Drawing.tsx).
 // The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
 // Sketch and note use the shared sketch pad (shared/ui/sketch-pad.tsx).
-import { Minus, Plus, X } from "lucide-react";
+import { CornerUpRight, Minus, Plus, Scissors, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
 import { useWallSettings } from "../fussboden/settings.js";
 import { creditOf, proposalOf, restOf, restText, settled, takeRest } from "../fussboden/wand.js";
 import * as fw from "../fussboden/wand.js";
-import { DecorPalette, PlateCards } from "../../../shared/ui/winwall.js";
+import { DecorPalette, PlateCards, RowPlates } from "../../../shared/ui/winwall.js";
+import { AccCard, AccGrid } from "../../../shared/ui/acc-card.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
@@ -49,16 +50,24 @@ const wallFieldsOf = (wv: Fields): Fields => Object.fromEntries(WALL_FIELDS.map(
 const freezeSealWalls = (wv: Fields) => { if (!useOfferStore.getState().scratch.wvSealWalls) remember("wvSealWalls", wallFieldsOf(wv)); };
 const renewSealHint = () => { if (useOfferStore.getState().scratch.wvSealWalls) remember("wvSealWalls", null); };
 
+/** − number + (the number can be typed); on a phone 2.5 rem (45 px) buttons so it fits a card two to a row */
 function Stepper({ label, value, placeholder, onChange }: { label: string; value: string; placeholder?: string; onChange: (text: string) => void }) {
   const n = Math.max(0, Math.round(Number(value) || 0));
   return (
-    <span className="flex shrink-0 items-center gap-1">
-      <Button variant="outline" size="icon" aria-label={`${label}: weniger`} onClick={() => onChange(String(Math.max(0, n - 1)))}><Minus aria-hidden /></Button>
-      <span className="w-16"><Input type="number" min={0} step={1} inputMode="numeric" aria-label={label} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="px-2 text-center" /></span>
-      <Button variant="outline" size="icon" aria-label={`${label}: mehr`} onClick={() => onChange(String(n + 1))}><Plus aria-hidden /></Button>
+    <span className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+      <Button variant="outline" size={null} className="size-10 sm:size-12" aria-label={`${label}: weniger`} onClick={() => onChange(String(Math.max(0, n - 1)))}><Minus aria-hidden /></Button>
+      <span className="w-9 sm:w-16"><Input type="number" min={0} step={1} inputMode="numeric" aria-label={label} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="min-h-10 px-0.5! text-center sm:min-h-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /></span>
+      <Button variant="outline" size={null} className="size-10 sm:size-12" aria-label={`${label}: mehr`} onClick={() => onChange(String(n + 1))}><Plus aria-hidden /></Button>
     </span>
   );
 }
+
+// The accessories' pictures: the ones today's UI shows (src/public/index.html, "Zubehör" of each line).
+// None for the cutting service (today's UI shows the decor WS203 there) and the outside corners: an icon.
+const SEALING_IMG = "/assets/d110afd16622742ee292b063792121f1.jpg", ADHESIVE_IMG = "/assets/Flächen-Kleber.PNG";
+const WW_ACC_IMG: Record<string, string> = { WS80110: "/assets/winwall/acc/WS80110.jpg", WS80111: "/assets/winwall/acc/WS80111.jpg", WS80112: "/assets/winwall/acc/WS80112.jpg", WS80113: "/assets/winwall/acc/WS80113.jpg", R_4260602: ADHESIVE_IMG };
+const VG_ACC_IMG: Record<vg.SwitchKey, string> = { sealing: SEALING_IMG, adhesive: ADHESIVE_IMG, silicone: "/assets/silikon_ransauer.jpg", endProfile: "/assets/6dd521ee32b126983e37b93433b29b95.jpg", connecting: "/assets/V3V.jpg" };
+const bxAccImg = (id: string) => `/assets/badolux/zubehoer/${id}.webp`;
 
 /** The decor tiles of the open row, with "Anderes Dekor" and its number. */
 function Decors({ onPick }: { onPick: (value: string, text?: string, typing?: boolean) => void }) {
@@ -267,28 +276,23 @@ function VigourRows() {
   const set = (next: vg.VRow[], i: number, folded: boolean) => { remember("wvRowOpen", { idx: i, folded }); write(vg.fromRows(wvNow(), next)); };
   const change = (i: number, c: Partial<vg.VRow>) => set(rows.map((r, j) => (j === i ? { ...r, ...c } : r)), idx, ui.folded);
   return (
-    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
+    <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 border-0 p-0">
       <legend className="mb-1.5 p-0 font-semibold">Paneele — Premium</legend>
       {rows.length ? rows.map((r, i) => {
         const open = i === openIdx;
         return (
-          <div key={i} data-testid="vg-row" data-open={open} data-color={r.color} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
+          <div key={i} data-testid="vg-row" data-open={open} data-color={r.color} className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 rounded-lg border-2 bg-card p-2 sm:p-3", open ? "border-primary" : "border-input")}>
             <div className="flex flex-wrap items-center gap-2">
               {/* as today: a tap marks the row and turns the tiles — open ↔ folded */}
               <button type="button" onClick={() => remember("wvRowOpen", { idx: i, folded: !ui.folded })} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
                 {vg.colorImage(r.color) ? <img src={vg.colorImage(r.color)} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
                 <span className="grid min-w-0"><b data-part="title">{vg.colorLabel(r.color)}</b><small data-part="note" className="text-muted-foreground">{open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
               </button>
-              <select aria-label={`Breite Zeile ${i + 1}`} value={r.size} onChange={(e) => change(i, { size: Number(e.target.value) as 997 | 1497 })} className="min-h-12 cursor-pointer rounded-lg border-2 border-input bg-card px-2 text-foreground">
-                {vg.SIZES.map((z) => <option key={z} value={z}>{z} mm</option>)}
-              </select>
-              <span className="flex items-center gap-1">
-                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: weniger`} onClick={() => change(i, { qty: Math.max(1, r.qty - 1) })}><Minus aria-hidden /></Button>
-                <output data-part="qty" className="w-8 text-center font-semibold">{r.qty}</output>
-                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: mehr`} onClick={() => change(i, { qty: r.qty + 1 })}><Plus aria-hidden /></Button>
-              </span>
               <Button variant="ghost" size="icon" aria-label={`Zeile ${i + 1} entfernen`} onClick={() => set(rows.filter((_, j) => j !== i), idx, ui.folded)}><X aria-hidden /></Button>
             </div>
+            {/* the width as panels to scale (as winwall's plates); picking one keeps the number, as today's list did */}
+            <RowPlates formats={vg.FORMATS} picked={String(r.size)} qty={r.qty} img={vg.colorImage(r.color) || undefined} label={`Breite Zeile ${i + 1}`} stepLabel={`Zeile ${i + 1}`}
+              onPick={(code) => { if (code !== String(r.size)) change(i, { size: Number(code) as 997 | 1497 }); }} onStep={(d) => change(i, { qty: Math.max(1, r.qty + d) })} />
             {open ? (
               <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="vg-tiles">
                 <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
@@ -304,7 +308,7 @@ function VigourRows() {
           </div>
         );
       }) : <p className="m-0 text-muted-foreground">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</p>}
-      <div><Button variant="outline" onClick={() => { const next = vg.addRow(rows, wvNow()); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonderdruck)</Button></div>
+      <div><Button variant="outline" className="h-auto whitespace-normal! py-2 text-left" onClick={() => { const next = vg.addRow(rows, wvNow()); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonderdruck)</Button></div>
       {rows.some((r) => r.color === vg.SONDER) ? (
         <div className="grid gap-1.5" data-testid="vg-sonder">
           <label htmlFor="vg-sonder-nr" className="font-semibold">Konfigurations-Nr. von Vigour</label>
@@ -319,28 +323,25 @@ function VigourRows() {
 /** VIGOUR: sealing, adhesive, silicone, and the end and connecting profiles. */
 function VigourAccessories() {
   const wv = useWv();
-  const row = (k: vg.SwitchKey) => {
-    const sw = vg.SWITCHES[k];
+  const card = (k: vg.SwitchKey) => {
+    const sw = vg.SWITCHES[k], on = wv[sw.flag] === true;
     return (
-      <div key={k} data-testid={`vg-acc-${k}`} className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-          <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={wv[sw.flag] === true} onChange={(e) => write(vg.toggleSwitch(wvNow(), k, e.target.checked))} />
-          <span className="grid"><span>{sw.caption}</span><small className="text-muted-foreground">{sw.small}</small></span>
-        </label>
-        {sw.qty ? <Stepper label={`Menge ${sw.caption}`} value={String(wv[sw.qty] ?? "0")} onChange={(t) => write(vg.setQty(k, Number(t)))} /> : null}
-      </div>
+      <AccCard key={k} testId={`vg-acc-${k}`} on={on} img={VG_ACC_IMG[k]} caption={sw.caption} small={sw.small}
+        check={{ checked: on, onChange: (e) => write(vg.toggleSwitch(wvNow(), k, e.target.checked)) }}
+        stepper={sw.qty ? <Stepper label={`Menge ${sw.caption}`} value={String(wv[sw.qty] ?? "0")} onChange={(t) => write(vg.setQty(k, Number(t)))} /> : undefined} />
     );
   };
+  const corners = Math.round(Number(wv.wvCornersCount) || 0);
   return (
     <>
-      <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0"><legend className="mb-1.5 p-0 font-semibold">Zubehör</legend>{(["sealing", "adhesive", "silicone"] as const).map(row)}</fieldset>
+      <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0"><legend className="mb-1.5 p-0 font-semibold">Zubehör</legend><AccGrid>{(["sealing", "adhesive", "silicone"] as const).map(card)}</AccGrid></fieldset>
       <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
         <legend className="mb-1.5 p-0 font-semibold">Abschluss- und Verbindungsprofile</legend>
-        {(["endProfile", "connecting"] as const).map(row)}
-        <div className={cn(ROW, "flex-wrap justify-between")}>
-          <span className="grid"><strong>Außenecken</strong><small className="text-muted-foreground">Jede Außenecke spart ein V3V</small></span>
-          <Stepper label="Außenecken" value={String(wv.wvCornersCount ?? "0")} onChange={(t) => write({ wvCornersCount: String(Math.max(0, Math.round(Number(t)) || 0)) })} />
-        </div>
+        <AccGrid>
+          {(["endProfile", "connecting"] as const).map(card)}
+          <AccCard testId="vg-acc-corners" on={corners > 0} icon={<CornerUpRight />} caption="Außenecken" small="Jede Außenecke spart ein V3V"
+            stepper={<Stepper label="Außenecken" value={String(wv.wvCornersCount ?? "0")} onChange={(t) => write({ wvCornersCount: String(Math.max(0, Math.round(Number(t)) || 0)) })} />} />
+        </AccGrid>
       </fieldset>
     </>
   );
@@ -362,29 +363,19 @@ function Accessories({ label, area, cut }: { label: string; area: number; cut: b
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
       <legend className="mb-1.5 p-0 font-semibold" data-testid="wv-acc-label">{label}</legend>
-      {ACCESSORIES.map((a) => (
-        <div key={a.id} data-testid={`wv-acc-${a.id}`} className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
-          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv[`wvWw_${a.id}`]} onChange={(e) => write(toggleAccessory(wvNow(), a.id, e.target.checked))} />
-            <span className="grid"><span data-part="caption">{a.caption}</span><small data-part="small" className="text-muted-foreground">{a.small}</small></span>
-          </label>
-          <Stepper label={`Menge ${a.caption}`} value={String(accessoryQty(wv, a.id))} onChange={(t) => write(setAccessoryQty(wvNow(), a.id, Number(t)))} />
-        </div>
-      ))}
-      <div data-testid="wv-acc-sealing" className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-          <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv.wvWwSealing} onChange={(e) => write({ wvWwSealing: e.target.checked ? "on" : undefined })} />
-          <span className="grid"><span data-part="caption">Abdichtungsset DIN 18534-1</span>
-            <small data-part="small" className="text-muted-foreground">{seal.hint}{manual ? <> <button type="button" className="cursor-pointer border-0 bg-transparent p-0 text-primary underline" onClick={(e) => { e.preventDefault(); renewSealHint(); write({ wvWwSealingQty: "" }); }}>Automatisch</button></> : null}</small></span>
-        </label>
-        <Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => { renewSealHint(); write({ wvWwSealingQty: t }); }} />
-      </div>
-      {cut ? <div data-testid="wv-acc-cut" className={cn(ROW, "has-[:checked]:border-primary")}>
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-          <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv.wvWwCut} onChange={(e) => write({ wvWwCut: e.target.checked ? "on" : undefined })} />
-          <span className="grid"><span data-part="caption">Zuschnitt durch winwall</span><small data-part="small" className="text-muted-foreground">10 € je Platte, gerade Schnitte · aus: wir schneiden selbst</small></span>
-        </label>
-      </div> : null}
+      <AccGrid>
+        {ACCESSORIES.map((a) => (
+          <AccCard key={a.id} testId={`wv-acc-${a.id}`} on={!!wv[`wvWw_${a.id}`]} img={WW_ACC_IMG[a.id]} caption={a.caption} small={a.small}
+            check={{ checked: !!wv[`wvWw_${a.id}`], onChange: (e) => write(toggleAccessory(wvNow(), a.id, e.target.checked)) }}
+            stepper={<Stepper label={`Menge ${a.caption}`} value={String(accessoryQty(wv, a.id))} onChange={(t) => write(setAccessoryQty(wvNow(), a.id, Number(t)))} />} />
+        ))}
+        <AccCard testId="wv-acc-sealing" on={!!wv.wvWwSealing} img={SEALING_IMG} caption="Abdichtungsset DIN 18534-1"
+          small={<>{seal.hint}{manual ? <> <button type="button" className="min-h-11 cursor-pointer border-0 bg-transparent p-0 text-primary-text underline" onClick={(e) => { e.preventDefault(); renewSealHint(); write({ wvWwSealingQty: "" }); }}>Automatisch</button></> : null}</>}
+          check={{ checked: !!wv.wvWwSealing, onChange: (e) => write({ wvWwSealing: e.target.checked ? "on" : undefined }) }}
+          stepper={<Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => { renewSealHint(); write({ wvWwSealingQty: t }); }} />} />
+        {cut ? <AccCard testId="wv-acc-cut" on={!!wv.wvWwCut} icon={<Scissors />} caption="Zuschnitt durch winwall" small="10 € je Platte, gerade Schnitte · aus: wir schneiden selbst"
+          check={{ checked: !!wv.wvWwCut, onChange: (e) => write({ wvWwCut: e.target.checked ? "on" : undefined }) }} /> : null}
+      </AccGrid>
     </fieldset>
   );
 }
@@ -399,24 +390,22 @@ function KeramicoRows() {
   const set = (next: bx.KRow[], idx: number, folded: boolean) => { renewSealHint(); remember("wvRowOpen", { idx, folded }); write(bx.fromRows(wvNow(), next)); };
   const change = (i: number, c: Partial<bx.KRow>) => set(rows.map((r, j) => (j === i ? { ...r, ...c } : r)), ui.idx, ui.folded);
   return (
-    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
+    <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2 border-0 p-0">
       <legend className="mb-1.5 p-0 font-semibold">Paneele — Standard (Keramico)</legend>
       {rows.length ? rows.map((r, i) => {
         const open = i === openIdx;
         return (
-          <div key={i} data-testid="bx-row" data-open={open} className={cn("grid gap-3 rounded-lg border-2 bg-card p-3", open ? "border-primary" : "border-input")}>
+          <div key={i} data-testid="bx-row" data-open={open} className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 rounded-lg border-2 bg-card p-2 sm:p-3", open ? "border-primary" : "border-input")}>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => remember("wvRowOpen", { idx: i, folded: i === ui.idx ? !ui.folded : false })} aria-expanded={open} className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-foreground">
                 <img src={bx.image(r.pid)} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
                 <span className="grid min-w-0"><b data-part="title">{bx.rowTitle(r)}</b><small data-part="note" className="text-muted-foreground">{open ? "Dekor wählen" : "Tippen zum Ändern"}</small></span>
               </button>
-              <span className="flex items-center gap-1">
-                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: weniger`} onClick={() => change(i, { qty: Math.max(1, r.qty - 1) })}><Minus aria-hidden /></Button>
-                <output data-part="qty" className="w-8 text-center font-semibold">{r.qty}</output>
-                <Button variant="outline" size="icon" aria-label={`Zeile ${i + 1}: mehr`} onClick={() => change(i, { qty: r.qty + 1 })}><Plus aria-hidden /></Button>
-              </span>
               <Button variant="ghost" size="icon" aria-label={`Zeile ${i + 1} entfernen`} onClick={() => { const next = rows.filter((_, j) => j !== i); set(next, Math.min(ui.idx, next.length - 1), ui.folded); }}><X aria-hidden /></Button>
             </div>
+            {/* one format: the panel to scale with − / + (as winwall's plates) */}
+            <RowPlates formats={bx.FORMATS} picked={bx.FORMATS[0]!.code} qty={r.qty} img={bx.image(r.pid)} label={`Paneele Zeile ${i + 1}`} stepLabel={`Zeile ${i + 1}`}
+              onPick={() => {}} onStep={(d) => change(i, { qty: Math.max(1, r.qty + d) })} />
             {open && r.pid === bx.SONDER ? (
               <div className="grid gap-1.5 rounded-lg border-2 border-border p-3" data-testid="bx-sonder">
                 <b>Sonder-Dekor bei CleverBad aussuchen</b>
@@ -441,7 +430,7 @@ function KeramicoRows() {
           </div>
         );
       }) : <p className="m-0 text-muted-foreground">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</p>}
-      <div><Button variant="outline" onClick={() => { const next = bx.addRow(rows); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonder-Dekor)</Button></div>
+      <div><Button variant="outline" className="h-auto whitespace-normal! py-2 text-left" onClick={() => { const next = bx.addRow(rows); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonder-Dekor)</Button></div>
     </fieldset>
   );
 }
@@ -454,15 +443,15 @@ function BadoluxAccessories() {
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0">
       <legend className="mb-1.5 p-0"><button type="button" aria-expanded={open} onClick={() => remember("wvBxOpen", !open)} className="min-h-12 cursor-pointer border-0 bg-transparent p-0 font-semibold text-foreground">Badolux-Zubehör (Keramico) {open ? "▾" : "▸"}</button></legend>
-      {open ? bx.BX_ACCESSORIES.map((a) => (
-        <div key={a.id} data-testid={`bx-acc-${a.id}`} className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
-          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={!!wv[`wvBx_${a.id}`]} onChange={(e) => write(bx.toggleBx(wvNow(), a.id, e.target.checked))} />
-            <span className="grid"><span data-part="caption">{a.caption}</span><small data-part="small" className="text-muted-foreground">{a.small}</small></span>
-          </label>
-          <Stepper label={`Menge ${a.caption}`} value={String(bx.bxQty(wv, a.id))} placeholder="0" onChange={(t) => write(bx.setBxQty(a.id, Number(t)))} />
-        </div>
-      )) : null}
+      {open ? (
+        <AccGrid>
+          {bx.BX_ACCESSORIES.map((a) => (
+            <AccCard key={a.id} testId={`bx-acc-${a.id}`} on={!!wv[`wvBx_${a.id}`]} img={bxAccImg(a.id)} caption={a.caption} small={a.small}
+              check={{ checked: !!wv[`wvBx_${a.id}`], onChange: (e) => write(bx.toggleBx(wvNow(), a.id, e.target.checked)) }}
+              stepper={<Stepper label={`Menge ${a.caption}`} value={String(bx.bxQty(wv, a.id))} placeholder="0" onChange={(t) => write(bx.setBxQty(a.id, Number(t)))} />} />
+          ))}
+        </AccGrid>
+      ) : null}
     </fieldset>
   );
 }
