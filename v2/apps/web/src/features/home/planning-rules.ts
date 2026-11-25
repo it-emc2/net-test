@@ -164,3 +164,24 @@ export function weekModel(w: WeekPayload | null | undefined, offset: number, now
   const range = first && last ? ` (${DE(first, { day: "numeric", month: "short" })} – ${DE(last, { day: "numeric", month: "short" })})` : "";
   return { days, meta: `${total} Termin${total !== 1 ? "e" : ""} · ${word} · KW ${isoWeek(first || now)}${range}` };
 }
+/** the agenda's rows: one per day; Saturday + Sunday without appointments (neither of them today) become ONE slim line */
+export type WeekRow = { kind: "day"; day: WeekDayView } | { kind: "empty"; days: WeekDayView[] };
+const weekend = (d: WeekDayView) => [0, 6].includes(parseDay(d.date).getDay());
+export function weekRows(days: WeekDayView[]): WeekRow[] {
+  const rows: WeekRow[] = [];
+  for (const d of days) {
+    const prev = rows[rows.length - 1];
+    if (d.entries.length) rows.push({ kind: "day", day: d });
+    else if (prev?.kind === "empty" && weekend(d) && !d.today && prev.days.every((x) => weekend(x) && !x.today)) prev.days.push(d);
+    else rows.push({ kind: "empty", days: [d] });
+  }
+  return rows;
+}
+/** label of an empty line: „Mo“ + „23. Nov.“, merged „Sa–So“ + „28.–29. Nov.“ */
+export function emptyLabel(days: WeekDayView[]) {
+  const a = days[0]!, b = days[days.length - 1]!;
+  if (a === b) return { name: a.name, date: `${a.dateNum}. ${a.month}` };
+  return { name: `${a.name}–${b.name}`, date: a.month === b.month ? `${a.dateNum}.–${b.dateNum}. ${b.month}` : `${a.dateNum}. ${a.month} – ${b.dateNum}. ${b.month}` };
+}
+/** „3 Termine“, „1 Termin“ for the day label */
+export const termine = (n: number) => `${n} Termin${n !== 1 ? "e" : ""}`;
