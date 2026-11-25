@@ -7,13 +7,15 @@ import { useNavigate } from "react-router";
 import { CONTACT_DEALS, call, ApiFailure, contactDealsQuery, dealCustomerQuery, type ContactDeal } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
-import type { DealDraftResponse, DealRelation, HomeSearchRow } from "@oc/api-contract";
+import type { DealDraftResponse, DealRelation, DealVariant, HomeSearchRow } from "@oc/api-contract";
 import { dealNumberTop, isNewOfferType, isSecondOfferType, type NewOfferType } from "@oc/domain";
-import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore } from "../offer/index.js";
+import { customerName, newTempKey, openSecondOffer, prefillNextOffer, relatedKey, relatedOfType, typeTitle, useOfferStore, variantsKey } from "../offer/index.js";
 import { cancelled, chargeOf, clock, departure, enrichmentOf, enrichmentOfCustomer, enrichmentPatch, fullRouteHref, pause, phoneHref, prefill, routeHref, searchEntries, subtitle, todayModel, typeTone, type PlanningEntry, type TodayPayload } from "./planning-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
 import { Modal } from "./Modal.js";
 import { DealStart } from "./HomeSearch.js";
+import { DealOverview } from "./DealOverview.js";
+import { OVERVIEW_TEXT, oldDocuments } from "./overview-rules.js";
 import { DEAL_DOCS_WAIT_MS, TEXT, autosavedButton, storedFirst, within } from "./search-rules.js";
 
 export const TODAY_KEY = ["planning-today"];
@@ -87,10 +89,14 @@ interface Choice { type: NewOfferType; dealId: string; existing: NewOfferType; v
 
 /** the stored drafts/offers shown before the deal opens (U-063) */
 interface Stored { type: string; rows: HomeSearchRow[]; draft: DealDraftResponse | null }
+/** the deal's variants (U-073): its draft is of the picked type */
+interface Overview { variants: DealVariant[]; rows: HomeSearchRow[] }
 
 /** „Welche Angebotsart möchten Sie öffnen?“ — also what a tap in the week calendar opens.
  *  U-063: a deal with stored drafts/offers lists them first (before a new empty offer, and also when the
- *  deal has an autosaved draft); without any, or when the lookup fails or is slow, as before. */
+ *  deal has an autosaved draft); without any, or when the lookup fails or is slow, as before.
+ *  U-073: the deal's draft is of the picked type → its variants, its stored documents of the old app and
+ *  „Neue Variante beginnen“ (DealOverview); a draft of ANOTHER type → as before (ADR 027 B). */
 export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose: () => void }) {
   const start = useStartFromAppointment();
   const qc = useQueryClient();
@@ -100,11 +106,15 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
   const draftQuery = { queryKey: ["picker-draft", deal], queryFn: () => call("dealDraft", { params: { dealId: deal } }), staleTime: 30_000, retry: false } as const;
   const relatedQuery = { queryKey: relatedKey(deal), queryFn: () => call("dealRelated", { params: { dealId: deal } }), staleTime: 5_000, retry: false } as const;
   const docsQuery = { queryKey: ["picker-docs", deal], queryFn: () => call("homeByDeal", { params: { dealId: deal } }).then((r) => r.rows), staleTime: 30_000, retry: false } as const;
+  // the same list as the offer's variant panel (shared cache)
+  const variantsQuery = { queryKey: variantsKey(deal), queryFn: () => call("dealVariants", { params: { dealId: deal } }), staleTime: 5_000, retry: false } as const;
   useQuery({ ...draftQuery, enabled: !!deal });
   useQuery({ ...relatedQuery, enabled: !!deal });
   useQuery({ ...docsQuery, enabled: !!deal });
+  useQuery({ ...variantsQuery, enabled: !!deal });
   const [choice, setChoice] = useState<Choice | null>(null);
   const [stored, setStored] = useState<Stored | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [busy, setBusy] = useState("");
   /** today's way on: start the offer, or the choice of ADR 027 B when the deal's draft is of another type */
   const proceed = async (t: NewOfferType, d: DealDraftResponse | null) => {
@@ -122,12 +132,23 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
     setBusy(t);
     const docs = qc.fetchQuery(docsQuery);
     docs.catch(() => {}); // a failing lookup only means: as before
+    const vars = qc.fetchQuery(variantsQuery).then((r) => r.variants);
+    vars.catch(() => {});
     const d = await qc.fetchQuery(draftQuery).catch(() => null);
-    const rows = await within(docs, DEAL_DOCS_WAIT_MS);
+    const own = !!d && d.offerType === t;
+    const [rows, list] = await Promise.all([within(docs, DEAL_DOCS_WAIT_MS), own ? within(vars, DEAL_DOCS_WAIT_MS) : Promise.resolve(null)]);
+    if (own && list?.length) { setBusy(""); setOverview({ variants: list, rows: oldDocuments(rows, list) }); return; }
     if (rows && storedFirst(rows, String((d?.payload as Record<string, unknown> | undefined)?.offerNumber ?? ""))) { setBusy(""); setStored({ type: t, rows, draft: d }); return; }
     setBusy("");
     await proceed(t, d);
   };
+  if (overview) {
+    return (
+      <Modal title={OVERVIEW_TEXT.title} onClose={onClose} wide>
+        <DealOverview dealId={deal} variants={overview.variants} rows={overview.rows} onBack={() => setOverview(null)} />
+      </Modal>
+    );
+  }
   if (stored && !choice) {
     const t = stored.type as NewOfferType, d = stored.draft;
     const other = !!d && isNewOfferType(d.offerType) && d.offerType !== t;

@@ -87,6 +87,7 @@ function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolea
     status, sentAt: reached ? reached.finishedAt ?? reached.startedAt : null, sentChannel: reached ? reached.channel : null,
     signedAt, total: typeof lastDone?.total === "number" ? lastDone.total : storedTotal,
     revision: v.revision, updatedAt: v.updatedAt, notChosenAt: v.notChosenAt ?? null, isDefault,
+    numbers: [...f.numbers],
   };
 }
 

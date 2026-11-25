@@ -249,6 +249,8 @@ export const DealVariantSchema = z.object({
   notChosenAt: When.nullable(),
   /** the variant calls without `variant` act on */
   isDefault: z.boolean(),
+  /** every offer number the variant carries or carried (current number + its send records); optional for older servers (U-073) */
+  numbers: z.array(z.string()).optional(),
 });
 export type DealVariant = z.infer<typeof DealVariantSchema>;
 export const DealVariantsResponseSchema = z.object({ dealId: z.string(), defaultVariantId: z.string().nullable(), variants: z.array(DealVariantSchema) });

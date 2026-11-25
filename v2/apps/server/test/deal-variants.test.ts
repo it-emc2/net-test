@@ -256,6 +256,8 @@ describe("variants", () => {
     expect(l[0].notChosenAt).not.toBeNull();
     expect(l[1]).toMatchObject({ variantId: B, status: "signed", sentChannel: "post", total: 999, notChosenAt: null });
     expect(l[2]).toMatchObject({ variantId: C, status: "not-chosen", sentAt: null, total: 5 });
+    // U-073: every number a variant carries or carried (the Hauptmenü does not list these as old documents)
+    expect(l.map((v: { numbers: string[] }) => v.numbers)).toEqual([["ANG-6007-A"], ["ANG-6007-B"], ["ANG-6007-C"]]);
   });
 
   it("total of a handed-over offer: the send record has none, the stored offer does (U-polish)", async () => {
