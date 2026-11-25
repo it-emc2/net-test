@@ -6,12 +6,12 @@
 // U-073: a deal with a draft shows its variants, its stored documents of the old app and „Neue
 // Variante beginnen“ first (DealOverview); the variant list unknown → as U-063.
 import type { DealVariant, HomeSearchRow } from "@oc/api-contract";
-import { NEW_OFFER_TYPES } from "@oc/domain";
+import { NEW_OFFER_TYPES, isNewOfferType } from "@oc/domain";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../auth/index.js";
 import { call, ApiFailure } from "../../shared/api/index.js";
-import { OFFER_TITLES, SecondOfferHost, typeTitle, useOfferStore } from "../offer/index.js";
+import { OFFER_TITLES, SecondOfferHost, isStepOf, typeTitle, useOfferStore } from "../offer/index.js";
 import { Alert, Page, Tile } from "../../shared/ui/index.js";
 import { OfferPicker, PlanningToday } from "./Planning.js";
 import { WeekCalendar } from "./WeekCalendar.js";
@@ -41,8 +41,9 @@ export function HomePage() {
   const [docs, setDocs] = useState<Promise<HomeSearchRow[]> | undefined>(undefined); // the lookup under way, for the list under „noch kein Angebot“
   const seq = useRef(0); // a newer „Öffnen“ (or typing) wins over an older answer
 
-  // U-074: `?offer=<number>` in the address opens that stored offer as „Öffnen“ with its number does
-  // (once; the address is cleaned so a reload or „Zurück“ does not open it again)
+  // U-074 / U-075: `?offer=<number>` in the address opens that stored offer as „Öffnen“ with its
+  // number does, `?deal=<number>[&step=…]` that deal as „Öffnen“ with a deal number does (once; the
+  // address is cleaned so a reload or „Zurück“ does not open it again)
   const { search } = useLocation();
   const target = useRef(startTarget(search));
   const started = useRef(false);
@@ -53,12 +54,14 @@ export function HomePage() {
     if (!t || started.current) return;
     started.current = true;
     nav("/", { replace: true });
+    if (t.kind === "deal") { void openDeal(t.id, t.step); return; }
     setOpening(t.number);
     void openOfferNumber(t.number).then((o) => { setOpening(""); opener.handle(o); });
   }, []); // once, for the address the page was opened with
 
-  // „Öffnen“ with a deal number: its draft knows the offer type; no draft yet → pick a type below
-  const openDeal = async (id: string) => {
+  // „Öffnen“ with a deal number: its draft knows the offer type; no draft yet → pick a type below.
+  // `step`: the step of a deal link (U-075), used when the deal opens straight into its draft
+  const openDeal = async (id: string, step = "") => {
     const n = ++seq.current;
     setMsg(""); setStored(null); setOverview(null); setDocs(undefined);
     // asked at the same time; waited for at most DEAL_DOCS_WAIT_MS after the draft answered — never blocks
@@ -76,7 +79,7 @@ export function HomePage() {
         setStored({ id, type: d.offerType, rows: found, draft: { offerType: d.offerType, updatedAt: String(d.updatedAt), revision: d.revision, title: typeTitle(d.offerType) } });
         return;
       }
-      nav(`/deal/${id}/${d.offerType}`);
+      nav(`/deal/${id}/${d.offerType}${step && isNewOfferType(d.offerType) && isStepOf(d.offerType, step) ? `/${step}` : ""}`);
     } catch (e) {
       if (n !== seq.current) return;
       if (e instanceof ApiFailure && e.code === "NO_DRAFT") {

@@ -19,13 +19,25 @@ export function classifyOpen(raw: string): { kind: OpenKind; value: string } {
 /** an offer number in an address (`?offer=`): ANG + digits/dashes, e.g. ANG2026-1125-101530 */
 export const OFFER_NUMBER_IN_LINK = /^ANG-?\d[\d-]{0,40}$/i;
 
-/** what the Hauptmenü's address asks to open (U-074: `?offer=<number>` from „Versionen“). Anything
- *  malformed is ignored — the value only ever becomes an API parameter, never an address to go to. */
-export type StartTarget = { kind: "offer"; number: string };
+const STEP_IN_LINK = /^[A-Za-z0-9_-]{1,40}$/;
+
+/**
+ * What the Hauptmenü's address asks to open: `?offer=<ANG number>` (U-074 from „Versionen“; U-075 the
+ * Bitrix offer link, sent here by the server) or `?deal=<deal number>[&step=<step>]` (U-075 the deal
+ * link). It survives the app's login, which shows in place of the page and keeps the address. Anything
+ * malformed is ignored: a value only ever becomes an API parameter or a path INSIDE this app — never
+ * an address of its own (no redirect to a foreign target).
+ */
+export type StartTarget = { kind: "offer"; number: string } | { kind: "deal"; id: string; step: string };
 export function startTarget(search: string): StartTarget | null {
   const p = new URLSearchParams(search);
   const offer = (p.get("offer") ?? "").trim();
-  if (offer && OFFER_NUMBER_IN_LINK.test(offer)) return { kind: "offer", number: offer.toUpperCase() };
+  if (offer) return OFFER_NUMBER_IN_LINK.test(offer) ? { kind: "offer", number: offer.toUpperCase() } : null;
+  const deal = (p.get("deal") ?? "").trim();
+  if (deal && DEAL_NUMBER_RE.test(deal)) {
+    const step = (p.get("step") ?? "").trim();
+    return { kind: "deal", id: deal, step: STEP_IN_LINK.test(step) ? step : "" };
+  }
   return null;
 }
 

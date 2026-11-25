@@ -80,7 +80,7 @@ export function useOpenOutcome() {
     if (o.kind === "go") nav(o.path);
     else if (o.kind === "ask") setAsk(o);
     else if (o.kind === "failed") setMessage(o.message);
-    else window.location.assign(CLASSIC_HOME); // today's view (unknown types)
+    else window.location.assign(o.href ?? CLASSIC_HOME); // today's view (unknown types)
   };
   // in the page's body: a card around the field must not become the dialog's frame (it clipped it)
   const dialog = ask ? createPortal(<TakeOverQuestion q={ask} onClose={() => setAsk(null)} onOutcome={handle} />, document.body) : null;
