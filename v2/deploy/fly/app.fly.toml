@@ -14,6 +14,9 @@ primary_region = 'fra'
   START_UI = 'react'
   # the React signing page at /sign/<token> (U-068), owner 2026-11-25: on for the test app to try
   SIGNING_UI = 'react'
+  # company line of the signing page's contact block (U-071), owner 2026-11-25; the registered
+  # company name, spelled as in today's offer templates
+  COMPANY_NAME = 'EmC2 Attila Landgrafe'
   # GOTENBERG_URL is a secret, the same value as today's app: it carries the login of the shared
   # PDF engine `emc2-gotenberg` (deploy/gotenberg on main). No second PDF app.
 
