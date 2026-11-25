@@ -11,7 +11,7 @@ import { chooseLine } from "../src/features/steps/wandverkleidung/rules.js";
 import { fromRows, rowsOf, setQty, toggleSwitch } from "../src/features/steps/wandverkleidung/vigour.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wv-vigour.json" with { type: "json" };
-import { BASE, fakeServer, renderApp, type Reply, toClassic, withoutClassic } from "./helpers.js";
+import { BASE, fakeServer, renderApp, type Reply, toClassic, withoutClassic, toRowEditor } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 const offer = () => useOfferStore.getState().offer as Record<string, any>;
@@ -35,7 +35,7 @@ async function play(steps: (string | number)[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
     if (kind === "on" || kind === "off") { await user.click(screen.getByRole("switch", { name: "Wandverkleidung" })); if (kind === "on") await toClassic(user); }
-    else if (kind === "line") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[a as string]! }));
+    else if (kind === "line") { await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[a as string]! })); await toRowEditor(user); } // the recording is the row editor
     else if (kind === "row+") await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Farbe oder Sonderdruck)" }));
     else if (kind === "row") await user.click(screen.getAllByTestId("vg-row")[Number(a) - 1]!.querySelector("button")!);
     else if (kind === "tile") await user.click(screen.getByTestId("vg-tiles").querySelector(`button[data-value="${a}"]`)!);

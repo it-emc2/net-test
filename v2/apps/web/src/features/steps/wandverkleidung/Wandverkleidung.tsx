@@ -5,17 +5,18 @@
 // The lines VIGOUR (vigour.ts) and Badolux (keramico.ts) use the same calculator.
 // Sketch and note use the shared sketch pad (shared/ui/sketch-pad.tsx).
 import { CornerUpRight, Minus, Plus, Scissors, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { computedFor, setMode, unitsOf } from "../fussboden/rules.js";
 import { useWallSettings } from "../fussboden/settings.js";
 import { creditOf, proposalOf, restOf, restText, settled, takeRest } from "../fussboden/wand.js";
 import * as fw from "../fussboden/wand.js";
-import { DecorPalette, PlateCards, RowPlates } from "../../../shared/ui/winwall.js";
+import { DecorChips, DecorPalette, PlateCards, RowPlates, StepLegend } from "../../../shared/ui/winwall.js";
 import { AccCard, AccGrid } from "../../../shared/ui/acc-card.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
+import * as pv from "./panels.js";
 import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
@@ -309,14 +310,20 @@ function VigourRows() {
         );
       }) : <p className="m-0 text-muted-foreground">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</p>}
       <div><Button variant="outline" className="h-auto whitespace-normal! py-2 text-left" onClick={() => { const next = vg.addRow(rows, wvNow()); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonderdruck)</Button></div>
-      {rows.some((r) => r.color === vg.SONDER) ? (
-        <div className="grid gap-1.5" data-testid="vg-sonder">
-          <label htmlFor="vg-sonder-nr" className="font-semibold">Konfigurations-Nr. von Vigour</label>
-          <div className="max-w-xs"><Input id="vg-sonder-nr" placeholder="z. B. VI-00002468" autoComplete="off" value={String(wv.wvSonderConfigNr ?? "")} onChange={(e) => write({ wvSonderConfigNr: e.target.value })} /></div>
-          <p className="m-0 text-[0.9rem] text-muted-foreground">Noch keine Nummer? Feld frei lassen — der Angebotscheck erinnert, bis sie eingetragen ist. Sonderdruck im <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">Vigour Wall Configurator</a> gestalten.</p>
-        </div>
-      ) : null}
+      {rows.some((r) => r.color === vg.SONDER) ? <VigourSonder testId="vg-sonder" /> : null}
     </fieldset>
+  );
+}
+
+/** VIGOUR Sonderdruck: the configuration number (one for the offer) — row editor and simple view */
+function VigourSonder({ testId }: { testId: string }) {
+  const wv = useWv();
+  return (
+    <div className="grid gap-1.5" data-testid={testId}>
+      <label htmlFor="vg-sonder-nr" className="font-semibold">Konfigurations-Nr. von Vigour</label>
+      <div className="max-w-xs"><Input id="vg-sonder-nr" placeholder="z. B. VI-00002468" autoComplete="off" value={String(wv.wvSonderConfigNr ?? "")} onChange={(e) => write({ wvSonderConfigNr: e.target.value })} /></div>
+      <p className="m-0 text-[0.9rem] text-muted-foreground">Noch keine Nummer? Feld frei lassen — der Angebotscheck erinnert, bis sie eingetragen ist. Sonderdruck im <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">Vigour Wall Configurator</a> gestalten.</p>
+    </div>
   );
 }
 
@@ -347,12 +354,15 @@ function VigourAccessories() {
   );
 }
 
-/** VIGOUR: the calculator needs the purchase prices of the colour's two articles (cheapest mix). */
-function Vigour() {
+/** VIGOUR's row editor: the calculator needs the purchase prices of the colour's two articles (cheapest mix). */
+function VigourClassic() {
   const wv = useWv();
   const a = vg.articles(wv);
   const prices = useQuery({ queryKey: ["vigor-prices", a[997], a[1497]], staleTime: 10 * 60_000, retry: false, queryFn: ({ signal }) => call("vigorPrices", { query: `ids=${encodeURIComponent(`${a[997]},${a[1497]}`)}`, signal }).then((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Number(v) || 0]))) });
-  return <><Calculator kit={vigourKit(prices.data)} /><VigourRows /><VigourAccessories /></>;
+  return <><Calculator kit={vigourKit(prices.data)} /><VigourRows /></>;
+}
+function Vigour() {
+  return <><PanelLine kit={VG_PANELS} classic={<VigourClassic />} simple={<PanelSimple kit={VG_PANELS} extra={(st) => (st.groups.some((g) => g.key === vg.SONDER) ? <VigourSonder testId="vgs-sonder" /> : null)} />} /><VigourAccessories /></>;
 }
 
 /** winwall's accessories — also used for Keramico (there without the cutting service). */
@@ -406,15 +416,7 @@ function KeramicoRows() {
             {/* one format: the panel to scale with − / + (as winwall's plates) */}
             <RowPlates formats={bx.FORMATS} picked={bx.FORMATS[0]!.code} qty={r.qty} img={bx.image(r.pid)} label={`Paneele Zeile ${i + 1}`} stepLabel={`Zeile ${i + 1}`}
               onPick={() => {}} onStep={(d) => change(i, { qty: Math.max(1, r.qty + d) })} />
-            {open && r.pid === bx.SONDER ? (
-              <div className="grid gap-1.5 rounded-lg border-2 border-border p-3" data-testid="bx-sonder">
-                <b>Sonder-Dekor bei CleverBad aussuchen</b>
-                <p className="m-0 text-[0.95rem] text-muted-foreground">Motiv im Shop ansehen und den Namen hier eintragen. Preis je Paneel: <b>{bx.SONDER_PRICE.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €</b> (fest, ohne Rabatt).</p>
-                <a href={bx.SHOP_URL} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center">Wandpaneele bei CleverBad öffnen ↗</a>
-                <label htmlFor="bx-motif" className="font-semibold">Motiv / Name</label>
-                <div className="max-w-xs"><Input id="bx-motif" placeholder="z. B. Octopus Flow" autoComplete="off" value={r.name === bx.SONDER_NAME ? "" : r.name} onChange={(e) => change(i, { name: e.target.value })} /></div>
-              </div>
-            ) : null}
+            {open && r.pid === bx.SONDER ? <KeramicoSonder testId="bx-sonder" name={r.name} onName={(name) => change(i, { name })} /> : null}
             {open ? (
               <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="bx-tiles">
                 <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
@@ -432,6 +434,19 @@ function KeramicoRows() {
       }) : <p className="m-0 text-muted-foreground">Noch keine Paneele. Mit „+ Zeile hinzufügen“ beginnen.</p>}
       <div><Button variant="outline" className="h-auto whitespace-normal! py-2 text-left" onClick={() => { const next = bx.addRow(rows); set(next, next.length - 1, false); }}><Plus aria-hidden />Zeile hinzufügen (Farbe oder Sonder-Dekor)</Button></div>
     </fieldset>
+  );
+}
+
+/** Badolux Sonder-Dekor: the shop and the motif's name (of one row / the open chip) */
+function KeramicoSonder({ testId, name, onName }: { testId: string; name: string; onName: (name: string) => void }) {
+  return (
+    <div className="grid gap-1.5 rounded-lg border-2 border-border p-3" data-testid={testId}>
+      <b>Sonder-Dekor bei CleverBad aussuchen</b>
+      <p className="m-0 text-[0.95rem] text-muted-foreground">Motiv im Shop ansehen und den Namen hier eintragen. Preis je Paneel: <b>{bx.SONDER_PRICE.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €</b> (fest, ohne Rabatt).</p>
+      <a href={bx.SHOP_URL} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center">Wandpaneele bei CleverBad öffnen ↗</a>
+      <label htmlFor="bx-motif" className="font-semibold">Motiv / Name</label>
+      <div className="max-w-xs"><Input id="bx-motif" placeholder="z. B. Octopus Flow" autoComplete="off" value={name === bx.SONDER_NAME ? "" : name} onChange={(e) => onName(e.target.value)} /></div>
+    </div>
   );
 }
 
@@ -458,7 +473,125 @@ function BadoluxAccessories() {
 
 function Badolux() {
   const wv = useWv();
-  return <><Calculator kit={BX_KIT} /><KeramicoRows /><Accessories label="Zubehör" area={bx.areaOf(bx.rowsOf(wv))} cut={false} /><BadoluxAccessories /></>;
+  return (
+    <>
+      <PanelLine kit={BX_PANELS} classic={<><Calculator kit={BX_KIT} /><KeramicoRows /></>}
+        simple={<PanelSimple kit={BX_PANELS} extra={(st, g, commit) => (bxSplit(g.key).pid === bx.SONDER ? <KeramicoSonder testId="bxs-sonder" name={bxSplit(g.key).name} onName={(name) => commit(pv.rename(st, `${bx.SONDER}|${name}`))} /> : null)} />} />
+      <Accessories label="Zubehör" area={bx.areaOf(bx.rowsOf(wv))} cut={false} /><BadoluxAccessories />
+    </>
+  );
+}
+
+// ---- the simple view of the lines VIGOUR and Badolux (panels.ts): winwall's pieces over the line's rows ----
+interface PanelKit {
+  /** names the test ids and what the view remembers ("vgs", "bxs" — as winwall's "wvs") */
+  id: "vgs" | "bxs";
+  /** the line's word for a colour, its plural, the chip that adds one, the way back from the row editor */
+  word: string; plural: string; addText: string; toSimple: string;
+  formats: readonly { code: string; size: string; widthCm: number; heightCm: number }[];
+  /** the stored rows as the view reads them; the offer's colour (leading chip); the colour of a first, empty chip */
+  rows: (wv: Fields) => pv.PRow[]; first: (wv: Fields) => string | null; fallback: (wv: Fields) => string;
+  palette: readonly string[];
+  /** a chip's text, a tile's caption, the picture */
+  name: (key: string) => string; tileName: (key: string) => string; img: (key: string) => string;
+  /** whether a chip's colour is that tile */
+  same: (chip: string, tile: string) => boolean;
+  /** the view's rows → the line's fields, exactly as its row editor writes them */
+  write: (rows: pv.PRow[]) => void;
+  /** the hint when the stored rows can only be edited as rows */
+  rowsOnly: Record<"dup" | "order", string>;
+}
+const VG_PANELS: PanelKit = {
+  id: "vgs", word: "Farbe", plural: "Farben", addText: "+ weitere Farbe", toSimple: "Zur neuen Ansicht wechseln (Paneele + Farbe)",
+  formats: vg.FORMATS, rows: (wv) => vg.rowsOf(wv).map((r) => ({ key: r.color, size: String(r.size), qty: r.qty })),
+  first: (wv) => String(wv.wvColor ?? "") || null, fallback: (wv) => String(wv.wvColor || "Marmor weiß"),
+  palette: VG_COLORS.map((c) => c.value), name: vg.colorLabel, tileName: (k) => VG_COLORS.find((c) => c.value === k)?.caption ?? vg.colorLabel(k), img: vg.colorImage,
+  same: (a, b) => a === b,
+  write: (rows) => write(vg.fromRows(wvNow(), rows.map((r) => ({ size: Number(r.size) as 997 | 1497, qty: r.qty, color: r.key })))),
+  rowsOnly: {
+    dup: "Zwei Zeilen haben dieselbe Farbe und Breite. Diese Paneele lassen sich nur hier in Zeilen bearbeiten – nach dem Zusammenlegen geht die neue Ansicht wieder.",
+    order: "Die Farben stehen je Breite in einer Reihenfolge, die nur die Zeilen abbilden (erste Zeile = Hauptpaneel). Bitte hier in Zeilen bearbeiten.",
+  },
+};
+const bxSplit = (key: string) => ({ pid: key.split("|", 1)[0]!, name: key.split("|").slice(1).join("|") });
+const BX_PANELS: PanelKit = {
+  id: "bxs", word: "Dekor", plural: "Dekore", addText: "+ weiteres Dekor", toSimple: "Zur neuen Ansicht wechseln (Paneele + Dekor)",
+  formats: bx.FORMATS, rows: (wv) => bx.rowsOf(wv).map((r) => ({ key: `${r.pid}|${r.name}`, size: bx.FORMATS[0]!.code, qty: r.qty })),
+  first: () => null, fallback: () => bx.DECORS[0]!.value,
+  palette: bx.DECORS.map((d) => d.value), name: (k) => bx.rowTitle({ ...bxSplit(k), qty: 0 }), tileName: (k) => bx.DECORS.find((d) => d.value === k)?.caption ?? bx.rowTitle({ ...bxSplit(k), qty: 0 }), img: (k) => bx.image(bxSplit(k).pid),
+  same: (a, b) => bxSplit(a).pid === bxSplit(b).pid, // the Sonder-Dekor tile is every motif
+  write: (rows) => { renewSealHint(); write(bx.fromRows(wvNow(), rows.map((r) => ({ ...bxSplit(r.key), qty: r.qty })))); },
+  rowsOnly: {
+    dup: "Zwei Zeilen haben dasselbe Dekor. Diese Paneele lassen sich nur hier in Zeilen bearbeiten – nach dem Zusammenlegen geht die neue Ansicht wieder.",
+    order: "Die Dekore stehen in einer Reihenfolge, die nur die Zeilen abbilden. Bitte hier in Zeilen bearbeiten.",
+  },
+};
+const sizesOf = (kit: PanelKit) => kit.formats.map((f) => f.code);
+
+/** the simple view or the row editor ("Alter Konfigurator"): the choice is remembered while the offer is
+ *  open, not stored; rows the view cannot express open the row editor with a hint */
+function PanelLine({ kit, classic, simple }: { kit: PanelKit; classic: ReactNode; simple: ReactNode }) {
+  const wv = useWv();
+  const why = pv.rowsOnly(kit.rows(wv), sizesOf(kit), kit.first(wv));
+  const chosen = !!useOfferStore((s) => s.scratch[`${kit.id}Classic`]);
+  // forced once, it stays: the editor does not vanish while the rows are being put right
+  useEffect(() => { if (why && !chosen) remember(`${kit.id}Classic`, true); }, [why, chosen, kit.id]);
+  if (!why && !chosen) return <>{simple}</>;
+  return (
+    <>
+      {why ? <p role="status" data-testid={`${kit.id}-rows-only`} className="m-0 rounded-lg border-2 border-primary p-3">{kit.rowsOnly[why]}</p>
+        : <div><Button variant="outline" className="h-auto w-full whitespace-normal! border-dashed py-2 text-primary" onClick={() => { remember(`${kit.id}View`, null); remember(`${kit.id}Classic`, false); }}>{kit.toSimple}</Button></div>}
+      {classic}
+    </>
+  );
+}
+
+/** VIGOUR / Badolux simple view: colour chips, the panels to scale with Menge, the total, the palette — winwall's look */
+function PanelSimple({ kit, extra }: { kit: PanelKit; extra?: (st: pv.PView, g: pv.PGroup, commit: (next: pv.PView) => void) => ReactNode }) {
+  const wv = useWv();
+  const sizes = sizesOf(kit), VIEW = `${kit.id}View`;
+  const kept = useOfferStore((s) => s.scratch[VIEW]) as pv.PView | null | undefined;
+  const loaded = useRef(false);
+  const st = loaded.current && kept?.groups.length ? kept : pv.load(kit.rows(wv), sizes, kit.fallback(wv), kit.first(wv), kept);
+  // the step is opened: the chips are read from the rows again, a colour without panels stays (as winwall)
+  useEffect(() => {
+    loaded.current = true;
+    const now = wvNow();
+    remember(VIEW, pv.load(kit.rows(now), sizes, kit.fallback(now), kit.first(now), useOfferStore.getState().scratch[VIEW] as pv.PView | undefined));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const g = st.groups[st.active]!;
+  /** the chips changed: the rows follow (and with them price, accessories, work time) — only when they did change */
+  const commit = (next: pv.PView) => {
+    remember(VIEW, next);
+    const now = wvNow(), before = kit.rows(now), rows = pv.save(next.groups, before, sizes);
+    if (pv.unchanged(rows, before, sizes, kit.first(now))) return;
+    remember("wvRowOpen", { idx: -1, folded: true });
+    kit.write(rows);
+  };
+  const areas = Object.fromEntries(kit.formats.map((f) => [f.code, (f.widthCm * f.heightCm) / 1e4]));
+  const tiles = [...kit.palette, ...(kit.palette.some((k) => kit.same(g.key, k)) ? [] : [g.key])].map((k) => {
+    const img = kit.img(k);
+    return { code: k, name: kit.tileName(k), small: "", checked: kit.same(g.key, k), swatch: false, label: img ? "" : kit.tileName(k), img: img || undefined };
+  });
+  return (
+    <div className="grid gap-4" data-testid={kit.id}>
+      <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
+        <StepLegend n={1}>Paneele – Menge je Größe</StepLegend>
+        <DecorChips chips={st.groups.map((x, i) => ({ name: kit.name(x.key), text: `${kit.name(x.key)} · ${pv.count(x)} Stk`, pressed: i === st.active, removable: st.groups.length > 1, img: kit.img(x.key) || undefined }))}
+          label={kit.plural} noun={kit.word} addText={kit.addText} testId={`${kit.id}-tab`}
+          onPick={(i) => remember(VIEW, { ...st, active: i })} onRemove={(i) => commit(pv.removeGroup(st, i))} onAdd={() => remember(VIEW, pv.addGroup(st, kit.palette, sizes))} />
+        <PlateCards plates={kit.formats.map((f) => ({ code: f.code, size: f.size, qty: g.qty[f.code] || 0, img: kit.img(g.key) ? g.key : "", src: kit.img(g.key) || undefined, note: "", widthCm: f.widthCm, heightCm: f.heightCm }))}
+          onStep={(code, d) => commit(pv.step(st, code, d))} testId={`${kit.id}-plate`} notePart="meta" />
+        <p className="m-0 font-semibold" data-testid={`${kit.id}-total`}>{pv.totalOf(st, areas, kit.plural)}</p>
+      </fieldset>
+      <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 border-0 p-0" data-testid={`${kit.id}-colors`}>
+        <StepLegend n={2}>{kit.word} – gilt für die Paneele oben</StepLegend>
+        <DecorPalette tiles={tiles} label={kit.word} onPick={(key) => { const r = pv.pick(st, key, kit.same); if (r.moved) commit(r.next); else remember(VIEW, r.next); }} />
+        {extra?.(st, g, commit)}
+        <div><Button variant="ghost" className="h-auto whitespace-normal! text-left text-primary" onClick={() => remember(`${kit.id}Classic`, true)}>Alter Konfigurator (Wandplan, Zeilen)</Button></div>
+      </fieldset>
+    </div>
+  );
 }
 
 /** "Skizze und Notiz": folded unless the offer has a sketch or a note. The pad hands back the
@@ -598,22 +731,13 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
     if (t.code) commit(sv.typedInto(st, t.code, t.fmt), { old: g.code, next: t.code });
   };
   const bad = sv.badOf(rows);
-  const chip = "flex min-h-12 cursor-pointer items-center gap-2 rounded-full border-2 bg-card px-3 text-foreground";
   return (
     <div className="grid gap-4" data-testid="wvs">
       <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0">
-        <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">1</span> Platten – Menge je Größe</legend>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Dekore">
-          {sv.tabsOf(st).map((t, i) => (
-            <span key={`${t.code}-${i}`} className="flex items-center gap-1">
-              <button type="button" data-testid="wvs-tab" aria-pressed={t.pressed} onClick={() => { remember("wvsOther", ""); remember("wvSimple", { ...st, active: i }); }} className={cn(chip, t.pressed ? "border-primary font-semibold" : "border-input")}>
-                <i aria-hidden className="size-7 rounded-full border border-border bg-muted bg-cover bg-center" style={t.swatch ? { backgroundImage: `url(/assets/winwall/${t.code}.jpg)` } : undefined} /><span data-part="text">{t.text}</span>
-              </button>
-              {t.removable ? <Button variant="ghost" size="icon" aria-label={`Dekor ${sv.nameOf(t.code)} entfernen`} onClick={() => commit(sv.removeGroup(st, i), { pref: null })}><X aria-hidden /></Button> : null}
-            </span>
-          ))}
-          <button type="button" onClick={() => remember("wvSimple", sv.addGroup(st))} className={cn(chip, "border-dashed border-input text-primary")}>+ weiteres Dekor</button>
-        </div>
+        <StepLegend n={1}>Platten – Menge je Größe</StepLegend>
+        <DecorChips chips={sv.tabsOf(st).map((t) => ({ name: sv.nameOf(t.code), text: t.text, pressed: t.pressed, removable: t.removable, img: t.swatch ? `/assets/winwall/${t.code}.jpg` : undefined }))}
+          label="Dekore" noun="Dekor" addText="+ weiteres Dekor" testId="wvs-tab"
+          onPick={(i) => { remember("wvsOther", ""); remember("wvSimple", { ...st, active: i }); }} onRemove={(i) => commit(sv.removeGroup(st, i), { pref: null })} onAdd={() => remember("wvSimple", sv.addGroup(st))} />
         <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "", ...sv.plateCm(f) }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" />
         <p className="m-0 font-semibold" data-testid="wvs-total">{sv.totalOf(st)}</p>
         {bad ? (
@@ -629,7 +753,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
         </div>
       </fieldset>
       <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 border-0 p-0" data-testid="wvs-colors">
-        <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">2</span> Dekor – gilt für die Platten oben</legend>
+        <StepLegend n={2}>Dekor – gilt für die Platten oben</StepLegend>
         <DecorPalette tiles={sv.paletteTiles(g.code)} label="Dekor" onPick={pickDecor} />
         <div className="grid gap-1.5" data-testid="wvs-other">
           <label htmlFor="wvs-other-input" className="font-semibold">Anderes Dekor</label>

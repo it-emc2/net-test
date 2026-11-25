@@ -52,4 +52,12 @@ export async function toClassic(user: { click: (el: Element) => Promise<void> })
   const b = screen.queryByRole("button", { name: "Alter Konfigurator (Wandplan, Zeilen)" });
   if (b) await user.click(b);
 }
+/** VIGOUR and Badolux open in their simple view (owner 2026-11-25, "same as winwall"); the recordings
+ *  of their row editor (wall plan, rows) open it with "Alter Konfigurator" — remembered while the offer
+ *  is open, nothing stored. Call after a change of the line. */
+export async function toRowEditor(user: { click: (el: Element) => Promise<void> }) {
+  const { screen, within } = await import("@testing-library/react");
+  const view = screen.queryByTestId("vgs") ?? screen.queryByTestId("bxs");
+  if (view) await user.click(within(view).getByRole("button", { name: "Alter Konfigurator (Wandplan, Zeilen)" }));
+}
 export const withoutClassic = <T extends Record<string, unknown>>(diff: T): T => { const { wvUi, ...rest } = diff; return (wvUi === "" ? rest : diff) as T; };

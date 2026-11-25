@@ -14,7 +14,7 @@ import { WW_DECORS } from "../src/features/steps/wandverkleidung/decors.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/fussboden-wand.json" with { type: "json" };
-import { BASE, fakeServer, renderApp, type Reply } from "./helpers.js";
+import { BASE, fakeServer, renderApp, type Reply, toRowEditor } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 type Fields = Record<string, unknown>;
@@ -81,7 +81,7 @@ async function play(s: Scenario, router: Awaited<ReturnType<typeof open>>["route
     else if (kind === "wvplate") await user.click(within(screen.getByTestId("wvs")).getByRole("button", { name: `Mehr ${PLATE[String(a)]}` }));
     else if (kind === "wvcolor") await user.click(within(screen.getByTestId("wvs-colors")).getByRole("radiogroup").querySelector(`[data-code="${a}"]`)!);
     else if (kind === "wvheight") { const el = screen.getByLabelText(/^Höhe der Verkleidung/); await user.click(el); await user.clear(el); await user.type(el, String(a)); await user.tab(); }
-    else if (kind === "wvline") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: /^VIGOUR/ }));
+    else if (kind === "wvline") { await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: /^VIGOUR/ })); await toRowEditor(user); } // the recording is the row editor
     else if (kind === "wvwidth") fireEvent.change(screen.getByLabelText(`Breite ${WALL_NAMES[a as string]} in cm`), { target: { value: b } });
     else if (kind === "wvwall") await user.click(screen.getByRole("button", { name: `Dekor für ${WALL_NAMES[a as string]} wählen` }));
     else if (kind === "wvdecor") { const wall = screen.getAllByTestId("kc-wall").find((x) => x.dataset.wall === a)!; await user.click(wall.querySelectorAll<HTMLElement>('[data-testid="kc-tiles"] button')[Number(b) - 1]!); }

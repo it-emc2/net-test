@@ -10,7 +10,7 @@ import * as sv from "../src/features/steps/wandverkleidung/simple.js";
 import { toast } from "../src/shared/ui/toaster.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/wv-einfach.json" with { type: "json" };
-import { BASE, fakeServer, renderApp } from "./helpers.js";
+import { BASE, fakeServer, renderApp, toRowEditor } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 type Fields = Record<string, unknown>;
@@ -63,7 +63,7 @@ async function play(s: Scenario, router: Router): Promise<Ask[]> {
     else if (kind === "simple") await user.click(screen.getByRole("button", { name: "Zur neuen Ansicht wechseln (Platten + Dekor)" }));
     else if (kind === "fix") await user.click(screen.getByRole("button", { name: "Im alten Konfigurator korrigieren" }));
     else if (kind === "lineopen") await user.click(screen.getByTestId("wv-line-row"));
-    else if (kind === "line") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[String(a)]! }));
+    else if (kind === "line") { await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[String(a)]! })); await toRowEditor(user); } // today's VIGOUR / Badolux: the row editor
     else if (kind === "kind") await user.click(screen.getByRole("group", { name: "Ausführung" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "acc") await user.click(screen.getByTestId(`wv-acc-${a}`).querySelector('input[type="checkbox"]')!);
     else if (kind === "open") { // the offer saved earlier is opened: its fields, nothing remembered from before
