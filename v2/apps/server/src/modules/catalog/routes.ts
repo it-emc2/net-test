@@ -48,7 +48,7 @@ export async function registerCatalog(app: FastifyInstance, d: CatalogDeps) {
       filter.productId = series === "SLA" ? /^SLA/i : series === "DW" ? /^DW/i : /^(SLA|DW)/i;
       if (wantSource) filter.source = wantSource;
       Object.assign(filter, buildTrayDimFilter({ w, l, h }));
-      const docs = await Product.find(filter, { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1, source: 1, articleNumber: 1 }).lean();
+      const docs = await Product.find(filter, { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1, source: 1, articleNumber: 1, image: 1 }).lean();
       const results: any[] = scoreAndRank(docs as any, { w, l, h, budget: wantBudget }, d.badoluxDiscount());
       // live stock badges: display only, fail-open and fail-fast
       if (results.length) {

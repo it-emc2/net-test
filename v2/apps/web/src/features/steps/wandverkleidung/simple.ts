@@ -19,12 +19,14 @@
 // Legacy oddities ported unchanged: typing a decor that another group already has makes two groups
 // of one decor (they are one again when the step is opened next time); the view keeps its groups
 // while the step is open even when the rows change elsewhere.
-import { WINWALL_CATALOG, WINWALL_DECORS, winwallArticleFormat, winwallDecorCode } from "@oc/pricing";
+import { WINWALL_CATALOG, WINWALL_DECORS, WINWALL_FORMATS, winwallArticleFormat, winwallDecorCode } from "@oc/pricing";
 import { WW_SWATCHES } from "./decors.js";
 import { LINES, type Line, type Row } from "./rules.js";
 
 export type Fmt = "13" | "15" | "16" | "17";
 export const PLATES: readonly (readonly [Fmt, number, number])[] = [["13", 100, 205], ["15", 100, 250], ["16", 125, 250], ["17", 150, 250]];
+/** the plate's width × height in cm from the catalog (drawn to scale) */
+export const plateCm = (f: Fmt): { widthCm: number; heightCm: number } => { const x = WINWALL_FORMATS.find((c) => c.code === f)!; return { widthCm: x.widthCm, heightCm: x.heightCm }; };
 export type Qty = Record<Fmt, number>;
 export interface Group { code: string; qty: Qty }
 export interface Simple { groups: Group[]; active: number }

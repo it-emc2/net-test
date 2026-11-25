@@ -6,7 +6,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
-import { chargeOf, departure, entryOf, fullRouteHref, mondayKey, pause, prefill, searchEntries, todayModel, weekModel, type TodayPayload, type WeekPayload } from "../src/features/home/planning-rules.js";
+import { chargeOf, departure, entryOf, fullRouteHref, mondayKey, pause, prefill, searchEntries, emptyLabel, todayModel, weekModel, weekRows, type TodayPayload, type WeekPayload } from "../src/features/home/planning-rules.js";
 import { BASE, fakeServer, renderApp } from "./helpers.js";
 import { customerOfContact } from "@oc/api-contract";
 import old from "./fixtures/home-planung.json";
@@ -69,6 +69,17 @@ describe("rules", () => {
     expect(v.meta).toBe(`5 Termine · diese Woche · KW 47 (16. Nov. – 22. Nov.)`);
     expect(v.days[1]).toMatchObject({ today: true, active: 3, cancelled: 1 });
     expect(mondayKey(new Date(2026, 10, 18), 1)).toBe("2026-11-23");
+  });
+  it("week agenda: one row per day, an empty weekend is one line (not when today), labels", () => {
+    const day = (date: string, n = 0) => ({ date, entries: Array.from({ length: n }, (_, i) => ({ id: `${date}-${i}`, start: "09:00", name: "Kunde A" })) });
+    const week = (n: number[]) => ({ days: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28", "2026-11-29"].map((d, i) => day(d, n[i])) });
+    const rows = weekRows(weekModel(week([4, 0, 3, 2, 1, 0, 0]), 0, new Date(2026, 10, 25)).days);
+    expect(rows.map((r) => (r.kind === "day" ? r.day.date : r.days.map((d) => d.date).join("+")))).toEqual(["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28+2026-11-29"]);
+    const last = rows[rows.length - 1]!;
+    expect(last.kind === "empty" && emptyLabel(last.days)).toMatchObject({ name: "Sa–So", date: expect.stringMatching(/^28\.–29\. Nov/) });
+    // a weekday never merges, and an empty Saturday that is today stays its own (highlighted) line
+    expect(weekRows(weekModel(week([0, 0, 0, 0, 0, 0, 0]), 0, new Date(2026, 10, 28)).days)).toHaveLength(7);
+    expect(emptyLabel(weekModel(week([0]), 0).days.slice(0, 1))).toMatchObject({ name: "Mo", date: expect.stringMatching(/^23\. Nov/) });
   });
 });
 
@@ -183,6 +194,9 @@ describe("week calendar", () => {
     await waitFor(() => expect(screen.getByTestId("week-meta")).toHaveTextContent("diese Woche"));
     expect(within(cal).getByRole("button", { name: "Diese Woche" })).toBeDisabled();
     expect(screen.getAllByTestId("week-day-empty").length).toBeGreaterThan(0);
+    // agenda: every day is a row with its label column; nothing is laid out in day columns any more
+    expect(within(cal).getByTestId("week-agenda").className).not.toMatch(/grid-cols-4/);
+    for (const d of within(cal).getAllByTestId("week-day")) expect(d.className).toMatch(/grid-cols-\[4\.5rem_minmax\(0,1fr\)\]/);
     await userEvent.click(within(cal).getByRole("button", { name: "Nächste Woche" }));
     await waitFor(() => expect(srv.calls.map((c) => c.key)).toContain(`GET /api/planning/v2/week?from=${mondayKey(new Date(), 1)}`));
     await waitFor(() => expect(screen.getByTestId("week-meta")).toHaveTextContent("nächste Woche"));

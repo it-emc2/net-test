@@ -1,6 +1,8 @@
-// „Wochenkalender Vertrieb“ on the lean week API: loaded only when the calendar is on screen. At tablet
-// width (834 px) the days are rows, from 1024 px columns. Empty days are one line. A tap loads that day
-// (full customer data, ~3 KB) and opens the same offer picker as the list.
+// „Wochenkalender Vertrieb“ on the lean week API: loaded only when the calendar is on screen. Agenda layout
+// at every width: one row per day — a narrow day label (today tinted, „Heute“) and the day's appointments
+// as a wrapping grid (3 per row in the 768 px page, 1 on a phone). Empty days are one slim line, an empty
+// weekend one line together (weekRows). A tap loads that day (full customer data, ~3 KB) and opens the
+// same offer picker as the list.
 import { useQuery } from "@tanstack/react-query";
 import { CalendarX, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,8 +10,12 @@ import { call } from "../../shared/api/index.js";
 import { Button, Card, CardTitle, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { Chip } from "./Planning.js";
-import { mondayKey, todayModel, typeTone, weekBadge, weekModel, type PlanningEntry, type TodayPayload, type WeekPayload } from "./planning-rules.js";
+import { emptyLabel, mondayKey, termine, todayModel, typeTone, weekBadge, weekModel, weekRows, type PlanningEntry, type TodayPayload, type WeekPayload } from "./planning-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
+
+/** label column + appointments; today: the primary tint, pulled out to the card edge */
+const ROW = "grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[5.5rem_minmax(0,1fr)]";
+const TODAY = "-mx-3 rounded-lg border-transparent bg-accent-weak px-3";
 
 /** true once the element has been on screen (without IntersectionObserver: at once) */
 function useSeen<T extends Element>() {
@@ -54,27 +60,44 @@ export function WeekCalendar({ onPick }: { onPick: (e: PlanningEntry) => void })
         : !seen || q.isPending ? <p className="m-0">Lade Wochenplanung…</p> : !view?.days.length ? (
           <p className="m-0 flex items-center gap-2"><CalendarX aria-hidden className="size-5" />Keine Planungstermine in dieser Woche</p>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-4">
-            {view.days.map((d) => d.entries.length ? (
-              <section key={d.date} data-testid="week-day" aria-current={d.today ? "date" : undefined} className={cn("grid content-start gap-2 rounded-lg border-2 p-3", d.today ? "border-primary bg-accent-weak" : "border-border")}>
-                <header className="flex flex-wrap items-baseline gap-x-2">
-                  <strong className="text-lg">{d.name}</strong>
-                  {d.today ? <Chip tone="bu">Heute</Chip> : null}
-                  <span className="font-semibold">{d.dateNum}. {d.month}</span>
-                  <span className="w-full text-muted-foreground">{d.active} Termin{d.active !== 1 ? "e" : ""}{d.cancelled ? ` · ${d.cancelled} abg.` : ""}</span>
-                </header>
-                {d.entries.map((e) => (
-                  <button key={e.id} type="button" disabled={e.status === "cancelled"} onClick={() => void tap(d.date, e.id)}
-                    className={cn("grid min-h-14 cursor-pointer gap-0.5 rounded-lg border border-border bg-card p-2 text-left disabled:cursor-default disabled:opacity-60", e.status === "cancelled" && "line-through")}>
-                    <span className="flex items-center justify-between gap-2"><span className="font-semibold">{e.start || "–"}</span>
-                      <span className="flex items-center gap-1.5">{e.offerType ? <Chip tone={typeTone(e.offerType)} className="min-h-6 px-2 text-[0.85rem]">{e.offerType.toUpperCase()}</Chip> : null}<span className="text-[0.95rem] text-muted-foreground">{weekBadge(e.status)}</span></span></span>
-                    <span>{e.name || "Unbekannt"}</span>
-                  </button>
-                ))}
-              </section>
-            ) : (
-              <p key={d.date} data-testid="week-day-empty" className="m-0 flex min-h-11 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-muted-foreground"><CalendarX aria-hidden className="size-5" /><strong className="font-semibold text-foreground">{d.name} {d.dateNum}. {d.month}</strong> · keine Termine</p>
-            ))}
+          <div className="grid divide-y divide-border" data-testid="week-agenda">
+            {weekRows(view.days).map((r) => {
+              if (r.kind === "empty") {
+                const l = emptyLabel(r.days), today = r.days.some((d) => d.today);
+                return (
+                  <p key={r.days[0]!.date} data-testid="week-day-empty" aria-current={today ? "date" : undefined} className={cn(ROW, "m-0 items-baseline py-2 text-muted-foreground", today && TODAY)}>
+                    <span className={cn("font-semibold", today ? "text-primary-text" : "text-foreground")}>{l.name}</span>
+                    <span><span className="text-foreground">{l.date}</span> · keine Termine</span>
+                  </p>
+                );
+              }
+              const d = r.day;
+              return (
+                <section key={d.date} data-testid="week-day" aria-current={d.today ? "date" : undefined} className={cn(ROW, "py-3", d.today && TODAY)}>
+                  <header className="grid content-start gap-0.5">
+                    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <strong className={cn("text-lg leading-tight", d.today && "text-primary-text")}>{d.name}</strong>
+                      {d.today ? <span className="rounded-full bg-primary px-2 text-[0.8rem] font-semibold leading-5 text-primary-foreground">Heute</span> : null}
+                    </span>
+                    <span className="font-semibold">{d.dateNum}. {d.month}</span>
+                    <span className="text-[0.9rem] leading-snug text-muted-foreground">{termine(d.active)}{d.cancelled ? <><br />{d.cancelled} abgesagt</> : null}</span>
+                  </header>
+                  <div className="grid content-start gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,11.5rem),1fr))]">
+                    {d.entries.map((e) => (
+                      <button key={e.id} type="button" disabled={e.status === "cancelled"} onClick={() => void tap(d.date, e.id)}
+                        className="grid min-h-11 min-w-0 cursor-pointer content-start gap-1 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent-weak disabled:cursor-default disabled:opacity-60 disabled:hover:bg-card">
+                        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                          <span className="font-semibold tabular-nums">{e.start || "–"}</span>
+                          {e.offerType ? <Chip tone={typeTone(e.offerType)} className="min-h-6 px-2 text-[0.85rem]">{e.offerType.toUpperCase()}</Chip> : null}
+                          <span className="ml-auto text-[0.85rem] text-muted-foreground">{weekBadge(e.status)}</span>
+                        </span>
+                        <span className={cn("break-words leading-snug", e.status === "cancelled" && "line-through")}>{e.name || "Unbekannt"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
     </Card>
