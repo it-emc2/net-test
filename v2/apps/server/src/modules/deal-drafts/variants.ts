@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import mongoose from "mongoose";
 import { FIRST_VARIANT_ID, VARIANT_NAME_MAX, type DealVariant } from "@oc/api-contract";
 import { variantCopyPayload as variantCopyPayloadOf } from "@oc/domain";
-import { EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
+import { Draft, EmailLog, Offer, PostalSend, SigningRequest } from "../../platform/models.js";
 import { DealDraft, defaultOf, liveVariants, publicVariantId, saveDealDraft, storedVariant, touchOpened, variantFilter } from "./store.js";
 
 /** The Alltagshilfe monthly amount of a stored offer payload (ADR 028: THE AH total function of the documents module).
@@ -116,28 +116,95 @@ async function storedTotalsOf(list: { variantId: string; offerType: string; send
   return out;
 }
 
+// ---------------- completed signings of a deal, the old app's included (U-069) ----------------
+// The old app (src/routes/signing.js) writes only a SigningRequest — no send record, nothing in the
+// offer. It files the request on the deal, else on the contact. Read-only here: nothing is written
+// to `signingrequests`.
+
+/** a deal number as stored (text or number) */
+const dealValues = (dealId: string) => (/^\d+$/.test(dealId) ? [dealId, Number(dealId)] : [dealId]);
+/** the deal numbers a signing request names itself: its Bitrix deal and the payload's deal number */
+export function dealRefsOf(sr: any): Set<string> {
+  const refs = new Set<string>();
+  if (str(sr?.bitrixEntityType) === "deal" && str(sr?.bitrixEntityId)) refs.add(str(sr.bitrixEntityId));
+  for (const v of [sr?.payloadSnapshot?.auftragId, sr?.payloadSnapshot?.postal?.auftragId]) if (str(v)) refs.add(str(v));
+  return refs;
+}
+/** offer numbers of the documents stored for the deal (offers and legacy drafts by their deal number) */
+async function storedNumbersOf(dealId: string): Promise<string[]> {
+  const vals = dealValues(dealId);
+  const q = { $or: [{ "payload.auftragId": { $in: vals } }, { "payload.postal.auftragId": { $in: vals } }] };
+  const [offers, drafts] = await Promise.all([
+    Offer.find(q, { offerNumber: 1 }).limit(100).lean(),
+    Draft.find({ ...q, offerNumber: { $nin: [null, ""] } }, { offerNumber: 1 }).limit(100).lean(),
+  ]);
+  return [...offers, ...drafts].map((o: any) => str(o.offerNumber)).filter(Boolean);
+}
+
+/**
+ * The completed signing requests that count for a deal: filed on the deal, or naming it as the
+ * payload's deal number, or — filed on the contact, no deal named — for an offer number of the deal
+ * (`numbers`: its variants' numbers; plus the numbers of the offers/drafts stored for the deal). A
+ * request that names ANOTHER deal never counts, whatever its number. Oldest completion first.
+ */
+export async function completedSigningsOf(dealId: string, numbers: string[] = []): Promise<any[]> {
+  if (!dealId) return [];
+  const nums = [...new Set([...numbers.map(str).filter(Boolean), ...(await storedNumbersOf(dealId))])];
+  const vals = dealValues(dealId);
+  const rows: any[] = await SigningRequest.find({
+    status: "completed",
+    $or: [
+      { bitrixEntityType: "deal", bitrixEntityId: dealId },
+      { "payloadSnapshot.auftragId": { $in: vals } }, { "payloadSnapshot.postal.auftragId": { $in: vals } },
+      ...(nums.length ? [{ offerNumber: { $in: nums } }] : []),
+    ],
+  }, { offerNumber: 1, offerType: 1, completedAt: 1, updatedAt: 1, bitrixEntityType: 1, bitrixEntityId: 1, "payloadSnapshot.auftragId": 1, "payloadSnapshot.postal.auftragId": 1 }).lean();
+  const at = (r: any) => +new Date(r.completedAt ?? r.updatedAt ?? 0);
+  return rows.filter((r) => { const refs = dealRefsOf(r); return refs.size ? refs.has(dealId) : nums.includes(str(r.offerNumber)); }).sort((a, b) => at(a) - at(b));
+}
+/** offer types compared loosely ("ah-alt" is an Alltagshilfe offer); unknown on either side → compatible */
+const sameType = (a: unknown, b: unknown) => {
+  const k = (v: unknown) => str(v).toLowerCase().replace(/-alt$/, "");
+  return !k(a) || !k(b) || k(a) === k(b);
+};
+
 /** The variants of a deal with their derived status, first variant first. */
 export async function listVariants(dealId: string): Promise<{ dealId: string; defaultVariantId: string | null; variants: DealVariant[] }> {
+  return (await variantsWithSignings(dealId)).list;
+}
+
+/** listVariants, plus the offer number signed in the old app per variant it was attributed to (U-069) */
+async function variantsWithSignings(dealId: string): Promise<{ list: { dealId: string; defaultVariantId: string | null; variants: DealVariant[] }; oldAppNumber: Map<string, string> }> {
+  const oldAppNumber = new Map<string, string>();
   const variants = await liveWithNumbers(dealId);
   const def = defaultOf(variants);
   const facts = await factsOf(dealId, variants);
   const allNumbers = [...facts.values()].flatMap((f) => [...f.numbers]);
-  const completed: any[] = allNumbers.length
-    ? await SigningRequest.find({ offerNumber: { $in: allNumbers }, status: "completed" }, { offerNumber: 1, completedAt: 1, updatedAt: 1 }).lean() : [];
+  const completed = await completedSigningsOf(dealId, allNumbers);
+  // a completed signing of the deal whose number no variant carries (the old app's, U-069): the
+  // deal's only variant — of the same type — is the signed one; with several variants it is not
+  // shown on any of them (the deal still counts as signed, dealSignature)
+  const unmatched = completed.filter((c) => !allNumbers.includes(str(c.offerNumber)));
+  const only = variants.length === 1 ? variants[0] : null;
   const versand: any[] = await DealDraft.find({ dealId, deletedAt: null }, { "payload.zusammenfassung.versand": 1 }).lean();
   const handedOver = await storedTotalsOf(variants.flatMap((v) => {
     const lastDone = facts.get(publicVariantId(v))?.sends.find((s) => s.status === "done");
     return lastDone && typeof lastDone.total !== "number" ? [{ variantId: publicVariantId(v), offerType: str(v.offerType), send: lastDone }] : [];
   }));
-  return {
+  const list = {
     dealId, defaultVariantId: def ? publicVariantId(def) : null,
     variants: variants.map((v) => {
       const f = facts.get(publicVariantId(v))!;
-      const sr = completed.filter((c) => f.numbers.has(str(c.offerNumber))).sort((a, b) => +new Date(b.completedAt ?? b.updatedAt) - +new Date(a.completedAt ?? a.updatedAt))[0];
+      const own = completed.filter((c) => f.numbers.has(str(c.offerNumber)));
+      const old = v === only ? unmatched.filter((c) => sameType(c.offerType, v.offerType)) : [];
+      if (old.length && !own.length && !f.sends.some((s) => s.signedAt)) oldAppNumber.set(publicVariantId(v), str(old[0].offerNumber)); // the first signing (oldest first)
+      const mine = [...own, ...old];
+      const sr = mine.sort((a, b) => +new Date(b.completedAt ?? b.updatedAt) - +new Date(a.completedAt ?? a.updatedAt))[0];
       const vs = versand.find((x) => String(x._id) === String(v._id))?.payload?.zusammenfassung?.versand;
       return viewOf(v, f, sr ? { at: sr.completedAt ?? sr.updatedAt } : null, v === def, vs, handedOver.get(publicVariantId(v)) ?? null);
     }),
   };
+  return { list, oldAppNumber };
 }
 
 export async function variantView(dealId: string, variantId: string): Promise<DealVariant> {
@@ -337,25 +404,28 @@ export async function closedByChoice(token: string): Promise<VariantChoice | nul
 export async function signedVariantOf(dealId: string): Promise<{ variantId: string; offerNumber: string; name: string } | null> {
   if (!dealId) return null;
   const c: any = await choices().findOne({ _id: dealId });
-  const list = await listVariants(dealId);
+  const { list, oldAppNumber } = await variantsWithSignings(dealId);
   if (c) {
     const v = list.variants.find((x) => x.variantId === str(c.variantId));
     return { variantId: str(c.variantId), offerNumber: str(c.offerNumber), name: v?.name ?? "" };
   }
   const signed = list.variants.filter((v) => v.status === "signed").sort((a, b) => +new Date(a.signedAt ?? 0) - +new Date(b.signedAt ?? 0))[0];
-  return signed ? { variantId: signed.variantId, offerNumber: signed.offerNumber, name: signed.name } : null;
+  // signed in the old app under a number the variant does not carry (U-069): that signed number
+  return signed ? { variantId: signed.variantId, offerNumber: oldAppNumber.get(signed.variantId) || signed.offerNumber, name: signed.name } : null;
 }
 
 /**
  * Is any offer of this deal signed? (owner 2026-11-20: then a send moves the deal no more.)
- * The recorded choice, a signed variant, or — deals signed before variants existed, without
- * drafts — a completed signing request filed on the deal (read through the `status` index).
+ * The recorded choice, a signed variant, or a completed signing request that counts for the deal
+ * (completedSigningsOf: filed on the deal, naming it as the payload's deal number, or filed on the
+ * contact for an offer number of the deal — the old app's signings, U-069), oldest first.
  */
 export async function dealSignature(dealId: string): Promise<{ offerNumber: string } | null> {
   if (!dealId) return null;
   const s = await signedVariantOf(dealId);
   if (s) return { offerNumber: s.offerNumber };
-  const sr: any = await SigningRequest.findOne({ status: "completed", bitrixEntityType: "deal", bitrixEntityId: dealId }, { offerNumber: 1 }).sort({ completedAt: 1 }).lean();
+  const numbers = (await variantNumbers(dealId)).flatMap((v) => v.numbers);
+  const sr = (await completedSigningsOf(dealId, numbers))[0];
   return sr ? { offerNumber: str(sr.offerNumber) } : null;
 }
 
