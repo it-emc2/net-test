@@ -107,6 +107,25 @@ describe("deal drafts", () => {
     expect(list[0].sections.length).toBeGreaterThan(0);
   });
 
+  it("further floor Dekors (duschwanne.wallCladdingWwMore, ADR 029) survive save → load, every version and a restore", async () => {
+    const first = { addWallCladding: true, wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS203", wallCladdingWwDecorCustom: "", wallCladdingWwQty: '{"13":0,"15":2,"16":0,"17":0}' };
+    const two = { duschwanne: { ...first, wallCladdingWwMore: '[{"decor":"WS229","decorCustom":"","qty":{"13":1,"15":0,"16":0,"17":1}}]' } };
+    const three = { duschwanne: { ...first, wallCladdingWwMore: [{ decor: "WS229", decorCustom: "", qty: { 13: 1, 15: 0, 16: 0, 17: 1 } }, { decor: "custom", decorCustom: "NW 220", qty: { 13: 0, 15: 0, 16: 1, 17: 0 } }] } };
+    const one = { duschwanne: first };
+    let rev = 0;
+    for (const p of [two, three, one]) {
+      const r = await put("5005", { offerType: "bu", payload: structuredClone(p), baseRevision: rev });
+      expect(r.statusCode).toBe(200);
+      rev = r.json().revision;
+      expect((await get("/api/deals/5005/draft")).json().payload).toEqual(p);
+    }
+    expect((await get("/api/deals/5005/draft/revisions/1")).json().payload).toEqual(two);
+    expect((await get("/api/deals/5005/draft/revisions/2")).json().payload).toEqual(three);
+    const res = await app.inject({ method: "POST", url: "/api/deals/5005/draft/restore", headers: auth(), payload: { revision: 2, baseRevision: rev } });
+    expect(res.statusCode).toBe(200);
+    expect((await get("/api/deals/5005/draft")).json().payload).toEqual(three);
+  });
+
   it("restore creates a NEW revision with the old content (history is never rewritten)", async () => {
     const before = (await get("/api/deals/1001/draft")).json();
     const res = await app.inject({ method: "POST", url: "/api/deals/1001/draft/restore", headers: auth(), payload: { revision: 1, baseRevision: before.revision } });
