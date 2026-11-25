@@ -23,6 +23,27 @@ Principle: v2 uses the **same database, same collections, same fields** (ADR 002
 | D4 | **open** — settings "same as main's on Fly.io", so the admin database login stays for now | recommendation stands: least-privilege user before the switch |
 | D5 | **yes** | migrations 001–005, after a backup, dry run first; needed before the test app can save a variant |
 
+
+### Owner decisions 2026-11-25
+
+| Topic | Decided |
+|---|---|
+| Test app | deploy the merged `rewrite/v2`; the React signing page is switched on there (`SIGNING_UI=react`); the automatic deploy stays off for now |
+| D3 (date of the switch) | still open |
+| D4 (least-privilege database user) | not now |
+| Winterdienst / Hausmeister-Service | stay in the React app as built (U-066, U-067). **To finish later:** real prices, own texts instead of the Alltagshilfe wording, own document templates; only then offer them under „Weiteres Angebot“ |
+| Signatures from the old app | recognise them through the deal number (U-069) |
+| „Versionen“ | restoring an older, already sent offer number is blocked; the text says how to open the sent offer (U-074). The device history stays out |
+| Opening a deal | lists the deal's variants and the old app's documents; "new" creates a new variant (U-073). Only documents from the old app count as stored documents |
+| Admin | own admin role / own account locked on the server too (U-070); no "delete user", deactivate only; session recordings and the pricing playground stay out |
+| Signing page | full company name from a setting; a customer-friendly text when the final step fails (U-071) |
+| Alltagshilfe offer document | the **fixed** task list stays — it does not follow the selected services (business decision) |
+| Alltagshilfe amount in Bitrix | the combined Anfahrt is counted once (U-072) |
+| Bitrix links to an offer or deal | open in the React app (U-075) |
+| Old view | retired only after the items above are done and accepted |
+| Phone header with autosave off | not fixed — nobody uses a phone |
+| PRs 425, 434, 311 against main | handled by the owner in the old app; not part of the rewrite |
+
 ## 1a. Parallel test app on Fly.io (owner idea 2026-11-24, replaces the staging server of §1.5)
 
 v2 runs as its **own Fly app** beside today's app, under its own address (owner's example: `ocv2.emc2.de`). Files: `v2/deploy/fly/app.fly.toml` (app), workflow `.github/workflows/fly-deploy-v2-test.yml` (deploys on every push to `rewrite/v2`, off until the repository variable `FLY_V2_TEST_DEPLOY` is `on`). **Deployed 2026-11-24** as Fly app `ocv2-react`, address `ocv2.emc2.de` (certificate issued, DNS set): health check green, database connected, login requests from both addresses accepted (after the own-origin fix). A real login and a real PDF through `emc2-gotenberg` are not confirmed yet. The automatic deploy (step 6) is still off.
