@@ -48,6 +48,8 @@ function WV_ARTICLES(): Record<string, { 997: string; 1497: string }> {
   };
 }
 const PANEL_M2: Record<string, number> = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+/** VIGOUR panel height in mm (the width is the format code: 997 / 1497 mm) */
+const PANEL_HEIGHT_MM = 2550;
 /** the winwall plates of the floor, all single plates (no sets since 8d04727c) */
 export const WW_FORMATS = ["13", "15", "16", "17"] as const;
 const num = (v: unknown) => Number(String(v ?? "").replace(",", ".")) || 0;
@@ -202,14 +204,14 @@ export function follow(dw: Fields, credit: number, last: Qty | null): Fields {
   return untouched && !sameQty(cur, best) ? qtyFields(best) : {};
 }
 export const stepPlate = (dw: Fields, fmt: string, d: number): Fields => { const q = qtyOf(dw); q[fmt as keyof Qty] = Math.max(0, (q[fmt as keyof Qty] || 0) + d); return qtyFields(q); };
-export interface Plate { code: string; size: string; best: string; qty: number; img: string }
+export interface Plate { code: string; size: string; best: string; qty: number; img: string; widthCm: number; heightCm: number }
 export interface Plates { plates: Plate[]; total: { text: string; small: string; short: boolean }; resync: boolean }
 /** the four plates as the page shows them, the total under them and whether "↻ Vorschlag" is offered */
 export function platesOf(dw: Fields, credit: number): Plates {
   const cur = qtyOf(dw), best = proposalOf(dw, credit), img = decorOf(dw).code || "WS203";
   const n = sum(cur), m = areaOfQty(cur), full = areaOf(dw), need = needOf(dw, credit), short = full > 0 && m + 1e-9 < need;
   return {
-    plates: WW_FORMATS.map((c) => { const f = wwFormat(c); return { code: c, size: `${f.widthCm} × ${f.heightCm} cm`, best: best[c] ? `Vorschlag: ${best[c]}` : "", qty: cur[c], img }; }),
+    plates: WW_FORMATS.map((c) => { const f = wwFormat(c); return { code: c, size: `${f.widthCm} × ${f.heightCm} cm`, best: best[c] ? `Vorschlag: ${best[c]}` : "", qty: cur[c], img, widthCm: f.widthCm, heightCm: f.heightCm }; }),
     total: { text: `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2(m)} m²`, small: short ? `Es fehlen ${m2(need - m)} m²` : full > 0 && n ? `Verschnitt ${m2(m - need)} m²` : full > 0 && !need ? "Reste reichen – keine Platten nötig" : "", short },
     resync: full > 0 && !sameQty(cur, best),
   };
@@ -228,14 +230,14 @@ export function suggestion(dw: Fields, credit = 0): Suggestion | null {
   return { area, full, options, best: options[1]!.waste <= options[0]!.waste ? "1497" : "997" };
 }
 const eur = (n: number) => `${m2(n)} €`;
-export interface Card extends Option { title: string; best: boolean; selected: boolean; count: string; coverage: string; price: string; unit: string; label: string }
+export interface Card extends Option { widthMm: number; heightMm: number; title: string; best: boolean; selected: boolean; count: string; coverage: string; price: string; unit: string; label: string }
 /** the VIGOUR cards as the page shows them (winwall has plates instead). `prices`: net price per article */
 export function cardsOf(dw: Fields, s: Suggestion | null, prices: Record<string, number> = {}): Card[] {
   if (supplierOf(dw) === "ww" || !s || s.allCovered) return [];
   const picked = String(dw.wallCladdingPanelSize ?? ""), art = articlesOf(dw);
   return s.options.map((o) => {
     const selected = picked === o.size, unit = prices[art[o.size as "997" | "1497"]] || 0;
-    return { ...o, title: `${o.size}×2550 mm`, best: s.best === o.size, selected, count: `${o.qty} Stück`, coverage: `${m2(o.covered)} m² abgedeckt · ${m2(o.waste)} m² Verschnitt`, price: unit > 0 ? eur(unit * o.qty) : "", unit: unit > 0 ? `(${eur(unit)} / Stk.)` : "", label: selected ? "✓ Ausgewählt" : "Auswählen" };
+    return { ...o, widthMm: Number(o.size), heightMm: PANEL_HEIGHT_MM, title: `${o.size}×${PANEL_HEIGHT_MM} mm`, best: s.best === o.size, selected, count: `${o.qty} Stück`, coverage: `${m2(o.covered)} m² abgedeckt · ${m2(o.waste)} m² Verschnitt`, price: unit > 0 ? eur(unit * o.qty) : "", unit: unit > 0 ? `(${eur(unit)} / Stk.)` : "", label: selected ? "✓ Ausgewählt" : "Auswählen" };
   });
 }
 

@@ -12,6 +12,7 @@ import { useWallSettings } from "../fussboden/settings.js";
 import { creditOf, proposalOf, restOf, restText, settled, takeRest } from "../fussboden/wand.js";
 import * as fw from "../fussboden/wand.js";
 import { DecorPalette, PlateCards } from "../../../shared/ui/winwall.js";
+import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
 import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
@@ -67,15 +68,15 @@ function Decors({ onPick }: { onPick: (value: string, text?: string, typing?: bo
   return (
     <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wv-decors">
       <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
-      <div className="flex flex-wrap gap-2">
+      <SwatchGrid>
         {[...WW_DECORS, { value: "custom", caption: customCaption(wv) }].map((d) => (
-          <label key={d.value} className="grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere] has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold">
+          <label key={d.value} className={swatchTile(picked === d.value)}>
             <input type="radio" name="wvWwDecor" className="sr-only" value={d.value} checked={picked === d.value} onChange={() => onPick(d.value, d.value === "custom" ? String(wv.wvWwDecorCustom ?? "") : "")} />
-            {d.value === "custom" ? <span aria-hidden className={cn(IMG.swatch, "grid place-items-center rounded border-2 border-dashed border-input text-2xl")}>+</span> : <img src={`/assets/winwall/${d.value}.jpg`} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+            {d.value === "custom" ? <SwatchFace on={picked === d.value} dashed label="+" /> : <SwatchFace on={picked === d.value} img={`/assets/winwall/${d.value}.jpg`} />}
             <span data-part={d.value === "custom" ? "custom-caption" : undefined}>{d.caption}</span>
           </label>
         ))}
-      </div>
+      </SwatchGrid>
       {picked === "custom" ? (
         <div className="grid gap-1.5" data-testid="wv-custom">
           <label htmlFor="wv-decor-number" className="font-semibold">Dekor-Nummer</label>
@@ -183,13 +184,13 @@ function Calculator({ kit }: { kit: CalcKit }) {
             </div>
             {open === key ? (
               <div className="grid gap-2" data-testid="kc-tiles">
-                <div className="flex flex-wrap gap-2">
+                <SwatchGrid>
                   {kit.tiles.map((d) => (
-                    <button key={d.value} type="button" data-value={d.value} aria-pressed={wd[key] === d.value} onClick={() => pick(d.value)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", wd[key] === d.value ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={d.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                    <button key={d.value} type="button" data-value={d.value} aria-pressed={wd[key] === d.value} onClick={() => pick(d.value)} className={swatchTile(wd[key] === d.value)}>
+                      <SwatchFace on={wd[key] === d.value} img={d.img} />{d.caption}
                     </button>
                   ))}
-                </div>
+                </SwatchGrid>
                 <div><Button variant="secondary" onClick={same}>Alle Wände gleiches Dekor</Button></div>
               </div>
             ) : null}
@@ -291,13 +292,13 @@ function VigourRows() {
             {open ? (
               <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="vg-tiles">
                 <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
-                <div className="flex flex-wrap gap-2">
+                <SwatchGrid>
                   {VG_COLORS.map((c) => (
-                    <button key={c.value} type="button" data-value={c.value} aria-pressed={r.color === c.value} onClick={() => change(i, { color: c.value })} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", r.color === c.value ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={c.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{c.caption}
+                    <button key={c.value} type="button" data-value={c.value} aria-pressed={r.color === c.value} onClick={() => change(i, { color: c.value })} className={swatchTile(r.color === c.value)}>
+                      <SwatchFace on={r.color === c.value} img={c.img} />{c.caption}
                     </button>
                   ))}
-                </div>
+                </SwatchGrid>
               </fieldset>
             ) : null}
           </div>
@@ -428,13 +429,13 @@ function KeramicoRows() {
             {open ? (
               <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="bx-tiles">
                 <legend className="mb-1.5 p-0 font-semibold">Dekor für diese Zeile</legend>
-                <div className="flex flex-wrap gap-2">
+                <SwatchGrid>
                   {bx.DECORS.map((d) => (
-                    <button key={d.value} type="button" data-value={d.value} aria-pressed={r.pid === d.pid} onClick={() => set(rows.map((x, j) => (j === i ? bx.withDecor(x, d.value) : x)), ui.idx, ui.folded)} className={cn("grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 bg-card p-2 text-center text-[0.9rem] text-foreground [overflow-wrap:anywhere]", r.pid === d.pid ? "border-primary bg-accent-weak font-bold" : "border-input")}>
-                      <img src={d.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />{d.caption}
+                    <button key={d.value} type="button" data-value={d.value} aria-pressed={r.pid === d.pid} onClick={() => set(rows.map((x, j) => (j === i ? bx.withDecor(x, d.value) : x)), ui.idx, ui.folded)} className={swatchTile(r.pid === d.pid)}>
+                      <SwatchFace on={r.pid === d.pid} img={d.img} />{d.caption}
                     </button>
                   ))}
-                </div>
+                </SwatchGrid>
               </fieldset>
             ) : null}
           </div>
@@ -624,7 +625,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
           ))}
           <button type="button" onClick={() => remember("wvSimple", sv.addGroup(st))} className={cn(chip, "border-dashed border-input text-primary")}>+ weiteres Dekor</button>
         </div>
-        <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "" }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" scale={0.8} />
+        <PlateCards plates={sv.PLATES.map(([f, w, h]) => ({ code: f, size: `${w} × ${h} cm`, qty: g.qty[f] || 0, img: WW_SWATCHES.has(g.code) ? g.code : "", note: f === "17" ? "Großplatte" : "", ...sv.plateCm(f) }))} onStep={(f, d) => commit(sv.step(st, f as sv.Fmt, d), { pref: g.code })} testId="wvs-plate" notePart="meta" />
         <p className="m-0 font-semibold" data-testid="wvs-total">{sv.totalOf(st)}</p>
         {bad ? (
           <div role="alert" data-testid="wvs-bad" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border-2 border-destructive bg-destructive/10 p-3 font-semibold text-destructive">
@@ -638,7 +639,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
             onFocus={() => { focusHeight.current = String(wvNow().wvWwHeight ?? ""); }} onChange={(e) => write({ wvWwHeight: e.target.value })} onBlur={heightDone} /></span>cm</span>
         </div>
       </fieldset>
-      <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0" data-testid="wvs-colors">
+      <fieldset className="m-0 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 border-0 p-0" data-testid="wvs-colors">
         <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">2</span> Dekor – gilt für die Platten oben</legend>
         <DecorPalette tiles={sv.paletteTiles(g.code)} label="Dekor" onPick={pickDecor} />
         <div className="grid gap-1.5" data-testid="wvs-other">
@@ -646,7 +647,7 @@ function SimpleView({ onAsk }: { onAsk: (a: WallAsk) => void }) {
           <div className="w-48"><Input id="wvs-other-input" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={other} onChange={(e) => type(e.target.value)} /></div>
           <small data-part="hint" data-kind={hint.kind} className={cn(hint.kind === "ok" && "font-semibold text-success", hint.kind === "warn" && "font-semibold text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
         </div>
-        <div><Button variant="ghost" className="text-primary" onClick={() => toClassic()}>Alter Konfigurator (Wandplan, Zeilen)</Button></div>
+        <div><Button variant="ghost" className="h-auto whitespace-normal! text-left text-primary" onClick={() => toClassic()}>Alter Konfigurator (Wandplan, Zeilen)</Button></div>
       </fieldset>
     </div>
   );

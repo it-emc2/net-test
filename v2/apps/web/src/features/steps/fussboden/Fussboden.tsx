@@ -17,7 +17,9 @@ import {
 } from "./rules.js";
 import * as w from "./wand.js";
 import { useWallSettings } from "./settings.js";
-import { DecorPalette, PlateCards } from "../../../shared/ui/winwall.js";
+import { DecorPalette, PlateCards, PlateShape } from "../../../shared/ui/winwall.js";
+import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
+import { scalePlates } from "../../../shared/ui/plate-scale.js";
 
 type Fields = Record<string, unknown>;
 const offerNow = () => (useOfferStore.getState().offer ?? {}) as Record<string, any>;
@@ -219,11 +221,10 @@ function Wall() {
     const q = prev.code ? w.leavingRest(next, prev.code, r) : null;
     if (q) setAsk({ ...q, onCancel: () => write(w.setFloorDecor(prev.code!), true) });
   };
-  const cards = w.cardsOf(dw, sug, prices.data), picked = String(dw.wallCladdingPanelSize ?? "");
+  const cards = w.cardsOf(dw, sug, prices.data), cardBoxes = scalePlates(cards.map((c) => ({ width: c.widthMm, height: c.heightMm })), 96), picked = String(dw.wallCladdingPanelSize ?? "");
   const rows = w.selection(dw, rest, full.data, adhesive.data || 0, settings.own);
   const note = w.restNote(w.restArea(dw, credit), credit), hint = w.customHint(dw);
   const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-3 py-1 text-left";
-  const tile = "grid w-28 cursor-pointer justify-items-center gap-1 rounded-lg border-2 border-input bg-card p-2 text-center text-[0.9rem] [overflow-wrap:anywhere] has-[:checked]:border-primary has-[:checked]:bg-accent-weak has-[:checked]:font-bold";
   return (
     <>
       <div className="grid gap-3 rounded-lg border-2 border-border p-3">
@@ -267,10 +268,10 @@ function Wall() {
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-cards">
           <legend className="mb-1.5 p-0 font-semibold">Plattenformat</legend>
           <div className="grid gap-2 sm:grid-cols-2">
-            {cards.map((c) => (
+            {cards.map((c, i) => (
               <button key={c.size} type="button" data-testid="wc-card" data-size={c.size} data-qty={c.qty} aria-pressed={c.selected} onClick={() => write(w.pickCard(c))} className={cn("grid cursor-pointer gap-1 rounded-lg border-2 bg-card p-3 text-left text-foreground", c.selected ? "border-primary bg-accent-weak" : "border-input")}>
                 <span className="flex flex-wrap items-center justify-between gap-2"><strong data-part="title">{c.title}</strong>{c.best ? <span data-part="best" className="rounded-full bg-primary px-2 py-0.5 text-[0.8rem] font-semibold text-primary-foreground">Empfehlung</span> : null}</span>
-                <span data-part="count" className="text-[1.1rem] font-semibold">{c.count}</span>
+                <span aria-hidden className="flex items-end gap-3"><PlateShape w={cardBoxes.boxes[i]!.w} h={cardBoxes.boxes[i]!.h} img={w.COLORS.find((x) => x.value === w.colorOf(dw))?.img} /><span data-part="count" className="text-[1.1rem] font-semibold">{c.count}</span></span>
                 <span data-part="coverage" className="text-[0.9rem] text-muted-foreground">{c.coverage}</span>
                 {c.price || c.unit ? <span><span data-part="price" className="font-semibold">{c.price}</span> <span data-part="unit" className="text-[0.9rem] text-muted-foreground">{c.unit}</span></span> : null}
                 <span data-part="label" className="font-semibold text-primary">{c.label}</span>
@@ -284,16 +285,16 @@ function Wall() {
       {!ww ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-colors">
           <legend className="mb-1.5 p-0 font-semibold">Farbe — Wandverkleidung 3.0</legend>
-          <div className="flex flex-wrap gap-2">
+          <SwatchGrid>
             {w.COLORS.map((c) => (
-              <label key={c.value} data-value={c.value} className={tile}>
+              <label key={c.value} data-value={c.value} className={swatchTile(w.colorOf(dw) === c.value)}>
                 <input type="radio" name="wc-color" className="sr-only" checked={w.colorOf(dw) === c.value} onChange={() => write({ wallCladdingColor: c.value })} />
-                <img src={c.img} alt="" className={cn(IMG.swatch, "rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                <SwatchFace on={w.colorOf(dw) === c.value} img={c.img} />
                 <span data-part="caption">{c.caption}</span>
                 {(settings.own[w.articlesFor(c.value)[997]] || 0) > 0 || (settings.own[w.articlesFor(c.value)[1497]] || 0) > 0 ? <span data-part="own" className="text-[0.8rem] font-normal text-muted-foreground">Lager: {[[997, settings.own[w.articlesFor(c.value)[997]]], [1497, settings.own[w.articlesFor(c.value)[1497]]]].filter(([, n]) => (n || 0) > 0).map(([z, n]) => `${z}: ${n}`).join(" / ")}</span> : null}
               </label>
             ))}
-          </div>
+          </SwatchGrid>
         </fieldset>
       ) : null}
       {rows.length ? (
