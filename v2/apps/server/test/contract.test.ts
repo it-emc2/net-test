@@ -505,6 +505,17 @@ describe("contract: customers, users, admin (group 3)", () => {
       expect(r.v2.status).toBe(400);
       expect(r.v2.body.error.message).toBe(r.legacy.body.error);
     }
+    // U-070 (owner 2026-11-25) — a DELIBERATE difference: v2 refuses an admin's own demotion and
+    // deactivation (409, the admin page's text). Legacy accepts both and locks the admin out; it is
+    // not called here because both apps share this database and it would demote the test admin.
+    for (const [body, message] of [
+      [{ email: USER.email, firstName: "Contract", lastName: "", role: "user" }, "Sie können sich die eigene Admin-Rolle nicht entziehen."],
+      [{ email: USER.email, firstName: "Contract", lastName: "", role: "admin", active: false }, "Sie können Ihr eigenes Konto nicht deaktivieren."],
+    ] as const) {
+      const r = await call("v2", "POST", "/admin/api/users", body);
+      expect(r.status).toBe(409);
+      expect(r.body.error.message).toBe(message);
+    }
     const badImg = await both("POST", "/admin/api/users/ap@test.local/signature", { dataUrl: "data:text/plain;base64,x" });
     expect(badImg.v2.status).toBe(400);
     expect(badImg.v2.body.error.message).toBe(badImg.legacy.body.error);
