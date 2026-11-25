@@ -202,6 +202,7 @@ describe("the panel, replayed", () => {
     expect(srv.calls.filter((c) => c.key === "POST /api/deals/70031/draft/restore").map((c) => c.body)).toEqual([s.requests[0].body]);
     expect(screen.getByLabelText(/^Stadt/)).toHaveValue(s.after.form.city);
     expect(useOfferStore.getState().revision).toBe(3);
+    expect(within(panel()).queryByTestId("versions-sent-refused")).toBeNull(); // not the refusal of U-074
   });
 
   it("changed elsewhere: today's two choices; „Neuesten Stand laden“ replaces the open state", async () => {
@@ -282,6 +283,33 @@ describe("where it is opened, variants, sent offers", () => {
     await openPanel();
     await userEvent.click(await within(panel()).findByRole("button", { name: "Wiederherstellen: Version 1" }));
     expect(within(panel()).getByText(TEXT.askSent("ANG2026-1124-100000"))).toBeInTheDocument();
+  });
+
+  it("U-074: a version with an older, already sent offer number is refused with the server's text and a button that opens the sent offer from the Hauptmenü", async () => {
+    const OLD = "ANG2026-1101-080000";
+    const message = TEXT.sentRefused(OLD);
+    const srv = fakeServer({
+      ...BASE, "GET /api/deals/70031/draft": draft("70031", 2, 3, { offerNumber: "ANG2026-1124-090000" }), "GET /api/deals/70031/draft/revisions": listReply("70031", revisionsOf(scen("restore refused by the server"))),
+      "POST /api/deals/70031/draft/restore": { status: 409, body: { error: { code: "RESTORE_SENT_NUMBER", message, requestId: "t", offerNumber: OLD } } },
+      "GET /api/planning/v2/today": { body: { ok: true, plan: null } },
+      [`GET /api/offers/${OLD}`]: { body: { offer: { offerNumber: OLD, offerType: "bu", payload: { ...STATES[0]!.payload, offerNumber: OLD, auftragId: "70031" } } } },
+    });
+    const router = renderApp("/deal/70031/bu/Kundendaten");
+    await openPanel();
+    await userEvent.click(await within(panel()).findByRole("button", { name: "Wiederherstellen: Version 1" }));
+    await userEvent.click(within(panel()).getByRole("button", { name: "Wiederherstellen" }));
+    const refused = await within(panel()).findByTestId("versions-sent-refused");
+    expect(refused).toHaveTextContent(message);
+    expect(message).toMatch(/bleibt unverändert gespeichert\. Sie öffnen es im Hauptmenü unter „Öffnen“ mit der Nummer ANG2026-1101-080000/);
+    expect(useOfferStore.getState().revision).toBe(3); // nothing restored
+    // „Zurück“ leads back to the list; the button opens the sent offer as „Öffnen“ with its number does
+    await userEvent.click(within(refused).getByRole("button", { name: `Angebot ${OLD} öffnen` }));
+    await waitFor(() => expect(screen.queryByTestId("versions-panel")).toBeNull());
+    expect(await screen.findByTestId("takeover-question")).toHaveTextContent(`Wenn Sie Angebot ${OLD} übernehmen`); // U-057: the deal's draft differs
+    expect(router.state.location.pathname).toBe("/");
+    expect(router.state.location.search).toBe(""); // the address is cleaned: a reload does not open it again
+    expect(screen.getAllByTestId("takeover-question")).toHaveLength(1); // opened once
+    expect(srv.count(`POST /api/deals/70031/draft/import`)).toBe(0); // nothing copied before the answer
   });
 
   it("no draft at all yet (a new offer): no version, nothing to restore", async () => {

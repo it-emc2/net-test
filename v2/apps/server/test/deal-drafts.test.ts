@@ -137,6 +137,29 @@ describe("deal drafts", () => {
     expect(EJSON.stringify(await db.collection("sends").find({}).sort({ _id: 1 }).toArray())).toBe(snapS);
   });
 
+  it("U-074: a version with an OLDER offer number that was sent is not restored (409 with the way to the sent offer); other versions restore as before", async () => {
+    const db = mongoose.connection.db!;
+    const OLD = "ANG2026-1101-080000", OLD_UNSENT = "ANG2026-1102-080000", NEW = "ANG2026-1124-090000";
+    await db.collection("offer_sends").insertOne({ sendId: "s-6009-old", dealId: "6009", offerNumber: OLD, status: "done", channel: "email", startedAt: new Date() });
+    expect((await put("6009", { offerType: "bu", payload: { offerNumber: OLD, Kundendaten: { city: "Hof" } }, baseRevision: 0 })).statusCode).toBe(200); // 1: sent
+    expect((await put("6009", { offerType: "bu", payload: { offerNumber: OLD_UNSENT, Kundendaten: { city: "Hof" } }, baseRevision: 1 })).statusCode).toBe(200); // 2: never sent
+    expect((await put("6009", { offerType: "bu", payload: { Kundendaten: { city: "Hof" } }, baseRevision: 2 })).statusCode).toBe(200); // 3: no number
+    expect((await put("6009", { offerType: "bu", payload: { offerNumber: NEW, Kundendaten: { city: "Selb" } }, baseRevision: 3 })).statusCode).toBe(200); // 4: now
+    const restore = (revision: number, baseRevision: number) => app.inject({ method: "POST", url: "/api/deals/6009/draft/restore", headers: auth(), payload: { revision, baseRevision } });
+    const r = await restore(1, 4);
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error).toMatchObject({ code: "RESTORE_SENT_NUMBER", offerNumber: OLD });
+    expect(r.json().error.message).toBe(`Diese Version kann nicht wiederhergestellt werden: Sie trägt die Angebotsnummer ${OLD}, und dieses Angebot wurde bereits versendet. Das versendete Angebot bleibt unverändert gespeichert. Sie öffnen es im Hauptmenü unter „Öffnen“ mit der Nummer ${OLD} – dort wird es als versendet angezeigt, und „Neue Version“ erstellt eine änderbare Kopie.`);
+    expect((await get("/api/deals/6009/draft")).json()).toMatchObject({ revision: 4, payload: { offerNumber: NEW } }); // nothing written
+    // marked as sent in the version itself (an old offer) counts too
+    expect((await put("6010", { offerType: "bu", payload: { offerNumber: "ANG2026-1103-080000", zusammenfassung: { versand: { art: "post", versendetAm: "03.11.2026" } } }, baseRevision: 0 })).statusCode).toBe(200);
+    expect((await put("6010", { offerType: "bu", payload: { offerNumber: NEW }, baseRevision: 1 })).statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: "/api/deals/6010/draft/restore", headers: auth(), payload: { revision: 1, baseRevision: 2 } })).json().error.code).toBe("RESTORE_SENT_NUMBER");
+    // an older number never sent, and a version without a number: restored as before
+    expect((await restore(2, 4)).json()).toMatchObject({ revision: 5, changed: true });
+    expect((await restore(3, 5)).json()).toMatchObject({ revision: 6, changed: true });
+  });
+
   it("import copies a legacy draft/offer; the legacy document stays byte-identical", async () => {
     const db = mongoose.connection.db!;
     const legacyDraft = await db.collection("drafts").findOne({ offerType: { $in: ["bu", "bwt", "hl", "bl", "ah"] } });

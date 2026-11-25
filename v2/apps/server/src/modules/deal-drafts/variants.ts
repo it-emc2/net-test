@@ -87,6 +87,7 @@ function viewOf(v: any, f: Facts, signed: { at: Date } | null, isDefault: boolea
     status, sentAt: reached ? reached.finishedAt ?? reached.startedAt : null, sentChannel: reached ? reached.channel : null,
     signedAt, total: typeof lastDone?.total === "number" ? lastDone.total : storedTotal,
     revision: v.revision, updatedAt: v.updatedAt, notChosenAt: v.notChosenAt ?? null, isDefault,
+    numbers: [...f.numbers],
   };
 }
 
@@ -276,7 +277,12 @@ export async function variantWasSent(dealId: string, variantId: string): Promise
   const f = (await factsOf(dealId, variants)).get(variantId);
   if (!f) return false;
   if (f.sends.some((s) => s.status === "done")) return true;
-  const numbers = [...f.numbers];
+  return numbersWereSent([...f.numbers]);
+}
+
+/** Was any of these offer numbers sent? A done send record, a legacy log (EmailLog, a posted PostalSend row) or any signing request. */
+export async function numbersWereSent(list: string[]): Promise<boolean> {
+  const numbers = list.map(str).filter(Boolean);
   if (!numbers.length) return false;
   return !!((await EmailLog.exists({ offerNumber: { $in: numbers } })) ||
     (await PostalSend.exists({ offerNumber: { $in: numbers }, sentAt: { $ne: null } })) ||

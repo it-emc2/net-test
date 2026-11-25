@@ -1,6 +1,6 @@
 // „Versionen“: the list of the open offer's saved versions and what the user does with it
 // (restore, and the two choices after a save was refused). The rules and texts are versions.ts.
-import type { DealDraftRevision } from "@oc/api-contract";
+import { ERROR_CODES, type DealDraftRevision } from "@oc/api-contract";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { ApiFailure, call } from "../../../shared/api/index.js";
 import { flushDraft, reloadDraft } from "./draft.js";
@@ -36,7 +36,8 @@ export function useVersionList(enabled: boolean) {
   });
 }
 
-export type Outcome = { ok: true; message: string; detail?: string } | { ok: false; message: string };
+/** `sentOffer`: refused because the version carries an older, already sent offer number (U-074) */
+export type Outcome = { ok: true; message: string; detail?: string } | { ok: false; message: string; sentOffer?: string };
 
 /**
  * „Wiederherstellen“: unsaved input is saved first as its own version (today it is replaced), then
@@ -53,6 +54,10 @@ export async function restoreVersion(r: DealDraftRevision, onOtherType: (type: s
     await call("restoreDealDraft", { ...q(), body: { revision: r.revision, baseRevision: s.revision } });
   } catch (err) {
     if ((err as Error)?.name === "AbortError") throw err;
+    if (err instanceof ApiFailure && err.code === ERROR_CODES.RESTORE_SENT_NUMBER) {
+      const nr = String(err.detail.offerNumber ?? "").trim();
+      return { ok: false, message: err.message || TEXT.sentRefused(nr), ...(nr ? { sentOffer: nr } : {}) };
+    }
     return { ok: false, message: TEXT.failed };
   }
   const type = String(r.offerType ?? s.offer.activeOffer);

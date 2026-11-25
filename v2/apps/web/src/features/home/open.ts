@@ -16,6 +16,7 @@ import { FIRST_VARIANT_ID, type HomeSearchRow } from "@oc/api-contract";
 import type { NewOfferType } from "@oc/domain";
 import { ApiFailure, call } from "../../shared/api/index.js";
 import { newTempKey } from "../offer/index.js";
+import { classicOffer } from "../../shared/lib/classic-ui.js";
 import { reactTypeOf, sameState, sourceLabel, TEXT } from "./search-rules.js";
 
 /** the draft a deal already has (what the question shows) */
@@ -23,7 +24,7 @@ export interface Existing { revision: number; updatedAt: string; offerType: stri
 export type Outcome =
   | { kind: "go"; path: string }
   | { kind: "ask"; key: string; type: NewOfferType; row: HomeSearchRow; existing: Existing; moved?: boolean }
-  | { kind: "legacy" }
+  | { kind: "legacy"; href?: string }
   | { kind: "failed"; message: string };
 
 const pathOf = (key: string, type: string) => `/deal/${key}/${type}`;
@@ -95,10 +96,12 @@ export async function openOfferNumber(offerNumber: string): Promise<Outcome> {
   }
   const p = (offer.payload ?? {}) as Record<string, any>;
   const deal = String(p.auftragId || p.postal?.auftragId || "").trim();
-  return openRow({
+  const o = await openRow({
     kind: "offer", id: "", title: offer.offerNumber, offerType: String(offer.offerType || p.activeOffer || "bu"), ref: offer.offerNumber, offerNumber: offer.offerNumber,
     at: null, snippet: "", deal: /^\d{1,12}$/.test(deal) ? deal : "",
   });
+  // a type this app cannot edit: today's UI opens that very offer (U-075; before: today's Hauptmenü)
+  return o.kind === "legacy" ? { kind: "legacy", href: classicOffer(offer.offerNumber) } : o;
 }
 
 export { sourceLabel };

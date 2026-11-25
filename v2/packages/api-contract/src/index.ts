@@ -89,6 +89,8 @@ export const ERROR_CODES = {
   SECOND_OFFER_COMMENT_FAILED: "SECOND_OFFER_COMMENT_FAILED",
   /** Hauptmenü „Öffnen“: the search in the stored drafts and offers failed */
   OFFER_SEARCH_FAILED: "OFFER_SEARCH_FAILED",
+  /** „Versionen“ (U-074): restoring a version that carries an older offer number that was already sent is refused (409, `offerNumber` in the answer) */
+  RESTORE_SENT_NUMBER: "RESTORE_SENT_NUMBER",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
@@ -253,6 +255,8 @@ export const DealVariantSchema = z.object({
   notChosenAt: When.nullable(),
   /** the variant calls without `variant` act on */
   isDefault: z.boolean(),
+  /** every offer number the variant carries or carried (current number + its send records); optional for older servers (U-073) */
+  numbers: z.array(z.string()).optional(),
 });
 export type DealVariant = z.infer<typeof DealVariantSchema>;
 export const DealVariantsResponseSchema = z.object({ dealId: z.string(), defaultVariantId: z.string().nullable(), variants: z.array(DealVariantSchema) });

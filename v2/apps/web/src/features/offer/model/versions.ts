@@ -39,7 +39,11 @@
 //    as its own version before the restore — nothing typed is lost;
 //  - the device history is not listed (the React app keeps one device copy per offer, not a
 //    history; it is uploaded by itself);
-//  - messages are toasts / lines in the panel instead of the save-state pill.
+//  - messages are toasts / lines in the panel instead of the save-state pill;
+//  - U-074: a version that would bring back an OLDER offer number that was already sent is refused
+//    (server 409 RESTORE_SENT_NUMBER, the server's text says where the sent offer is); the refusal
+//    has a button that opens that sent offer from the Hauptmenü (`/?offer=<number>`, the same path
+//    as „Öffnen“ with the number).
 import { TEMP_DRAFT_KEY_RE, type DealDraftRevision } from "@oc/api-contract";
 
 /** German names of the parts of an offer (today's SECTION_DE); any other part keeps its field name */
@@ -98,7 +102,14 @@ export const TEXT = {
   loadFailed: "Der wiederhergestellte Stand konnte nicht geladen werden. Bitte laden Sie die Seite neu.",
   keptMine: "Ihr Stand ist als neue Version gespeichert.",
   loadedNewest: "Der neueste Stand ist geladen.",
+  // U-074 (the server sends the same text; this one only when an answer carries none)
+  sentRefused: (nr: string) => `Diese Version kann nicht wiederhergestellt werden: Sie trägt die Angebotsnummer ${nr}, und dieses Angebot wurde bereits versendet. Das versendete Angebot bleibt unverändert gespeichert. Sie öffnen es im Hauptmenü unter „Öffnen“ mit der Nummer ${nr} – dort wird es als versendet angezeigt, und „Neue Version“ erstellt eine änderbare Kopie.`,
+  openSent: (nr: string) => `Angebot ${nr} öffnen`,
+  back: "Zurück",
 } as const;
+
+/** the Hauptmenü address that opens a stored offer by its number (as „Öffnen“ with an ANG number) */
+export const offerOpenPath = (nr: string): string => `/?offer=${encodeURIComponent(nr)}`;
 
 /** the offer number when the offer itself is marked as sent (`zusammenfassung.versand`), else "" — for the line in the question only */
 export function sentNumberOf(offer: unknown): string {

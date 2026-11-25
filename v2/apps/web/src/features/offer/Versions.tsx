@@ -4,7 +4,7 @@
 // Rules and texts: model/versions.ts; actions: model/useVersions.ts.
 import type { DealDraftRevision } from "@oc/api-contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { History, RotateCcw, X } from "lucide-react";
+import { FileText, History, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Alert, Button, cn } from "../../shared/ui/index.js";
@@ -12,7 +12,7 @@ import { toast } from "../../shared/ui/toaster.js";
 import { useSaveStatus } from "./model/draft.js";
 import { useOfferStore } from "./model/store.js";
 import { variantSearch } from "./model/variants.js";
-import { TEXT, canRestore, heading, rowLabel, sentNumberOf } from "./model/versions.js";
+import { TEXT, canRestore, heading, offerOpenPath, rowLabel, sentNumberOf } from "./model/versions.js";
 import { closeVersionsPanel } from "./model/versions-panel.js";
 import { keepMine, loadNewest, refreshVersions, restoreVersion, useVersionList, type Outcome } from "./model/useVersions.js";
 
@@ -87,10 +87,10 @@ function List({ onAsk }: { onAsk: (r: DealDraftRevision) => void }) {
 /** say how it went: success as a toast (the panel closes), a failure stays in the panel */
 function useFinish() {
   const qc = useQueryClient();
-  return (o: Outcome, setError: (m: string) => void) => {
+  return (o: Outcome, setError: (m: string) => void, setSent?: (nr: string) => void) => {
     void refreshVersions(qc);
     if (o.ok) { toast.dismiss("save"); toast.success(o.message, o.detail ? { description: o.detail } : undefined); closeVersionsPanel(); }
-    else setError(o.message);
+    else { setError(o.message); setSent?.(o.sentOffer ?? ""); }
   };
 }
 
@@ -116,14 +116,26 @@ function Ask({ r, onBack }: { r: DealDraftRevision; onBack: () => void }) {
   const finish = useFinish();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sentOffer, setSentOffer] = useState(""); // U-074: refused — the sent offer opens from the Hauptmenü
   const yes = async () => {
     if (busy) return;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setSentOffer("");
     const s = useOfferStore.getState();
     const o = await restoreVersion(r, (type) => navigate(`/deal/${encodeURIComponent(s.dealId!)}/${type}${variantSearch(s.variantKnown ? s.variantId : null)}`));
     setBusy(false);
-    finish(o, setError);
+    finish(o, setError, setSentOffer);
   };
+  if (sentOffer) {
+    return (
+      <div className="grid gap-3" data-testid="versions-sent-refused">
+        <Alert kind="error" className="my-0">{error}</Alert>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={onBack}>{TEXT.back}</Button>
+          <Button data-action="open-sent" onClick={() => { closeVersionsPanel(); navigate(offerOpenPath(sentOffer)); }}><FileText aria-hidden className="size-4" />{TEXT.openSent(sentOffer)}</Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-3" data-testid="versions-ask">
       <p className="m-0">{TEXT.askText(r)}</p>

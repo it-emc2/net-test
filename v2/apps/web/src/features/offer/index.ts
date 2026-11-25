@@ -6,8 +6,8 @@ export { useOfferField, useOfferStore, useOfferType, type OfferState } from "./m
 export { usePrice } from "./model/usePrice.js";
 export { BUILT_STEPS, OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, isReferenzStep, isStepOf, setStepCheck, setStepStatuses, stepLabel, stepStatuses, type StepProblem, type StepStatus } from "./steps.js";
 export { CreateVariantButton, openVariantPanel } from "./VariantSwitch.js";
-export { useVariants } from "./model/useVariants.js";
-export { TEXT as VARIANT_TEXT, sendVariantOf, statusText as variantStatusText, variantOfSend, variantSearch } from "./model/variants.js";
+export { useVariants, variantsKey } from "./model/useVariants.js";
+export { TEXT as VARIANT_TEXT, nextVariantName, sendVariantOf, statusText as variantStatusText, variantError, variantOfSend, variantSearch } from "./model/variants.js";
 export { SecondOfferButton, SecondOfferHost, openSecondOffer, relatedKey, useRelated, type SecondOfferSource } from "./SecondOffer.js";
 export { TEXT as SECOND_OFFER_TEXT, customerName, relatedOfType, typeTitle } from "./model/second-offer.js";
 export { AH_CONFIG_DEFAULT, ahConfigOf, ahTotalsOf, getAhConfig, useAhConfig, useAhPrice, type AhConfig } from "./model/ah-price.js";

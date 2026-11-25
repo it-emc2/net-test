@@ -12,7 +12,7 @@ import {
   adoptTempDraft, defaultOf, getDealDraft, listRevisions, liveVariants, payloadAt, publicVariantId, RevisionConflictError, saveDealDraft, TEMP_KEY,
   touchOpened, VariantIndexMissingError,
 } from "./store.js";
-import { createVariant, deleteVariant, listVariants, renameVariant, setAhAmountOf, VariantError, variantNameOf, type AhAmountOf } from "./variants.js";
+import { createVariant, deleteVariant, listVariants, numbersWereSent, renameVariant, setAhAmountOf, VariantError, variantNameOf, versandSent, type AhAmountOf } from "./variants.js";
 import { relatedOf, relationsOf, secondOffer, SecondOfferError, type SecondOfferDeps } from "./second-offer.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
@@ -61,6 +61,13 @@ const variantParam = (req: FastifyRequest): string | null | undefined => {
   return isVariantId(v) ? v : null;
 };
 const notFound = () => new VariantError("VARIANT_NOT_FOUND", 404, "Diese Variante gibt es nicht (mehr).");
+
+/** U-074: the refusal when a version would bring back an older offer number that was already sent — it says where the sent offer is */
+export const restoreSentMessage = (nr: string) =>
+  `Diese Version kann nicht wiederhergestellt werden: Sie trägt die Angebotsnummer ${nr}, und dieses Angebot wurde bereits versendet. ` +
+  `Das versendete Angebot bleibt unverändert gespeichert. Sie öffnen es im Hauptmenü unter „Öffnen“ mit der Nummer ${nr} – ` +
+  `dort wird es als versendet angezeigt, und „Neue Version“ erstellt eine änderbare Kopie.`;
+const strOf = (v: unknown) => String(v ?? "").trim();
 
 /**
  * The variant a draft call acts on. Explicit: must be live — except the first variant of a deal
@@ -155,6 +162,16 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
       const t = await targetOf(dealId, variantParam(req) ?? undefined, false);
       const old = await payloadAt(dealId, b.revision!, t.variantId);
       if (!old) return fail(req, reply, 404, "NOT_FOUND", "Diese Version gibt es nicht");
+      // U-074: a version with an OLDER offer number that was already sent is not brought back — the sent
+      // offer stays as stored (opened from the Hauptmenü); a version with the draft's own number restores as before
+      const p = (old.payload ?? {}) as Record<string, any>;
+      const nr = strOf(p.offerNumber);
+      if (nr) {
+        const cur: any = await getDealDraft(dealId, t.variantId);
+        if (nr !== strOf(cur?.payload?.offerNumber) && (versandSent(p.zusammenfassung?.versand) || (await numbersWereSent([nr])))) {
+          return fail(req, reply, 409, ERROR_CODES.RESTORE_SENT_NUMBER, restoreSentMessage(nr), { offerNumber: nr });
+        }
+      }
       return saveDealDraft({
         dealId, variantId: t.variantId, offerType: old.offerType, payload: old.payload as Record<string, unknown>, baseRevision: b.baseRevision!,
         by: req.user!.email, kind: "restore", note: `Version ${b.revision} wiederhergestellt`,

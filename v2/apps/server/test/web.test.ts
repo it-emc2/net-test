@@ -173,6 +173,41 @@ describe("web layer", () => {
       const chosen = await get(app, "/login", CHOSEN); // logout in today's UI
       expect([chosen.statusCode, isLogin(chosen.body)]).toEqual([200, true]);
     });
+    const ANG = "ANG2026-1125-101530";
+    it("react (U-075): the Bitrix offer link /?offer=<number> opens the React app at /app/?offer=…, logged in or not (its login keeps the address)", async () => {
+      const app = await make("react");
+      expect(await where(app, `/?offer=${ANG}`)).toEqual([302, `/app/?offer=${ANG}`, null]);
+      expect(await where(app, `/?offer=${ANG}`, cookie())).toEqual([302, `/app/?offer=${ANG}`, null]);
+      const sw = await app.inject({ url: `/?offer=${ANG}`, headers: { accept: "*/*", ...cookie() } }); // not a page load: as before
+      expect([sw.statusCode, isIndex(sw.body)]).toEqual([200, true]);
+    });
+    it("react (U-075): a malformed or foreign ?offer= is today's UI as before (never a redirect to it)", async () => {
+      const app = await make("react");
+      for (const v of ["https%3A%2F%2Fevil.example%2F", "%2F%2Fevil.example", "1", "ANG2026%3Cscript%3E"]) {
+        expect(await where(app, `/?offer=${v}`)).toEqual([302, `/login?next=${encodeURIComponent(`/?offer=${v}`)}`, null]);
+        const r = await get(app, `/?offer=${v}`, cookie());
+        expect([v, r.statusCode, isIndex(r.body)]).toEqual([v, 200, true]);
+      }
+    });
+    it("react (U-075): with the cookie oc_ui=classic the offer link keeps today's behaviour", async () => {
+      const app = await make("react");
+      expect(await where(app, `/?offer=${ANG}`, CHOSEN)).toEqual([302, `/login?next=${encodeURIComponent(`/?offer=${ANG}`)}`, null]);
+      const r = await get(app, `/?offer=${ANG}`, both());
+      expect([r.statusCode, isIndex(r.body)]).toEqual([200, true]);
+      // the React app's way to today's UI for an offer of a type it cannot edit: the choice is remembered, then today's /?offer=
+      expect(await where(app, `/?classic=1&offer=${ANG}`, cookie())).toEqual([302, `/?offer=${ANG}`, "oc_ui=classic; Path=/; SameSite=Lax"]);
+    });
+    it("react (U-075): deal links open the React app at /app/?deal=<id>[&step=…]; the cookie, a temporary key or a bad id keep today's way", async () => {
+      const app = await make("react");
+      expect(await where(app, "/deal/9001")).toEqual([302, "/app/?deal=9001", null]);
+      expect(await where(app, "/deal/9001", cookie())).toEqual([302, "/app/?deal=9001", null]);
+      expect(await where(app, "/deal/9001/Kosten", cookie())).toEqual([302, "/app/?deal=9001&step=Kosten", null]);
+      expect(await where(app, "/deal/9001", CHOSEN)).toEqual([302, "/login?next=%2Fdeal%2F9001", null]);
+      expect((await where(app, "/deal/9001/Kosten", both())).slice(0, 2)).toEqual([302, "/?deal=9001#Kosten"]);
+      expect((await where(app, "/deal/t-0123456789abcdef01234567", cookie())).slice(0, 2)).toEqual([302, "/?deal=t-0123456789abcdef01234567"]);
+      const bad = await get(app, "/deal/%3Cscript%3E", cookie());
+      expect([bad.statusCode, bad.headers.location]).toEqual([200, undefined]);
+    });
     it("classic (default) and explicit classic: nothing changes, no cookie anywhere", async () => {
       for (const app of [await make(), await make("classic")]) {
         expect(await where(app, "/")).toEqual([302, "/login", null]);
@@ -183,6 +218,12 @@ describe("web layer", () => {
         expect(await where(app, "/?offer=1")).toEqual([302, "/login?next=%2F%3Foffer%3D1", null]);
         const offer = await get(app, "/?offer=1", cookie());
         expect([offer.statusCode, offer.headers["set-cookie"]]).toEqual([200, undefined]);
+        // U-075 is react-only: the Bitrix offer link and the deal links as before
+        expect(await where(app, `/?offer=${ANG}`)).toEqual([302, `/login?next=${encodeURIComponent(`/?offer=${ANG}`)}`, null]);
+        const bitrix = await get(app, `/?offer=${ANG}`, cookie());
+        expect([bitrix.statusCode, bitrix.headers["set-cookie"], isIndex(bitrix.body)]).toEqual([200, undefined, true]);
+        expect(await where(app, "/deal/9001")).toEqual([302, "/login?next=%2Fdeal%2F9001", null]);
+        expect(await where(app, "/deal/9001/Kosten", cookie())).toEqual([302, "/?deal=9001#Kosten", null]);
         for (const url of ["/login", "/login?next=%2F"]) {
           const l = await get(app, url);
           expect([url, l.statusCode, isLogin(l.body)]).toEqual([url, 200, true]);

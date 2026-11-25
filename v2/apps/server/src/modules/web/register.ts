@@ -46,6 +46,10 @@ export const HEAD_SHIM = '<script src="/v2/addons/error-compat.js"></script>';
 export function injectHead(html: string): string {
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => `${m}\n${HEAD_SHIM}`) : `${HEAD_SHIM}\n${html}`;
 }
+/** an offer number in a link (`/?offer=`, the format written to Bitrix): ANG + digits/dashes */
+const OFFER_IN_LINK = /^ANG-?\d[\d-]{0,40}$/i;
+/** a deal number the React app opens („Öffnen“ with a deal number) */
+const DEAL_NUMBER_IN_LINK = /^\d{1,12}$/;
 const escapeHtml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const LOGIC_FILES = ["pricing-core.js", "tray-search-core.js", "aufschlag-rules.js"];
 
@@ -113,6 +117,11 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
   const dealLink = async (req: FastifyRequest, reply: FastifyReply) => {
     const { dealId, step } = req.params as { dealId: string; step?: string };
     if (!DEAL_RE.test(dealId) || (step !== undefined && !STEP_RE.test(step))) return sendIndexOrLogin(req, reply);
+    // START_UI=react (U-075): a deal number opens in the React app as „Öffnen“ with that number does —
+    // logged in or not (its own login keeps the address); a browser that chose today's UI keeps today's way
+    if (reactStart && !wantsClassic(req) && DEAL_NUMBER_IN_LINK.test(dealId)) {
+      return found(reply, `/app/?deal=${encodeURIComponent(dealId)}${step ? `&step=${encodeURIComponent(step)}` : ""}`);
+    }
     if (!loggedIn(req)) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
     return reply.redirect(`/?deal=${encodeURIComponent(dealId)}${step ? `#${step}` : ""}`);
   };
@@ -164,7 +173,8 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
 
     // START_UI=react (U-061): a bare "/" page request opens the React app; "/?classic=1" (the
     // React app's links to today's UI) remembers the choice for this browser session and continues
-    // at a clean "/"; any other query (?offer=, ?deal= …) is today's UI as before
+    // at a clean "/"; a Bitrix offer link `/?offer=<ANG number>` opens in the React app (U-075); any
+    // other query (?deal=, a malformed ?offer= …) is today's UI as before
     if (reactStart && url.pathname === "/") {
       if (url.searchParams.get("classic") === "1") {
         url.searchParams.delete("classic");
@@ -172,6 +182,10 @@ export async function registerWeb(app: FastifyInstance, d: WebDeps) {
         return found(reply, "/" + (url.search || ""));
       }
       if (!url.search && !wantsClassic(req) && acceptsHtml(req)) return found(reply, "/app");
+      // U-075: the offer link written to Bitrix (`<base>/?offer=<number>`, format unchanged) opens that
+      // stored offer in the React app (as „Öffnen“ with its number; types it cannot edit go on to today's UI)
+      const offer = url.searchParams.get("offer") ?? "";
+      if (offer && OFFER_IN_LINK.test(offer) && !wantsClassic(req) && acceptsHtml(req)) return found(reply, `/app/?offer=${encodeURIComponent(offer)}`);
     }
 
     const publicPath = isPublicAsset(p) || isPublicSigning(p) || isAlwaysPublic(p);
