@@ -24,10 +24,11 @@ export { cn };
  *   swatch  a decor, colour or surface to choose from
  *   tile    a product in a tile to choose from
  *   product a product photo that stands for itself (height; the width follows)
- *  At the app's text size (18 px): 45 / 72 / 90 / 108 px, a product photo 144 px tall.
+ *   hero    the one big picture of the chosen product ("Ihre Auswahl"; height, the width follows)
+ *  At the app's text size (18 px): 45 / 72 / 90 / 108 px, a product photo 144 px tall, the hero 234 px.
  *  Every role but `swatch` (a decor fills its box) sits on the photo plate (styles.css `.photo-plate`):
  *  white on the light theme, an inset light plate in dark mode — product photos have white backgrounds (U-059). */
-export const IMG = { mini: "size-10 photo-plate", row: "size-16 photo-plate", swatch: "size-20", tile: "size-24 photo-plate", product: "h-32 photo-plate" } as const;
+export const IMG = { mini: "size-10 photo-plate", row: "size-16 photo-plate", swatch: "size-20", tile: "size-24 photo-plate", product: "h-32 photo-plate", hero: "h-52 photo-plate" } as const;
 
 export function Page({ title, lead, children }: { title: string; lead?: string; children?: ReactNode }) {
   return (

@@ -12,19 +12,20 @@ const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true 
 const OWN_SIZE = [/aspect-square w-full object-cover/, /max-h-\[80vh\]/, /max-h-64 max-w-full/, /className="size-full object-cover"/];
 
 describe("the picture standard", () => {
-  // in rem: at the app's text size (18 px) that is 45 / 72 / 90 / 108 px and 144 px tall — before: 28 to 96 px in eight sizes
-  it("the sizes: mini 2.5 rem, a row picture 4 rem, a swatch 5 rem, a tile 6 rem, a product photo 8 rem tall", () => {
-    expect(IMG).toEqual({ mini: "size-10 photo-plate", row: "size-16 photo-plate", swatch: "size-20", tile: "size-24 photo-plate", product: "h-32 photo-plate" });
+  // in rem: at the app's text size (18 px) that is 45 / 72 / 90 / 108 px, 144 px and 234 px tall — before: 28 to 96 px in eight sizes.
+  // hero: the one big picture of the chosen product above its name (Duschwanne „Ihre Auswahl“, owner 2026-11-25)
+  it("the sizes: mini 2.5 rem, a row picture 4 rem, a swatch 5 rem, a tile 6 rem, a product photo 8 rem tall, the hero 13 rem tall", () => {
+    expect(IMG).toEqual({ mini: "size-10 photo-plate", row: "size-16 photo-plate", swatch: "size-20", tile: "size-24 photo-plate", product: "h-32 photo-plate", hero: "h-52 photo-plate" });
   });
 
   it("product photos sit on the photo plate (white light, inset light plate dark); a decor swatch does not (U-059)", () => {
-    for (const role of ["mini", "row", "tile", "product"] as const) expect(IMG[role]).toContain("photo-plate");
+    for (const role of ["mini", "row", "tile", "product", "hero"] as const) expect(IMG[role]).toContain("photo-plate");
     expect(IMG.swatch).not.toContain("photo-plate");
   });
 
   it("every picture on a step takes its size from the standard", () => {
     const own = files(ROOT).flatMap((f) => readFileSync(f, "utf8").split("\n").flatMap((line, i) =>
-      [...line.matchAll(/<img\b.*?\/>/g)].map((m) => m[0]).filter((tag) => !/IMG\.(mini|row|swatch|tile|product)\b/.test(tag) && !OWN_SIZE.some((r) => r.test(tag))).map((tag) => `${f.slice(ROOT.length + 1)}:${i + 1} ${tag.slice(0, 90)}`)));
+      [...line.matchAll(/<img\b.*?\/>/g)].map((m) => m[0]).filter((tag) => !/IMG\.(mini|row|swatch|tile|product|hero)\b/.test(tag) && !OWN_SIZE.some((r) => r.test(tag))).map((tag) => `${f.slice(ROOT.length + 1)}:${i + 1} ${tag.slice(0, 90)}`)));
     expect(own).toEqual([]);
   });
 });
