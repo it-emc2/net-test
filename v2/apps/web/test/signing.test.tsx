@@ -107,6 +107,17 @@ function shown() {
   return v;
 }
 
+// „Kopiert!“ / „Eingefügt!“ stay on their button for 1.2 s. Whether a recorded view still carries one
+// depends on how fast the recording clicked on; on a slow machine the replay is past it (seen in CI
+// 2026-11-25: „sz: copy, clear, paste, sign“). The views are compared with the buttons at rest; the
+// short confirmation has its own test below.
+const AT_REST: Record<string, string> = { [TEXT.copied]: TEXT.copy, [TEXT.pasted]: TEXT.paste };
+function settled<T>(view: T): T {
+  const v = structuredClone(view) as any;
+  for (const b of v?.doc?.buttons ?? []) if (typeof b?.text === "string" && AT_REST[b.text]) b.text = AT_REST[b.text];
+  return v;
+}
+
 async function doAct([kind, sel, arg]: Act) {
   const all = [...document.querySelectorAll<HTMLElement>(sel)];
   const el = all[typeof arg === "number" ? arg : 0];
@@ -141,12 +152,12 @@ describe("signing page — replay of today's page", () => {
     const calls = server(s);
     render(<SignPage pathname={`/sign/${s.token}`} internal={s.rep} />);
     const strip = (rs: Req[]) => rs.map(({ method, path, body }) => ({ method, path, body }));
-    await waitFor(() => expect(shown()).toEqual(s.view));
+    await waitFor(() => expect(settled(shown())).toEqual(settled(s.view)));
     await waitFor(() => expect(calls).toEqual(strip(s.requests)));
     for (const [i, a] of s.acts.entries()) {
       const before = calls.length;
       await doAct(a.act);
-      await waitFor(() => expect(shown()).toEqual(a.view));
+      await waitFor(() => expect(settled(shown())).toEqual(settled(a.view)));
       await waitFor(() => expect(calls.slice(before)).toEqual(strip(a.requests)), { timeout: 3000 }).catch((e) => { throw new Error(`act ${i} ${JSON.stringify(a.act)}: ${e.message}`); });
     }
     // only the signing routes of this one token were asked
@@ -202,6 +213,19 @@ describe("signing page — new on purpose (U-068) and accessibility", () => {
     render(<SignPage pathname="/sign/" internal={false} />);
     await waitFor(() => expect(text($("#fatal"))).toBe(TEXT.invalidLink));
     expect(f).not.toHaveBeenCalled();
+  });
+  it("„Kopieren“ confirms with „Kopiert!“ and goes back to its own label", async () => {
+    server(expected(one));
+    render(<SignPage pathname={`/sign/${one.token}`} internal={false} />);
+    await waitFor(() => expect($("#copySig")).not.toBeNull());
+    await doAct(["draw", "#sigCanvas"] as unknown as Act);
+    vi.useFakeTimers();
+    try {
+      act(() => { fireEvent.click($("#copySig")!); });
+      expect($("#copySig")!.textContent).toBe(TEXT.copied);
+      act(() => { vi.advanceTimersByTime(1300); });
+      expect($("#copySig")!.textContent).toBe(TEXT.copy);
+    } finally { vi.useRealTimers(); }
   });
   it("the document is the server's HTML; every field has a name; the page's own controls are 48 px buttons", async () => {
     server(expected(one));
