@@ -61,6 +61,10 @@ export const ERROR_CODES = {
   SIGNING_AMOUNT_MISSING: "SIGNING_AMOUNT_MISSING",
   /** signing: the Bitrix deal update after a completed signature failed (the signature is kept) */
   SIGNING_DEAL_UPDATE_FAILED: "SIGNING_DEAL_UPDATE_FAILED",
+  /** signing: the completion of a fully signed request failed (signed PDFs, mail, Bitrix) — the signatures are stored (U-071) */
+  SIGNING_COMPLETION_FAILED: "SIGNING_COMPLETION_FAILED",
+  /** signing: a customer's submit of a document failed on the server before an answer (U-071) */
+  SIGNING_SUBMIT_FAILED: "SIGNING_SUBMIT_FAILED",
   /** second offer (ADR 027 B): the target type is the type of the open offer — that is a variant */
   SECOND_OFFER_SAME_TYPE: "SECOND_OFFER_SAME_TYPE",
   /** second offer: the target type is not one of NEW_OFFER_TYPES */

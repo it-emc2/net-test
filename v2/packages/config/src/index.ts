@@ -56,6 +56,9 @@ const EnvSchema = z.object({
    *  (default); "react" = the React signing page of apps/web (sign.html) at the same address —
    *  links already sent keep working either way, the signing API is the same. */
   SIGNING_UI: z.enum(["classic", "react"]).default("classic"),
+  /** The company as the customer's signing page names it in its contact block („Fragen? Wir helfen
+   *  gern: …“, U-071) — the full legal name in production. A setting, not code: no personal names in code. */
+  COMPANY_NAME: z.string().trim().min(1).max(120).default("EmC2"),
   /** Bitrix24 inbound webhook base (…/rest/<user>/<token>). No hard-coded fallback (legacy had one). */
   BITRIX_WEBHOOK_BASE: z.string().url().optional(),
   /** Minimum gap between Bitrix calls (legacy BX_MIN_GAP_MS = 1000). */

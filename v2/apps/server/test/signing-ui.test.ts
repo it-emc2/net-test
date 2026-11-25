@@ -30,13 +30,13 @@ const noBuild = path.join(os.tmpdir(), "oc-sign-ui-missing");
 afterAll(() => fs.rmSync(appDir, { recursive: true, force: true }));
 
 const warnings: string[] = [];
-async function make(signingUi?: "classic" | "react", dir = appDir) {
+async function make(signingUi?: "classic" | "react", dir = appDir, companyName?: string) {
   const app = Fastify();
   await registerSecurity(app);
   const log = { warn: (_o: object, m: string) => { warnings.push(m); }, error: () => {} };
   await registerSigning(app, {
     deals: {} as any, renderer: UNAVAILABLE_SIGNING_RENDERER, mailer: { configured: false } as any, assetsDir: ROOT + "src/assets",
-    signPageFile: SIGN_PAGE, apDefaultEmail: "", authSecret: SECRET, log, appDir: dir, ...(signingUi ? { signingUi } : {}),
+    signPageFile: SIGN_PAGE, apDefaultEmail: "", authSecret: SECRET, log, appDir: dir, ...(signingUi ? { signingUi } : {}), ...(companyName ? { companyName } : {}),
   });
   await registerWeb(app, { publicDir: ROOT + "src/public", logicDir: ROOT + "src/logic", fontAwesomeDir: ROOT + "node_modules/@fortawesome/fontawesome-free", authSecret: SECRET, appDir: dir });
   return app;
@@ -70,6 +70,14 @@ describe("SIGNING_UI — the page behind /sign/<token>", () => {
     expect([js.statusCode, js.body]).toEqual([200, "console.log('sign')"]);
     // a link with an unknown or odd token still opens the page (the page asks the API, as today)
     expect((await app.inject({ url: "/sign/abc" })).body).toBe(SIGN_HTML);
+  });
+
+  it("COMPANY_NAME (U-071): handed to the React page as data-company (escaped); the classic page unchanged", async () => {
+    const app = await make("react", appDir, "Testfirma GmbH & Co. \"KG\"");
+    const r = await app.inject({ url: `/sign/${TOKEN}` });
+    expect(r.body).toBe(SIGN_HTML.replace('data-internal-user="false"', 'data-internal-user="false" data-company="Testfirma GmbH &amp; Co. &quot;KG&quot;"'));
+    const classic = await make("classic", appDir, "Testfirma GmbH");
+    expect((await classic.inject({ url: `/sign/${TOKEN}` })).body).toBe(today(false));
   });
 
   it("react without a build of the React app: today's page, one warning", async () => {

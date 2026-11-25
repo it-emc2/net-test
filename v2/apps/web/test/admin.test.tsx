@@ -209,6 +209,19 @@ describe("admin · users replay (today's requests)", () => {
   });
 });
 
+describe("admin · users: the server's own lock-out check (U-070)", () => {
+  it("a save the server refuses shows the server's message, the form stays", async () => {
+    server({ "POST /admin/api/users": err("Das ist nicht möglich: Es muss mindestens ein aktiver Admin bleiben.", 409) });
+    renderApp("/admin/benutzer");
+    fireEvent.click(await screen.findByRole("button", { name: "testnutzer@example.test bearbeiten" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Konto aktiv" }));
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await confirm(/^Speichern$/);
+    expect(await screen.findByText("Das ist nicht möglich: Es muss mindestens ein aktiver Admin bleiben.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Vorname")).toHaveValue("Test");
+  });
+});
+
 describe("admin · who sees it", () => {
   it("a user without the admin role: no menu entry, /admin shows no data and asks nothing", async () => {
     const srv = server({ "GET /api/planning/v2/today": { body: { ok: true, plan: null } } }, { email: "testnutzer@example.test", name: "TN", role: "user" });

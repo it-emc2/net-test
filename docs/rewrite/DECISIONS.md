@@ -422,7 +422,7 @@ Zugehörigkeit always 8158 „Eigener Auftrag“ (not copied). Source `WEBFORM` 
 
 **Against the legacy app (`src/public`, unchanged):** its screen still shows a Selbstzahler net + 1,20 € and deducts funding without a payer while its documents (served by v2) follow this ADR; the React screen is the one that matches the documents.
 
-**Known, not fixed (listed for the owner):** the AH UF fields „Gesamtbetrag HnD“ and „Gesamtbetrag AB“ each include the combined Anfahrt (double count, legacy). The DOCX prints the deduction uncapped (−131,00 € on a 34,10 € offer, Eigenanteil 0,00 €); the screen caps its minus lines so they add up. `PFLEGESACHLEISTUNG_UMWIDMUNG_MAX_PCT` (40 %) is still unused — the Umwidmung amount has no upper limit, as today.
+**Known, not fixed (listed for the owner):** the AH UF fields „Gesamtbetrag HnD“ and „Gesamtbetrag AB“ each include the combined Anfahrt (double count, legacy) — **fixed 2026-11-25 (U-072): each carries its own Anfahrt.** The DOCX prints the deduction uncapped (−131,00 € on a 34,10 € offer, Eigenanteil 0,00 €); the screen caps its minus lines so they add up. `PFLEGESACHLEISTUNG_UMWIDMUNG_MAX_PCT` (40 %) is still unused — the Umwidmung amount has no upper limit, as today.
 
 ### ADR 028 — addendum 2026-11-23: the zone reading of the documents (owner)
 

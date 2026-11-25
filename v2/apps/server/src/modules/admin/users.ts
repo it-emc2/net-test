@@ -7,6 +7,28 @@ import { User } from "../../platform/models.js";
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string) =>
   reply.status(status).send({ error: { code, message, requestId: req.id } });
 
+/** an active admin as stored (a missing `active` counts as active, like the list) */
+const isActiveAdmin = (u: any) => !!u && u.role === "admin" && u.active !== false;
+
+/**
+ * U-070 (owner 2026-11-25), on the server — the admin page's own check (selfLockout) is not
+ * enough: an admin cannot take the own admin role away or deactivate the own account, and no save
+ * may leave the app without an active admin. Same German texts as the admin page. There is no
+ * "delete user" (owner decision): deactivating is the only way out.
+ */
+export async function lockoutOf(email: string, me: string, existing: any, set: Record<string, unknown>): Promise<{ code: string; message: string } | null> {
+  if (!existing || !isActiveAdmin(existing)) return null; // only a change of an active admin can lock anyone out
+  const staysAdmin = set.role === "admin" && set.active !== false;
+  if (staysAdmin) return null;
+  if (email === me.trim().toLowerCase()) {
+    return set.role !== "admin"
+      ? { code: "ADMIN_SELF_DEMOTE", message: "Sie können sich die eigene Admin-Rolle nicht entziehen." }
+      : { code: "ADMIN_SELF_DEACTIVATE", message: "Sie können Ihr eigenes Konto nicht deaktivieren." };
+  }
+  const others = await User.countDocuments({ email: { $ne: email }, role: "admin", active: { $ne: false } });
+  return others ? null : { code: "ADMIN_LAST", message: "Das ist nicht möglich: Es muss mindestens ein aktiver Admin bleiben." };
+}
+
 export async function registerUsers(app: FastifyInstance) {
   // ---------------- users (Ansprechpartner list) ----------------
   app.get("/api/users", async () => {
@@ -38,6 +60,11 @@ export async function registerUsers(app: FastifyInstance) {
     if (b.password) set.passwordHash = hashPassword(String(b.password));
     const existing = await User.findOne({ email });
     if (!existing && !b.password) return fail(req, reply, 400, "BAD_REQUEST", "Passwort für neuen Benutzer erforderlich");
+    const lockout = await lockoutOf(email, String(req.user?.email || ""), existing, set);
+    if (lockout) {
+      req.log.warn({ email, by: req.user?.email, code: lockout.code }, "admin user save refused");
+      return fail(req, reply, 409, lockout.code, lockout.message);
+    }
     const doc = await User.findOneAndUpdate({ email }, { $set: set }, { upsert: true, new: true, setDefaultsOnInsert: true });
     req.log.info({ email, by: req.user?.email }, "admin user upserted");
     return { ok: true, email: doc!.email };
