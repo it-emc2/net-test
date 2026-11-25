@@ -8,7 +8,7 @@
 import type { DealVariant, HomeSearchRow } from "@oc/api-contract";
 import { NEW_OFFER_TYPES } from "@oc/domain";
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useSession } from "../auth/index.js";
 import { call, ApiFailure } from "../../shared/api/index.js";
 import { OFFER_TITLES, SecondOfferHost, typeTitle, useOfferStore } from "../offer/index.js";
@@ -17,7 +17,9 @@ import { OfferPicker, PlanningToday } from "./Planning.js";
 import { WeekCalendar } from "./WeekCalendar.js";
 import type { PlanningEntry } from "./planning-rules.js";
 import { DeviceDrafts } from "./DeviceDrafts.js";
-import { DealDocuments, DealStart, HomeSearch } from "./HomeSearch.js";
+import { DealDocuments, DealStart, HomeSearch, useOpenOutcome } from "./HomeSearch.js";
+import { openOfferNumber } from "./open.js";
+import { startTarget } from "./rules.js";
 import { DealOverview } from "./DealOverview.js";
 import { oldDocuments } from "./overview-rules.js";
 import { DEAL_DOCS_WAIT_MS, autosavedButton, storedFirst, within } from "./search-rules.js";
@@ -38,6 +40,22 @@ export function HomePage() {
   const [overview, setOverview] = useState<{ id: string; variants: DealVariant[]; rows: HomeSearchRow[] } | null>(null);
   const [docs, setDocs] = useState<Promise<HomeSearchRow[]> | undefined>(undefined); // the lookup under way, for the list under „noch kein Angebot“
   const seq = useRef(0); // a newer „Öffnen“ (or typing) wins over an older answer
+
+  // U-074: `?offer=<number>` in the address opens that stored offer as „Öffnen“ with its number does
+  // (once; the address is cleaned so a reload or „Zurück“ does not open it again)
+  const { search } = useLocation();
+  const target = useRef(startTarget(search));
+  const started = useRef(false);
+  const opener = useOpenOutcome();
+  const [opening, setOpening] = useState("");
+  useEffect(() => {
+    const t = target.current;
+    if (!t || started.current) return;
+    started.current = true;
+    nav("/", { replace: true });
+    setOpening(t.number);
+    void openOfferNumber(t.number).then((o) => { setOpening(""); opener.handle(o); });
+  }, []); // once, for the address the page was opened with
 
   // „Öffnen“ with a deal number: its draft knows the offer type; no draft yet → pick a type below
   const openDeal = async (id: string) => {
@@ -71,6 +89,9 @@ export function HomePage() {
 
   return (
     <Page title="Hauptmenü">
+      {opening ? <div data-testid="start-opening"><Alert>Angebot {opening} wird geöffnet …</Alert></div> : null}
+      {opener.message ? <div data-testid="start-error"><Alert kind="error">{opener.message}</Alert></div> : null}
+      {opener.dialog}
       <PlanningToday onPick={setPick} />
       <h2>Neues Angebot</h2>
       <div className="grid gap-3 sm:grid-cols-2">

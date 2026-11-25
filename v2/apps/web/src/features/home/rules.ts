@@ -16,6 +16,19 @@ export function classifyOpen(raw: string): { kind: OpenKind; value: string } {
   return { kind: "text", value: v };
 }
 
+/** an offer number in an address (`?offer=`): ANG + digits/dashes, e.g. ANG2026-1125-101530 */
+export const OFFER_NUMBER_IN_LINK = /^ANG-?\d[\d-]{0,40}$/i;
+
+/** what the Hauptmenü's address asks to open (U-074: `?offer=<number>` from „Versionen“). Anything
+ *  malformed is ignored — the value only ever becomes an API parameter, never an address to go to. */
+export type StartTarget = { kind: "offer"; number: string };
+export function startTarget(search: string): StartTarget | null {
+  const p = new URLSearchParams(search);
+  const offer = (p.get("offer") ?? "").trim();
+  if (offer && OFFER_NUMBER_IN_LINK.test(offer)) return { kind: "offer", number: offer.toUpperCase() };
+  return null;
+}
+
 export interface Appointment {
   id?: string; name?: string; address?: string; phone?: string; email?: string; importDealId?: string | number;
   manualStartMinutes?: number; duration?: number; cancelled?: unknown; locked?: boolean; hinweise?: string;
