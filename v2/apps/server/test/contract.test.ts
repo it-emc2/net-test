@@ -671,14 +671,23 @@ describe("contract: Bitrix WRITE routes — same response AND same outgoing call
     // other field and call is the legacy one.
     const AMOUNT = ["fields[opportunity]", "fields[isManualOpportunity]", "fields[currencyId]"];
     const withoutAmount = (params: string) => { const sp = new URLSearchParams(params); for (const k of AMOUNT) sp.delete(k); return sp.toString(); };
+    // DOCUMENTED DEVIATION (U-072, owner 2026-11-25): „Gesamtbetrag AB“ / „Gesamtbetrag HnD“ carry their
+    // own Anfahrt — legacy adds the combined Anfahrt to each (counted twice); checked below, masked here
+    const GESAMTBETRAG = { ab: "fields[UF_CRM_1737644914]", hnd: "fields[UF_CRM_1738336847]" };
+    const UF = { preisAb: "fields[UF_CRM_1737557386]", preisHnd: "fields[UF_CRM_1738336465]", anfahrt: "fields[UF_CRM_1737557868]" };
+    const withoutGesamtbetrag = (params: string) => { const sp = new URLSearchParams(params); sp.delete(GESAMTBETRAG.ab); sp.delete(GESAMTBETRAG.hnd); return sp.toString(); };
     const sameAhMove = async (id: string, body: Record<string, unknown>, amount: number | null) => {
       bx.take("legacy"); bx.take("v2");
       const r = await both("POST", `/api/bitrix/deal/${id}/move-ang-verschickt`, body);
       const calls = { legacy: bx.take("legacy"), v2: bx.take("v2") };
       expect(r.v2.status).toBe(r.legacy.status);
       expect(r.v2.body).toEqual(r.legacy.body);
-      expect(calls.v2.map((c) => ({ ...c, params: withoutAmount(c.params) }))).toEqual(calls.legacy);
+      expect(calls.v2.map((c) => ({ ...c, params: withoutGesamtbetrag(withoutAmount(c.params)) }))).toEqual(calls.legacy.map((c) => ({ ...c, params: withoutGesamtbetrag(c.params) })));
       const last = new URLSearchParams(calls.v2.at(-1)!.params);
+      if (last.has(UF.anfahrt)) { // the two Gesamtbetrag fields: Leistungen of both + the Anfahrt ONCE
+        const n = (k: string) => Number(last.get(k) ?? 0);
+        expect(Math.round((n(GESAMTBETRAG.ab) + n(GESAMTBETRAG.hnd)) * 100)).toBe(Math.round((n(UF.preisAb) + n(UF.preisHnd) + n(UF.anfahrt)) * 100));
+      }
       if (amount === null) for (const k of AMOUNT) expect(last.has(k), k).toBe(false);
       else expect(AMOUNT.map((k) => last.get(k))).toEqual([String(amount), "Y", "EUR"]);
       return { ...r, calls: calls.v2 };

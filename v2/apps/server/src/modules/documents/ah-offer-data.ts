@@ -170,6 +170,9 @@ export function buildAhOfferData(body: any, h: AhDocHelpers, reading: AhZoneRead
     AhHasAb: hasAb,
     AhShowAbHinweis: gesamt > 0 && !hasAb,
     AhShowHndHinweis: gesamt > 0 && hasAb && !hasHnD,
+    // the legacy figures of the document data (golden parity, never written anywhere); what goes to
+    // Bitrix is integrations/bitrix-deal.ts ahBitrixFromPayload — its two Gesamtbetrag fields count the
+    // Anfahrt once (U-072), these still carry the combined Anfahrt in both
     AhBitrix: {
       zoneNum,
       hasHnD,
