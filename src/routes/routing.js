@@ -17,6 +17,9 @@ const ORS_API_KEY = process.env.ORS_API_KEY;
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "Kornhausacker 10, Hof";
 const COMPANY_LAT = parseFloat(process.env.COMPANY_LAT) || null;
 const COMPANY_LNG = parseFloat(process.env.COMPANY_LNG) || null;
+// AH (Alltagshilfe) trips start at the Soziale Dienste office, not the
+// Handwerk base — only used when the caller sends origin: "ah".
+const AH_COMPANY_ADDRESS = process.env.AH_COMPANY_ADDRESS || "Waldstraße 5, 95032 Hof";
 
 if (!ORS_API_KEY) {
   console.warn("[routing] Missing ORS_API_KEY in env – will use OSRM fallback");
@@ -542,12 +545,14 @@ router.post("/suggest-distance", async (req, res) => {
     if (!COMPANY_ADDRESS) {
       return res.status(500).json({ error: "COMPANY_ADDRESS missing on server." });
     }
+    const isAh = req.body?.origin === "ah";
+    const originAddress = isAh ? AH_COMPANY_ADDRESS : COMPANY_ADDRESS;
 
     const lookup = outboundDeadline.run(
       deadline,
       async () => {
-        // 1) Get coordinates for company
-        const start = await getCompanyCoords();
+        // 1) Get coordinates for company (AH: own office)
+        const start = isAh ? await geocode(originAddress) : await getCompanyCoords();
 
         // 2) Geocode customer with variant fallbacks
         const dest = await geocodeWithVariants({
@@ -586,7 +591,7 @@ router.post("/suggest-distance", async (req, res) => {
       oneWaySeconds,
       roundTripSeconds,
       from: {
-        address: COMPANY_ADDRESS,
+        address: originAddress,
         geocoded: start.displayName,
         lat: start.lat,
         lng: start.lng,
