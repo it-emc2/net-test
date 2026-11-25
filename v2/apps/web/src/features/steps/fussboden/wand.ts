@@ -22,6 +22,11 @@
 //    `wallDecorChanged` / `restGone` say what today's UI does then (with what it remembers
 //    meanwhile: `WallSession`, kept in the store's scratch as `wcSession` + `wcWwLast`)
 //  - changing the mode or switching off keeps everything that was entered
+//  - further Dekors (owner 2026-11-25, ADR 029; like "+ weiteres Dekor" of the Wandverkleidung's winwall
+//    view): the first Dekor stays in wallCladdingWwDecor / -Custom / -WwQty, every further one with plates
+//    is an entry of wallCladdingWwMore (JSON text [{decor, decorCustom, qty}], the last one removed → "").
+//    A Dekor without plates writes nothing (kept while the page is open); removing the first promotes the
+//    next; VIGOUR empties the field; the plates' proposal is for the area the other Dekors leave
 // Legacy oddities ported unchanged: the switch "Reste anrechnen" with winwall plates puts the
 // quantity of a single format into wallCladdingQty (the plates JSON stays, the price uses it);
 // with 100×205 cm as the main format it stops there (a TypeError in today's UI).
@@ -32,7 +37,7 @@ import { WW_DECORS, WW_SWATCHES } from "../wandverkleidung/decors.js";
 import { lineOf, rowsOf } from "../wandverkleidung/rules.js";
 import { rowsOf as vigourRowsOf } from "../wandverkleidung/vigour.js";
 import { setMode } from "./rules.js";
-import { paletteTiles, type PaletteTile } from "../wandverkleidung/simple.js";
+import { nextDecor, paletteTiles, type PaletteTile } from "../wandverkleidung/simple.js";
 
 type Fields = Record<string, unknown>;
 export type Supplier = "ww" | "hm";
@@ -195,7 +200,11 @@ export function bestOf(area: number): Qty {
 }
 /** the area the plates have to cover: the floor minus the rest */
 export const needOf = (dw: Fields, credit: number): number => Math.max(0, areaOf(dw) - credit);
-export const proposalOf = (dw: Fields, credit: number): Qty => bestOf(needOf(dw, credit));
+/** the first Dekor's proposal: the area the further Dekors' plates leave (one Dekor: the whole need) */
+export const proposalOf = (dw: Fields, credit: number): Qty => bestOf(Math.max(0, needOf(dw, credit) - moreM2(dw)));
+/** Dekor `i`'s proposal: the area the other Dekors' plates leave, never negative */
+export const proposalFor = (dw: Fields, credit: number, dekore: readonly Dekor[], i: number): Qty =>
+  bestOf(Math.max(0, needOf(dw, credit) - dekore.reduce((a, d, j) => (j === i ? a : a + areaOfQty(d.qty)), 0)));
 /** the plates follow the proposal unless − / + changed them. `last`: the proposal they were last set
  *  to (null = not known: a new or reopened offer — then only empty plates follow) */
 export function follow(dw: Fields, credit: number, last: Qty | null): Fields {
@@ -206,15 +215,103 @@ export function follow(dw: Fields, credit: number, last: Qty | null): Fields {
 export const stepPlate = (dw: Fields, fmt: string, d: number): Fields => { const q = qtyOf(dw); q[fmt as keyof Qty] = Math.max(0, (q[fmt as keyof Qty] || 0) + d); return qtyFields(q); };
 export interface Plate { code: string; size: string; best: string; qty: number; img: string; widthCm: number; heightCm: number }
 export interface Plates { plates: Plate[]; total: { text: string; small: string; short: boolean }; resync: boolean }
-/** the four plates as the page shows them, the total under them and whether "↻ Vorschlag" is offered */
-export function platesOf(dw: Fields, credit: number): Plates {
-  const cur = qtyOf(dw), best = proposalOf(dw, credit), img = decorOf(dw).code || "WS203";
-  const n = sum(cur), m = areaOfQty(cur), full = areaOf(dw), need = needOf(dw, credit), short = full > 0 && m + 1e-9 < need;
+/** the four plates of the open Dekor (`active`) as the page shows them, the total under them (every Dekor) and whether "↻ Vorschlag" is offered */
+export function platesOf(dw: Fields, credit: number, dekore: readonly Dekor[] = dekoreOf(dw), active = 0): Plates {
+  const i = dekore[active] ? active : 0;
+  const cur = i ? dekore[i]!.qty : qtyOf(dw), best = proposalFor(dw, credit, dekore.length ? dekore : [firstOf(dw)], i), img = (i ? codeOf(dekore[i]!) : decorOf(dw).code) || "WS203";
+  const n = dekore.reduce((a, d) => a + sum(d.qty), 0), m = dekore.reduce((a, d) => a + areaOfQty(d.qty), 0), full = areaOf(dw), need = needOf(dw, credit), short = full > 0 && m + 1e-9 < need;
   return {
     plates: WW_FORMATS.map((c) => { const f = wwFormat(c); return { code: c, size: `${f.widthCm} × ${f.heightCm} cm`, best: best[c] ? `Vorschlag: ${best[c]}` : "", qty: cur[c], img, widthCm: f.widthCm, heightCm: f.heightCm }; }),
-    total: { text: `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2(m)} m²`, small: short ? `Es fehlen ${m2(need - m)} m²` : full > 0 && n ? `Verschnitt ${m2(m - need)} m²` : full > 0 && !need ? "Reste reichen – keine Platten nötig" : "", short },
+    total: { text: `${n} ${n === 1 ? "Platte" : "Platten"} · ${m2(m)} m²${dekore.length > 1 ? ` · ${dekore.length} Dekore` : ""}`, small: short ? `Es fehlen ${m2(need - m)} m²` : full > 0 && n ? `Verschnitt ${m2(m - need)} m²` : full > 0 && !need ? "Reste reichen – keine Platten nötig" : "", short },
     resync: full > 0 && !sameQty(cur, best),
   };
+}
+
+// ---- several Dekors (wallCladdingWwMore, ADR 029) ----
+/** one winwall Dekor of the floor: what the first one keeps in its three fields */
+export interface Dekor { decor: string; decorCustom: string; qty: Qty }
+const qtyIn = (raw: unknown): Qty => ({ ...zero(), ...((winwallFloorQty(raw) as Qty | null) ?? {}) });
+const qtyJson = (q: Qty) => ({ 13: q[13] || 0, 15: q[15] || 0, 16: q[16] || 0, 17: q[17] || 0 });
+/** the further Dekors as stored (JSON text, or a list) */
+export function moreOf(dw: Fields): Dekor[] {
+  let a: unknown = dw.wallCladdingWwMore;
+  if (typeof a === "string") { try { a = a.trim() ? JSON.parse(a) : []; } catch { a = []; } }
+  return (Array.isArray(a) ? a : []).filter((r): r is Fields => !!r && typeof r === "object").map((r) => ({ decor: String(r.decor ?? ""), decorCustom: String(r.decorCustom ?? ""), qty: qtyIn(r.qty) }));
+}
+/** what is stored for the further Dekors: the JSON text, "" when there is none */
+export const moreFields = (list: readonly Dekor[]): Fields => ({ wallCladdingWwMore: list.length ? JSON.stringify(list.map((d) => ({ decor: d.decor, decorCustom: d.decorCustom, qty: qtyJson(d.qty) }))) : "" });
+const moreM2 = (dw: Fields): number => (supplierOf(dw) === "ww" ? moreOf(dw).reduce((a, d) => a + areaOfQty(d.qty), 0) : 0);
+export const firstOf = (dw: Fields): Dekor => ({ decor: String(dw.wallCladdingWwDecor ?? ""), decorCustom: String(dw.wallCladdingWwDecorCustom ?? ""), qty: qtyOf(dw) });
+/** every Dekor of the floor: the first, the stored further ones, then the ones without plates yet (`pending`, not stored) */
+export const dekoreOf = (dw: Fields, pending: readonly Dekor[] = []): Dekor[] => [firstOf(dw), ...moreOf(dw), ...pending];
+/** a Dekor in the first Dekor's field names — decorOf, customHint, pickDecor, typeDecor, stepPlate work on it */
+export const asFields = (d: Dekor): Fields => ({ wallCladdingSupplier: "ww", wallCladdingWwDecor: d.decor, wallCladdingWwDecorCustom: d.decorCustom, wallCladdingWwQty: sum(d.qty) ? JSON.stringify(qtyJson(d.qty)) : "" });
+export const codeOf = (d: Dekor): string | null => decorOf(asFields(d)).code;
+const plates = (d: Dekor) => sum(d.qty);
+/** the result of a change of the Dekors: what is stored, the Dekors without plates, the open one */
+export interface Dekore { fields: Fields; pending: Dekor[]; active: number }
+const after = (d: Dekor, change: Fields): Dekor => ({
+  decor: "wallCladdingWwDecor" in change ? String(change.wallCladdingWwDecor ?? "") : d.decor,
+  decorCustom: "wallCladdingWwDecorCustom" in change ? String(change.wallCladdingWwDecorCustom ?? "") : d.decorCustom,
+  qty: "wallCladdingWwQty" in change ? qtyIn(change.wallCladdingWwQty) : d.qty,
+});
+const sameMore = (a: readonly Dekor[], b: readonly Dekor[]) => JSON.stringify(moreFields(a)) === JSON.stringify(moreFields(b));
+/** a change of Dekor `i`, given in the first Dekor's field names (pickDecor, typeDecor, stepPlate, qtyFields).
+ *  The first Dekor: the change itself. A further one with plates is stored; without plates it is kept, not stored */
+export function editDekor(dw: Fields, pending: readonly Dekor[], active: number, i: number, change: Fields): Dekore {
+  if (i === 0) return { fields: change, pending: [...pending], active };
+  const more = moreOf(dw), next = [...more], wait = [...pending];
+  const s = i - 1, d = s < more.length ? more[s]! : wait[s - more.length];
+  if (!d) return { fields: {}, pending: wait, active };
+  const nd = after(d, change);
+  if (s < more.length) {
+    if (plates(nd)) next[s] = nd;
+    else { next.splice(s, 1); wait.unshift(nd); active = active === i ? 1 + next.length : active > i && active <= more.length ? active - 1 : active; } // no plates left: kept, after the stored ones
+  } else if (plates(nd)) { // its first plate: stored, after the stored ones
+    const to = 1 + more.length;
+    wait.splice(s - more.length, 1); next.push(nd);
+    active = active === i ? to : active >= to && active < i ? active + 1 : active;
+  }
+  else wait[s - more.length] = nd;
+  return { fields: sameMore(next, more) ? {} : moreFields(next), pending: wait, active };
+}
+/** "+ weiteres Dekor": the first palette decor no Dekor has (the Wandverkleidung's rule), without plates, opened */
+export function addDekor(dw: Fields, pending: readonly Dekor[]): Dekore {
+  const all = dekoreOf(dw, pending), code = nextDecor(all.map(codeOf).filter((c): c is string => !!c));
+  const d: Dekor = { ...(isTile(code) ? { decor: code, decorCustom: "" } : { decor: "custom", decorCustom: nice(code) }), qty: zero() };
+  return { fields: {}, pending: [...pending, d], active: all.length };
+}
+/** × on Dekor `i` (only while there are two or more): the first → the next one takes its place in the three fields */
+export function removeDekor(dw: Fields, pending: readonly Dekor[], active: number, i: number): Dekore {
+  const all = dekoreOf(dw, pending), more = moreOf(dw), wait = [...pending];
+  if (all.length < 2 || !all[i]) return { fields: {}, pending: wait, active };
+  const nextActive = active > i ? active - 1 : Math.min(active, all.length - 2);
+  if (i === 0) {
+    const d = all[1]!;
+    const first: Fields = { wallCladdingWwDecor: d.decor, wallCladdingWwDecorCustom: d.decorCustom, ...qtyFields(d.qty) };
+    if (more.length) return { fields: { ...first, ...moreFields(more.slice(1)) }, pending: wait, active: nextActive };
+    wait.shift();
+    return { fields: first, pending: wait, active: nextActive };
+  }
+  if (i - 1 < more.length) return { fields: moreFields(more.filter((_, j) => j !== i - 1)), pending: wait, active: nextActive };
+  wait.splice(i - 1 - more.length, 1);
+  return { fields: {}, pending: wait, active: nextActive };
+}
+/** the Dekor chips: "Marmor weiß · 4 Stk", × while there are two or more */
+export function chipsOf(dekore: readonly Dekor[], active: number): { name: string; text: string; pressed: boolean; removable: boolean; img: string | undefined }[] {
+  return dekore.map((d, i) => {
+    const code = codeOf(d) ?? (i === 0 && !d.decor ? "WS203" : null), name = code ? nameOf(code) : d.decorCustom.trim() || "Anderes Dekor";
+    return { name, text: `${name} · ${plates(d)} Stk`, pressed: i === active, removable: dekore.length > 1, img: swatchOf(code) || undefined };
+  });
+}
+/** further Dekors with plates but no valid Dekor-Nr.: not priced (the red line under the plates, as on the wall) */
+export function badDekore(dw: Fields): string | null {
+  if (supplierOf(dw) !== "ww") return null;
+  const bad = moreOf(dw).filter((d) => !codeOf(d) && plates(d) > 0);
+  if (!bad.length) return null;
+  const n = bad.reduce((a, d) => a + plates(d), 0);
+  const txt = [...new Set(bad.map((d) => d.decorCustom.trim()).filter(Boolean))].join(", ");
+  return `${n} ${n === 1 ? "Platte" : "Platten"} mit ungültiger Dekor-Nr.${txt ? ` (${txt})` : ""} – fehlen im Preis.`;
 }
 
 // ---- VIGOUR formats ----
@@ -258,7 +355,7 @@ export function settled(dw: Fields, change: Fields, rest: Rest | null, last?: Qt
   return out;
 }
 /** another line: format, quantity and plates belong to the line that is left */
-export const setSupplier = (dw: Fields, to: Supplier): Fields => (supplierOf(dw) === to ? {} : { wallCladdingSupplier: to, wallCladdingPanelSize: "", wallCladdingQty: "", wallCladdingWwQty: "" });
+export const setSupplier = (dw: Fields, to: Supplier): Fields => (supplierOf(dw) === to ? {} : { wallCladdingSupplier: to, wallCladdingPanelSize: "", wallCladdingQty: "", wallCladdingWwQty: "", ...(dw.wallCladdingWwMore ? { wallCladdingWwMore: "" } : {}) });
 export const pickCard = (o: Pick<Option, "size" | "qty">): Fields => ({ wallCladdingPanelSize: o.size, wallCladdingQty: String(o.qty) });
 export const setQty = (text: string): Fields => ({ wallCladdingQty: String(Number(text) || 0) });
 /** the switch "Reste anrechnen". VIGOUR: the picked format gets the quantity for the area that is left.
@@ -365,9 +462,14 @@ export function selection(dw: Fields, rest: Rest | null, full: Full | null | und
   const rows: Selected[] = [], qty = num(dw.wallCladdingQty), credit = creditOf(dw, rest), area = areaOf(dw), ww = supplierOf(dw) === "ww";
   const colour = COLORS.find((c) => c.value === colorOf(dw)), dec = decorOf(dw);
   if (ww) {
-    const code = dec.code || "WS203";
-    const lines = winwallOrderLines(code, qtyOf(dw)) as { productId: string; qty: number; format: { widthCm: number; heightCm: number } }[];
-    if (lines.length) rows.push({ name: "Aluverbundplatte", meta: `${dec.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}`, price: lines.map((l) => `${l.qty} × ${l.format.widthCm}×${l.format.heightCm} cm`).join(" · "), img: `/assets/winwall/${code}.jpg` });
+    // one row per Dekor with plates (a further Dekor without a valid number is not priced: no row)
+    dekoreOf(dw).forEach((d, i) => {
+      const dd = i ? decorOf(asFields(d)) : dec;
+      if (i && !dd.code) return;
+      const code = dd.code || "WS203";
+      const lines = winwallOrderLines(code, i ? d.qty : qtyOf(dw)) as { productId: string; qty: number; format: { widthCm: number; heightCm: number } }[];
+      if (lines.length) rows.push({ name: "Aluverbundplatte", meta: `${dd.label} · Art.-Nr. ${lines.map((l) => l.productId).join(", ")}`, price: lines.map((l) => `${l.qty} × ${l.format.widthCm}×${l.format.heightCm} cm`).join(" · "), img: `/assets/winwall/${code}.jpg` });
+    });
   } else if (!(credit > 0 && qty === 0) && full) {
     const art = articlesOf(dw)[dw.wallCladdingPanelSize === "1497" ? 1497 : 997], net = Number(full.netPrice) || 0;
     rows.push({

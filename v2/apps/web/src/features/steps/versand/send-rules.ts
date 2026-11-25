@@ -2,7 +2,8 @@
 // confirmHauptpunkte; reference: test/fixtures/versand-senden.json, v2/scripts/capture-versand-senden.cjs):
 //  - before sending: Kundendaten and markup complete, a deal number, a recipient, and for Badumbau one confirmation per main item that is not in the offer
 //    (a winwall plate counts as a panel); plus one confirmation when a winwall row has no valid decor
-//    number — those plates are missing in price and offer (main 81f73fc7, 68b454a9). Never a block.
+//    number — those plates are missing in price and offer (main 81f73fc7, 68b454a9); the same for a
+//    further Dekor of the winwall floor (wallCladdingWwMore, ADR 029). Never a block.
 //  - the documents for Bitrix are made first (DOCX of the offer, Hassmann CSV, Kalkulation, the
 //    carts and the note on online orders); a missing optional cart never stops the send, any
 //    other missing document does — no partial set goes out
@@ -12,6 +13,7 @@
 //    send is followed on the server until it is finished
 import { anyWvPanels, selectionOf, type Price } from "../angebotscheck/rules.js";
 import { isOn as curtainOn } from "../duschvorhang/rules.js";
+import { badDekore } from "../fussboden/wand.js";
 
 type Fields = Record<string, unknown>;
 const obj = (v: unknown): Fields => (v && typeof v === "object" && !Array.isArray(v) ? (v as Fields) : {});
@@ -49,10 +51,15 @@ export function invalidDecorRows(offer: Fields): MainItem[] {
     return bad ? [{ key: "wvDekorUngueltig", page: "Wandverkleidung", question: "In der Wandverkleidung gibt es Platten-Zeilen mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot." }] : [];
   } catch { return []; }
 }
-/** the main items not in this offer (Badumbau only), then the winwall rows without a valid decor (any offer, as today) */
+/** further Dekors of the winwall floor with plates but no valid decor number: priced as nothing (ADR 029) */
+export function invalidFloorDecors(offer: Fields): MainItem[] {
+  const dw = obj(offer.duschwanne);
+  return dw.addWallCladding && badDekore(dw) ? [{ key: "fbDekorUngueltig", page: "Fussboden", question: "Im Fußboden gibt es Dekore mit ungültiger Dekor-Nummer – diese Platten fehlen im Preis und im Angebot." }] : [];
+}
+/** the main items not in this offer (Badumbau only), then the winwall rows / floor Dekors without a valid decor (any offer, as today) */
 export function missingMain(offer: Fields, price: Price | null | undefined): MainItem[] {
   const main = str(offer.activeOffer).toLowerCase() !== "bu" ? [] : (() => { const env = envOf(offer, price); return MAIN.filter((m) => { try { return !m.selected(offer, env); } catch { return false; } }).map(({ selected: _s, ...m }) => m); })();
-  return [...main, ...invalidDecorRows(offer)];
+  return [...main, ...invalidDecorRows(offer), ...invalidFloorDecors(offer)];
 }
 
 // ---- the documents for Bitrix ----
