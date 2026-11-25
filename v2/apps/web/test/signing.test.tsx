@@ -8,7 +8,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SignPage } from "../src/features/signing/index.js";
-import { FIELD_NAMES, missingFields, nextOpen, progressText, tokenFromPath, errorText, fileProblem, TEXT } from "../src/features/signing/rules.js";
+import { FIELD_NAMES, missingFields, nextOpen, progressText, tokenFromPath, errorText, fileProblem, submitErrorText, TEXT } from "../src/features/signing/rules.js";
 import fx from "./fixtures/signing.json";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -24,6 +24,13 @@ const SCENARIOS = fx.scenarios as unknown as Scenario[];
 const COMPANY_TODAY = "EmC2 Inhaber Name"; // the recording's masked company line (owner's name)
 const KNOWN: Record<string, (s: Scenario) => void> = {
   // today: the server's error answer (JSON text) is put into the page as the "document"
+  // U-071: v2's server marks a failed completion with `signatureStored` (the signatures are stored
+  // first); the page says so instead of the server's technical text
+  "sz: completion fails (500)": (s) => {
+    const r = s.acts.flatMap((a) => a.requests).find((x) => x.answer.status === 500)!;
+    r.answer.body = JSON.stringify({ error: { ...JSON.parse(r.answer.body).error, signatureStored: true } });
+    s.acts[s.acts.length - 1]!.view.doc.error = TEXT.signedNotFinished;
+  },
   "document cannot be loaded": (s) => { s.view.doc = { message: TEXT.docFailed, buttons: [], error: null, editable: [], typing: [false, false], uploading: [false, false], preview: [false, false] }; },
 };
 function expected(s0: Scenario): Scenario {
@@ -100,6 +107,17 @@ function shown() {
   return v;
 }
 
+// „Kopiert!“ / „Eingefügt!“ stay on their button for 1.2 s. Whether a recorded view still carries one
+// depends on how fast the recording clicked on; on a slow machine the replay is past it (seen in CI
+// 2026-11-25: „sz: copy, clear, paste, sign“). The views are compared with the buttons at rest; the
+// short confirmation has its own test below.
+const AT_REST: Record<string, string> = { [TEXT.copied]: TEXT.copy, [TEXT.pasted]: TEXT.paste };
+function settled<T>(view: T): T {
+  const v = structuredClone(view) as any;
+  for (const b of v?.doc?.buttons ?? []) if (typeof b?.text === "string" && AT_REST[b.text]) b.text = AT_REST[b.text];
+  return v;
+}
+
 async function doAct([kind, sel, arg]: Act) {
   const all = [...document.querySelectorAll<HTMLElement>(sel)];
   const el = all[typeof arg === "number" ? arg : 0];
@@ -134,12 +152,12 @@ describe("signing page — replay of today's page", () => {
     const calls = server(s);
     render(<SignPage pathname={`/sign/${s.token}`} internal={s.rep} />);
     const strip = (rs: Req[]) => rs.map(({ method, path, body }) => ({ method, path, body }));
-    await waitFor(() => expect(shown()).toEqual(s.view));
+    await waitFor(() => expect(settled(shown())).toEqual(settled(s.view)));
     await waitFor(() => expect(calls).toEqual(strip(s.requests)));
     for (const [i, a] of s.acts.entries()) {
       const before = calls.length;
       await doAct(a.act);
-      await waitFor(() => expect(shown()).toEqual(a.view));
+      await waitFor(() => expect(settled(shown())).toEqual(settled(a.view)));
       await waitFor(() => expect(calls.slice(before)).toEqual(strip(a.requests)), { timeout: 3000 }).catch((e) => { throw new Error(`act ${i} ${JSON.stringify(a.act)}: ${e.message}`); });
     }
     // only the signing routes of this one token were asked
@@ -196,6 +214,19 @@ describe("signing page — new on purpose (U-068) and accessibility", () => {
     await waitFor(() => expect(text($("#fatal"))).toBe(TEXT.invalidLink));
     expect(f).not.toHaveBeenCalled();
   });
+  it("„Kopieren“ confirms with „Kopiert!“ and goes back to its own label", async () => {
+    server(expected(one));
+    render(<SignPage pathname={`/sign/${one.token}`} internal={false} />);
+    await waitFor(() => expect($("#copySig")).not.toBeNull());
+    await doAct(["draw", "#sigCanvas"] as unknown as Act);
+    vi.useFakeTimers();
+    try {
+      act(() => { fireEvent.click($("#copySig")!); });
+      expect($("#copySig")!.textContent).toBe(TEXT.copied);
+      act(() => { vi.advanceTimersByTime(1300); });
+      expect($("#copySig")!.textContent).toBe(TEXT.copy);
+    } finally { vi.useRealTimers(); }
+  });
   it("the document is the server's HTML; every field has a name; the page's own controls are 48 px buttons", async () => {
     server(expected(one));
     render(<SignPage pathname={`/sign/${one.token}`} internal={false} />);
@@ -217,6 +248,35 @@ describe("signing page — new on purpose (U-068) and accessibility", () => {
     for (const b of document.querySelectorAll<HTMLButtonElement>("#docContainer [data-sign-mount] button, #docNav button")) expect(b.className).toMatch(/min-h-1[24]/);
     expect($("#sigCanvas")!.getAttribute("aria-label")).toBe(TEXT.padLabel);
     expect($("#docError")!.getAttribute("role")).toBe("alert");
+  });
+  it("U-071: a failed final step never shows the server's text; 'gespeichert' only when the server says so", async () => {
+    expect(submitErrorText(500, { error: { code: "SIGNING_FAILED", message: "PDF-Erzeugung fehlgeschlagen", signatureStored: true } })).toBe(TEXT.signedNotFinished);
+    expect(submitErrorText(500, { error: { code: "SIGNING_FAILED", message: "PDF-Erzeugung fehlgeschlagen" } })).toBe(TEXT.submitServerFailed);
+    expect(submitErrorText(502, null)).toBe(TEXT.submitServerFailed);
+    expect(submitErrorText(400, { error: { code: "BAD_REQUEST", message: "Bitte wählen Sie eine Zahlungsbedingung aus" } })).toBe("Bitte wählen Sie eine Zahlungsbedingung aus");
+    expect(TEXT.signedNotFinished).toMatch(/gespeichert/);
+    expect(TEXT.submitServerFailed).not.toMatch(/gespeichert/);
+    // through the page: the recorded failing completion WITHOUT the flag (today's server) → no claim, no server text
+    const s = JSON.parse(JSON.stringify(SCENARIOS.find((x) => x.name === "sz: completion fails (500)")!)) as Scenario;
+    server(s);
+    render(<SignPage pathname={`/sign/${s.token}`} internal={false} />);
+    await waitFor(() => expect($("#submitBtn")).not.toBeNull());
+    for (const a of s.acts) await doAct(a.act);
+    await waitFor(() => expect(text($("#docError"))).toBe(TEXT.submitServerFailed));
+    expect(document.body.textContent).not.toContain("PDF-Erzeugung");
+  });
+  it("U-071: the expired page names the company from the setting (data-company), else the short name", async () => {
+    const s = SCENARIOS.find((x) => x.view?.screen === "expired")!;
+    server(expected(s));
+    render(<SignPage pathname={`/sign/${s.token}`} internal={false} company="Testfirma GmbH" />);
+    await waitFor(() => expect(text($("#expired .contact strong"))).toBe("Testfirma GmbH"));
+    cleanup();
+    server(expected(s));
+    document.body.dataset.company = "Testfirma GmbH";
+    try {
+      render(<SignPage pathname={`/sign/${s.token}`} internal={false} />);
+      await waitFor(() => expect(text($("#expired .contact strong"))).toBe("Testfirma GmbH"));
+    } finally { delete document.body.dataset.company; }
   });
   it("a document that cannot be loaded says so (today: the server's error text as the document)", async () => {
     const s = expected(SCENARIOS.find((x) => x.name === "document cannot be loaded")!);

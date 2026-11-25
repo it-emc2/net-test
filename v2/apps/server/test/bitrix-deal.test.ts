@@ -23,22 +23,42 @@ const variants = (p: any): any[] => {
   ];
 };
 
-describe("AH deal fields = legacy buildAhData().AhBitrix", () => {
+/** U-072 (owner 2026-11-25), the only deliberate difference: „Gesamtbetrag HnD“ / „Gesamtbetrag AB“ carry
+ *  their OWN Anfahrt — legacy added the combined Anfahrt to each (and so wrote „Gesamtbetrag AB“ = the
+ *  Anfahrt for an offer without AB). Every other field is legacy's; the two together are Leistungen +
+ *  the Anfahrt ONCE, and neither is above legacy's. */
+const r2 = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+function expectLegacyButAnfahrtOnce(v: unknown, id = "") {
+  const mine = ahBitrixFromPayload(v) as any;
+  const legacy = legacyBuildAhData(v).AhBitrix as any;
+  const { gesamtbetragHnD: mH, gesamtbetragAB: mA, ...mRest } = mine;
+  const { gesamtbetragHnD: lH, gesamtbetragAB: lA, ...lRest } = legacy;
+  expect(mRest, id).toEqual(lRest);
+  expect(r2(mH + mA), id).toBeCloseTo(r2(mine.gesamtpreisHnD + mine.gesamtpreisAB + mine.anfahrtGesamt), 2);
+  expect(mH, id).toBeLessThanOrEqual(lH);
+  expect(mA, id).toBeLessThanOrEqual(lA);
+  if (!mine.hasAb) expect([mH, mA], id).toEqual([lH, mine.gesamtpreisAB]); // HnD only: HnD as legacy, AB no Anfahrt
+  if (!mine.hasHnD) expect(mA, id).toBe(lA);                              // AB only: as legacy
+  return mine.hasHnD && mine.hasAb && mine.anfahrtGesamt > 0 && r2(mH + mA) !== r2(lH + lA);
+}
+
+describe("AH deal fields = legacy buildAhData().AhBitrix (U-072: the two Gesamtbetrag fields count the Anfahrt once)", () => {
   it("all 143 real payloads × 4 variants", () => {
-    let n = 0;
+    let n = 0, changed = 0;
     for (const { id, payload } of payloads) {
       for (const v of variants(payload)) {
-        expect(ahBitrixFromPayload(v), id).toEqual(legacyBuildAhData(v).AhBitrix);
+        if (expectLegacyButAnfahrtOnce(v, id)) changed++;
         n++;
       }
     }
     expect(n).toBe(572);
+    expect(changed).toBeGreaterThan(0); // offers with both services: the Anfahrt is no longer in both fields
   });
 
   it("degenerate inputs", () => {
     for (const v of [{}, { ah: {} }, { ah: { services: [{ type: "X", schedules: [{ dauer: "abc", regelmaessigkeit: "Wöchentlich" }] }] } },
       { ah: { services: [{ type: "Alltagsbegleitung", schedules: [{ dauer: "1.5", regelmaessigkeit: "Monatlich" }] }] }, Arbeitszeit: { travelTimeHHMM: "0:20" } }]) {
-      expect(ahBitrixFromPayload(v)).toEqual(legacyBuildAhData(v).AhBitrix);
+      expectLegacyButAnfahrtOnce(v);
     }
   });
 

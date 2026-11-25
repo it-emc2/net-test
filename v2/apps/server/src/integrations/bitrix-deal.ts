@@ -60,7 +60,11 @@ export interface AhBitrix {
   gesamtpreisAB: number; gesamtpreisHnD: number; gesamtbetragAB: number; gesamtbetragHnD: number;
 }
 
-/** Exactly legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts.
+/** Legacy buildAhData(body).AhBitrix — differential test: test/bitrix-deal.test.ts — except
+ *  „Gesamtbetrag HnD“ / „Gesamtbetrag AB“ (U-072, owner 2026-11-25): legacy added the COMBINED
+ *  Anfahrt of both services to each, so an offer with both counted it twice; now each carries its
+ *  own Anfahrt (HnD: every HnD visit; AB: the AB visits not shared with HnD — as the price counts
+ *  them), and HnD + AB = the offer's net. With one service nothing changes.
  *  `reading`: the zone and services reading of the offer's documents (ADR 028 addendum 2026-11-23; the caller decides). */
 export function ahBitrixFromPayload(body: any, reading: AhZoneReading = "document"): AhBitrix {
   const raw = ahDocServices(body, reading);
@@ -84,8 +88,8 @@ export function ahBitrixFromPayload(body: any, reading: AhZoneReading = "documen
     anfahrtGesamt,
     gesamtpreisAB: p.abLeistungenTotal,
     gesamtpreisHnD: p.leistungenTotal,
-    gesamtbetragAB: r2(p.abLeistungenTotal + anfahrtGesamt),
-    gesamtbetragHnD: r2(p.leistungenTotal + anfahrtGesamt),
+    gesamtbetragAB: r2(p.abLeistungenTotal + p.abAnfahrtTotal),
+    gesamtbetragHnD: r2(p.leistungenTotal + p.anfahrtTotal),
   };
 }
 
