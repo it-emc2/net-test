@@ -12,8 +12,6 @@ export const Product = model("Product", new Schema({
   manufacturer: { type: String, default: null },
   /** supplier / cleverbad article number (main@42150092, scripts/syncCleverbadArticleNumbers.mjs) */
   articleNumber: { type: String, default: null },
-  /** optional picture of the article ("/assets/…" path or URL), shown by the Duschwanne step; absent → series picture */
-  image: { type: String },
 }, { timestamps: true, collection: "Products" }));
 
 export const Service = model("Service", new Schema({

@@ -54,8 +54,8 @@ function TrayPicture({ src, size }: { src: string | null; size: { w: number; l: 
   const [failed, setFailed] = useState<string | null>(null);
   const show = src && failed !== src ? src : null;
   return (
-    <span data-part="picture" data-src={show ?? ""} className={cn("grid size-16 shrink-0 place-items-center overflow-hidden rounded", show ? "photo-plate" : "bg-muted p-1")}>
-      {show ? <img src={show} alt="" loading="lazy" decoding="async" className="size-full object-contain" onError={() => setFailed(show)} /> : <TrayOutline size={size} />}
+    <span data-part="picture" data-src={show ?? ""} className={cn("grid size-16 shrink-0 place-items-center overflow-hidden rounded", show ? "" : "bg-muted p-1")}>
+      {show ? <img src={show} alt="" loading="lazy" decoding="async" className={cn(IMG.row, "rounded object-contain")} onError={() => setFailed(show)} /> : <TrayOutline size={size} />}
     </span>
   );
 }
