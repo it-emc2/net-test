@@ -143,6 +143,30 @@ export function customItem(dw: Fields, change: Fields): Fields {
   return { ...change, quickAdd: name && price ? [{ label: name, price, qty: Math.max(1, parseInt(String(c.dwCustomQty), 10) || 1), productId: String(c.dwCustomId ?? "").trim() }] : undefined };
 }
 
+// ---- the picture of a tray (row and "Ihre Auswahl") ----
+// The catalog has no picture per article. Order:
+//  1. `image` on the Products document (path under /assets/… or a full URL) — a picture added later needs no code change
+//  2. the series picture today's UI already has: Slate (Hassmann, `SLA…`) = the Slate photo in its colour
+//     (src/public/assets/slate-color-<farbe>.jpg); Badolux (Riviera, `DW…`, source "badolux") = src/public/assets/badolux/riviera.webp
+//  3. none (or the file is missing) → a neutral outline in the tray's width : length ratio
+export const RIVIERA_IMAGE = "/assets/badolux/riviera.webp";
+export function trayImage(p: Tray | undefined, pid: unknown, line: Line, color = "Weiss"): string | null {
+  const id = String(p?.productId ?? pid ?? "");
+  if (isSlate(id) && color !== "Weiss") return colorImage(color); // the colour picked shows (no catalog picture per colour)
+  const own = typeof p?.image === "string" ? p.image.trim() : "";
+  if (own) return own;
+  if (isSlate(id)) return colorImage("Weiss");
+  const badolux = p?.source != null ? String(p.source).toLowerCase() === "badolux" : line === "standard";
+  return badolux && /^DW/i.test(id) ? RIVIERA_IMAGE : null;
+}
+/** width and length for the outline: the tray's numbers, else the stored size label ("120 x 90 x 3 cm") */
+export function trayFootprint(p: Tray | undefined, label?: unknown): { w: number; l: number } | null {
+  const w = Number(p?.widthCm), l = Number(p?.lengthCm);
+  if (w > 0 && l > 0) return { w, l };
+  const m = String(label ?? "").match(/(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)/i);
+  return m ? { w: parseDim(m[1])!, l: parseDim(m[2])! } : null;
+}
+
 // ---- "Ihre Auswahl" ----
 export const COLORS = [
   { value: "Weiss", label: "Weiß" }, { value: "Elfenbein", label: "Elfenbein" }, { value: "Steingrau", label: "Steingrau" },

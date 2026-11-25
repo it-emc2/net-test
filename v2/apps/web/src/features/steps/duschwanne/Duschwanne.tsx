@@ -1,7 +1,8 @@
 // Duschwanne (Badumbau; ADR 026, phase 4): the switch, the product line, the size with the
 // trays that fit it, the Slate colour, accessories and a free item. The stored fields are
 // exactly today's (test/duschwanne.test.tsx compares with what today's UI stores and shows
-// for the same inputs).
+// for the same inputs). Each tray row and "Ihre Auswahl" show a picture of the tray (rules.ts `trayImage`:
+// Products.image, else the series picture, else an outline to scale).
 import { useQuery } from "@tanstack/react-query";
 import { Check as Tick, Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { useOfferField, useOfferStore } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import {
   ACCESSORIES, COLORS, LINE_DEFAULTED, LINE_TEXT, accessoryText, changeSize, cheaper, chooseLine, colorImage, customItem, isSlate, lineOf, pickTray, priceText, searches,
-  stepQty, stockText, summary, switchTray, toggleAccessory, trayExtras, trayOn, trayTitle, type Line, type Tray,
+  stepQty, stockText, summary, switchTray, toggleAccessory, trayExtras, trayFootprint, trayImage, trayOn, trayTitle, type Line, type Tray,
 } from "./rules.js";
 
 const DW = "duschwanne";
@@ -38,6 +39,27 @@ function useTrays(query: string | undefined) {
   });
 }
 
+/** A neutral outline in the tray's width : length ratio (long side across) — when there is no picture. */
+function TrayOutline({ size }: { size: { w: number; l: number } | null }) {
+  const long = size ? Math.max(size.w, size.l) : 1, short = size ? Math.min(size.w, size.l) : 1;
+  const rw = 52, rh = Math.max(6, (52 * short) / long);
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden className="size-full text-muted-foreground">
+      <rect x={(64 - rw) / 2} y={(64 - rh) / 2} width={rw} height={rh} rx={2} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeWidth={2} />
+    </svg>
+  );
+}
+/** The picture of a tray; a missing file falls back to the outline (no broken-image icon). */
+function TrayPicture({ src, size }: { src: string | null; size: { w: number; l: number } | null }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const show = src && failed !== src ? src : null;
+  return (
+    <span data-part="picture" data-src={show ?? ""} className={cn("grid size-16 shrink-0 place-items-center overflow-hidden rounded", show ? "photo-plate" : "bg-muted p-1")}>
+      {show ? <img src={show} alt="" loading="lazy" decoding="async" className="size-full object-contain" onError={() => setFailed(show)} /> : <TrayOutline size={size} />}
+    </span>
+  );
+}
+
 function TrayCard({ tray, line, best, selected, pinned, onPick }: { tray: Tray; line: Line; best: boolean; selected: boolean; pinned?: boolean; onPick: () => void }) {
   const title = trayTitle(tray, line);
   const stock = stockText(tray);
@@ -46,6 +68,7 @@ function TrayCard({ tray, line, best, selected, pinned, onPick }: { tray: Tray; 
     <label data-testid="tray-card" data-id={tray.productId} data-selected={selected} data-pinned={!!pinned} title={tray.name ?? ""}
       className={cn("flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border-2 bg-card px-4 py-2", selected ? "border-primary bg-accent-weak" : "border-input")}>
       <input type="radio" name="traySuggestion" className="size-5 shrink-0 accent-[var(--primary)]" value={tray.productId} checked={selected} onChange={onPick} />
+      <TrayPicture src={trayImage(tray, tray.productId, line)} size={trayFootprint(tray)} />
       <span className="grid min-w-0 flex-1 gap-0.5">
         <span data-part="title" className={cn(selected && "font-bold")}>{title}</span>
         <span data-part="sub" className="flex flex-wrap gap-x-2 text-[0.9rem] text-muted-foreground">
@@ -166,8 +189,13 @@ function Chosen({ line, tray }: { line: Line; tray: Tray | undefined }) {
       {sum ? (
         <div className="grid gap-1 rounded-lg border-2 border-border p-3" data-testid="tray-summary">
           <p className="m-0 text-sm font-bold uppercase tracking-wide text-muted-foreground">Ihre Auswahl</p>
-          <p className="m-0"><strong>{sum.title}</strong></p>
-          <p className="m-0 text-muted-foreground">{sum.sub}</p>
+          <div className="flex items-center gap-3">
+            <TrayPicture src={trayImage(tray, chosen, line, color)} size={trayFootprint(tray, dw.traySize)} />
+            <div className="grid min-w-0 gap-0.5">
+              <p className="m-0"><strong>{sum.title}</strong></p>
+              <p className="m-0 text-muted-foreground">{sum.sub}</p>
+            </div>
+          </div>
           {sum.items.length ? <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">{sum.items.map((i) => <li key={i}>{i}</li>)}</ul> : null}
         </div>
       ) : null}
@@ -227,7 +255,6 @@ function FreeItem() {
   );
 }
 
-const REFS = ["07", "27", "28"];
 export function Duschwanne() {
   const dw = useOfferStore((s) => (s.offer as Record<string, any> | null)?.duschwanne as Fields | undefined) ?? {};
   const on = trayOn(dw);
@@ -270,17 +297,6 @@ export function Duschwanne() {
           <Search line={line} />
           <Accessories line={line} />
           <FreeItem />
-          <div className="grid gap-2">
-            <p className="m-0 text-sm font-bold uppercase tracking-wide text-muted-foreground">Aus unseren Kundenbädern</p>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {REFS.map((n) => (
-                <a key={n} href={`/assets/kunden/${n}-nachher.jpg`} target="_blank" rel="noreferrer" aria-label="Vorher / Nachher groß anzeigen" className="grid grid-cols-2 gap-1 overflow-hidden rounded-lg border-2 border-border">
-                  <img src={`/assets/kunden/${n}-vorher.jpg`} alt="Vorher: Badewanne" loading="lazy" className="aspect-square w-full object-cover" />
-                  <img src={`/assets/kunden/${n}-nachher.jpg`} alt="Nachher: Dusche" loading="lazy" className="aspect-square w-full object-cover" />
-                </a>
-              ))}
-            </div>
-          </div>
         </>
       ) : null}
     </Card>

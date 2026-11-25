@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { arbeitenChanges, chooseKind, toggleTask } from "../src/features/steps/arbeiten/rules.js";
-import { cheaper, parseDim, searches, shortTrayName, stockText, trayOn } from "../src/features/steps/duschwanne/rules.js";
+import { RIVIERA_IMAGE, cheaper, parseDim, searches, shortTrayName, stockText, trayFootprint, trayImage, trayOn } from "../src/features/steps/duschwanne/rules.js";
 import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
 import reference from "./fixtures/duschwanne.json" with { type: "json" };
 import { BASE, fakeServer, renderApp, type Reply } from "./helpers.js";
@@ -125,6 +125,29 @@ describe("Duschwanne — rules", () => {
     const premium = { productId: "SLA12090", price: 368.55, widthCm: 120, lengthCm: 90 };
     expect(cheaper(premium, [{ productId: "DW015", price: 138.8, widthCm: 90, lengthCm: 120, heightCm: 2.6 }])?.tray.productId).toBe("DW015"); // same size, the other way round
     expect(cheaper(premium, [{ productId: "DW9", price: 400, widthCm: 90, lengthCm: 120 }])).toBeNull();
+  });
+
+  it("the picture of a tray: catalog picture, else the series picture, else an outline to scale", () => {
+    const slate = { productId: "SLA12090", source: "hassmann", widthCm: 120, lengthCm: 90 };
+    const badolux = { productId: "DW015", source: "badolux", widthCm: 90, lengthCm: 120 };
+    expect([trayImage(slate, "", "premium"), trayImage(slate, "", "premium", "Beton"), trayImage(badolux, "", "standard")]).toEqual(["/assets/slate-color-weiss.jpg", "/assets/slate-color-beton.jpg", RIVIERA_IMAGE]);
+    expect(trayImage({ ...badolux, image: "/assets/duschwanne/DW015.jpg" }, "", "standard")).toBe("/assets/duschwanne/DW015.jpg");
+    expect([trayImage(undefined, "DW015", "standard"), trayImage(undefined, "SLA100", "premium", "Schwarz"), trayImage({ productId: "DW9", source: "hassmann" }, "", "premium")]).toEqual([RIVIERA_IMAGE, "/assets/slate-color-schwarz.jpg", null]);
+    expect([trayFootprint(badolux), trayFootprint(undefined, "120 x 90 x 3 cm"), trayFootprint(undefined, "")]).toEqual([{ w: 90, l: 120 }, { w: 120, l: 90 }, null]);
+  });
+
+  it("every tray row and the summary show a picture; a missing file falls back to the outline", async () => {
+    await open();
+    await play([["on"], ["dims", "90", "120"]]);
+    const cards = screen.getAllByTestId("tray-card");
+    expect(cards.length).toBeGreaterThan(0);
+    for (const c of cards) expect(c.querySelector('[data-part="picture"] img')?.getAttribute("src")).toBe(RIVIERA_IMAGE);
+    await play([["pick", 1]]);
+    const pic = screen.getByTestId("tray-summary").querySelector('[data-part="picture"]')!;
+    fireEvent.error(pic.querySelector("img")!);
+    await waitFor(() => expect(pic.querySelector("img")).toBeNull());
+    expect(pic.querySelector("svg rect")).not.toBeNull();
+    expect(screen.queryByText("Aus unseren Kundenbädern")).toBeNull();
   });
 
   it("picking a tray is ONE change of the offer", async () => {

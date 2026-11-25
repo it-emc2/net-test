@@ -408,6 +408,10 @@ export const TraySchema = z.looseObject({
   productId: z.string(), name: z.string().nullish(), price: z.number().nullish(),
   widthCm: z.number().nullish(), lengthCm: z.number().nullish(), heightCm: z.number().nullish(),
   articleNumber: z.string().nullish(), stockQuantity: z.number().nullish(), stockSymbol: z.number().nullish(), stockText: z.string().nullish(),
+  /** manufacturer key of the catalog ("badolux", "hassmann") */
+  source: z.string().nullish(),
+  /** optional picture of the article (Products.image: "/assets/…" or a URL); absent → the series picture */
+  image: z.string().nullish(),
 });
 export type Tray = z.infer<typeof TraySchema>;
 export const TraySuggestResponseSchema = z.looseObject({ results: z.array(TraySchema) });
