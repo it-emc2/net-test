@@ -20,6 +20,7 @@ import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
 import * as pv from "./panels.js";
 import { Button, Card, CardTitle, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { useQuery } from "@tanstack/react-query";
@@ -385,7 +386,7 @@ function Accessories({ label, area, cut }: { label: string; area: number; cut: b
           small={<>{seal.hint}{manual ? <> <button type="button" className="min-h-11 cursor-pointer border-0 bg-transparent p-0 text-primary-text underline" onClick={(e) => { e.preventDefault(); renewSealHint(); write({ wvWwSealingQty: "" }); }}>Automatisch</button></> : null}</>}
           check={{ checked: !!wv.wvWwSealing, onChange: (e) => write({ wvWwSealing: e.target.checked ? "on" : undefined }) }}
           stepper={<Stepper label="Menge Abdichtungsset (leer = nach Wandfläche)" value={String(wv.wvWwSealingQty ?? "")} placeholder={String(seal.auto)} onChange={(t) => { renewSealHint(); write({ wvWwSealingQty: t }); }} />} />
-        {cut ? <AccCard testId="wv-acc-cut" on={!!wv.wvWwCut} icon={<Scissors />} caption="Zuschnitt durch winwall" small="10 € je Platte, gerade Schnitte · aus: wir schneiden selbst"
+        {cut ? <AccCard testId="wv-acc-cut" on={!!wv.wvWwCut} icon={<Scissors />} caption="Zuschnitt durch winwall" small={<><Internal>10 € je Platte, </Internal>gerade Schnitte · aus: wir schneiden selbst</>}
           check={{ checked: !!wv.wvWwCut, onChange: (e) => write({ wvWwCut: e.target.checked ? "on" : undefined }) }} /> : null}
       </AccGrid>
     </fieldset>
@@ -444,7 +445,7 @@ function KeramicoSonder({ testId, name, onName }: { testId: string; name: string
   return (
     <div className="grid gap-1.5 rounded-lg border-2 border-border p-3" data-testid={testId}>
       <b>Sonder-Dekor bei CleverBad aussuchen</b>
-      <p className="m-0 text-[0.95rem] text-muted-foreground">Motiv im Shop ansehen und den Namen hier eintragen. Preis je Paneel: <b>{bx.SONDER_PRICE.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €</b> (fest, ohne Rabatt).</p>
+      <p className="m-0 text-[0.95rem] text-muted-foreground">Motiv im Shop ansehen und den Namen hier eintragen.<Internal> Preis je Paneel: <b>{bx.SONDER_PRICE.toLocaleString("de-DE", { minimumFractionDigits: 2 })} €</b> (fest, ohne Rabatt).</Internal></p>
       <a href={bx.SHOP_URL} target="_blank" rel="noopener noreferrer" className="flex min-h-12 items-center">Wandpaneele bei CleverBad öffnen ↗</a>
       <label htmlFor="bx-motif" className="font-semibold">Motiv / Name</label>
       <div className="max-w-xs"><Input id="bx-motif" placeholder="z. B. Octopus Flow" autoComplete="off" value={name === bx.SONDER_NAME ? "" : name} onChange={(e) => onName(e.target.value)} /></div>

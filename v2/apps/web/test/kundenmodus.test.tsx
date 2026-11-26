@@ -1,6 +1,6 @@
 // Kundenmodus (quick win C7, owner 2026-11-26): one switch in the header hides everything internal
 // while the customer watches. Display only: the offer, its prices and every request stay the same.
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
@@ -9,8 +9,10 @@ import { summary } from "../src/features/steps/duschwanne/rules.js";
 import { cardsOf, PREVIEWS } from "../src/features/steps/versand/documents.js";
 import { CUSTOMER_MODE_KEY, readCustomerMode, setCustomerMode, useCustomerModeStore } from "../src/shared/lib/customer-mode.js";
 import { END_LABEL, HIDDEN_TEXT, Internal } from "../src/shared/ui/internal.js";
+import arbeiten from "./fixtures/arbeiten.json" with { type: "json" };
+import duschwanne from "./fixtures/duschwanne.json" with { type: "json" };
 import kosten from "./fixtures/kosten.json" with { type: "json" };
-import { BASE, fakeServer, openMore, renderApp } from "./helpers.js";
+import { BASE, fakeServer, openMore, renderApp, toClassic, type Reply } from "./helpers.js";
 
 const KEY = "t-0123456789abcdef01234567";
 const PRICE = kosten.scenarios[0]!.price as Record<string, unknown>;
@@ -212,5 +214,56 @@ describe("other internal details", () => {
     const s = summary({ chosenTrayProductId: "X1" }, { productId: "X1", articleNumber: "X1", price: 199, name: "Wanne" } as never, "standard");
     expect(s?.sub).toBe("Badolux · extraflach · Art.-Nr. X1");
     expect(s?.price).toMatch(/^199,00\s€$/);
+  });
+});
+
+describe("price hints in the steps (on-mode)", () => {
+  const CONFIG = { "GET /admin/api/config/public": { body: arbeiten.config } };
+  it("Arbeiten · Aluprofil: the hours stay, the money goes", async () => {
+    fakeServer({ ...BASE, ...CONFIG });
+    renderApp(`/deal/${KEY}/bu/Arbeiten`);
+    await screen.findByRole("heading", { name: "Auszuführende Arbeiten" });
+    await userEvent.click(screen.getByRole("button", { name: "Weitere Stelle", hidden: true }));
+    const extra = () => document.querySelector('[data-part="extra"]')!;
+    const hint = () => screen.getByText(/Je Position pauschal/);
+    expect(extra().textContent).toBe("+50,00 € · +2 Std");
+    expect(hint().textContent).toMatch(/50 € Material \+ 2 Std Arbeitszeit\.$/);
+    act(() => setCustomerMode(true));
+    expect(extra().textContent).toBe("+2 Std");
+    expect(hint().textContent).toMatch(/Je Position pauschal 2 Std Arbeitszeit\.$/);
+    expect(hint().textContent).not.toMatch(/€/);
+  });
+  it("Wandverkleidung · winwall accessory „Zuschnitt“: the price per plate goes, the rest stays", async () => {
+    fakeServer({ ...BASE, ...CONFIG });
+    renderApp(`/deal/${KEY}/bu/Wandverkleidung`);
+    await screen.findByRole("heading", { name: "Wandverkleidung" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("switch", { name: "Wandverkleidung" }));
+    await toClassic(user);
+    await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Dekor und Format)" }));
+    const small = () => screen.getByTestId("wv-acc-cut").querySelector('[data-part="small"]')!.textContent;
+    expect(small()).toBe("10 € je Platte, gerade Schnitte · aus: wir schneiden selbst");
+    act(() => setCustomerMode(true));
+    expect(small()).toBe("gerade Schnitte · aus: wir schneiden selbst");
+  });
+  it("Duschwanne: the catalogue price leaves the cards and „Ihre Auswahl“; the cards stay", async () => {
+    const SEARCHES: Record<string, Reply> = Object.fromEntries(Object.entries(duschwanne.searches).map(([q, results]) => [`GET /api/trays/suggest?${q}`, { body: { results } }]));
+    fakeServer({ ...BASE, ...CONFIG, ...SEARCHES });
+    renderApp(`/deal/${KEY}/bu/Duschwanne`);
+    await screen.findByRole("heading", { name: "Duschwanne" });
+    await userEvent.click(screen.getByRole("switch", { name: "Duschwanne" }));
+    fireEvent.change(screen.getByLabelText("Breite in cm"), { target: { value: "90" } });
+    fireEvent.change(screen.getByLabelText("Länge in cm"), { target: { value: "120" } });
+    await waitFor(() => expect(screen.getAllByTestId("tray-card").length).toBeGreaterThan(0));
+    await userEvent.click(screen.getAllByTestId("tray-card")[0]!.querySelector("input")!);
+    const prices = () => document.querySelectorAll('[data-testid="tray-card"] [data-part="price"]').length;
+    await waitFor(() => expect(screen.getByTestId("tray-summary")).toHaveTextContent("€"));
+    expect(prices()).toBeGreaterThan(0);
+    const cards = screen.getAllByTestId("tray-card").length;
+    act(() => setCustomerMode(true));
+    expect(prices()).toBe(0);
+    expect(screen.getAllByTestId("tray-card")).toHaveLength(cards);
+    expect(screen.getByTestId("tray-summary")).not.toHaveTextContent("€");
+    expect(screen.getByTestId("tray-summary")).toHaveTextContent("Art.-Nr.");
   });
 });
