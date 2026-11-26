@@ -19,7 +19,7 @@
 // one create, ONE batch for the two timeline notes (their failure does not fail the creation).
 import mongoose from "mongoose";
 import { ERROR_AREAS, ERROR_CODES, FIRST_VARIANT_ID, type ErrorCode, type SecondOfferResponse } from "@oc/api-contract";
-import { applyChanges, dealNumberTop, emptyOffer, isSecondOfferType, newOfferPatch, restoreChanges, type SecondOfferType } from "@oc/domain";
+import { isSecondOfferType, offerWithCustomerData, type SecondOfferType } from "@oc/domain";
 import type { SecondOfferSettings } from "@oc/config";
 import type { FastifyRequest } from "fastify";
 import { BitrixError } from "../../integrations/bitrix.js";
@@ -101,11 +101,22 @@ export function newDealOf(s: SecondOfferSettings, a: { offerType: SecondOfferTyp
  * new offer, and the new deal number in all three places an offer carries it.
  */
 export function secondOfferPayload(a: { offerType: SecondOfferType; sourceKundendaten: Record<string, unknown>; newDealId: string; today: string; contact?: Record<string, unknown>; pricingRules?: Record<string, unknown> | undefined }) {
-  let o = emptyOffer(a.offerType, { date: a.today, ...(a.pricingRules ? { pricingRules: a.pricingRules } : {}) }) as Record<string, any>;
-  o = applyChanges(o, restoreChanges(o, structuredClone(a.sourceKundendaten), a.offerType));
-  // date and contact person as for any new offer (the Kundendaten part of newOfferPatch; a new offer is not sent anyway)
-  o = applyChanges(o, { Kundendaten: newOfferPatch(a.today, a.contact ?? {}).Kundendaten });
-  return { ...o, ...dealNumberTop(o, a.newDealId) } as Record<string, unknown>;
+  // the one rule shared with „Angebotsart wechseln“ (ADR 030): @oc/domain offerWithCustomerData
+  const { newDealId, ...rest } = a;
+  return offerWithCustomerData({ ...rest, dealId: newDealId });
+}
+
+/** the contact person of a new offer: the signed-in user by the server rule (also „Angebotsart wechseln“); failing → as copied */
+export async function contactFieldsOf(
+  resolve: SecondOfferDeps["resolveContact"], kd: Record<string, unknown>, user: { email?: string } | undefined,
+): Promise<Record<string, unknown>> {
+  if (!resolve) return {};
+  try {
+    const r = await resolve(kd, user);
+    const contact: Record<string, unknown> = { ansprechpartner: r.ansprechpartner, emc2_contact: r.emc2_contact };
+    for (const k of Object.keys(contact)) if (contact[k] === undefined) delete contact[k];
+    return contact;
+  } catch { return {}; }
 }
 
 /** what kind of failure a create call ended with: definite (nothing created) or unknown */
@@ -297,14 +308,7 @@ export function secondOffer(deps: SecondOfferDeps) {
         // the source as it is now — also a variant deleted in the meantime (its data is kept)
         const src: any = await DealDraft.findOne(variantFilter(claim.sourceDealId, claim.sourceVariantId)).lean();
         const kd = (src?.payload?.Kundendaten ?? {}) as Record<string, unknown>;
-        let contact: Record<string, unknown> = {};
-        if (deps.resolveContact) {
-          try {
-            const r = await deps.resolveContact(kd, input.user);
-            contact = { ansprechpartner: r.ansprechpartner, emc2_contact: r.emc2_contact };
-            for (const k of Object.keys(contact)) if (contact[k] === undefined) delete contact[k];
-          } catch { /* the contact person stays as copied */ }
-        }
+        const contact = await contactFieldsOf(deps.resolveContact, kd, input.user);
         const payload = secondOfferPayload({ offerType, sourceKundendaten: kd, newDealId: newDeal, today: berlinToday(), contact, pricingRules: deps.pricingRules?.() });
         const res = await saveDealDraft({
           dealId: newDeal, variantId: FIRST_VARIANT_ID, offerType, payload, baseRevision: 0, by: input.by, kind: "import",

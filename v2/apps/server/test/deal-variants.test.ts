@@ -162,7 +162,7 @@ describe("variants", () => {
     }
   });
 
-  it("all variants have the same offer type", async () => {
+  it("a variant keeps its offer type while the deal has several (ADR 030; mixed types: type-switch.test.ts)", async () => {
     const a = (await variants("6002")).variants[0];
     const r = await put("6002", { offerType: "ah", payload: {}, baseRevision: a.revision }, "v1");
     expect([r.statusCode, r.json().error.code]).toEqual([409, "VARIANT_TYPE_MISMATCH"]);

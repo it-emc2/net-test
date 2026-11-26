@@ -13,10 +13,10 @@ import { euro } from "../../shared/lib/format.js";
 import { Alert, Button, Field, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { useOfferStore } from "./model/store.js";
-import { TEXT as SECOND } from "./model/second-offer.js";
+import { TEXT as SECOND, typeTitle } from "./model/second-offer.js";
 import { RelatedSection, SecondOfferHost, useRelatedCount } from "./SecondOffer.js";
 import { createVariant, deleteVariant, openAsRow, renameVariant, saveOpen, useVariants, useVariantsFollowSends, variantsKey } from "./model/useVariants.js";
-import { TEXT, nextVariantName, statusText, variantError, variantSearch } from "./model/variants.js";
+import { TEXT, nextVariantName, statusText, typesOf, variantError, variantHref } from "./model/variants.js";
 
 type Mode = { kind: "list" } | { kind: "create" } | { kind: "rename"; id: string } | { kind: "delete"; id: string };
 interface PanelState { mode: Mode | null; set: (mode: Mode | null) => void }
@@ -103,14 +103,16 @@ function List() {
   const set = usePanel((p) => p.set);
   const go = useGoTo();
   const [busy, setBusy] = useState("");
-  const pick = async (id: string) => {
+  const mixed = typesOf(rows).length > 1; // ADR 030: the variants differ in type — each row names its type
+  const pick = async (v: DealVariant) => {
+    const id = v.variantId;
     if (id === current) { set(null); return; }
     if (busy) return;
     setBusy(id);
     const problem = await saveOpen(); // never lose input: the open variant is saved first
     setBusy("");
     if (problem) { toast.error(TEXT.notSaved, { description: problem }); return; }
-    go(id); // navigate while this panel is still mounted (an unmounted component's navigate is ignored), then close
+    go(v); // navigate while this panel is still mounted (an unmounted component's navigate is ignored), then close
     set(null);
   };
   return (
@@ -122,11 +124,12 @@ function List() {
           return (
             <li key={v.variantId} data-testid="variant-row" data-variant={v.variantId} data-status={v.status} className={cn("flex items-stretch gap-1 rounded-xl border", on ? "border-accent bg-accent-weak" : "border-border")}>
               <button
-                type="button" aria-current={on ? "true" : undefined} disabled={!!busy} onClick={() => void pick(v.variantId)}
+                type="button" aria-current={on ? "true" : undefined} disabled={!!busy} onClick={() => void pick(v)}
                 className="grid min-h-14 min-w-0 flex-1 cursor-pointer content-center gap-0.5 rounded-xl border-0 bg-transparent px-3 py-2 text-left text-foreground disabled:opacity-60"
               >
                 <span className="flex min-w-0 items-center gap-2"><strong className="truncate" data-part="name">{v.name}</strong>{on ? <span className="shrink-0 text-[0.8rem] text-muted-foreground">({TEXT.open})</span> : null}</span>
                 <span className="flex flex-wrap gap-x-3 text-[0.9rem] text-muted-foreground">
+                  {mixed ? <span data-part="type" className="font-semibold text-foreground">{typeTitle(v.offerType)}</span> : null}
                   <span data-part="status" className={cn(v.status === "signed" && "font-semibold text-[#15803d]", v.status === "not-chosen" && "font-semibold text-[#b45309]")}>{busy === v.variantId ? "Wird geöffnet …" : statusText(v)}</span>
                   {typeof v.total === "number" ? <span data-part="total">{euro(v.total)}</span> : null}
                   {v.offerNumber ? <span data-part="number">{v.offerNumber}</span> : null}
@@ -145,11 +148,11 @@ function List() {
   );
 }
 
-/** opens a variant on the same step */
+/** opens a variant: on the same step when it is of the open type, else on its own type (ADR 030: a deal's variants may differ in type) */
 function useGoTo() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  return (id: string, replace = false) => navigate(`${pathname}${variantSearch(id)}`, { replace });
+  return (v: Pick<DealVariant, "variantId" | "offerType">, replace = false) => navigate(variantHref(pathname, v), { replace });
 }
 
 function NameForm({ initial, submit, label, busyLabel, onDone }: { initial: string; submit: (name: string) => Promise<void>; label: string; busyLabel: string; onDone?: () => void }) {
@@ -192,7 +195,7 @@ function CreateForm() {
           const dealId = useOfferStore.getState().dealId;
           qc.setQueryData<DealVariantsResponse>(variantsKey(dealId), (d) => (d ? { ...d, variants: [...d.variants.filter((x) => x.variantId !== v.variantId), v] } : d)); // in the list at once
           void qc.invalidateQueries({ queryKey: variantsKey(dealId) });
-          go(v.variantId);
+          go(v);
           set(null);
           toast.success(TEXT.created, { description: v.name });
         }}
@@ -233,7 +236,7 @@ function DeleteAsk({ id }: { id: string }) {
       qc.setQueryData<DealVariantsResponse>(variantsKey(dealId), (d) => (d ? { ...d, variants: d.variants.filter((x) => x.variantId !== id) } : d));
       void qc.invalidateQueries({ queryKey: variantsKey(dealId) });
       toast.success(TEXT.deleted, { description: v.name });
-      if (next) { go(next, true); set(null); } else set({ kind: "list" });
+      if (next) { go(rows.find((r) => r.variantId === next) ?? { variantId: next, offerType: "" }, true); set(null); } else set({ kind: "list" });
     } catch (err) { setError(variantError(err)); }
     finally { setBusy(false); }
   };

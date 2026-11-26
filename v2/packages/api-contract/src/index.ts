@@ -45,7 +45,7 @@ export const ERROR_CODES = {
   VARIANT_LAST: "VARIANT_LAST",
   /** variants: the name is empty or longer than 60 characters */
   VARIANT_NAME_INVALID: "VARIANT_NAME_INVALID",
-  /** variants: all variants of a deal have the same offer type; a save with another one is refused */
+  /** variants: a save (or restore / import) would change the offer type of a variant while the deal has several variants (ADR 030: a variant keeps its type; another type is „Angebotsart wechseln“) */
   VARIANT_TYPE_MISMATCH: "VARIANT_TYPE_MISMATCH",
   /** variants: creating a variant failed (e.g. migration 005 has not run: the old one-draft-per-deal index is still there) */
   VARIANT_CREATE_FAILED: "VARIANT_CREATE_FAILED",
@@ -87,6 +87,18 @@ export const ERROR_CODES = {
   SECOND_OFFER_ID_MISMATCH: "SECOND_OFFER_ID_MISMATCH",
   /** second offer: the timeline notes (one batch) failed — the creation itself succeeded (warn) */
   SECOND_OFFER_COMMENT_FAILED: "SECOND_OFFER_COMMENT_FAILED",
+  /** type switch (ADR 030): the target type is the type of the source variant — that is a variant */
+  TYPE_SWITCH_SAME_TYPE: "TYPE_SWITCH_SAME_TYPE",
+  /** type switch: the target type is not one of SECOND_OFFER_TYPES */
+  TYPE_SWITCH_TYPE_INVALID: "TYPE_SWITCH_TYPE_INVALID",
+  /** type switch: the offer has no deal number yet (temporary key) */
+  TYPE_SWITCH_TEMP_DEAL: "TYPE_SWITCH_TEMP_DEAL",
+  /** type switch: the deal (or the given variant) has no draft to copy the customer from */
+  TYPE_SWITCH_SOURCE_MISSING: "TYPE_SWITCH_SOURCE_MISSING",
+  /** type switch: an offer of the deal is signed — its other variants are "not chosen"; refused (409) */
+  TYPE_SWITCH_SIGNED: "TYPE_SWITCH_SIGNED",
+  /** type switch: the creation id was used before on this deal for another type or source */
+  TYPE_SWITCH_ID_MISMATCH: "TYPE_SWITCH_ID_MISMATCH",
   /** Hauptmenü „Öffnen“: the search in the stored drafts and offers failed */
   OFFER_SEARCH_FAILED: "OFFER_SEARCH_FAILED",
   /** „Versionen“ (U-074): restoring a version that carries an older offer number that was already sent is refused (409, `offerNumber` in the answer) */
@@ -94,7 +106,7 @@ export const ERROR_CODES = {
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
-export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion", secondOffer: "deals.second-offer", homeSearch: "home.search" } as const;
+export const ERROR_AREAS = { kundendatenBitrixLoad: "kundendaten.bitrix-load", kundendatenCustomerSearch: "kundendaten.customer-search", dealVariants: "deal-drafts.variants", signingCompletion: "signing.completion", secondOffer: "deals.second-offer", typeSwitch: "deal-drafts.type-switch", homeSearch: "home.search" } as const;
 export type ErrorArea = (typeof ERROR_AREAS)[keyof typeof ERROR_AREAS];
 
 // ---------- the customer of a Bitrix deal (Kundendaten) ----------
@@ -302,6 +314,32 @@ export const SecondOfferResponseSchema = z.object({
   repeated: z.boolean(),
 });
 export type SecondOfferResponse = z.infer<typeof SecondOfferResponseSchema>;
+// ---------- „Angebotsart wechseln“: another offer type on the SAME deal (ADR 030) ----------
+// A new variant of the deal with the target type and the customer data copied (the rule of
+// „Weiteres Angebot“: @oc/domain offerWithCustomerData). No Bitrix call. The source stays as it is.
+// Exactly once per `creationId`: the new variant's id is derived from (deal, creationId), so a
+// repeat finds it instead of making a second one.
+export const TypeSwitchRequestSchema = z.object({
+  offerType: z.string(),
+  creationId: z.string().regex(CREATION_ID_RE),
+  /** the source variant (default: the variant opened last) */
+  variantId: z.string().regex(VARIANT_ID_RE).optional(),
+});
+export type TypeSwitchRequest = z.infer<typeof TypeSwitchRequestSchema>;
+export const TypeSwitchResponseSchema = z.object({
+  ok: z.literal(true),
+  creationId: z.string(),
+  dealId: z.string(),
+  sourceVariantId: z.string(),
+  /** the new variant */
+  variantId: z.string(),
+  variantName: z.string(),
+  offerType: z.string(),
+  revision: z.number().int(),
+  /** true: the variant was made by an earlier request with the same creationId */
+  repeated: z.boolean(),
+});
+export type TypeSwitchResponse = z.infer<typeof TypeSwitchResponseSchema>;
 /** one relation, stored on both drafts (outside the payload); symmetric, not transitive */
 export const DealRelationSchema = z.object({
   dealId: z.string(),
@@ -496,6 +534,7 @@ export const endpoints = {
   deleteDealVariant: { method: "DELETE", path: "/api/deals/:dealId/variants/:variantId", response: DeleteVariantResponseSchema },
   /** a second offer type for the same customer (ADR 027 B): a NEW Bitrix deal + its draft with the customer data; exactly once per creationId */
   createSecondOffer: { method: "POST", path: "/api/deals/:dealId/second-offer", request: SecondOfferRequestSchema, response: SecondOfferResponseSchema },
+  switchOfferType: { method: "POST", path: "/api/deals/:dealId/type-switch", request: TypeSwitchRequestSchema, response: TypeSwitchResponseSchema },
   /** the other deals of the same customer made with „Weiteres Angebot“, with their status */
   dealRelated: { method: "GET", path: "/api/deals/:dealId/related", response: DealRelatedResponseSchema },
   /** the state of one send (ADR 023): status running | done | failed, and the answer of a finished send */

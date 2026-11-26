@@ -11,7 +11,7 @@ import { ApiFailure, call } from "../../../shared/api/index.js";
 import { todayIso } from "../../../shared/lib/format.js";
 import { usePrefs } from "../../../shared/lib/prefs.js";
 import { useOfferStore, type OpenVariant } from "./store.js";
-import { snapshotKey, variantQuery } from "./variants.js";
+import { snapshotKey, variantOfType, variantQuery } from "./variants.js";
 
 export const AUTOSAVE_MS = 2500;
 
@@ -44,8 +44,12 @@ export type OpenState =
   | { status: "ready" }
   /** the asked variant is gone: another one was opened → the address should name it */
   | { status: "moved"; variantId: string }
-  /** the draft of this deal is an offer of another type → the address should follow it */
-  | { status: "other-type"; type: NewOfferType }
+  /** the draft of this deal is an offer of another type → the address should follow it
+   *  (`explicit`: the address named that variant — it is of another type, nothing to say) */
+  | { status: "other-type"; type: NewOfferType; explicit?: boolean }
+  /** ADR 030: an address without a variant, the variant opened last is of another type, but the deal
+   *  has a variant of the address's type → that one opens (the address names it) */
+  | { status: "of-type"; variantId: string }
   | { status: "error"; message: string };
 
 /** What the Hauptmenü hands to the offer it is about to start (an appointment of the planning): one
@@ -83,7 +87,16 @@ export function useOpenOffer(dealId: string, type: NewOfferType, variant?: strin
     const get = (asked: string | undefined) => call("dealDraft", { params: { dealId }, signal: ctl.signal, ...(asked ? { query: `variant=${encodeURIComponent(asked)}` } : {}) });
     const loaded = (d: Awaited<ReturnType<typeof get>>, asked: string | undefined) => {
       if (!isNewOfferType(d.offerType)) return say({ status: "error", message: "Dieser Entwurf hat eine Angebotsart, die hier nicht bearbeitet werden kann." });
-      if (d.offerType !== type) return say({ status: "other-type", type: d.offerType });
+      if (d.offerType !== type) {
+        const other = d.offerType;
+        if (asked) return say({ status: "other-type", type: other, explicit: true });
+        // the variants of a deal may differ in type (ADR 030): a variant of the asked type opens instead
+        call("dealVariants", { params: { dealId }, signal: ctl.signal }).then((r) => {
+          const v = variantOfType(r.variants, type);
+          say(v ? { status: "of-type", variantId: v.variantId } : { status: "other-type", type: other });
+        }, (err: unknown) => { if ((err as Error)?.name !== "AbortError") say({ status: "other-type", type: other }); });
+        return;
+      }
       pendingStart = null; // an existing draft is never overwritten by an appointment
       const v: OpenVariant = { id: d.variantId ?? asked ?? FIRST_VARIANT_ID, name: d.variantName, known: !!(d.variantId || asked) };
       if (!applySnapshot(dealId, v, type, d.revision)) useOfferStore.getState().load(d.payload as unknown as Offer, dealId, d.revision, v);

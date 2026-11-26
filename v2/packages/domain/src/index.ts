@@ -3,3 +3,4 @@ export * from "./payload.js";
 export * from "./offer.js";
 export * from "./new-offer.js";
 export * from "./customer-data.js";
+export * from "./customer-copy.js";

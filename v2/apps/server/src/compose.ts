@@ -120,6 +120,8 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
     ahAmountOf: (payload, reading) => ahTotalsOfPayload(payload, undefined, reading).customerAmount,
     // a new variant is the signed-in user's document, like "Neue Version" (ADR 027 A)
     resolveContact: (kd, user) => resolveAnsprechpartner({ ...kd, ansprechpartner: user?.email ?? "" }, user, cfg.AP_DEFAULT_EMAIL ?? ""),
+    // the settings snapshot of a new offer („Angebotsart wechseln“, ADR 030)
+    pricingRules: () => pricingRulesOf(Object.fromEntries(CONFIG_SCHEMA.map((d) => [d.key, businessConfig.get(d.key)]))),
     // a second offer type for the same customer: a new deal in „Neue Anfragen“ (ADR 027 B)
     secondOffer: {
       deals, bitrixConfigured: () => bitrix.configured, settings: secondOfferSettings(cfg),

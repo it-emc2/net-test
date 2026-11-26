@@ -75,6 +75,7 @@ it("„Weiteres Angebot“ can make a Badelift: one request with offerType bl, t
   await userEvent.click(within(await screen.findByTestId("related-section")).getByRole("button", { name: SECOND.button }));
   const dialog = await screen.findByTestId("second-offer-dialog");
   await userEvent.click(within(dialog).getByRole("button", { name: "Badelift" }));
+  await userEvent.click(screen.getByTestId("second-offer-dialog").querySelector<HTMLElement>('[data-way="new-deal"]')!); // ADR 030: „Als neuer Deal“
   await act(async () => { await userEvent.click(within(screen.getByTestId("second-offer-dialog")).getByRole("button", { name: SECOND.yes })); });
   await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${NEW}/bl/Kundendaten`));
   const posts = s.calls.filter((c) => c.key === POST).map((c) => c.body);
