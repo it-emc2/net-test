@@ -4,9 +4,11 @@
 // Not yet here: ticking a task because its product was chosen — that follows with the steps
 // the products are chosen on (today's UI does it there).
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
-import { Button, Card, CardTitle, Choices, Input, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Input, cn } from "../../../shared/ui/index.js";
+import { ChoiceTiles } from "../../../shared/ui/choice-tiles.js";
 import { useOfferField, useOfferStore } from "../../offer/index.js";
-import { KINDS, WALL_MINUTES, arbeitenChanges, chooseKind, filledCount, freeTasksOf, storedFreeTasks, storedWall, toggleTask, wallRowsOf } from "./rules.js";
+import { WALL_MINUTES, arbeitenChanges, chooseKind, filledCount, freeTasksOf, storedFreeTasks, storedWall, toggleTask, wallRowsOf } from "./rules.js";
+import { KIND_TILES } from "./KindTiles.js";
 import { TASK_GROUPS, type Task } from "./tasks.js";
 
 const DW = "duschwanne";
@@ -92,7 +94,7 @@ export function Arbeiten() {
     <Card aria-labelledby="arbeiten-title">
       <CardTitle id="arbeiten-title">Auszuführende Arbeiten</CardTitle>
       <p className="m-0 text-muted-foreground">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.</p>
-      <Choices legend="Umbauart" name="duschwanne-umbauart" options={KINDS} value={kind} onChange={(v) => write((dw) => chooseKind(dw, v))} />
+      <ChoiceTiles legend="Was wird umgebaut?" name="duschwanne-umbauart" options={KIND_TILES} perRow={5} value={kind} onChange={(v) => write((dw) => chooseKind(dw, v))} />
       <p className="m-0 text-[0.95rem] text-muted-foreground">Arbeiten werden automatisch aus der Umbauart angehakt. Manuelle Änderungen bleiben erhalten.</p>
       <div className="grid gap-2">
         {TASK_GROUPS.map((group, g) => {

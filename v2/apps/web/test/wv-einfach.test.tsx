@@ -64,7 +64,7 @@ async function play(s: Scenario, router: Router): Promise<Ask[]> {
     else if (kind === "fix") await user.click(screen.getByRole("button", { name: "Im alten Konfigurator korrigieren" }));
     else if (kind === "lineopen") await user.click(screen.getByTestId("wv-line-row"));
     else if (kind === "line") { await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[String(a)]! })); await toRowEditor(user); } // today's VIGOUR / Badolux: the row editor
-    else if (kind === "kind") await user.click(screen.getByRole("group", { name: "Ausführung" }).querySelector(`input[value="${a}"]`)!);
+    else if (kind === "kind") await user.click(screen.getByRole("radiogroup", { name: "Welche Wände werden verkleidet?" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "acc") await user.click(screen.getByTestId(`wv-acc-${a}`).querySelector('input[type="checkbox"]')!);
     else if (kind === "open") { // the offer saved earlier is opened: its fields, nothing remembered from before
       act(() => useOfferStore.setState((st) => {

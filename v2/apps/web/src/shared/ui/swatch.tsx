@@ -25,11 +25,16 @@ export function SwatchFace({ img, label, on, dashed }: { img?: string; label?: R
   return (
     <span className="relative block w-full">
       <i aria-hidden data-part="label" className={cn("grid aspect-square w-full place-items-center rounded-lg border border-border bg-muted bg-cover bg-center not-italic text-muted-foreground", dashed && "border-2 border-dashed border-input bg-transparent text-3xl")} style={img ? { backgroundImage: `url("${img}")` } : undefined}>{label}</i>
-      {on ? (
-        <span aria-hidden data-part="check" className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card">
-          <Check className="size-5" strokeWidth={3} />
-        </span>
-      ) : null}
+      {on ? <TickBadge /> : null}
+    </span>
+  );
+}
+
+/** the filled check badge in the picture's top right corner of a chosen tile (swatches and ChoiceTiles) */
+export function TickBadge() {
+  return (
+    <span aria-hidden data-part="check" className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card">
+      <Check className="size-5" strokeWidth={3} />
     </span>
   );
 }

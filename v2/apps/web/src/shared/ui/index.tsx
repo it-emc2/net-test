@@ -59,10 +59,11 @@ export function Field({ label, id, hint, className, ...rest }: InputHTMLAttribut
 /** @deprecated name kept for the first screens — same as Alert */
 export const Notice = Alert;
 
-/** A large tile on the Hauptmenü. */
-export function Tile({ to, title, text }: { to: string; title: string; text?: string }) {
+/** A large tile on the Hauptmenü; `icon` (decorative) above the title. */
+export function Tile({ to, title, text, icon }: { to: string; title: string; text?: string; icon?: ReactNode }) {
   return (
-    <Link to={to} className="grid min-h-24 content-center gap-1 rounded-lg border-2 border-border bg-card px-5 py-4 text-card-foreground no-underline transition-colors hover:border-accent hover:bg-accent-weak">
+    <Link to={to} className="group grid min-h-24 content-center gap-1 rounded-lg border-2 border-border bg-card px-5 py-4 text-card-foreground no-underline transition-colors hover:border-accent hover:bg-accent-weak">
+      {icon ? <span aria-hidden className="mb-1 grid size-12 place-items-center rounded-full bg-accent-weak text-[var(--primary-text)] group-hover:bg-card">{icon}</span> : null}
       <span className="text-xl font-bold">{title}</span>
       {text ? <span className="text-muted-foreground">{text}</span> : null}
     </Link>

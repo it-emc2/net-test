@@ -14,6 +14,7 @@ import { call, ApiFailure } from "../../shared/api/index.js";
 import { OFFER_TITLES, SecondOfferHost, isStepOf, typeTitle, useOfferStore } from "../offer/index.js";
 import { Alert, Page, Tile } from "../../shared/ui/index.js";
 import { OfferPicker, PlanningToday } from "./Planning.js";
+import { OfferIcon } from "./offer-icons.js";
 import { WeekCalendar } from "./WeekCalendar.js";
 import type { PlanningEntry } from "./planning-rules.js";
 import { DeviceDrafts } from "./DeviceDrafts.js";
@@ -98,7 +99,7 @@ export function HomePage() {
       <PlanningToday onPick={setPick} />
       <h2>Neues Angebot</h2>
       <div className="grid gap-3 sm:grid-cols-2">
-        {NEW_OFFER_TYPES.map((t) => <Tile key={t} to={`${base}/${t}`} title={OFFER_TITLES[t]} text={t.toUpperCase()} />)}
+        {NEW_OFFER_TYPES.map((t) => <Tile key={t} to={`${base}/${t}`} title={OFFER_TITLES[t]} text={t.toUpperCase()} icon={<OfferIcon type={t} />} />)}
       </div>
       <HomeSearch onDeal={(id) => void openDeal(id)} onTyping={() => { seq.current++; setMsg(""); setDeal(""); setStored(null); setOverview(null); setDocs(undefined); }} />
       {msg ? <Alert>{msg}</Alert> : null}

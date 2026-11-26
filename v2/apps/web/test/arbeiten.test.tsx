@@ -24,7 +24,7 @@ async function open() {
 async function play(steps: (string | number)[][]) {
   const user = userEvent.setup();
   for (const [kind, a, b] of steps) {
-    if (kind === "kind") await user.click(screen.getByRole("group", { name: "Umbauart" }).querySelector(`input[value="${a}"]`)!);
+    if (kind === "kind") await user.click(screen.getByRole("radiogroup", { name: "Was wird umgebaut?" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "task") await user.click(box(TASKS.find((t) => t.value === a)!.title));
     else if (kind === "wall+") await user.click(button("Weitere Stelle"));
     else if (kind === "wall") fireEvent.change(screen.getByLabelText(`Breite Stelle ${a} in mm`), { target: { value: b } });
@@ -51,7 +51,7 @@ describe("Arbeiten stores and shows what today's UI does", () => {
     expect(changed(base.Arbeitszeit, offer().Arbeitszeit)).toEqual(scenario.arbeitszeit);
 
     const v = scenario.view;
-    expect((screen.getByRole("group", { name: "Umbauart" }).querySelector("input:checked") as HTMLInputElement | null)?.value ?? "").toBe(v.kind);
+    expect((screen.getByRole("radiogroup", { name: "Was wird umgebaut?" }).querySelector("input:checked") as HTMLInputElement | null)?.value ?? "").toBe(v.kind);
     expect(TASKS.filter((t) => box(t.title).checked).map((t) => t.value)).toEqual(v.ticked);
     expect([1, 2, 3, 4, 5, 6, 7].map((n) => screen.queryByTestId(`count-${n}`)?.textContent ?? "")).toEqual(v.counts);
     expect(screen.queryByTestId("free-count")?.textContent ?? "").toBe(v.extraCount);

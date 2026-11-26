@@ -14,10 +14,12 @@ import * as fw from "../fussboden/wand.js";
 import { DecorChips, DecorPalette, PlateCards, RowPlates, StepLegend } from "../../../shared/ui/winwall.js";
 import { AccCard, AccGrid } from "../../../shared/ui/acc-card.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
+import { ChoiceTiles } from "../../../shared/ui/choice-tiles.js";
+import { KIND_TILES } from "./KindSketch.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
 import * as pv from "./panels.js";
-import { Button, Card, CardTitle, Choices, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Input, Switch, TextAreaField, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore } from "../../offer/index.js";
 import { SketchPad, hasSketch, type Sketch } from "../../../shared/ui/sketch-pad.js";
 import { useQuery } from "@tanstack/react-query";
@@ -30,7 +32,7 @@ import * as vg from "./vigour.js";
 import { WW_DECORS, WW_SWATCHES } from "./decors.js";
 import { Drawing, TONES } from "./Drawing.js";
 import {
-  ACCESSORIES, FORMATS, KINDS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
+  ACCESSORIES, FORMATS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
   sealing, setAccessoryQty, toggleAccessory, wallAreaOf, withDecor, type Line, type Row,
 } from "./rules.js";
 
@@ -828,7 +830,7 @@ export function Wandverkleidung() {
             </div>
           </div>
           ) : null}
-          <Choices legend="Ausführung" name="wv-kind" options={KINDS} value={String(wv.wvKind ?? "") || undefined} onChange={(v) => write({ wvKind: v })} />
+          <ChoiceTiles legend="Welche Wände werden verkleidet?" name="wv-kind" options={KIND_TILES} perRow={5} value={String(wv.wvKind ?? "") || undefined} onChange={(v) => write({ wvKind: v })} />
           <div className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
             <label className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3">
               <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={shower} onChange={(e) => dw((d) => toggleTask(d, SHOWER_TASK, e.target.checked))} />
