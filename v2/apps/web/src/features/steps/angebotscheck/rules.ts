@@ -20,6 +20,8 @@ export interface Row {
   ack?: boolean;
   /** a Ja / Nein question about a removal task */
   question?: { task: string; answer: "ja" | "nein" | "" };
+  /** the details are internal (the markup): hidden in the Kundenmodus, the line itself stays */
+  internal?: true;
 }
 export type GroupKey = "arbeiten" | "material" | "optional";
 export interface Group { key: GroupKey; title: string; target: string; status: Status; rows: Row[]; counts: { status: Status; count: number }[] }
@@ -89,10 +91,10 @@ const BASIN_ACC = [["WTBF", "Befestigungssatz (WTBF)"], ["RSL", "Röhrensiphon (
 const TRAY_ACC = [["abdichtSet", "Wannenabdichtband-Set"], ["drainSet", "Ablaufgarnitur"], ["smallMaterial", "Kleinmaterial"], ["stelzlager", "Stelzlager höhenverstellbar Set"]] as const;
 
 type Hit = string | false | null | undefined;
-interface Rule { id: string; group: GroupKey; target?: string; title: string; severity: Status; ackable?: boolean; applies?: (ctx: Ctx) => boolean; test: (ctx: Ctx) => Hit | Hit[] }
+interface Rule { id: string; group: GroupKey; target?: string; title: string; severity: Status; ackable?: boolean; internal?: true; applies?: (ctx: Ctx) => boolean; test: (ctx: Ctx) => Hit | Hit[] }
 /** Standing checks. `test` returns nothing when the rule passes, else the problem text(s). */
 export const RULES: readonly Rule[] = [
-  { id: "aufschlag-unter-min", group: "arbeiten", target: "rabatt", title: "Aufschlag", severity: "gelb",
+  { id: "aufschlag-unter-min", group: "arbeiten", target: "rabatt", title: "Aufschlag", severity: "gelb", internal: true,
     test: ({ sel }) => !!sel.markup && `Aufschlag unter Mindestwert (${sel.markup.min} %): ${sel.markup.reason}` },
   { id: "arbeiten-leer", group: "arbeiten", title: "Arbeitspositionen erfasst", severity: "rot", test: ({ services }) => lines(services).length === 0 && "Keine Arbeitsposition erfasst." },
   { id: "arbeiten-ohne-preis", group: "arbeiten", title: "Arbeitspositionen bepreist", severity: "gelb",
@@ -248,7 +250,7 @@ function standingRows(ctx: Ctx): Row[] {
       const hits = rule.test(ctx), details = (Array.isArray(hits) ? hits : [hits]).filter(Boolean) as string[];
       const acked = !!(rule.ackable && details.length && ctx.sel.acked(rule.id));
       rows.push({ id: rule.id, group: rule.group, target: rule.target || GROUPS.find((g) => g.key === rule.group)!.target, title: rule.title,
-        status: details.length && !acked ? rule.severity : "gruen", details: acked ? ["Als nicht nötig markiert."] : details, ...(rule.ackable && (details.length > 0 || acked) ? { ack: acked } : {}) });
+        status: details.length && !acked ? rule.severity : "gruen", details: acked ? ["Als nicht nötig markiert."] : details, ...(rule.ackable && (details.length > 0 || acked) ? { ack: acked } : {}), ...(rule.internal ? { internal: true as const } : {}) });
     } catch { /* a broken rule must never break the check */ }
   }
   return rows;

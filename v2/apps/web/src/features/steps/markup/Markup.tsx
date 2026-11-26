@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Check, Field, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { useOfferField, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { CHIPS, markupChanges, markupTextSection, markupView, parsePercent, percentText } from "./rules.js";
@@ -15,7 +16,14 @@ const reasonNow = (): string => {
   return String(st.scratch.markupReason ?? (st.offer as Record<string, any> | null)?.Kundendaten?.aufschlagBegruendung ?? "");
 };
 
+/** The markup card; in the Kundenmodus a calm note with "Kundenmodus beenden" in its place. */
 export function Markup() {
+  const type = useOfferType();
+  if (!markupTextSection(type)) return null;
+  return <Internal notice testId="markup-hidden"><MarkupCard /></Internal>;
+}
+
+function MarkupCard() {
   const type = useOfferType();
   const section = markupTextSection(type);
   const raw = useOfferField<string>(section ?? "rabatt", "sonderaufschlagValue") ?? "";

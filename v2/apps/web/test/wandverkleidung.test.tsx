@@ -27,7 +27,7 @@ async function play(steps: (string | number)[][]) {
   for (const [kind, a, b] of steps) {
     if (kind === "on" || kind === "off") { await user.click(screen.getByRole("switch", { name: "Wandverkleidung" })); if (kind === "on") await toClassic(user); }
     else if (kind === "line") await user.click(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { name: LINE[a as string]! }));
-    else if (kind === "kind") await user.click(screen.getByRole("group", { name: "Ausführung" }).querySelector(`input[value="${a}"]`)!);
+    else if (kind === "kind") await user.click(screen.getByRole("radiogroup", { name: "Welche Wände werden verkleidet?" }).querySelector(`input[value="${a}"]`)!);
     else if (kind === "shower") await user.click(screen.getByRole("checkbox", { name: /^Im Duschbereich bis Höhe/ }));
     else if (kind === "height") fireEvent.change(screen.getByLabelText("Höhe in cm"), { target: { value: a } });
     else if (kind === "row+") await user.click(screen.getByRole("button", { name: "Zeile hinzufügen (Dekor und Format)" }));
@@ -67,7 +67,7 @@ describe("Wandverkleidung stores and shows what today's UI does", () => {
     if (v.on) {
       expect(within(screen.getByRole("group", { name: "Produktlinie wählen" })).getByRole("button", { pressed: true }).textContent).toMatch(LINE[v.line]!);
       expect(screen.getByTestId("wv-line-text").textContent).toBe(v.lineText);
-      expect((screen.getByRole("group", { name: "Ausführung" }).querySelector("input:checked") as HTMLInputElement | null)?.value ?? "").toBe(v.kind);
+      expect((screen.getByRole("radiogroup", { name: "Welche Wände werden verkleidet?" }).querySelector("input:checked") as HTMLInputElement | null)?.value ?? "").toBe(v.kind);
       expect([(screen.getByRole("checkbox", { name: /^Im Duschbereich bis Höhe/ }) as HTMLInputElement).checked, (screen.getByLabelText("Höhe in cm") as HTMLInputElement).value]).toEqual([v.shower, v.height]);
     }
     if (v.on && v.line === "ww") {

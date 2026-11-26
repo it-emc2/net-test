@@ -8,6 +8,7 @@ import { Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Input, Switch, cn, IMG } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { TONES, drawing } from "./drawing.js";
 import { ART, SHAPES, buildLines, configLabel, curtainLabel, isCeilingSupport, legValues, type Catalog, type Item, type Leg, type Shape, type State } from "./plan.js";
@@ -36,7 +37,7 @@ function Row({ item, kind, sub = "", state, set, children }: { item: Item; kind:
       <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
         <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={on} onChange={() => set(toggleItem(state, kind, item.articleNumber))} />
         {item.image ? <img src={item.image} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 rounded object-contain", !on && "opacity-50")} onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : <span className={cn(IMG.row, "shrink-0")} />}
-        <span className="grid min-w-0"><span data-part="title">{title}</span><small data-part="small" className="text-muted-foreground">{[item.articleNumber, sub, eur(item.net)].filter(Boolean).join(" · ")}</small></span>
+        <span className="grid min-w-0"><span data-part="title">{title}</span><small data-part="small" className="text-muted-foreground">{[item.articleNumber, sub].filter(Boolean).join(" · ")}<Internal>{` · ${eur(item.net)}`}</Internal></small></span>
       </label>
       {children}
       {on ? (
@@ -150,10 +151,10 @@ export function Duschvorhang() {
                 <div key={l.articleNumber} data-testid="vh-line" className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
                   <span className="grid min-w-0 flex-1"><span data-part="name">{`${l.qty > 1 ? `${l.qty} × ` : ""}${l.label.replace(/ \((Nische|Ecke|U-Form) [^)]*\)$/, "")}`}</span><small data-part="art" className="text-muted-foreground">{l.articleNumber}</small></span>
                   <Stock item={byArt(l.articleNumber)} />
-                  <span data-part="price" className="font-semibold tabular-nums">{eur(l.net * l.qty)}</span>
+                  <Internal><span data-part="price" className="font-semibold tabular-nums">{eur(l.net * l.qty)}</span></Internal>
                 </div>
               ))}
-              <div className="flex justify-between gap-2 border-t border-border pt-2 font-bold" data-part="total"><span>Gesamt (netto)</span><span>{eur(Math.round(lines.reduce((a, l) => a + l.net * l.qty, 0) * 100) / 100)}</span></div>
+              <Internal><div className="flex justify-between gap-2 border-t border-border pt-2 font-bold" data-part="total"><span>Gesamt (netto)</span><span>{eur(Math.round(lines.reduce((a, l) => a + l.net * l.qty, 0) * 100) / 100)}</span></div></Internal>
             </section>
           ) : null}
         </>

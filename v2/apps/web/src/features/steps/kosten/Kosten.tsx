@@ -4,11 +4,14 @@
 // Built for Badumbau, Badewannentür, Handlauf (as today's page groups it, rules.ts), Badelift, Winterdienst and Hausmeister-Service (the
 // server's empty shell: all sections empty, zeros) and, as its own
 // read-only page, Alltagshilfe (ah/Kosten.tsx, U-051).
+// Kundenmodus (C7): the whole page is internal (sums before markup, the markup, today's purchase
+// prices) — a calm note takes its place. Alltagshilfe's page shows the customer's own prices and stays.
 import { useQueryClient } from "@tanstack/react-query";
 import { Wrench } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { Button, Card, CardTitle, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { LegacyLink, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { AhKosten } from "../ah/Kosten.js";
@@ -87,6 +90,7 @@ export function Kosten() {
     finally { setBusy(false); }
   };
   return (
+    <Internal notice testId="kosten-hidden">
     <Card aria-labelledby="kosten-title">
       <CardTitle id="kosten-title">Kosten-Details</CardTitle>
       <p className="m-0 text-muted-foreground">Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und Gesamtpreisen. Dient zum Prüfen der Abrechnung.</p>
@@ -110,5 +114,6 @@ export function Kosten() {
         </>
       )}
     </Card>
+    </Internal>
   );
 }

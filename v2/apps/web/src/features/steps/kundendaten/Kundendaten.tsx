@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { useOfferField, useOfferStore, useOfferType } from "../../offer/index.js";
 import { Button, Card, CardTitle, Check, Choices, Field, Input, Label, SelectField, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { OfferChoice, OfferText } from "../fields.js";
 import { MAIN_OPTIONS, PARTNER_ENTRIES, budgetReadout, chooseHasCareLevel, followNames, parseEuro, toggleCopay, toggleMainOption, type MainOption } from "./care.js";
 import { Markup } from "../markup/Markup.js";
@@ -446,7 +447,7 @@ export function Kundendaten() {
   const ah = type === "ah"; // the Alltagshilfe-only blocks (U-052) in today's order on the page
   return (
     <>
-      {ah ? <AhPreparation /> : null}
+      {ah ? <Internal><AhPreparation /></Internal> : null}
       <CustomerSearch />
       <BitrixCustomer />
       <Contact />
@@ -459,7 +460,7 @@ export function Kundendaten() {
       {ah ? <AhHints /> : null}
       <Wohnumfeld />
       <Property />
-      <InternalList />
+      <Internal><InternalList /></Internal>
       {ah ? <AhLiving /> : null}
     </>
   );

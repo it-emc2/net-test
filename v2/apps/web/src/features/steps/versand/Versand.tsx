@@ -11,6 +11,7 @@
 import { CircleCheck, Mail as MailIcon, Mailbox } from "lucide-react";
 import { useEffect } from "react";
 import { Card, CardTitle, Check, Collapsible, Field, SelectField, TabsList, TabsPanel, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { useCustomerMode } from "../../../shared/lib/customer-mode.js";
 import { CreateVariantButton, SecondOfferButton, VARIANT_TEXT, useOfferStore, useOfferType, useVariants } from "../../offer/index.js";
 import { Anpassungen } from "./Anpassungen.js";
 import { Dokumente } from "./Dokumente.js";
@@ -42,6 +43,7 @@ export function Versand() {
 
   const tab = useOfferStore((s) => s.scratch.sendTab) === "post" ? "post" : "mail";
   const more = useOfferStore((s) => s.scratch.moreOptions) === true;
+  const customer = useCustomerMode(); // the internal note is hidden then: the hint does not name it
   const two = twoPersons(offer), status = sendStatus(offer), docs = documents(offer);
   const sentNumber = isSentNumber(offer, useSends().sends.data); // this number reached the customer: changes need a new version
   // ADR 027 A: a variant that was not chosen (another one was signed) stays readable, but is not sent
@@ -104,7 +106,7 @@ export function Versand() {
         </TabsPanel>
       </section>}
 
-      <Collapsible id="zf-more" title="Mehr Optionen" hint="Dokumentenstudio, Angebot anpassen, interne Notiz" open={more} onOpenChange={(open) => useOfferStore.getState().remember("moreOptions", open)}>
+      <Collapsible id="zf-more" title="Mehr Optionen" hint={customer ? "Dokumentenstudio, Angebot anpassen" : "Dokumentenstudio, Angebot anpassen, interne Notiz"} open={more} onOpenChange={(open) => useOfferStore.getState().remember("moreOptions", open)}>
         <Dokumente />
         <Anpassungen />
       </Collapsible>

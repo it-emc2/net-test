@@ -4,6 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Choices, IMG, Input, Label, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { namesOf } from "./rules.js";
 import { act } from "./store.js";
@@ -54,7 +55,7 @@ function WcTile({ v, product, onToggle, onQty }: { v: TileView; product: WcProdu
           <span className="grid min-w-0 gap-1">
             <span data-part="name" className={cn("break-words text-[0.95rem]", v.on && "font-bold")}>{wcName(product?.name ? { [v.item.id]: product.name } : {}, v.tile)}</span>
             {product ? <span data-part="art" className="text-[0.85rem] text-muted-foreground">{v.item.id}</span> : null}
-            {product && Number.isFinite(Number(product.price)) && product.price != null ? <span data-part="price" className="text-[0.95rem] font-semibold">{euro(Number(product.price))}</span> : null}
+            <Internal>{product && Number.isFinite(Number(product.price)) && product.price != null ? <span data-part="price" className="text-[0.95rem] font-semibold">{euro(Number(product.price))}</span> : null}</Internal>
           </span>
         </span>
         <Pictures v={v} />

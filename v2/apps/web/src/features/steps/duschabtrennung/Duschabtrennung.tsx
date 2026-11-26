@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card as Panel, CardTitle, Input, Lightbox, Switch, cn, IMG } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useParams } from "react-router";
 import { LegacyLink, useOfferStore } from "../../offer/index.js";
 import * as w from "./engine.js";
@@ -200,7 +201,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
                     <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
                       <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={on} onChange={() => set(z.toggleExtra(state, e.articleNumber))} />
                       <img src={`/assets/Verbreiterungsprofil/${e.image}`} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 rounded object-contain")} onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
-                      <span className="grid"><span data-part="title">{e.name}</span><small data-part="sub" className="text-muted-foreground">{`${e.articleNumber} · ${e.finishText} · ${z.euro(e.net)}`}</small></span>
+                      <span className="grid"><span data-part="title">{e.name}</span><small data-part="sub" className="text-muted-foreground">{`${e.articleNumber} · ${e.finishText}`}<Internal>{` · ${z.euro(e.net)}`}</Internal></small></span>
                     </label>
                     {on ? (
                       <span className="flex shrink-0 items-center gap-1">
@@ -223,7 +224,7 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
                   <button key={d.articleNumber} type="button" data-testid="da-tray" aria-pressed={on} onClick={() => set(z.pickTray(state, d.articleNumber))} className={cn(ROW, "cursor-pointer flex-wrap justify-between text-left text-foreground", on && "border-primary bg-accent-weak")}>
                     <span className="flex min-w-0 flex-1 items-center gap-3">
                       <img src={`/assets/${d.image}`} alt="" loading="lazy" className={cn(IMG.row, "shrink-0 rounded object-contain")} onError={(ev) => { ev.currentTarget.style.visibility = "hidden"; }} />
-                      <span className="grid"><span data-part="title">{z.trayName(d, width)}</span><small data-part="sub" className="text-muted-foreground">{`${d.articleNumber} · ${z.euro(d.net)}`}</small></span>
+                      <span className="grid"><span data-part="title">{z.trayName(d, width)}</span><small data-part="sub" className="text-muted-foreground">{d.articleNumber}<Internal>{` · ${z.euro(d.net)}`}</Internal></small></span>
                     </span>
                     <Stock article={d} />
                   </button>
@@ -243,11 +244,11 @@ function Wizard({ model, state, onChange }: { model: Model; state: State; onChan
               <div key={l.key} data-testid="da-line" className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
                 <span className="grid min-w-0 flex-1"><span data-part="title">{`${(l.qty ?? 1) > 1 ? `${l.qty} × ` : ""}${l.article.displayName || l.component}`}</span><small data-part="sub" className="text-muted-foreground">{z.lineMeta(l.article)}</small></span>
                 <Stock article={l.article} />
-                <span data-part="price" className="font-semibold tabular-nums">{z.euro(l.article.net * (l.qty || 1))}</span>
+                <Internal><span data-part="price" className="font-semibold tabular-nums">{z.euro(l.article.net * (l.qty || 1))}</span></Internal>
                 {l.article.sourceUrl ? <a href={l.article.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="Beim Lieferanten öffnen" title="Beim Lieferanten öffnen" className="grid size-12 place-items-center">↗</a> : null}
               </div>
             ))}
-            <div className="flex justify-between gap-2 border-t border-border pt-2 font-bold" data-part="total"><span>Gesamt (netto)</span><span>{z.euro(result.net)}</span></div>
+            <Internal><div className="flex justify-between gap-2 border-t border-border pt-2 font-bold" data-part="total"><span>Gesamt (netto)</span><span>{z.euro(result.net)}</span></div></Internal>
           </>
         ) : <p className="m-0 text-muted-foreground" data-part="hint">Konfiguration noch nicht vollständig …</p>}
       </section>

@@ -4,9 +4,12 @@
 // Not yet here: ticking a task because its product was chosen — that follows with the steps
 // the products are chosen on (today's UI does it there).
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
-import { Button, Card, CardTitle, Choices, Input, cn } from "../../../shared/ui/index.js";
+import { Button, Card, CardTitle, Input, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
+import { ChoiceTiles } from "../../../shared/ui/choice-tiles.js";
 import { useOfferField, useOfferStore } from "../../offer/index.js";
-import { KINDS, WALL_MINUTES, arbeitenChanges, chooseKind, filledCount, freeTasksOf, storedFreeTasks, storedWall, toggleTask, wallRowsOf } from "./rules.js";
+import { WALL_MINUTES, arbeitenChanges, chooseKind, filledCount, freeTasksOf, storedFreeTasks, storedWall, toggleTask, wallRowsOf } from "./rules.js";
+import { KIND_TILES } from "./KindTiles.js";
 import { TASK_GROUPS, type Task } from "./tasks.js";
 
 const DW = "duschwanne";
@@ -42,13 +45,13 @@ function DryWall() {
         <strong>Aluprofil für Trockenbau statt Verbindungsprofil</strong>
         <Button variant="outline" onClick={() => set([...rows, ""], WALL_MINUTES)}><Plus aria-hidden />Weitere Stelle</Button>
       </div>
-      <p className="m-0 text-[0.9rem] text-muted-foreground">Wenn zwischen Wand und Dusche ein Spalt/Kanal besteht und kein Verbindungsprofil passt: Ausgleich in Trockenbau. Breite je Stelle angeben — mehrfach möglich. Je Position pauschal 50 € Material + 2 Std Arbeitszeit.</p>
+      <p className="m-0 text-[0.9rem] text-muted-foreground">Wenn zwischen Wand und Dusche ein Spalt/Kanal besteht und kein Verbindungsprofil passt: Ausgleich in Trockenbau. Breite je Stelle angeben — mehrfach möglich. Je Position pauschal <Internal>50 € Material + </Internal>2 Std Arbeitszeit.</p>
       {rows.map((width, i) => (
         <div key={i} className="flex flex-wrap items-center gap-2">
           <span>Breite</span>
           <div className="w-28"><Input aria-label={`Breite Stelle ${i + 1} in mm`} type="number" min={0} step={1} inputMode="numeric" placeholder="z. B. 130" value={width} onChange={(e) => set(rows.map((r, j) => (j === i ? e.target.value : r)))} /></div>
           <span>mm</span>
-          <span className="text-muted-foreground">+50,00 € · +2 Std</span>
+          <span className="text-muted-foreground" data-part="extra"><Internal>+50,00 € · </Internal>+2 Std</span>
           <Button variant="ghost" size="icon" aria-label={`Stelle ${i + 1} entfernen`} onClick={() => set(rows.filter((_, j) => j !== i), -WALL_MINUTES)}><Trash2 aria-hidden /></Button>
         </div>
       ))}
@@ -92,7 +95,7 @@ export function Arbeiten() {
     <Card aria-labelledby="arbeiten-title">
       <CardTitle id="arbeiten-title">Auszuführende Arbeiten</CardTitle>
       <p className="m-0 text-muted-foreground">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.</p>
-      <Choices legend="Umbauart" name="duschwanne-umbauart" options={KINDS} value={kind} onChange={(v) => write((dw) => chooseKind(dw, v))} />
+      <ChoiceTiles legend="Was wird umgebaut?" name="duschwanne-umbauart" options={KIND_TILES} perRow={5} value={kind} onChange={(v) => write((dw) => chooseKind(dw, v))} />
       <p className="m-0 text-[0.95rem] text-muted-foreground">Arbeiten werden automatisch aus der Umbauart angehakt. Manuelle Änderungen bleiben erhalten.</p>
       <div className="grid gap-2">
         {TASK_GROUPS.map((group, g) => {

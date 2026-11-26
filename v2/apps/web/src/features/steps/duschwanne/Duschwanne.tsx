@@ -9,6 +9,7 @@ import { Check as Tick, Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Field, Input, Switch, cn, IMG } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferField, useOfferStore } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import {
@@ -91,7 +92,7 @@ function TrayCard({ tray, line, best, selected, pinned, onPick }: { tray: Tray; 
           <span>{line === "standard" ? "Badolux" : "Hassmann"}</span>
         </span>
       </span>
-      <span data-part="price" className="mt-auto px-1.5 text-lg font-bold">{priceText(tray)}</span>
+      <Internal><span data-part="price" className="mt-auto px-1.5 text-lg font-bold">{priceText(tray)}</span></Internal>
     </label>
   );
 }
@@ -160,7 +161,7 @@ function Search({ line }: { line: Line }) {
             <div className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="tray-note">
               {rest.length ? (
                 <>
-                  <p className="m-0"><strong>Keine {LINE_TEXT[line].name}-Duschwanne in dieser Größe.</strong> In der Linie {LINE_TEXT[other].name} gibt es {rest.length} passende Treffer{cheapestHint(rest)}.</p>
+                  <p className="m-0"><strong>Keine {LINE_TEXT[line].name}-Duschwanne in dieser Größe.</strong> In der Linie {LINE_TEXT[other].name} gibt es {rest.length} passende Treffer<Internal>{cheapestHint(rest)}</Internal>.</p>
                   <div><Button variant="secondary" onClick={() => toLine(other, false)}>Zu {LINE_TEXT[other].name} wechseln</Button></div>
                 </>
               ) : <p className="m-0"><strong>Keine passende Duschwanne gefunden.</strong> Weder Badolux noch Hassmann liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen.</p>}
@@ -208,7 +209,7 @@ function Chosen({ line, tray }: { line: Line; tray: Tray | undefined }) {
           <TrayPicture src={trayImage(tray, chosen, line, color)} size={trayFootprint(tray, dw.traySize)} big />
           <div className="grid min-w-0 gap-0.5">
             <p className="m-0 text-lg leading-snug"><strong>{sum.title}</strong></p>
-            <p className="m-0 text-muted-foreground">{sum.sub}</p>
+            <p className="m-0 text-muted-foreground">{sum.sub}{sum.price ? <Internal>{` · ${sum.price}`}</Internal> : null}</p>
           </div>
           {sum.items.length ? <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">{sum.items.map((i) => <li key={i}>{i}</li>)}</ul> : null}
         </div>

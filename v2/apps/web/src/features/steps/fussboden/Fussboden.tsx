@@ -8,6 +8,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore, usePrice } from "../../offer/index.js";
 import { arbeitenChanges } from "../arbeiten/rules.js";
 import { LINE_TEXT } from "../duschwanne/rules.js";
@@ -309,7 +310,7 @@ function Wall() {
                   {c.best ? <span data-part="best" className="rounded-full bg-primary px-2 py-0.5 text-[0.8rem] font-semibold text-primary-foreground">Empfehlung</span> : null}
                   <span data-part="count" className="font-semibold">{c.count}</span>
                   <small data-part="coverage" className="text-muted-foreground">{c.coverage}</small>
-                  {c.price || c.unit ? <span className="text-[0.9rem]"><span data-part="price" className="font-semibold">{c.price}</span> <span data-part="unit" className="text-muted-foreground">{c.unit}</span></span> : null}
+                  <Internal>{c.price || c.unit ? <span className="text-[0.9rem]"><span data-part="price" className="font-semibold">{c.price}</span> <span data-part="unit" className="text-muted-foreground">{c.unit}</span></span> : null}</Internal>
                   <span data-part="label" className="text-[0.9rem] font-semibold text-primary-text">{c.label}</span>
                 </button>
                 {c.selected && picked ? (
@@ -337,7 +338,7 @@ function Wall() {
                 <input type="radio" name="wc-color" className="sr-only" checked={w.colorOf(dw) === c.value} onChange={() => write({ wallCladdingColor: c.value })} />
                 <SwatchFace on={w.colorOf(dw) === c.value} img={c.img} />
                 <span data-part="caption">{c.caption}</span>
-                {(settings.own[w.articlesFor(c.value)[997]] || 0) > 0 || (settings.own[w.articlesFor(c.value)[1497]] || 0) > 0 ? <span data-part="own" className="text-[0.8rem] font-normal text-muted-foreground">Lager: {[[997, settings.own[w.articlesFor(c.value)[997]]], [1497, settings.own[w.articlesFor(c.value)[1497]]]].filter(([, n]) => (n || 0) > 0).map(([z, n]) => `${z}: ${n}`).join(" / ")}</span> : null}
+                <Internal>{(settings.own[w.articlesFor(c.value)[997]] || 0) > 0 || (settings.own[w.articlesFor(c.value)[1497]] || 0) > 0 ? <span data-part="own" className="text-[0.8rem] font-normal text-muted-foreground">Lager: {[[997, settings.own[w.articlesFor(c.value)[997]]], [1497, settings.own[w.articlesFor(c.value)[1497]]]].filter(([, n]) => (n || 0) > 0).map(([z, n]) => `${z}: ${n}`).join(" / ")}</span> : null}</Internal>
               </label>
             ))}
           </SwatchGrid>
@@ -350,8 +351,8 @@ function Wall() {
             <div key={`${r.name}-${i}`} data-testid="wc-selected" className="flex items-center gap-3 border-t border-border pt-2">
               {r.img ? <img src={r.img} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}
               <span className="grid min-w-0 flex-1">
-                <strong data-part="name">{r.name}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price">{r.price}</span>
-                {r.stock ? <span data-part="badges" className="flex flex-wrap gap-2 text-[0.85rem] font-semibold"><span title={r.stock.text} className={cn("rounded-full px-2 py-0.5", r.stock.inStock ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>{r.stock.qty} {r.stock.inStock ? "Auf Lager" : "Auf Bestellung"}</span>{r.own ? <span className="rounded-full bg-muted px-2 py-0.5">{r.own} Im eigenen Lager</span> : null}</span> : null}
+                <strong data-part="name">{r.name}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price"><Internal when={r.plain !== undefined} instead={r.plain}>{r.price}</Internal></span>
+                {r.stock ? <span data-part="badges" className="flex flex-wrap gap-2 text-[0.85rem] font-semibold"><span title={r.stock.text} className={cn("rounded-full px-2 py-0.5", r.stock.inStock ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>{r.stock.qty} {r.stock.inStock ? "Auf Lager" : "Auf Bestellung"}</span><Internal>{r.own ? <span className="rounded-full bg-muted px-2 py-0.5">{r.own} Im eigenen Lager</span> : null}</Internal></span> : null}
               </span>
             </div>
           ))}
