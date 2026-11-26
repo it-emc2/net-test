@@ -455,7 +455,7 @@ export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string,
 }
 
 // ---- "Ihre Auswahl" ----
-export interface Selected { name: string; meta: string; price: string; img: string; stock?: { qty: number; inStock: boolean; text: string } | null; own?: number }
+export interface Selected { name: string; meta: string; price: string; /** `price` without money (Kundenmodus); absent: `price` holds none */ plain?: string; img: string; stock?: { qty: number; inStock: boolean; text: string } | null; own?: number }
 export interface Full { name?: string; netPrice?: number; stockQuantity?: number | null; stockText?: string | null; image?: string }
 /** `full`: the catalogue's data of the VIGOUR article; `adhesive`: the unit price of the adhesive; `own`: our own stock per article */
 export function selection(dw: Fields, rest: Rest | null, full: Full | null | undefined, adhesive: number, own: Record<string, number> = {}): Selected[] {
@@ -473,16 +473,16 @@ export function selection(dw: Fields, rest: Rest | null, full: Full | null | und
   } else if (!(credit > 0 && qty === 0) && full) {
     const art = articlesOf(dw)[dw.wallCladdingPanelSize === "1497" ? 1497 : 997], net = Number(full.netPrice) || 0;
     rows.push({
-      name: full.name || art, meta: `${colorOf(dw)} · Art.-Nr. ${art}`, price: net ? `${qty > 0 ? `${qty} × ` : ""}${eur(net)}${qty > 1 ? ` = ${eur(net * qty)}` : ""}` : "", img: colour?.img || full.image || "",
+      name: full.name || art, meta: `${colorOf(dw)} · Art.-Nr. ${art}`, price: net ? `${qty > 0 ? `${qty} × ` : ""}${eur(net)}${qty > 1 ? ` = ${eur(net * qty)}` : ""}` : "", plain: qty > 0 ? `${qty} Stück` : "", img: colour?.img || full.image || "",
       stock: { qty: Number(full.stockQuantity) || 0, inStock: Number(full.stockQuantity) > 0, text: full.stockText || (Number(full.stockQuantity) > 0 ? "Der Artikel ist im Lager verfügbar." : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.") }, own: own[art] || 0,
     });
   }
   // the rest's picture is the decor tile's (a typed decor: its swatch when there is one)
   const restImg = ww ? (dw.wallCladdingWwDecor === "custom" ? swatchOf(dec.code) : `/assets/winwall/${String(dw.wallCladdingWwDecor ?? "")}.jpg`) : colour?.img || "";
-  if (credit > 0) rows.push({ name: "Reste aus Wandverkleidung", meta: `${ww ? dec.label : colorOf(dw)} · ${m2(credit)} m² · schon bezahlt`, price: ww ? "" : "0,00 €", img: restImg });
+  if (credit > 0) rows.push({ name: "Reste aus Wandverkleidung", meta: `${ww ? dec.label : colorOf(dw)} · ${m2(credit)} m² · schon bezahlt`, price: ww ? "" : "0,00 €", plain: "", img: restImg });
   if (area > 0) { // the adhesive is for the whole floor, with or without the rest
     const packs = Math.ceil(area / 0.6 - 1e-12);
-    rows.push({ name: "Flächenkleber 600 ml", meta: `Art.-Nr. R_4260602 · 1 Pkg je 0,60 m² · ${m2(area)} m² Boden`, price: adhesive > 0 && !ww ? `${packs} × ${eur(adhesive)} = ${eur(adhesive * packs)}` : `${packs} Pkg`, img: "/assets/Flächen-Kleber.PNG" });
+    rows.push({ name: "Flächenkleber 600 ml", meta: `Art.-Nr. R_4260602 · 1 Pkg je 0,60 m² · ${m2(area)} m² Boden`, price: adhesive > 0 && !ww ? `${packs} × ${eur(adhesive)} = ${eur(adhesive * packs)}` : `${packs} Pkg`, plain: `${packs} Pkg`, img: "/assets/Flächen-Kleber.PNG" });
   }
   return rows;
 }

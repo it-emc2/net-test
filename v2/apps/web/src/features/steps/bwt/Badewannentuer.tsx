@@ -3,6 +3,7 @@
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
 import { Card, CardTitle, Check, Choices, IMG, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { Anschlag } from "./Anschlag.js";
 import { Doors, Qty } from "./Doors.js";
@@ -29,7 +30,7 @@ export function Badewannentuer() {
       <Card aria-labelledby="bwt-konfig">
         <CardTitle id="bwt-konfig">Türanschlag</CardTitle>
         <Anschlag />
-        <p className="m-0 text-muted-foreground">Hinweis: Zusätzlicher Verschluss 49 € EK-Preis wird grundsätzlich automatisch mitkalkuliert. Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.</p>
+        <p className="m-0 text-muted-foreground"><Internal>Hinweis: Zusätzlicher Verschluss 49 € EK-Preis wird grundsätzlich automatisch mitkalkuliert. </Internal>Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.</p>
       </Card>
       <Card aria-labelledby="bwt-zubehoer">
         <CardTitle id="bwt-zubehoer">Optionale Haltegriffe</CardTitle>

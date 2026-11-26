@@ -8,6 +8,8 @@
 //    the previews do not
 //  - after a PDF was made the offer is saved under its number (`POST /api/offers`), then the
 //    file is handed over; DOCX and CSV save nothing
+//  - Kundenmodus (C7): the Hassmann Warenkorb and the Kalkulation are `internal` (back office,
+//    purchase figures): not rendered while the customer watches, nor their preview tabs
 //  - the preview shows one document at a time (PDF in a frame, CSV as text) and is made again
 //    when the offer changes while it is open
 export type ActionId = "downloadDocx" | "downloadDocxAsPdf" | "previewOfferPdf" | "downloadHassmannCart" | "previewHassmannCart" | "downloadKalkulationDocx" | "downloadKalkulation" | "previewKalkulation" | "downloadKalkulationV2";
@@ -15,15 +17,15 @@ export type PreviewKey = "offer" | "kalkulation" | "hassmann";
 export interface Download { kind: "download"; path: string; fallback: string; stamp: boolean; save: boolean; csv?: true; failed: string }
 export interface OpenPreview { kind: "preview"; key: PreviewKey }
 export interface Button { id: ActionId; label: string; look: "docx" | "pdf" | "preview" | "new" }
-export interface DocCard { badge: string; format: string; title: string; text: string; buttons: Button[] }
+export interface DocCard { badge: string; format: string; title: string; text: string; buttons: Button[]; /** back office only: hidden in the Kundenmodus */ internal?: true }
 
 const PREVIEW_LABEL = "Vorschau anzeigen";
 const CARDS: readonly (DocCard & { notFor?: readonly string[] })[] = [
   { badge: "Angebot", format: "DOCX + PDF", title: "Angebot", text: "Angebot als bearbeitbare DOCX-Datei oder als kundenfähiges PDF herunterladen",
     buttons: [{ id: "downloadDocx", label: "DOCX", look: "docx" }, { id: "downloadDocxAsPdf", label: "PDF", look: "pdf" }, { id: "previewOfferPdf", label: PREVIEW_LABEL, look: "preview" }] },
-  { badge: "Export", format: "CSV", title: "Hassmann Warenkorb", text: "CSV für Hassmann aus der Materialliste exportieren", notFor: ["ah", "hms", "wd"], // services only: no material list (today: data-offer="bu,bwt,hl,bl")
+  { badge: "Export", format: "CSV", title: "Hassmann Warenkorb", text: "CSV für Hassmann aus der Materialliste exportieren", internal: true, notFor: ["ah", "hms", "wd"], // services only: no material list (today: data-offer="bu,bwt,hl,bl")
     buttons: [{ id: "downloadHassmannCart", label: "CSV herunterladen", look: "docx" }, { id: "previewHassmannCart", label: PREVIEW_LABEL, look: "preview" }] },
-  { badge: "Intern", format: "DOCX + PDF", title: "Kalkulation", text: "Interne Kalkulation als bearbeitbare Datei oder als PDF anzeigen",
+  { badge: "Intern", format: "DOCX + PDF", title: "Kalkulation", text: "Interne Kalkulation als bearbeitbare Datei oder als PDF anzeigen", internal: true,
     buttons: [{ id: "downloadKalkulationDocx", label: "DOCX", look: "docx" }, { id: "downloadKalkulation", label: "PDF", look: "pdf" }, { id: "previewKalkulation", label: PREVIEW_LABEL, look: "preview" }, { id: "downloadKalkulationV2", label: "Neue Version", look: "new" }] },
 ];
 export const cardsOf = (type: string | null): DocCard[] => CARDS.filter((c) => !c.notFor?.includes(String(type))).map(({ notFor: _n, ...c }) => c);
@@ -40,11 +42,11 @@ export const ACTIONS: Record<ActionId, Download | OpenPreview> = {
   downloadKalkulationV2: { kind: "download", path: "/kalkulation/pdf-v2", fallback: "Kalkulation.pdf", stamp: false, save: true, failed: "Die Kalkulation (neue Version) konnte nicht erstellt werden." },
 };
 
-export interface PreviewDoc { key: PreviewKey; tab: string; title: string; path: string; fallback: string; mode: "pdf" | "text"; accept: string; empty?: string }
+export interface PreviewDoc { key: PreviewKey; tab: string; title: string; path: string; fallback: string; mode: "pdf" | "text"; accept: string; empty?: string; /** hidden in the Kundenmodus */ internal?: true }
 export const PREVIEWS: readonly PreviewDoc[] = [
   { key: "offer", tab: "Angebot", title: "Angebot Vorschau", path: "/api/docx/pdf-preview", fallback: "Angebot.pdf", mode: "pdf", accept: "application/pdf" },
-  { key: "kalkulation", tab: "Kalkulation", title: "Kalkulation Vorschau", path: "/kalkulation/pdf", fallback: "Kalkulation.pdf", mode: "pdf", accept: "application/pdf" },
-  { key: "hassmann", tab: "Hassmann CSV", title: "Hassmann Warenkorb Vorschau", path: "/material-overview/hassmann-cart", fallback: "Hassmann_Warenkorb.csv", mode: "text", accept: "text/csv, text/plain", empty: "Keine CSV-Daten verfügbar." },
+  { key: "kalkulation", tab: "Kalkulation", title: "Kalkulation Vorschau", path: "/kalkulation/pdf", fallback: "Kalkulation.pdf", mode: "pdf", accept: "application/pdf", internal: true },
+  { key: "hassmann", tab: "Hassmann CSV", title: "Hassmann Warenkorb Vorschau", path: "/material-overview/hassmann-cart", fallback: "Hassmann_Warenkorb.csv", mode: "text", accept: "text/csv, text/plain", empty: "Keine CSV-Daten verfügbar.", internal: true },
 ];
 
 /** a new offer number: ANG<year>-<month><day>-<hour><minute><second>, local time */

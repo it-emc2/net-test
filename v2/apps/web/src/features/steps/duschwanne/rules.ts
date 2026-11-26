@@ -173,7 +173,7 @@ export const COLORS = [
   { value: "Beton", label: "Beton" }, { value: "Anthrazit", label: "Anthrazit" }, { value: "Schwarz", label: "Schwarz" },
 ] as const;
 export const colorImage = (value: string) => `/assets/slate-color-${value.toLowerCase()}.jpg`;
-export function summary(dw: Fields, tray: Tray | undefined, line: Line): { title: string; sub: string; items: string[] } | null {
+export function summary(dw: Fields, tray: Tray | undefined, line: Line): { title: string; sub: string; price: string; items: string[] } | null {
   const pid = String(dw.chosenTrayProductId ?? "");
   if (!pid) return null;
   const color = COLORS.find((c) => c.value === dw.trayColor) ?? COLORS[0];
@@ -181,7 +181,9 @@ export function summary(dw: Fields, tray: Tray | undefined, line: Line): { title
   let title = tray ? trayTitle(tray, line) : String(dw.traySize || pid);
   if (slate && color.value !== "Weiss") title = title.replace(/\bwei(?:ß|ss)/i, color.label); // Slate names always say "weiß"
   const kind = slate ? `Slate · Farbe ${color.label}` : line === "standard" ? "Badolux · extraflach" : "Hassmann";
-  const sub = [kind, `Art.-Nr. ${tray?.articleNumber || pid}`, tray ? priceText(tray) : ""].filter(Boolean).join(" · ");
+  const sub = [kind, `Art.-Nr. ${tray?.articleNumber || pid}`].join(" · ");
+  // the catalogue price on its own: the page hides it in the Kundenmodus (shown as „ · <price>“ after `sub`)
+  const price = tray ? priceText(tray) : "";
   const items = ACCESSORIES.filter((a) => dw[a.name]).map((a) => (a.name === "stelzlager" ? `${dw.stelzlagerQty || 8} × ` : "") + accessoryText(a, line).caption);
-  return { title, sub, items };
+  return { title, sub, price, items };
 }

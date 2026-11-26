@@ -3,6 +3,7 @@
 // row is on the page but not in the offer); the offer stores only what says something.
 import { Lock, Plus, X } from "lucide-react";
 import { Button, Input, Label, TextAreaField, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { NewVersionButton } from "./NeueVersion.js";
 import { useSends } from "./Verlauf.js";
@@ -108,10 +109,12 @@ export function Anpassungen() {
         </div>
       </details>
 
+      <Internal>{/* the note is for the team only: not on screen while the customer watches (what was typed stays) */}
       <section className="grid gap-1.5" data-testid="zf-internal-note">
         <TextAreaField id="zf-internal-note-text" rows={3} label="Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)" value={note ?? ""} onChange={(v) => useOfferStore.getState().remember("internalNote", v.slice(0, 5000))} placeholder="z. B. Besonderheiten, Absprachen, Hinweise für Innendienst/Montage …" />
         <p className="m-0 text-[0.9rem] text-muted-foreground" data-part="hint">Erscheint als eigener Kommentar in der Deal-Timeline. Wird nicht in E-Mail, PDF oder Brief übernommen.</p>
       </section>
+      </Internal>
     </>
   );
 }

@@ -3,7 +3,9 @@
 // automatic saving, the admin area (admins only), reload, today's UI, log out.
 // The menu is a native popover: the browser closes it on Escape or a tap outside, without any
 // library in the start script.
-import { LogOut, PanelsTopLeft, RotateCw, Settings } from "lucide-react";
+// Kundenmodus (C7): its switch sits in the header itself, always visible, one tap on and one tap
+// off; while on it reads „Kundenmodus“ with an eye-off icon, so the rep knows why things are hidden.
+import { Eye, EyeOff, LogOut, PanelsTopLeft, RotateCw, Settings } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -14,7 +16,9 @@ import { useLogout, useSession } from "../features/auth/index.js";
 const HeaderLeft = lazy(() => import("../features/offer/HeaderOffer.js").then((m) => ({ default: m.HeaderLeft })));
 const SaveState = lazy(() => import("../features/offer/SaveState.js").then((m) => ({ default: m.SaveState })));
 import { THEMES, usePrefs, type Mode } from "../shared/lib/prefs.js";
-import { Switch } from "../shared/ui/index.js";
+import { useCustomerModeStore } from "../shared/lib/customer-mode.js";
+import { Switch, cn } from "../shared/ui/index.js";
+import { Internal } from "../shared/ui/internal.js";
 import { CLASSIC_HOME } from "../shared/lib/classic-ui.js";
 
 /** Initials only — the full name is never shown (org rule). Prefers the e-mail's parts: m.muster → MM. */
@@ -106,11 +110,11 @@ function UserMenu() {
         </label>
 
         <hr className="mx-1 my-2 border-0 border-t border-border" />
-        {user.role === "admin" ? (
+        {user.role === "admin" ? <Internal>{/* the admin area holds purchase prices: not offered while the customer watches */}
           <Link className={ITEM} to="/admin" data-testid="menu-admin" onClick={() => document.getElementById("user-menu")?.hidePopover?.()}>
             <Settings aria-hidden className="size-5 text-muted-foreground" />Verwaltung
           </Link>
-        ) : null}
+        </Internal> : null}
         <a className={ITEM} href={CLASSIC_HOME}><PanelsTopLeft aria-hidden className="size-5 text-muted-foreground" />Zur bisherigen Ansicht</a>
         <button type="button" className={ITEM} onClick={() => { void reloadApp(); }}><RotateCw aria-hidden className="size-5 text-muted-foreground" />App neu laden</button>
         <hr className="mx-1 my-2 border-0 border-t border-border" />
@@ -121,12 +125,34 @@ function UserMenu() {
   );
 }
 
+/** The Kundenmodus switch: an eye while off; „Kundenmodus“ with an eye-off icon while on (the label from 480 px up, the icon always). */
+export function CustomerModeSwitch() {
+  const on = useCustomerModeStore((s) => s.on);
+  const toggle = useCustomerModeStore((s) => s.toggle);
+  const { user } = useSession();
+  if (!user) return null; // the login page has nothing to hide
+  const text = on ? "Kundenmodus beenden" : "Kundenmodus einschalten – interne Angaben ausblenden";
+  return (
+    <button
+      type="button" onClick={toggle} aria-pressed={on} aria-label={on ? "Kundenmodus an – beenden" : "Kundenmodus einschalten"} title={text} data-testid="customer-mode"
+      className={cn(
+        "flex min-h-12 min-w-12 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border-2 px-3 text-[0.9rem] font-semibold",
+        on ? "border-primary bg-accent-weak text-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted",
+      )}
+    >
+      {on ? <EyeOff aria-hidden className="size-5 shrink-0" /> : <Eye aria-hidden className="size-5 shrink-0" />}
+      {on ? <span className="max-[479px]:hidden">Kundenmodus</span> : null}
+    </button>
+  );
+}
+
 export function Header() {
   return (
     // below 480 px (U-059): tighter gaps and no 12 rem minimum on the left, so the right side never overlaps; 480 px and up unchanged (U-056)
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-3 overflow-hidden border-b border-border bg-card/95 px-4 backdrop-blur max-[479px]:gap-2 max-[479px]:px-3">
       <div className="min-w-[12rem] flex-1 max-[479px]:min-w-0"><Suspense fallback={<Brand />}><HeaderLeft /></Suspense></div>
       <div className="flex min-w-0 shrink items-center gap-2">
+        <CustomerModeSwitch />
         <Suspense fallback={null}><SaveState /></Suspense>
         <UserMenu />
       </div>

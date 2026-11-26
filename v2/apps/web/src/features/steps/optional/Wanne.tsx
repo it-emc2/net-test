@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { act } from "./store.js";
 import {
@@ -75,7 +76,7 @@ function ProductCard({ c, on, onPick }: { c: Card; on: boolean; onPick: () => vo
           <span className="flex flex-wrap gap-1.5">{c.pills.map((x) => <span key={x} data-part="pill" className="rounded-full bg-muted px-2.5 py-0.5 text-[0.85rem]">{x}</span>)}</span>
           {c.notes.map((n, i) => <span key={i} data-part="note" className={cn("text-[0.9rem] font-medium", n.missing ? "text-destructive" : "text-primary")}>{n.text}</span>)}
           <span data-part="name" className="text-[0.9rem] text-muted-foreground" title="So steht es im Angebot">{c.name}</span>
-          <span data-part="price" className="text-xl font-bold">{c.price}</span>
+          <Internal><span data-part="price" className="text-xl font-bold">{c.price}</span></Internal>
         </span>
       </button>
       {/* the product page in a new tab — beside the card, not in it (a link inside a button is not allowed) */}

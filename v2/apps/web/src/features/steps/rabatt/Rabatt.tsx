@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Card, CardTitle, Check, Choices } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { Markup } from "../markup/Markup.js";
 import { bonusKey } from "../versand/mail-rules.js";
@@ -27,7 +28,8 @@ const tick = (changes: Record<string, Fields>, price: Price | null) => {
 };
 const SUM = "flex items-baseline justify-between gap-4";
 
-/** "Übersicht": the sums of the offer, as the price says. */
+/** "Übersicht": the sums of the offer, as the price says. The ladder before the net amount (the
+ *  sums before markup and the markup itself) is internal: hidden in the Kundenmodus. */
 function Overview({ price }: { price: Price | null }) {
   const type = useOfferType();
   const pricingRules = useSection("pricingRules"), r = useSection("rabatt");
@@ -36,12 +38,12 @@ function Overview({ price }: { price: Price | null }) {
     <Card aria-labelledby="rb-overview">
       <CardTitle id="rb-overview">Übersicht</CardTitle>
       <dl className="m-0 grid gap-3 text-[1.05rem]" data-testid="rb-sums">
-        {o.rows.map((row) => (
+        <Internal>{o.rows.map((row) => (
           <div key={row.label} className={SUM} data-part="row">
             <dt className="flex items-center gap-2">{row.num ? <span data-part="num" className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[0.8rem] font-bold">{row.num}</span> : null}<span data-part="label">{row.label}</span></dt>
             <dd className="m-0 tabular-nums" data-part="value">{row.value}</dd>
           </div>
-        ))}
+        ))}</Internal>
         <div className={SUM}><dt>Nettobetrag</dt><dd className="m-0 tabular-nums" data-part="net">{o.net}</dd></div>
         <div className={SUM}><dt>zzgl. 19% MwSt.</dt><dd className="m-0 tabular-nums" data-part="vat">{o.vat}</dd></div>
         <div className={`${SUM} font-bold`}><dt>Gesamtbetrag</dt><dd className="m-0 tabular-nums" data-part="total">{o.total}</dd></div>

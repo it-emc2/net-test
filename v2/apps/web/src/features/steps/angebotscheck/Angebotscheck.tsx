@@ -5,6 +5,7 @@
 import { ChevronRight } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { Button, Card, CardTitle, Check, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { STEPS, useOfferStore, usePrice } from "../../offer/index.js";
 import { arbeitenChanges, toggleTask } from "../arbeiten/rules.js";
 import { STATUS_TEXT, acknowledged, check, type Price, type Row, type Status } from "./rules.js";
@@ -34,7 +35,7 @@ function RowLine({ row, base }: { row: Row; base: string }) {
         <span className="grid flex-1 gap-0.5">
           <span className="sr-only">{STATUS_TEXT[row.status]}: </span>
           <span className="font-semibold" data-part="title">{row.title}</span>
-          {row.details.map((d) => <span key={d} className="text-[0.9rem] text-muted-foreground" data-part="detail">{d}</span>)}
+          <Internal when={!!row.internal}>{row.details.map((d) => <span key={d} className="text-[0.9rem] text-muted-foreground" data-part="detail">{d}</span>)}</Internal>
         </span>
         <ChevronRight aria-hidden className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
       </Link>

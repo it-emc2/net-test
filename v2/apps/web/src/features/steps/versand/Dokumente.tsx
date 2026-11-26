@@ -1,11 +1,13 @@
 // Dokumentenstudio (ADR 026, phase 4; Angebotsversand slice 2): the documents made from the
 // offer — download as DOCX / PDF / CSV, and a preview on the page. The rules are documents.ts.
+// Kundenmodus: an `internal` card, preview tab or open preview is not rendered (<Internal>).
 import { Download, Eye, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ApiFailure, call, postForFile } from "../../../shared/api/index.js";
 import { handFile } from "../../../shared/lib/hand-file.js";
 import { Button, cn } from "../../../shared/ui/index.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import { checkStep, useOfferStore, useOfferType, usePrice } from "../../offer/index.js";
 import { giveNumber } from "./number.js";
@@ -122,7 +124,8 @@ export function Dokumente() {
         <p className="m-0 text-muted-foreground">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
         <div className="grid gap-3 md:grid-cols-2">
           {cardsOf(type).map((c) => (
-            <article key={c.title} className="grid content-start gap-2 rounded-xl border border-border bg-card p-4" data-testid="zf-doc-card">
+            <Internal key={c.title} when={!!c.internal}>
+            <article className="grid content-start gap-2 rounded-xl border border-border bg-card p-4" data-testid="zf-doc-card">
               <p className="m-0 flex items-center justify-between gap-2 text-[0.85rem]"><span data-part="badge" className="rounded-full bg-accent-weak px-2.5 py-0.5 font-semibold">{c.badge}</span><span data-part="format" className="text-muted-foreground">{c.format}</span></p>
               <h4 className="m-0 text-[1.05rem] font-semibold">{c.title}</h4>
               <p className="m-0 text-[0.95rem] text-muted-foreground" data-part="text">{c.text}</p>
@@ -134,6 +137,7 @@ export function Dokumente() {
                 ); })}
               </div>
             </article>
+            </Internal>
           ))}
         </div>
         {changed ? (
@@ -145,6 +149,7 @@ export function Dokumente() {
       </section>
 
       {p ? (
+        <Internal when={!!p.doc.internal}>
         <section className="grid gap-3 rounded-xl border border-border bg-card p-4" aria-labelledby="zf-preview-title" data-testid="zf-preview">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid gap-0.5">
@@ -158,13 +163,14 @@ export function Dokumente() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Dokumentvorschau wechseln">
-            {PREVIEWS.map((d) => <button key={d.key} type="button" role="tab" aria-selected={p.doc.key === d.key} data-preview={d.key} onClick={() => { void preview.load(d.key); }}
-              className={cn("min-h-12 cursor-pointer rounded-lg border-2 px-4 font-semibold", p.doc.key === d.key ? "border-primary bg-accent-weak" : "border-input bg-card")}>{d.tab}</button>)}
+            {PREVIEWS.map((d) => <Internal key={d.key} when={!!d.internal}><button type="button" role="tab" aria-selected={p.doc.key === d.key} data-preview={d.key} onClick={() => { void preview.load(d.key); }}
+              className={cn("min-h-12 cursor-pointer rounded-lg border-2 px-4 font-semibold", p.doc.key === d.key ? "border-primary bg-accent-weak" : "border-input bg-card")}>{d.tab}</button></Internal>)}
           </div>
           {p.doc.mode === "pdf"
             ? <iframe title="Dokumentenvorschau" src={p.url || "about:blank"} className="h-[70vh] w-full rounded-lg border border-border bg-white" data-part="pdf" />
             : <pre className="m-0 max-h-[70vh] overflow-auto rounded-lg border border-border bg-muted p-3 text-[0.9rem]" data-part="text">{p.text ?? ""}</pre>}
         </section>
+        </Internal>
       ) : null}
     </>
   );

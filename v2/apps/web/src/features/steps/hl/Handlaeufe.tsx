@@ -10,6 +10,7 @@ import { useState, type ReactNode } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, CHIP, CHIP_OFF, CHIP_ON, IMG, TextAreaField, cn } from "../../../shared/ui/index.js";
 import { SketchPad, type Sketch } from "../../../shared/ui/sketch-pad.js";
+import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { EMPTY_CATALOG, catalogOf, imageFor, keyOf, money, OUTSIDE_FINISH, productVariant, type Catalog, type Product } from "./catalog.js";
 import {
@@ -192,19 +193,19 @@ function Ledger({ c, cat }: { c: Config; cat: Catalog }) {
       </div>
       <div className="relative overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse">
-          <thead><tr className="text-left text-[0.9rem] text-muted-foreground"><th className="py-1 font-semibold">Position</th><th className="py-1 text-right font-semibold">Menge</th><th className="py-1 text-right font-semibold">Einzelpreis</th><th className="py-1 text-right font-semibold">Summe</th><th><span className="sr-only">Entfernen</span></th></tr></thead>
+          <thead><tr className="text-left text-[0.9rem] text-muted-foreground"><th className="py-1 font-semibold">Position</th><th className="py-1 text-right font-semibold">Menge</th><Internal><th className="py-1 text-right font-semibold">Einzelpreis</th><th className="py-1 text-right font-semibold">Summe</th></Internal><th><span className="sr-only">Entfernen</span></th></tr></thead>
           <tbody>
             {rows.length ? rows.map((r) => (
               <tr key={`${r.kind}:${r.key}`} className="border-t border-border" data-testid="hl-line" data-kind={r.kind} data-key={r.key}>
                 <td className="py-1"><div className="font-semibold" data-part="name">{r.name}</div><div className="text-[0.9rem] text-muted-foreground" data-part="sub">{r.sub}</div></td>
                 <td className="py-1 text-right"><span className="inline-flex items-center gap-1"><Commit aria-label={`Menge ${r.name}`} type="number" min={0} step={r.kind === "tube" ? 0.1 : 1} value={String(r.qty)} onCommit={(v) => onActive(cat, (x) => setQty(x, r.kind, r.key, v))} className={cn(INPUT, "w-24 text-right")} /> <span data-part="unit">{r.unit}</span></span></td>
-                <td className="py-1 text-right tabular-nums" data-part="price">{money(r.price)}</td>
-                <td className="py-1 text-right tabular-nums" data-part="total">{money(r.total)}</td>
+                <Internal><td className="py-1 text-right tabular-nums" data-part="price">{money(r.price)}</td>
+                <td className="py-1 text-right tabular-nums" data-part="total">{money(r.total)}</td></Internal>
                 <td className="py-1"><Button variant="ghost" size="icon" aria-label={`${r.name} entfernen`} onClick={() => onActive(cat, (x) => removeLine(x, r.kind, r.key))}><X aria-hidden /></Button></td>
               </tr>
             )) : <tr><td colSpan={5} className="py-2 text-muted-foreground">Noch keine Auswahl getroffen.</td></tr>}
           </tbody>
-          <tfoot><tr className="border-t-2 border-border"><td colSpan={3} className="py-2 text-right font-semibold">Gesamt (netto, EK)</td><td className="py-2 text-right font-bold tabular-nums" data-testid="hl-ledger-total">{money(ledgerTotal(rows))}</td><td /></tr></tfoot>
+          <Internal><tfoot><tr className="border-t-2 border-border"><td colSpan={3} className="py-2 text-right font-semibold">Gesamt (netto, EK)</td><td className="py-2 text-right font-bold tabular-nums" data-testid="hl-ledger-total">{money(ledgerTotal(rows))}</td><td /></tr></tfoot></Internal>
         </table>
       </div>
     </section>
