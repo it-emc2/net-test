@@ -541,6 +541,64 @@ export function winwallFloorMore(raw: any) {
 }
 
 /**
+ * Floor covered ONLY by leftovers of the Wandverkleidung (ADR 031, owner 2026-11-26): the floor is
+ * on as „Wandverkleidung als Fußboden“, „Reste anrechnen“ is on, no Dekor has plates and an area
+ * is typed. The adhesive is billed for that area; no plate is priced.
+ */
+export function wallCladdingLeftoverOnly(dusch: any) {
+  const d = dusch || {};
+  const ww = d.wallCladdingSupplier === "ww";
+  const wwQty = ww ? winwallFloorQty(d.wallCladdingWwQty) : null;
+  const qty = wwQty ? Object.values(wwQty).reduce((a: any, b: any) => a + b, 0) : Number(d.wallCladdingQty || 0) || 0;
+  const moreQty = (ww ? winwallFloorMore(d.wallCladdingWwMore) : []).reduce((a: any, m: any) => a + Object.values(m.qty).reduce((x: any, y: any) => x + y, 0), 0);
+  return !!d.addWallCladding && !!d.wallCladdingUseLeftover && qty === 0 && moreQty === 0 &&
+    (Number(String(d.wallCladdingArea ?? "").replace(",", ".")) || 0) > 0;
+}
+
+/**
+ * The plate line shown for a leftover-only floor (ADR 031): „- 1 Stk Aluverbundplatte“ in the
+ * wording of the bought plate lines (winwall: „— Dekor: <Name> (<WS 229>)“, VIGOUR: „(<Farbe>)“;
+ * the floor's own Dekor / colour, none when none is set), no price. DISPLAY ONLY (`displayOnly`):
+ * it goes into materialsDisplayDocx (Angebot, PDF, signing page) and never into materials.lines —
+ * totals, Aufschlag, order lists, Hassmann CSV, winwall cart, material overview and plate counts
+ * do not see it. `note` is for the app (in brackets, hidden in Kundenmodus), never for a document.
+ */
+export function floorLeftoverLine(dusch: any) {
+  if (!wallCladdingLeftoverOnly(dusch)) return null;
+  let text = "Aluverbundplatte";
+  let color = null;
+  if (dusch.wallCladdingSupplier === "ww") {
+    const code = winwallDecorCode(dusch.wallCladdingWwDecor === "custom" ? dusch.wallCladdingWwDecorCustom : dusch.wallCladdingWwDecor);
+    const name = code ? (WINWALL_CATALOG as any)[code] || null : null;
+    if (code) text += ` — Dekor: ${name ? `${name} ` : ""}(${code.slice(0, 2)} ${code.slice(2)})`;
+  } else {
+    color = String(dusch.wallCladdingColor || "").trim() || null;
+    if (color) text += ` (${color})`;
+  }
+  const label = `- 1 Stk ${text}`;
+  return {
+    productId: null, name: text, color, qty: 1, unit: null, unitPrice: 0, lineTotal: 0, label, labelLines: [label],
+    source: null, finish: null, currentNet: null, hassmannArticle: null, hassmannQty: null, docxHide: false,
+    category: "Fußboden", displayOnly: true, note: "aus Resten der Wandverkleidung",
+  };
+}
+
+/** Puts floorLeftoverLine() into a display list: before the floor's (last) Flächenkleber, else after the last Fußboden line, else at the end. */
+export function withFloorLeftoverLine(lines: any[], dusch: any) {
+  const line = floorLeftoverLine(dusch);
+  if (!line) return lines;
+  let at = -1;
+  let after = lines.length;
+  lines.forEach((l: any, i: number) => {
+    if (l?.category !== "Fußboden") return;
+    after = i + 1;
+    if (l?.productId === "R_4260602") at = i;
+  });
+  lines.splice(at >= 0 ? at : after, 0, line);
+  return lines;
+}
+
+/**
  * Usable winwall leftover for the Fußboden: what the ordered wall panels deliver
  * (Σ qty × width × height) minus the wall area, times the usable share. null below
  * the minimum, without a wall area or without panels.
@@ -1470,10 +1528,9 @@ function grossToNet(gross: any, taxRate: any) {
     const wcMore = dusch.wallCladdingSupplier === "ww" ? winwallFloorMore(dusch.wallCladdingWwMore) : [];
     const wcMoreQty = wcMore.reduce((a: any, m: any) => a + Object.values(m.qty).reduce((x, y) => (x as any) + (y as any), 0), 0);
     // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
-    // panel line then, but the adhesive is still billed for the full floor area.
-    const wcLeftoverOnly =
-      !!dusch.wallCladdingUseLeftover && wallCladdingQty === 0 && wcMoreQty === 0 &&
-      (Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) || 0) > 0;
+    // priced panel line then, but the adhesive is still billed for the full floor area.
+    // (The offer shows an unpriced plate line instead — floorLeftoverLine(), ADR 031.)
+    const wcLeftoverOnly = wallCladdingLeftoverOnly(dusch);
     if (dusch.addWallCladding && ((wallCladdingQty as any) > 0 || wcMoreQty > 0 || wcLeftoverOnly)) {
       const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
@@ -3460,6 +3517,8 @@ try {
      const docxMaterials = allMatLines
   .filter((l: any) => !l.docxHide)
   .map((x: any) => ({ ...x }));
+      // Leftover-only floor: the plate the customer sees, without a price (ADR 031) — document copy only.
+      withFloorLeftoverLine(docxMaterials, payload?.duschwanne || {});
 
 
       // --- SERVICES display copies

@@ -30,7 +30,7 @@
 // Legacy oddities ported unchanged: the switch "Reste anrechnen" with winwall plates puts the
 // quantity of a single format into wallCladdingQty (the plates JSON stays, the price uses it);
 // with 100×205 cm as the main format it stops there (a TypeError in today's UI).
-import { WINWALL_CATALOG, WINWALL_FORMATS, winwallDecorCode, winwallFloorQty, winwallLeftoverM2, winwallOrderLines, winwallStripLeftoverM2 } from "@oc/pricing";
+import { floorLeftoverLine, WINWALL_CATALOG, WINWALL_FORMATS, winwallDecorCode, winwallFloorQty, winwallLeftoverM2, winwallOrderLines, winwallStripLeftoverM2 } from "@oc/pricing";
 import { VG_COLORS } from "../wandverkleidung/colors.js";
 import { situationOf, wallsOf, WALLS } from "../wandverkleidung/calc.js";
 import { WW_DECORS, WW_SWATCHES } from "../wandverkleidung/decors.js";
@@ -455,7 +455,9 @@ export function wallDecorChanged(dw: Fields, rest: Rest | null, oldCode: string,
 }
 
 // ---- "Ihre Auswahl" ----
-export interface Selected { name: string; meta: string; price: string; /** `price` without money (Kundenmodus); absent: `price` holds none */ plain?: string; img: string; stock?: { qty: number; inStock: boolean; text: string } | null; own?: number }
+/** the bracket note of the unpriced floor plate of a leftover-only floor (ADR 031) — app only, never in a document */
+export const LEFTOVER_NOTE = "(aus Resten der Wandverkleidung)";
+export interface Selected { name: string; /** internal note after the name (hidden in Kundenmodus) */ note?: string; meta: string; price: string; /** `price` without money (Kundenmodus); absent: `price` holds none */ plain?: string; img: string; stock?: { qty: number; inStock: boolean; text: string } | null; own?: number }
 export interface Full { name?: string; netPrice?: number; stockQuantity?: number | null; stockText?: string | null; image?: string }
 /** `full`: the catalogue's data of the VIGOUR article; `adhesive`: the unit price of the adhesive; `own`: our own stock per article */
 export function selection(dw: Fields, rest: Rest | null, full: Full | null | undefined, adhesive: number, own: Record<string, number> = {}): Selected[] {
@@ -479,6 +481,9 @@ export function selection(dw: Fields, rest: Rest | null, full: Full | null | und
   }
   // the rest's picture is the decor tile's (a typed decor: its swatch when there is one)
   const restImg = ww ? (dw.wallCladdingWwDecor === "custom" ? swatchOf(dec.code) : `/assets/winwall/${String(dw.wallCladdingWwDecor ?? "")}.jpg`) : colour?.img || "";
+  // only leftovers cover the floor (ADR 031): the plate the offer lists as „1 Stk Aluverbundplatte“ — no price
+  // here either; that it comes from the leftovers is for the user only (the note, hidden in Kundenmodus)
+  if (floorLeftoverLine(dw)) rows.push({ name: "Aluverbundplatte", note: LEFTOVER_NOTE, meta: [ww ? dec.label : String(dw.wallCladdingColor ?? "").trim(), "1 Stück"].filter(Boolean).join(" · "), price: "", img: restImg });
   if (credit > 0) rows.push({ name: "Reste aus Wandverkleidung", meta: `${ww ? dec.label : colorOf(dw)} · ${m2(credit)} m² · schon bezahlt`, price: ww ? "" : "0,00 €", plain: "", img: restImg });
   if (area > 0) { // the adhesive is for the whole floor, with or without the rest
     const packs = Math.ceil(area / 0.6 - 1e-12);

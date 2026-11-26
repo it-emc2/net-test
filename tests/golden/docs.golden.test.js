@@ -8,6 +8,7 @@ import { join } from "node:path";
 import {
   DOCS_DIR, PRICING_DIR, ENDPOINTS, startHarness, stopHarness, renderDocx, normaliseDocx, selectDocCases,
 } from "./docs-harness.mjs";
+import { expectedDocx } from "./deliberate-differences.mjs";
 
 jest.setTimeout(120000);
 
@@ -33,6 +34,6 @@ describe("DOCX golden master", () => {
   test.each(rows)("%s", async (id, c, ep) => {
     const { status, body } = await renderDocx(ep.path, structuredClone(c.payload));
     expect(status).toBe(200);
-    expect(normaliseDocx(body)).toEqual(byId.get(id).docx);
+    expect(normaliseDocx(body)).toEqual(expectedDocx(id, byId.get(id).docx)); // deliberate differences: see deliberate-differences.mjs
   });
 });

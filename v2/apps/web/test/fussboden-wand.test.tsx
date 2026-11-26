@@ -23,6 +23,20 @@ const flat = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").tr
 const squeeze = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, "");
 const part = (el: Element, name: string) => flat(el.querySelector(`[data-part="${name}"]`)?.textContent);
 const WALL_NAMES: Record<string, string> = { links: "Linke Wand", back: "Rückwand", rechts: "Rechte Wand" };
+/** Deliberate difference from the recording (ADR 031, owner 2026-11-26): when only leftovers cover the floor, „Ihre Auswahl“
+ *  shows the plate the offer lists — „Aluverbundplatte“ with the internal note, „1 Stück“, no price — before the rest's row.
+ *  These recorded scenarios end that way; every other one must show exactly the recording. */
+const LEFTOVER_ONLY = new Set(["rest of winwall: used, covers the floor", "rest of VIGOUR: used", "rest of VIGOUR: button on the wall step", "strips: floor added from the rest", "strips: Bodenbelag, wall decor changed, switch to winwall"]);
+function withLeftoverPlate<T extends { name: string; meta: string; price: string; badges: string; img: string }>(scenario: string, rows: T[], dw: Fields): T[] {
+  if (!LEFTOVER_ONLY.has(scenario)) return rows;
+  // before the rest's row; „Reste anrechnen“ on without any rest on the wall (no rest row): before the adhesive
+  const restAt = rows.findIndex((r) => r.name === "Reste aus Wandverkleidung"), at = restAt >= 0 ? restAt : rows.findIndex((r) => r.name.startsWith("Flächenkleber"));
+  if (at < 0) throw new Error(`${scenario}: neither rest nor adhesive row in the recording — the listed difference no longer fits`);
+  const rest = restAt >= 0 ? rows[restAt]! : null, colour = String(dw.wallCladdingColor ?? "");
+  const plate = { ...rows[at]!, name: `Aluverbundplatte ${w.LEFTOVER_NOTE}`, price: "", badges: "",
+    meta: `${rest ? rest.meta.replace(/ · [\d,.]+ m² · schon bezahlt$/, "") : colour} · 1 Stück`, img: rest ? rest.img : `.${w.COLORS.find((c) => c.value === colour)?.img ?? ""}` };
+  return [...rows.slice(0, at), plate, ...rows.slice(at)];
+}
 const SERVER: Record<string, Reply> = {
   ...BASE, "GET /admin/api/config/public": { body: { ...arbeiten.config, WV_OWN_LAGER: { V3WVK09: 5, V3WV09: 5 } } },
   ...Object.fromEntries(Object.entries(reference.prices).map(([q, body]) => [`GET /api/vigor-prices?${q}`, { body }])),
@@ -166,7 +180,7 @@ describe("Wandverkleidung als Fußboden stores and shows what today's UI does", 
     expect(!!qty).toBe(v.qtyShown);
     if (qty) expect(qty.value).toBe(v.qty);
     await waitFor(() => expect(screen.queryAllByTestId("wc-selected").map((r) => ({ name: part(r, "name"), meta: part(r, "meta"), price: part(r, "price"), badges: squeeze(part(r, "badges")), img: r.querySelector("img")?.getAttribute("src") ?? "" })))
-      .toEqual(v.selection.map((s) => ({ ...s, badges: squeeze(s.badges), img: s.img.replace(/^\./, "") }))));
+      .toEqual(withLeftoverPlate(scenario.name, v.selection, offer().duschwanne).map((s) => ({ ...s, badges: squeeze(s.badges), img: s.img.replace(/^\./, "") }))));
   });
 
   it("the Wandverkleidung step offers the wall's rest for the floor, as today", { timeout: 20000 }, async () => {

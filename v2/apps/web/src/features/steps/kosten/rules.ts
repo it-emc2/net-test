@@ -7,11 +7,13 @@
 //  - "Summen" is the ladder from the purchase sums over markup, discount and bonus to the total
 //  - a line the markup leaves out is marked "ohne Aufschlag"; a line whose price changed since
 //    the offer was priced shows today's difference (the offer's price stays the billed one)
+//  - a line of the offer document that is shown but not bought (`displayOnly`, ADR 031: the plate of a
+//    floor made only of leftovers) is listed where the document has it, without a price, with its note
 type Fields = Record<string, unknown>;
 export interface Price { [k: string]: unknown }
-interface RawLine { productId?: string; id?: string; key?: string; name?: string; label?: string; qty?: unknown; unit?: string; unitPrice?: unknown; lineTotal?: unknown; amount?: unknown; source?: string; category?: string; currentNet?: unknown }
+interface RawLine { productId?: string; id?: string; key?: string; name?: string; label?: string; qty?: unknown; unit?: string; unitPrice?: unknown; lineTotal?: unknown; amount?: unknown; source?: string; category?: string; currentNet?: unknown; displayOnly?: boolean; note?: string }
 export interface Tag { text: string; kind: "plain" | "up" | "down"; title?: string }
-export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string; task?: boolean };
+export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string; task?: boolean; /** internal note after the label (ADR 031) */ note?: string };
 export interface Section { num: string; title: string; rows: Row[]; footer: string; note?: { text: string; up: boolean } | null }
 export interface Sum { num?: string; label: string; value: string; rule?: boolean; total?: boolean; note?: undefined }
 export type SumRow = Sum | { note: string };
@@ -35,6 +37,8 @@ export function labelOf(l: RawLine): string {
 const qtyText = (v: unknown): string => { const q = Number(v ?? 1); return Number.isInteger(q) ? String(q) : q.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); };
 
 function row(l: RawLine, exempt: ReadonlySet<string>): Row {
+  // shown, not bought: no price, no tags (ADR 031)
+  if (l.displayOnly) return { id: idOf(l), label: stripBrand(labelOf(l)), tags: [], qty: qtyText(l.qty), unit: "", total: "", ...(l.note ? { note: `(${l.note})` } : {}) };
   const tags: Tag[] = [];
   if (exempt.has(idOf(l))) tags.push({ text: "ohne Aufschlag", kind: "plain" });
   const cur = n(l.currentNet), quoted = n(l.unitPrice);
@@ -42,6 +46,20 @@ function row(l: RawLine, exempt: ReadonlySet<string>): Row {
   // the unit price shown is the one that gives the line total (markup included), so quantity × unit = total (UX-CHANGES U-033; today a grab bar line showed the purchase price)
   const qty = n(l.qty ?? 1), total = n(l.lineTotal), shown = qty > 0 && total > 0 && Math.abs(quoted * qty - total) >= 0.005 ? total / qty : l.unitPrice ?? 0;
   return { id: String(l.productId || l.id || l.key || ""), label: stripBrand(labelOf(l)), tags, qty: `${qtyText(l.qty)}${l.unit ? ` ${l.unit}` : ""}`, unit: eur(shown), total: eur(l.lineTotal ?? 0) };
+}
+
+/** the material lines + the offer document's display-only lines (ADR 031), placed as the document places them: before the floor's
+ *  (last) Flächenkleber, else after the last Fußboden line, else at the end */
+export function withDisplayOnly(mat: RawLine[], price: Price): RawLine[] {
+  const shown = lines(price.materialsDisplayDocx).filter((l) => l.displayOnly);
+  if (!shown.length) return mat;
+  const out = [...mat];
+  for (const d of shown) {
+    let at = -1, after = out.length;
+    out.forEach((l, i) => { if (l.category !== "Fußboden") return; after = i + 1; if (idOf(l) === "R_4260602") at = i; });
+    out.splice(at >= 0 ? at : after, 0, d);
+  }
+  return out;
 }
 
 export const MATERIAL_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
@@ -147,7 +165,7 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
   return [
     { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
-    { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(matLines, exempt), footer: `Summe Material: ${eur(matSum)}`,
+    { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(withDisplayOnly(matLines, price), exempt), footer: `Summe Material: ${eur(matSum)}`,
       // several articles changed their price: the sum of it (one article says it on its own line)
       note: drift && Math.abs(delta) >= 0.005 && (drift.lines?.length ?? 0) > 1 ? { text: `Preis geändert: ${drift.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
     { num: "III", title: "Optionale Produkte", rows: optLines.map((l) => row(l, exempt)), footer: `Summe: ${eur((price.optionalDisplayUI as Fields | undefined)?.sum ?? 0)}` },
