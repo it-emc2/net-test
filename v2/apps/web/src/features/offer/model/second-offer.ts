@@ -59,7 +59,8 @@ export const customerName = (kd: Record<string, unknown> | null | undefined): st
   [kd?.firstName, kd?.lastName].map((x) => String(x ?? "").trim()).filter(Boolean).join(" ");
 
 export const TEXT = {
-  button: "Weiteres Angebot für diesen Kunden",
+  /** the entry (header panel, deal overview): it leads to both ways — „Angebotsart wechseln“ on this deal or a new deal (owner 2026-11-26) */
+  button: "Andere Angebotsart / weiteres Angebot",
   tempReason: "Erst möglich, wenn das Angebot einem Bitrix-Auftrag zugeordnet ist.",
   title: "Weiteres Angebot für diesen Kunden",
   chooseLead: "Welche Angebotsart soll das weitere Angebot haben?",
@@ -97,7 +98,7 @@ export const TEXT = {
   relatedFailed: "Der Stand der weiteren Angebote konnte nicht geladen werden.",
   notSavedOpen: "Das Angebot wurde nicht gewechselt, weil das geöffnete Angebot nicht gespeichert werden konnte.",
   markerLabel: (n: number) => `${n} weitere${n === 1 ? "s" : ""} Angebot${n === 1 ? "" : "e"} dieses Kunden`,
-  otherTypeNotice: (deal: string, has: string, asked: string) => `Auftrag ${deal} hat bereits ein Angebot ${has} – dieses wurde geöffnet. Ein Angebot ${asked} legen Sie über „Weiteres Angebot für diesen Kunden“ an.`,
+  otherTypeNotice: (deal: string, has: string, asked: string) => `Auftrag ${deal} hat bereits ein Angebot ${has} – dieses wurde geöffnet. Ein Angebot ${asked} legen Sie über „Andere Angebotsart / weiteres Angebot“ an.`,
 } as const;
 
 /** what the dialog shows after a call that did not succeed, and which action it offers */

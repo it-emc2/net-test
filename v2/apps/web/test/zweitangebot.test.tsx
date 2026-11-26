@@ -46,7 +46,7 @@ function offer(more: Record<string, Reply | ((b: unknown) => Reply)> = {}, draft
     ...more,
   });
 }
-/** header panel → „Weiteres Angebot für diesen Kunden“ */
+/** header panel → „Andere Angebotsart / weiteres Angebot“ */
 async function openDialog() {
   await userEvent.click(await screen.findByTestId("variant-switch"));
   await userEvent.click(within(await screen.findByTestId("related-section")).getByRole("button", { name: TEXT.button }));
