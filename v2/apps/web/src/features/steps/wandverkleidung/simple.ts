@@ -69,10 +69,11 @@ export function pick(s: Simple, code: string): { next: Simple; moved: boolean } 
   if (other >= 0) return { next: { ...s, active: other }, moved: false };
   return { next: edit(s, (g) => ({ ...g, code })), moved: true };
 }
+/** the decor "+ weiteres Dekor" adds: the first palette decor not in `used` (also the Fußboden's winwall Dekors) */
+export const nextDecor = (used: Iterable<string>): string => { const u = new Set(used); return palette().find((c) => !u.has(c)) || "WS000"; };
 /** "+ weiteres Dekor": the first palette decor no group has, without plates */
 export function addGroup(s: Simple): Simple {
-  const used = new Set(s.groups.map((g) => g.code));
-  const groups = [...s.groups, { code: palette().find((c) => !used.has(c)) || "WS000", qty: zero() }];
+  const groups = [...s.groups, { code: nextDecor(s.groups.map((g) => g.code)), qty: zero() }];
   return { groups, active: groups.length - 1 };
 }
 export function removeGroup(s: Simple, i: number): Simple {

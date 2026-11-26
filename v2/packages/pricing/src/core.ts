@@ -522,6 +522,25 @@ export function winwallFloorQty(raw: any) {
 }
 
 /**
+ * Further floor Dekors (wallCladdingWwMore, 2026-11-25): [{decor, decorCustom, qty}] as JSON
+ * text or array — decor/decorCustom like wallCladdingWwDecor/-Custom, qty like wallCladdingWwQty.
+ * The first Dekor stays in those three fields. → [{code, name, qty}] with plates; an entry
+ * without a valid Dekor-Nr. is left out (like a wall row), an absent field gives [].
+ */
+export function winwallFloorMore(raw: any) {
+  let arr = raw;
+  if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch { return []; } }
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const r of arr) {
+    const code = winwallDecorCode(r?.decor === "custom" ? r?.decorCustom : r?.decor);
+    const qty = winwallFloorQty(r?.qty);
+    if (code && qty) out.push({ code, name: (WINWALL_CATALOG as any)[code] || null, qty });
+  }
+  return out;
+}
+
+/**
  * Usable winwall leftover for the Fußboden: what the ordered wall panels deliver
  * (Σ qty × width × height) minus the wall area, times the usable share. null below
  * the minimum, without a wall area or without panels.
@@ -668,6 +687,13 @@ export function computeFingerprint(payload: any) {
       ...(wvKRows ? { wvKRows } : {}),
       ...(wvWwRows ? { wvWwRows } : {}),
     };
+  }
+  // Further floor Dekors (wallCladdingWwMore, 2026-11-25): empty = none = a missing field.
+  const wcMore = rest.duschwanne?.wallCladdingWwMore;
+  if (rest.duschwanne && typeof rest.duschwanne === "object" && "wallCladdingWwMore" in rest.duschwanne &&
+      (wcMore == null || wcMore === "" || wcMore === "[]" || (Array.isArray(wcMore) && !wcMore.length))) {
+    const { wallCladdingWwMore, ...dw } = rest.duschwanne;
+    rest.duschwanne = dw;
   }
   return stableStringify(rest);
 }
@@ -1439,12 +1465,16 @@ function grossToNet(gross: any, taxRate: any) {
     // winwall floor: plates per format (wallCladdingWwQty); older offers have one size + qty.
     const wcWwQty = dusch.wallCladdingSupplier === "ww" ? winwallFloorQty(dusch.wallCladdingWwQty) : null;
     const wallCladdingQty = wcWwQty ? Object.values(wcWwQty).reduce((a, b) => (a as any) + (b as any), 0) : Number(dusch.wallCladdingQty || 0) || 0;
+    // Further Dekors (wallCladdingWwMore, 2026-11-25): their plates count everywhere the
+    // first Dekor's do (lines, adhesive area). Absent = [] = everything as before.
+    const wcMore = dusch.wallCladdingSupplier === "ww" ? winwallFloorMore(dusch.wallCladdingWwMore) : [];
+    const wcMoreQty = wcMore.reduce((a: any, m: any) => a + Object.values(m.qty).reduce((x, y) => (x as any) + (y as any), 0), 0);
     // Leftovers from the Wandverkleidung can cover the whole floor (qty 0): no
     // panel line then, but the adhesive is still billed for the full floor area.
     const wcLeftoverOnly =
-      !!dusch.wallCladdingUseLeftover && wallCladdingQty === 0 &&
+      !!dusch.wallCladdingUseLeftover && wallCladdingQty === 0 && wcMoreQty === 0 &&
       (Number(String(dusch.wallCladdingArea ?? "").replace(",", ".")) || 0) > 0;
-    if (dusch.addWallCladding && ((wallCladdingQty as any) > 0 || wcLeftoverOnly)) {
+    if (dusch.addWallCladding && ((wallCladdingQty as any) > 0 || wcMoreQty > 0 || wcLeftoverOnly)) {
       const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
       const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
@@ -1455,13 +1485,24 @@ function grossToNet(gross: any, taxRate: any) {
       const wallCladdingHassmannPid = wcWinwall ? null : resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
       if (wcWinwall) {
         const decor = winwallDecor({ wvWwDecor: dusch.wallCladdingWwDecor, wvWwDecorCustom: dusch.wallCladdingWwDecorCustom });
-        const decorText = `${decor.name ? `${decor.name} ` : ""}(${decor.code.slice(0, 2)} ${decor.code.slice(2)})`;
-        for (const l of winwallOrderLines(decor.code, wcWwQty || { [wallCladdingSize]: wallCladdingQty })) {
-          const f = l.format;
-          const mm = `${f!.widthCm * 10}×${f!.heightCm * 10} mm`;
-          // Same word as the VIGOUR floor ("Aluverbundplatte (Farbe)") — Angebot, Kosten, signing.
-          add(l.productId, l.qty, `- ${l.panels} Stk Aluverbundplatte ${mm} — Dekor: ${decorText}`, f!.price, null,
-            { name: `Aluverbundplatte ${mm} — Dekor: ${decorText}` });
+        // One group per Dekor: the first, then each further one; the same Dekor twice = one line per format.
+        const wcGroups = [{ decor, qty: wcWwQty || { [wallCladdingSize]: wallCladdingQty } }];
+        for (const m of wcMore) {
+          const g = wcGroups.find((x) => x.decor.code === m.code);
+          if (!g) { wcGroups.push({ decor: { code: m.code, name: m.name }, qty: m.qty }); continue; }
+          const sum = { ...g.qty };
+          for (const c of WINWALL_SINGLE_FORMATS) (sum as any)[c] = (Number((sum as any)[c]) || 0) + (m.qty as any)[c];
+          g.qty = sum;
+        }
+        for (const g of wcGroups) {
+          const decorText = `${g.decor.name ? `${g.decor.name} ` : ""}(${g.decor.code.slice(0, 2)} ${g.decor.code.slice(2)})`;
+          for (const l of winwallOrderLines(g.decor.code, g.qty)) {
+            const f = l.format;
+            const mm = `${f!.widthCm * 10}×${f!.heightCm * 10} mm`;
+            // Same word as the VIGOUR floor ("Aluverbundplatte (Farbe)") — Angebot, Kosten, signing.
+            add(l.productId, l.qty, `- ${l.panels} Stk Aluverbundplatte ${mm} — Dekor: ${decorText}`, f!.price, null,
+              { name: `Aluverbundplatte ${mm} — Dekor: ${decorText}` });
+          }
         }
       } else if ((wallCladdingQty as any) > 0)
         add(
@@ -1481,7 +1522,8 @@ function grossToNet(gross: any, taxRate: any) {
           ? WINWALL_FORMATS.reduce((a, f) => a + ((wcWwQty as any)[f.code] || 0) * f.widthCm * f.heightCm, 0) / 10000
           : wwFmt
           ? ((wallCladdingQty as any) * wwFmt.widthCm * wwFmt.heightCm) / 10000
-          : (wallCladdingQty as any) * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55);
+          : (wallCladdingQty as any) * (wallCladdingSize === "1497" ? 1.497 : 0.997) * 2.55) +
+          wcMore.reduce((a: any, m: any) => a + WINWALL_FORMATS.reduce((s, f) => s + ((m.qty as any)[f.code] || 0) * f.widthCm * f.heightCm, 0) / 10000, 0);
       const wcCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
       const wcPacks = ceilSafe(wcArea / wcCoverage);
       if (wcPacks > 0)

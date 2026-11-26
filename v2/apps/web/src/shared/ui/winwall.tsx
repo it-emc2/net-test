@@ -1,6 +1,8 @@
 // winwall plates and decors, shared by the Wandverkleidung simple view and the Fußboden mode
 // "Wandverkleidung als Fußboden" (today both draw the same `.wvs-plate` cards and `.wvs-color` tiles).
-import { Minus, Plus } from "lucide-react";
+// The simple views of the lines VIGOUR and Badolux use the same pieces (owner 2026-11-25: "same as
+// winwall"): the numbered section heading, the colour chips, the panel cards and the palette.
+import { Minus, Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "./button.js";
 import { cn } from "../lib/cn.js";
@@ -20,7 +22,9 @@ export function PlateShape({ w, h, img, children }: { w: number; h: number; img?
 }
 
 /** width × height in cm come from the catalog's numbers (WINWALL_FORMATS), not from the label */
-export interface PlateCard { code: string; size: string; qty: number; img: string; note: string; widthCm: number; heightCm: number }
+export interface PlateCard { code: string; size: string; qty: number; img: string; note: string; widthCm: number; heightCm: number;
+  /** the picture's address when it is not a winwall decor (`/assets/winwall/<img>.jpg`) — VIGOUR, Badolux */
+  src?: string | undefined }
 
 /** The plates: each drawn to scale on one baseline in the decor, its size, a note, − / + and "Menge".
  *  The amount is shown once, in the stepper (no badge on the plate, owner 2026-11-25); a plate with
@@ -55,7 +59,7 @@ export function PlateCards({ plates, onStep, testId, notePart }: { plates: reado
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {plates.map((x, i) => (
         <div key={x.code} data-testid={testId} data-code={x.code} data-img={x.img} className={plateCard(x.qty > 0)}>
-          <PlateOnBaseline w={boxes[i]!.w} h={boxes[i]!.h} height={height} img={x.img ? `/assets/winwall/${x.img}.jpg` : undefined} />
+          <PlateOnBaseline w={boxes[i]!.w} h={boxes[i]!.h} height={height} img={x.src ?? (x.img ? `/assets/winwall/${x.img}.jpg` : undefined)} />
           <span data-part="size" className="whitespace-nowrap text-[0.9rem] font-semibold">{x.size}</span>
           <small data-part={notePart} className="min-h-5 text-muted-foreground">{x.note}</small>
           <PlateStepper qty={x.qty} onStep={(d) => onStep(x.code, d)} less={`Weniger ${x.size}`} more={`Mehr ${x.size}`} />
@@ -98,17 +102,47 @@ export function RowPlates({ formats, picked, qty, img, label, stepLabel, onPick,
   );
 }
 
-export interface DecorTile { code: string; name: string; small: string; checked: boolean; swatch: boolean; label: string }
+export interface DecorTile { code: string; name: string; small: string; checked: boolean; swatch: boolean; label: string;
+  /** the picture's address when it is not a winwall decor — VIGOUR colours, Badolux decors */
+  img?: string | undefined }
 /** The decor palette: a tile per decor (its swatch, else its number), name and number below. */
 export function DecorPalette({ tiles, onPick, label }: { tiles: readonly DecorTile[]; onPick: (code: string) => void; label: string }) {
   return (
     <SwatchGrid role="radiogroup" aria-label={label}>
       {tiles.map((d) => (
         <button key={d.code} type="button" role="radio" aria-checked={d.checked} data-code={d.code} onClick={() => onPick(d.code)} className={swatchTile(d.checked)}>
-          <SwatchFace on={d.checked} img={d.swatch ? `/assets/winwall/${d.code}.jpg` : undefined} label={d.label} />
-          <span data-part="name">{d.name}</span><small data-part="small" className="font-normal text-muted-foreground">{d.small}</small>
+          <SwatchFace on={d.checked} img={d.img ?? (d.swatch ? `/assets/winwall/${d.code}.jpg` : undefined)} label={d.label} />
+          <span data-part="name">{d.name}</span>{d.small ? <small data-part="small" className="font-normal text-muted-foreground">{d.small}</small> : null}
         </button>
       ))}
     </SwatchGrid>
+  );
+}
+
+/** The numbered heading of a simple view's section ("1 Platten – Menge je Größe", "2 Dekor – gilt für …"). */
+export function StepLegend({ n, children }: { n: number; children: ReactNode }) {
+  return <legend className="mb-1.5 p-0 font-semibold"><span aria-hidden className="mr-1 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">{n}</span> {children}</legend>;
+}
+
+export interface Chip { name: string; text: string; pressed: boolean; removable: boolean; img?: string | undefined }
+/** The colour / decor chips above the plates: one per colour ("Marmor weiß · 4 Stk", its picture in a
+ *  dot), the open one pressed; × removes a chip while there are two or more; the dashed chip adds one.
+ *  `testId` names each chip, `noun` the × ("Dekor Marmor weiß entfernen"), `label` the group. */
+export function DecorChips({ chips, label, noun, addText, testId, onPick, onRemove, onAdd }: {
+  chips: readonly Chip[]; label: string; noun: string; addText: string; testId: string; onPick: (i: number) => void; onRemove: (i: number) => void; onAdd: () => void;
+}) {
+  const chip = "flex min-h-12 cursor-pointer items-center gap-2 rounded-full border-2 bg-card px-3 text-foreground";
+  return (
+    <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={label}>
+      {chips.map((t, i) => (
+        <span key={`${t.name}-${i}`} className="flex min-w-0 items-center gap-1">
+          <button type="button" data-testid={testId} aria-pressed={t.pressed} onClick={() => onPick(i)} className={cn(chip, "min-w-0 text-left", t.pressed ? "border-primary font-semibold" : "border-input")}>
+            <i aria-hidden className="size-7 shrink-0 rounded-full border border-border bg-muted bg-cover bg-center" style={t.img ? { backgroundImage: `url("${t.img}")` } : undefined} /><span data-part="text" className="min-w-0 [overflow-wrap:anywhere]">{t.text}</span>
+          </button>
+          {t.removable ? <Button variant="ghost" size="icon" aria-label={`${noun} ${t.name} entfernen`} onClick={() => onRemove(i)}><X aria-hidden /></Button> : null}
+        </span>
+      ))}
+      <button type="button" onClick={onAdd} className={cn(chip, "border-dashed border-input text-primary")}>{addText}</button>
+    </div>
   );
 }

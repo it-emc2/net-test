@@ -5,7 +5,7 @@
 // wall panels as the covering, with the rest of the wall cladding where there is one.
 import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { call } from "../../../shared/api/index.js";
 import { Button, Card, CardTitle, Choices, Field, Input, Label, Switch, cn, IMG } from "../../../shared/ui/index.js";
 import { useOfferStore, usePrice } from "../../offer/index.js";
@@ -17,7 +17,7 @@ import {
 } from "./rules.js";
 import * as w from "./wand.js";
 import { useWallSettings } from "./settings.js";
-import { DecorPalette, PLATE_PX, PlateCards, PlateOnBaseline, plateCard } from "../../../shared/ui/winwall.js";
+import { DecorChips, DecorPalette, PLATE_PX, PlateCards, PlateOnBaseline, StepLegend, plateCard } from "../../../shared/ui/winwall.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { scalePlates } from "../../../shared/ui/plate-scale.js";
 
@@ -167,19 +167,17 @@ const forget = () => remember("wcSession", { ...session(), optedOut: true, autoA
 const typedArea = () => { if (session().autoArea != null) remember("wcSession", { ...session(), autoArea: null }); };
 type Ask = { title: string; message: string; confirm: string; cancel: string; onCancel: () => void };
 
-/** winwall: the four plates with − / +, the total and "↻ Vorschlag aus Fläche" (wand.ts `platesOf`). */
-function Plates({ p, decor, onStep, onResync }: { p: w.Plates; decor: { label: string; img: string }; onStep: (fmt: string, d: number) => void; onResync: () => void }) {
+/** winwall: the Dekor chips, the open Dekor's four plates with − / +, the total over every Dekor and "↻ Vorschlag aus Fläche" (wand.ts `platesOf`). */
+function Plates({ p, chips, bad, onStep, onResync }: { p: w.Plates; chips: ReactNode; bad: string | null; onStep: (fmt: string, d: number) => void; onResync: () => void }) {
   return (
-    <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-plates">
-      <legend className="mb-1.5 p-0 font-semibold">Platten – Vorschlag aus der Fläche, mit − / + anpassen</legend>
-      {/* which decor the plates are in (the Wandverkleidung shows it as its decor chip); the floor has one decor */}
-      <p className="m-0 flex min-h-12 w-fit max-w-full items-center gap-2 rounded-full border-2 border-primary bg-card px-3 font-semibold" data-testid="wc-decor-chip">
-        <i aria-hidden className="size-7 shrink-0 rounded-full border border-border bg-muted bg-cover bg-center" style={decor.img ? { backgroundImage: `url("${decor.img}")` } : undefined} /><span data-part="text">{decor.label}</span>
-      </p>
+    <fieldset className="m-0 grid min-w-0 gap-3 border-0 p-0" data-testid="wc-plates">
+      <StepLegend n={1}>Platten – Vorschlag aus der Fläche, mit − / + anpassen</StepLegend>
+      {chips}
       <PlateCards plates={p.plates.map((x) => ({ ...x, note: x.best }))} onStep={onStep} testId="wc-plate" notePart="best" />
       <p className={cn("m-0 flex flex-wrap justify-between gap-2 font-semibold", p.total.short && "text-destructive")} data-testid="wc-total" data-short={p.total.short}>
         <span data-part="text">{p.total.text}</span><small data-part="small" className="font-normal">{p.total.small}</small>
       </p>
+      {bad ? <p role="alert" data-testid="wc-bad" className="m-0 rounded-lg border-2 border-destructive bg-destructive/10 p-3 font-semibold text-destructive">{bad}</p> : null}
       {p.resync ? (
         <div className="flex flex-wrap items-center justify-between gap-2" data-testid="wc-resync">
           <small data-part="hint" className="text-muted-foreground">Platten wurden angepasst.</small>
@@ -209,6 +207,12 @@ function Wall() {
   const legacy = ww && !dw.wallCladdingWwQty && (w.WW_FORMATS as readonly string[]).includes(String(dw.wallCladdingPanelSize ?? "")) && Number(dw.wallCladdingQty) > 0;
   useEffect(() => { if (legacy) useOfferStore.getState().patch("duschwanne", { wallCladdingWwQty: JSON.stringify({ [String(dwNow().wallCladdingPanelSize)]: Number(dwNow().wallCladdingQty) }) }); }, [legacy]);
   const lastBest = () => (useOfferStore.getState().scratch.wcWwLast as w.Qty | null | undefined) ?? null;
+  // the Dekors (ADR 029): the first in its three fields, further ones in wallCladdingWwMore, ones without plates only here
+  const pending = (useOfferStore((s) => s.scratch.wcPending) as w.Dekor[] | undefined) ?? [];
+  const dekore = ww ? w.dekoreOf(dw, pending) : [];
+  const active = Math.min(Math.max(Number(useOfferStore((s) => s.scratch.wcActive) ?? 0) || 0, 0), Math.max(dekore.length - 1, 0));
+  const open = dekore[active];
+  const pendingNow = () => (useOfferStore.getState().scratch.wcPending as w.Dekor[] | undefined) ?? [];
   /** every change also settles what follows from it (the rest's m², the plates or format and quantity) and the work-time suggestion.
    *  `follow`: the winwall plates follow the proposal (area, rest, decor or line changed); `last` overrides the proposal they were last set to */
   const write = (fields: Fields, follow = false, last: w.Qty | null = lastBest(), restSwitch?: boolean) => {
@@ -226,17 +230,27 @@ function Wall() {
     const q = prev.code ? w.leavingRest(next, prev.code, r) : null;
     if (q) setAsk({ ...q, onCancel: () => write(w.setFloorDecor(prev.code!), true) });
   };
+  /** a change of the Dekors: the open one, the ones without plates, and what is stored (nothing for a Dekor without plates) */
+  const dekor = (r: w.Dekore) => { remember("wcPending", r.pending); remember("wcActive", r.active); if (Object.keys(r.fields).length) write(r.fields); };
+  /** a change of the open Dekor in the first Dekor's field names; the first Dekor itself as today */
+  const editOpen = (change: Fields) => dekor(w.editDekor(dwNow(), pendingNow(), active, active, change));
+  const pickOpen = (code: string) => {
+    const other = dekore.findIndex((d, i) => i !== active && w.codeOf(d) === code);
+    if (other >= 0) return remember("wcActive", other); // another Dekor has it: that one opens (as on the wall)
+    if (active === 0) changeDecor(w.pickDecor(code)); else editOpen(w.pickDecor(code));
+  };
+  const openFields = active > 0 && open ? w.asFields(open) : dw;
   const cards = w.cardsOf(dw, sug, prices.data), cardBoxes = scalePlates(cards.map((c) => ({ width: c.widthMm, height: c.heightMm })), PLATE_PX), picked = String(dw.wallCladdingPanelSize ?? "");
   const qtyNow = Math.round(Number(dw.wallCladdingQty) || 0);
   const rows = w.selection(dw, rest, full.data, adhesive.data || 0, settings.own);
-  const note = w.restNote(w.restArea(dw, credit), credit), hint = w.customHint(dw);
+  const note = w.restNote(w.restArea(dw, credit), credit), hint = w.customHint(openFields);
   const chip = "min-h-12 cursor-pointer rounded-lg border-2 px-3 py-1 text-left";
   return (
     <>
       <div className="grid gap-3 rounded-lg border-2 border-border p-3">
         <div className="grid"><strong>Produktlinie</strong><small className="text-muted-foreground">Eigene Linie für Wandverkleidung als Fußboden</small></div>
         <div className="grid grid-cols-2 gap-2" role="group" aria-label="Produktlinie wählen">
-          {w.SUPPLIERS.map((x) => <button key={x.value} type="button" aria-pressed={supplier === x.value} onClick={() => write(w.setSupplier(dwNow(), x.value), true)} className={cn(chip, "grid", supplier === x.value ? "border-primary bg-accent-weak" : "border-input bg-card")}><strong>{x.name}</strong><span className="text-[0.85rem] text-muted-foreground">{x.sub}</span></button>)}
+          {w.SUPPLIERS.map((x) => <button key={x.value} type="button" aria-pressed={supplier === x.value} onClick={() => { if (x.value !== supplier) { remember("wcPending", []); remember("wcActive", 0); } write(w.setSupplier(dwNow(), x.value), true); }} className={cn(chip, "grid", supplier === x.value ? "border-primary bg-accent-weak" : "border-input bg-card")}><strong>{x.name}</strong><span className="text-[0.85rem] text-muted-foreground">{x.sub}</span></button>)}
         </div>
       </div>
       <Choices legend="Umfang" name="wc-kind" options={KINDS} value={String(dw.wallCladdingKind ?? "") || undefined} onChange={(v) => write({ wallCladdingKind: v })} />
@@ -251,7 +265,16 @@ function Wall() {
         <div><Button variant="outline" aria-expanded={calcOpen} onClick={() => setCalcOpen(!calcOpen)}>{calcOpen ? "Flächenrechner schließen" : "Flächenrechner öffnen"}</Button></div>
         {calcOpen ? <Calculator store="wcCalcRows" onApply={(area) => write({ wallCladdingArea: area }, true)} /> : null}
       </div>
-      {ww ? <Plates p={w.platesOf(dw, credit)} decor={{ label: (w.decorOf(dw).code ? w.decorOf(dw) : w.decorOf({ wallCladdingWwDecor: "WS203" })).label, img: w.swatchOf(w.decorOf(dw).code || "WS203") }} onStep={(fmt, d) => write(w.stepPlate(dwNow(), fmt, d))} onResync={() => { remember("wcWwLast", null); write(w.qtyFields(w.zero()), true, null); }} /> : null}
+      {ww ? (
+        <Plates p={w.platesOf(dw, credit, dekore, active)} bad={w.badDekore(dw)}
+          chips={<DecorChips chips={w.chipsOf(dekore, active)} label="Dekore" noun="Dekor" addText="+ weiteres Dekor" testId="wc-decor-chip"
+            onPick={(i) => remember("wcActive", i)} onRemove={(i) => dekor(w.removeDekor(dwNow(), pendingNow(), active, i))} onAdd={() => dekor(w.addDekor(dwNow(), pendingNow()))} />}
+          onStep={(fmt, d) => (active === 0 ? write(w.stepPlate(dwNow(), fmt, d)) : editOpen(w.stepPlate(w.asFields(open!), fmt, d)))}
+          onResync={() => {
+            if (active > 0) return editOpen(w.qtyFields(w.proposalFor(dwNow(), credit, w.dekoreOf(dwNow(), pendingNow()), active)));
+            remember("wcWwLast", null); write(w.qtyFields(w.zero()), true, null);
+          }} />
+      ) : null}
       {ask ? (
         <div role="alertdialog" aria-labelledby="wc-ask-title" className="grid gap-2 rounded-lg border-2 border-destructive p-3" data-testid="wc-ask">
           <strong id="wc-ask-title">{ask.title}</strong>
@@ -261,11 +284,11 @@ function Wall() {
       ) : null}
       {ww ? (
         <fieldset className="m-0 grid min-w-0 gap-2 border-0 p-0" data-testid="wc-decors">
-          <legend className="mb-1.5 p-0 font-semibold">Dekor — winwall</legend>
-          <DecorPalette tiles={w.paletteOf(dw)} label="Dekor Fußboden" onPick={(code) => changeDecor(w.pickDecor(code))} />
+          <StepLegend n={2}>Dekor – gilt für die Platten oben</StepLegend>
+          <DecorPalette tiles={w.paletteOf(openFields)} label="Dekor Fußboden" onPick={pickOpen} />
           <div className="grid gap-1.5" data-testid="wc-custom">
             <label htmlFor="wc-decor-number" className="font-semibold">Anderes Dekor</label>
-            <div className="w-48"><Input id="wc-decor-number" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={String(dw.wallCladdingWwDecorCustom ?? "")} onChange={(e) => changeDecor(w.typeDecor(e.target.value))} /></div>
+            <div className="w-48"><Input id="wc-decor-number" placeholder="NW 230 / 23015" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={10} value={String(openFields.wallCladdingWwDecorCustom ?? "")} onChange={(e) => (active === 0 ? changeDecor(w.typeDecor(e.target.value)) : editOpen(w.typeDecor(e.target.value)))} /></div>
             <small data-part="hint" data-kind={hint.kind} className={cn(hint.kind === "ok" && "text-success", hint.kind === "warn" && "text-destructive", !hint.kind && "text-muted-foreground")}>{hint.text}</small>
           </div>
         </fieldset>
@@ -323,8 +346,8 @@ function Wall() {
       {rows.length ? (
         <section className="grid gap-2 rounded-lg border-2 border-border p-3" data-testid="wc-selection" aria-label="Ihre Auswahl">
           <strong>Ihre Auswahl</strong>
-          {rows.map((r) => (
-            <div key={r.name} data-testid="wc-selected" className="flex items-center gap-3 border-t border-border pt-2">
+          {rows.map((r, i) => (
+            <div key={`${r.name}-${i}`} data-testid="wc-selected" className="flex items-center gap-3 border-t border-border pt-2">
               {r.img ? <img src={r.img} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}
               <span className="grid min-w-0 flex-1">
                 <strong data-part="name">{r.name}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price">{r.price}</span>
