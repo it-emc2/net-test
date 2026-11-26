@@ -11,7 +11,7 @@
 // be typed by hand.
 import { DEAL_NUMBER_RE, ERROR_AREAS, ERROR_CODES, customerOfContact, type DealCustomerResponse } from "@oc/api-contract";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { CircleAlert, LoaderCircle, RefreshCw, Search } from "lucide-react";
+import { ChevronDown, CircleAlert, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CONTACT_DEALS, call, contactDealsQuery, dealCustomerKey, dealCustomerQuery, loadDealCustomerFresh, type ContactDeal } from "../../../shared/api/index.js";
 import { Alert, Button, Card, CardTitle, Input, Label } from "../../../shared/ui/index.js";
@@ -205,6 +205,32 @@ export function BitrixCustomer() {
       <ContactLoad />
       <DealPick />
     </Card>
+  );
+}
+
+/**
+ * The ways to fetch a customer („Kunde suchen“, „Kunde aus Bitrix“) in one fold-out block, closed by
+ * default (owner 2026-11-26): most offers come from a deal and are filled already. The block stays
+ * mounted while closed, so the deal's customer is still loaded into a new offer; it opens by itself
+ * when that load needs the user (Bitrix failed, or the deal has no contact).
+ */
+export function CustomerSources() {
+  const dealId = useOfferStore((s) => dealNumber(s.offer as Record<string, unknown> | null, s.dealId));
+  const q = useDealCustomer(dealId);
+  const needsUser = q.isError || (!!q.data && !q.data.customer);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (needsUser) setOpen(true); }, [needsUser]);
+  return (
+    <details data-testid="kd-sources" open={open} onToggle={(e) => setOpen(e.currentTarget.open)} className="group rounded-xl border border-border bg-card">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 py-3 font-semibold [&::-webkit-details-marker]:hidden">
+        Kunde suchen oder aus Bitrix laden
+        <ChevronDown aria-hidden className="size-5 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="grid gap-4 px-3 pb-3">
+        <CustomerSearch />
+        <BitrixCustomer />
+      </div>
+    </details>
   );
 }
 

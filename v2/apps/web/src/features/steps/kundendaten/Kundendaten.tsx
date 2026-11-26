@@ -18,7 +18,7 @@ import { chooseApplication, chooseLivingSituation } from "./object.js";
 import { chooseInvoiceCopy, choosePayer, type Parked } from "./payer.js";
 import { hasContactData, hasDeploymentData, hasInsuranceData, showLandlordAnswer, useFollowUp } from "./follow-ups.js";
 import { useAutoRoute } from "../arbeitszeit/auto-route.js";
-import { BitrixCustomer, CustomerSearch } from "./CustomerSources.js";
+import { CustomerSources } from "./CustomerSources.js";
 import { AhHints, AhLiving, AhPreparation, AhTwoPersons } from "./AhBlocks.js";
 import { ahFollowNames } from "./ah.js";
 import { ACCEPT, UPLOADS, dealNumber, failed, fileName, idle, landlordAnswer, refusal, running, showKasse, showVermieter, toBase64, uploaded, type Box, type UploadKind, type Uploads } from "./uploads.js";
@@ -448,8 +448,7 @@ export function Kundendaten() {
   return (
     <>
       {ah ? <Internal><AhPreparation /></Internal> : null}
-      <CustomerSearch />
-      <BitrixCustomer />
+      <CustomerSources />
       <Contact />
       <Address />
       <ContactPerson />

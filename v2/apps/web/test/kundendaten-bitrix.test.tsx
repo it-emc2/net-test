@@ -251,3 +251,26 @@ describe("the fill rules", () => {
     expect(savedKundendaten({ firstName: "B" })).toEqual({ firstName: "B" });
   });
 });
+
+// The ways to fetch a customer sit in one fold-out block, closed by default (owner 2026-11-26).
+describe("Kundendaten: „Kunde suchen oder aus Bitrix laden“ is a fold-out block", () => {
+  const sources = () => screen.getByTestId("kd-sources") as HTMLDetailsElement;
+
+  it("closed by default when the deal's customer loaded; the search and the Bitrix card are inside; a tap opens it", async () => {
+    fakeServer({ ...BASE, "GET /api/deals/4711/customer": dealAnswer(SCEN["deal: contact with address, landlord approval needed"].deal) });
+    renderApp("/deal/4711/bu/Kundendaten");
+    await waitFor(() => expect(offer().auftragId).toBe("4711")); // the deal still fills the offer while the block is closed
+    expect(sources().open).toBe(false);
+    expect(within(sources()).getByLabelText("Kunde suchen")).toBeTruthy();
+    expect(within(sources()).getByLabelText("Bitrix Kontakt ID")).toBeTruthy();
+    await userEvent.click(within(sources()).getByText("Kunde suchen oder aus Bitrix laden"));
+    expect(sources().open).toBe(true);
+  });
+
+  it("opens by itself when loading the deal's customer needs the user (Bitrix failed)", async () => {
+    fakeServer({ ...BASE, "GET /api/deals/4711/customer": dealAnswer(SCEN["deal: Bitrix fails"].deal) });
+    renderApp("/deal/4711/bu/Kundendaten");
+    expect(await screen.findByText(/Bitrix ist gerade nicht erreichbar/)).toBeTruthy();
+    await waitFor(() => expect(sources().open).toBe(true));
+  });
+});

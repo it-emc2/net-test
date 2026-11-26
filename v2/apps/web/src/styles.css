@@ -105,6 +105,10 @@
   h1 { @apply text-3xl font-bold leading-tight; }
   h2 { @apply text-xl font-semibold; }
   :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  /* Text fields keep their size when focused: the ring is drawn on the field's own 2 px border and
+     1 px inside it, not 5 px outside. Outside, a focused field looked taller and higher than the
+     field next to it (owner 2026-11-26). Tick boxes, radios and buttons keep the outer ring. */
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="color"]), textarea, select):focus-visible { outline-offset: -3px; }
 }
 
 /* Product photo plate (IMG in shared/ui, every role but the decor swatch): the photo itself is never recoloured.
