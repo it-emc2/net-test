@@ -2,7 +2,7 @@
 // "Kopieren" / "Einfügen" (the same signature on the next document; kept in this page only),
 // "Namen tippen statt zeichnen", "Bild hochladen". Ids as today's page (suffix "2" for the
 // second signature of the Zusatzblatt), so the recordings of today's page play against it.
-import { forwardRef, useImperativeHandle, useRef, useState, type ChangeEvent } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent } from "react";
 import { Button } from "../../shared/ui/button.js";
 import { SignaturePad, type PadHandle } from "./SignaturePad.js";
 import { fileToSignaturePng, typedNameToPng } from "./picture.js";
@@ -28,9 +28,12 @@ export const SignatureField = forwardRef<FieldHandle, Props>(function SignatureF
   const toPng = () => (mode === "upload" ? uploaded ?? "" : mode === "type" ? typedNameToPng(name.trim()) : pad.current?.toPng() ?? "");
   useImperativeHandle(ref, () => ({ isFilled, toPng }));
 
+  // the confirmation („Kopiert!“) goes after 1.2 s; a field that is gone by then must not be updated
+  const flashTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => flashTimers.current.forEach(clearTimeout), []);
   const show = (which: "copy" | "paste", text: string) => {
     setFlash((f) => ({ ...f, [which]: text }));
-    setTimeout(() => setFlash((f) => ({ ...f, [which]: undefined })), 1200);
+    flashTimers.current.push(setTimeout(() => setFlash((f) => ({ ...f, [which]: undefined })), 1200));
   };
   const clear = () => {
     if (mode === "upload") resetUpload();
