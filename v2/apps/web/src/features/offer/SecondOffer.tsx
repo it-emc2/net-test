@@ -1,8 +1,11 @@
 // „Weiteres Angebot für diesen Kunden“ (ADR 027 B, step 2; UX-CHANGES U-046): the button (header
-// panel, Versand page), the dialog (type → confirmation → creation / result), and the list
+// panel, Versand page, deal overview), the dialog (type → how → confirmation → creation / result), and the list
 // „Weitere Angebote dieses Kunden“. The dialog is one native <dialog> opened through
 // `openSecondOffer`; it is mounted by the offer header (VariantSwitch) and by the Hauptmenü
 // (planning), never both at once. Rules and texts: model/second-offer.ts.
+// ADR 030: after the type the dialog asks HOW — „Auf diesem Deal (Angebotsart wechseln)“ (a new
+// variant of the same deal, model/type-switch.ts) or „Als neuer Deal (weiteres Angebot)“ (the
+// confirmation and creation below, unchanged).
 import type { DealRelation } from "@oc/api-contract";
 import type { NewOfferType, SecondOfferType } from "@oc/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +17,8 @@ import { call } from "../../shared/api/index.js";
 import { Alert, Button, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
 import { useOfferStore } from "./model/store.js";
-import { saveOpen } from "./model/useVariants.js";
+import { saveOpen, variantsKey } from "./model/useVariants.js";
+import { SWITCH_TEXT, dropSwitchPending, keepSwitchPending, readSwitchPending, signedOnDeal, switchOutcomeOf, switchedPath, type SwitchOutcome } from "./model/type-switch.js";
 import {
   TEXT, customerName, dropPending, isDefinite, keepPending, mergeRelated, newCreationId, otherTypes, outcomeOf, readPending,
   relatedOfType, relatedStatusText, typeTitle, type Outcome, type RelatedRow,
@@ -35,7 +39,7 @@ export interface SecondOfferSource {
 }
 interface DialogState { source: SecondOfferSource | null; target: SecondOfferType | null; set: (source: SecondOfferSource | null, target?: SecondOfferType | null) => void }
 const useDialog = create<DialogState>((set) => ({ source: null, target: null, set: (source, target = null) => set({ source, target }) }));
-/** opens the dialog; `target` given (planning): straight to the confirmation */
+/** opens the dialog; `target` given (planning): straight to the choice of the way */
 export const openSecondOffer = (source: SecondOfferSource, target?: SecondOfferType) => useDialog.getState().set(source, target ?? null);
 
 /** the open offer as the source */
@@ -125,7 +129,7 @@ export function RelatedSection({ onLeave }: { onLeave: () => void }) {
   );
 }
 
-type Step = "type" | "confirm" | "result";
+type Step = "type" | "how" | "confirm" | "result" | "switch-result";
 
 /** the dialog; renders nothing while closed */
 export function SecondOfferHost({ onCreateVariant }: { onCreateVariant?: () => void }) {
@@ -141,13 +145,23 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pending = useRef(readPending(source.dealId)).current;
+  const switchPending = useRef(pending ? null : readSwitchPending(source.dealId)).current;
   // one creation id per opened dialog — or the open creation kept on this device for this deal
   const id = useRef(pending?.creationId ?? newCreationId());
+  // „Angebotsart wechseln“ (ADR 030): its own creation id per opened dialog, or the open one of this device
+  const switchId = useRef(switchPending?.creationId ?? newCreationId());
   const running = useRef(false);
-  const [step, setStep] = useState<Step>(pending ? "result" : target ? "confirm" : "type");
-  const [type, setType] = useState<SecondOfferType | null>(pending?.offerType ?? target);
+  const [step, setStep] = useState<Step>(pending ? "result" : switchPending ? "switch-result" : target ? "how" : "type");
+  const [type, setType] = useState<SecondOfferType | null>(pending?.offerType ?? switchPending?.offerType ?? target);
   const [outcome, setOutcome] = useState<Outcome | null>(pending?.outcome ?? null);
-  const [busy, setBusy] = useState<"" | "create" | "check">("");
+  const [switchOutcome, setSwitchOutcome] = useState<SwitchOutcome | null>(switchPending ? { kind: "no-answer", message: switchPending.message } : null);
+  // the deal's variants: a signed offer closes „Auf diesem Deal“ (the server checks again)
+  const variantsQ = useQuery({
+    queryKey: variantsKey(source.dealId), enabled: !isTemp(source.dealId), retry: false, staleTime: 5_000,
+    queryFn: ({ signal }) => call("dealVariants", { params: { dealId: source.dealId }, signal }),
+  });
+  const signed = signedOnDeal(variantsQ.data?.variants);
+  const [busy, setBusy] = useState<"" | "create" | "check" | "switch">("");
   const [note, setNote] = useState("");
   const { rows } = useRelated(source.dealId, true, source.related ?? []);
   const openRelated = useOpenRelated();
@@ -160,6 +174,7 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
   const close = () => {
     if (running.current) return; // while the request runs the dialog stays
     if (isDefinite(outcome)) dropPending(source.dealId); // nothing open: the next dialog starts a new creation
+    if (switchOutcome?.kind !== "no-answer") dropSwitchPending(source.dealId);
     useDialog.getState().set(null);
   };
 
@@ -192,7 +207,39 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
     } finally { running.current = false; setBusy(""); }
   };
 
-  const title = step === "confirm" ? TEXT.confirmTitle : step === "result" && outcome?.kind === "unclear" ? TEXT.unclearTitle : TEXT.title;
+  /** „Auf diesem Deal (Angebotsart wechseln)“: a new variant of this deal; exactly once by `switchId` */
+  const runSwitch = async () => {
+    if (running.current || !type) return; // a double tap sends once
+    if (typeof navigator !== "undefined" && navigator.onLine === false) { setNote(TEXT.offline); return; }
+    running.current = true; setBusy("switch"); setNote("");
+    try {
+      let variantId = source.variantId;
+      if (source.inOffer) {
+        // pending changes of the open offer are saved first: it stays as its own variant, exactly as typed
+        const problem = await saveOpen(true);
+        if (problem) { setNote(TEXT.notSaved(problem)); return; }
+        const s = useOfferStore.getState();
+        if (s.dealId === source.dealId && s.variantKnown && s.variantId) variantId = s.variantId;
+      }
+      try {
+        const r = await call("switchOfferType", { params: { dealId: source.dealId }, body: { offerType: type, creationId: switchId.current, ...(variantId ? { variantId } : {}) } });
+        dropSwitchPending(source.dealId);
+        void qc.invalidateQueries({ queryKey: variantsKey(source.dealId) });
+        navigate(switchedPath(r)); // while this dialog is still mounted, then close
+        running.current = false;
+        useDialog.getState().set(null);
+        toast.success(SWITCH_TEXT.switched(r.variantName));
+      } catch (err) {
+        const o = switchOutcomeOf(err);
+        setSwitchOutcome(o); setStep("switch-result");
+        if (o.kind === "no-answer") keepSwitchPending({ creationId: switchId.current, dealId: source.dealId, offerType: type, message: o.message });
+        else dropSwitchPending(source.dealId);
+      }
+    } finally { running.current = false; setBusy(""); }
+  };
+
+  const title = step === "confirm" ? TEXT.confirmTitle : step === "how" ? SWITCH_TEXT.howTitle : step === "switch-result" ? SWITCH_TEXT.failedTitle
+    : step === "result" && outcome?.kind === "unclear" ? TEXT.unclearTitle : TEXT.title;
   return (
     <dialog
       ref={ref} aria-labelledby="second-offer-title" data-testid="second-offer-dialog" data-step={step} data-busy={busy || undefined}
@@ -214,14 +261,14 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
               {otherTypes(source.type).map((t) => {
                 const has = relatedOfType(rows, t);
                 if (!has) return (
-                  <li key={t}><Button variant="outline" size="lg" className="w-full justify-start" data-type={t} onClick={() => { setType(t); setNote(""); setStep("confirm"); }}>{typeTitle(t)}</Button></li>
+                  <li key={t}><Button variant="outline" size="lg" className="w-full justify-start" data-type={t} onClick={() => { setType(t); setNote(""); setStep("how"); }}>{typeTitle(t)}</Button></li>
                 );
                 return (
                   <li key={t} data-type={t} data-exists={has.dealId} className="grid gap-2 rounded-xl border border-border p-3">
                     <span className="grid"><strong>{typeTitle(t)}</strong><span className="text-[0.9rem] text-muted-foreground" data-part="exists">{TEXT.exists(has.dealId)}</span></span>
                     <span className="flex flex-wrap gap-2">
                       <Button data-action="open-related" onClick={async () => { if (await openRelated(has, source.inOffer)) useDialog.getState().set(null); }}>{TEXT.open}</Button>
-                      <Button variant="outline" data-action="create-anyway" onClick={() => { setType(t); setNote(""); setStep("confirm"); }}>{TEXT.createAnyway}</Button>
+                      <Button variant="outline" data-action="create-anyway" onClick={() => { setType(t); setNote(""); setStep("how"); }}>{TEXT.createAnyway}</Button>
                     </span>
                   </li>
                 );
@@ -232,6 +279,25 @@ function SecondOfferDialog({ source, target, onCreateVariant }: { source: Second
               {source.inOffer && onCreateVariant ? <Button variant="outline" className="justify-self-start" data-action="create-variant" onClick={() => { useDialog.getState().set(null); onCreateVariant(); }}>{TEXT.createVariant}</Button> : null}
             </div>
           </>
+        ) : null}
+
+        {step === "how" && type ? (
+          <WayChoice
+            dealId={source.dealId} type={typeTitle(type)} signed={signed} busy={busy}
+            onSameDeal={() => void runSwitch()} onNewDeal={() => { setNote(""); setStep("confirm"); }}
+            onBack={target ? null : () => { setNote(""); setStep("type"); }}
+          />
+        ) : null}
+
+        {step === "switch-result" && type && switchOutcome ? (
+          <div className="grid gap-3" data-testid="type-switch-result" data-kind={switchOutcome.kind}>
+            <p className="m-0 text-muted-foreground">{TEXT.confirmType(typeTitle(type))}</p>
+            <Alert kind="error" className="my-0">{switchOutcome.message}</Alert>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" disabled={!!busy} onClick={close}>{TEXT.close}</Button>
+              {switchOutcome.kind === "no-answer" ? <Button data-action="switch-again" disabled={!!busy} onClick={() => void runSwitch()}>{busy ? SWITCH_TEXT.switching : SWITCH_TEXT.retry}</Button> : null}
+            </div>
+          </div>
         ) : null}
 
         {step === "confirm" && type ? (
@@ -275,6 +341,28 @@ function Result({ outcome, busy, onAgain, onClose }: { outcome: Outcome; busy: s
         <Button variant="outline" disabled={!!busy} onClick={onClose}>{TEXT.close}</Button>
         {action ? <Button data-action={action.check ? "check-bitrix" : "again"} disabled={!!busy} onClick={() => onAgain(action.check)}>{busy ? (busy === "check" ? TEXT.checking : TEXT.creating) : action.label}</Button> : null}
       </div>
+    </div>
+  );
+}
+
+/** ADR 030: the two ways after the type — on this deal (a new variant) or as a new deal (ADR 027 B) */
+function WayChoice({ dealId, type, signed, busy, onSameDeal, onNewDeal, onBack }: {
+  dealId: string; type: string; signed: boolean; busy: string; onSameDeal: () => void; onNewDeal: () => void; onBack: (() => void) | null;
+}) {
+  const card = "grid min-h-12 w-full cursor-pointer gap-1 rounded-xl border-2 border-border bg-card px-3 py-3 text-left text-foreground hover:border-primary hover:bg-accent-weak focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-card";
+  return (
+    <div className="grid min-w-0 gap-3" data-testid="type-switch-ways">
+      <p className="m-0 font-semibold">{SWITCH_TEXT.howLead(type)}</p>
+      <button type="button" className={card} data-way="same-deal" disabled={signed || !!busy} aria-describedby="way-same-hint" onClick={onSameDeal}>
+        <strong className="break-words">{busy === "switch" ? SWITCH_TEXT.switching : SWITCH_TEXT.sameDeal}</strong>
+        <span id="way-same-hint" className="break-words text-[0.95rem] text-muted-foreground">{SWITCH_TEXT.sameDealHint(dealId)}</span>
+      </button>
+      {signed ? <div data-testid="type-switch-signed"><Alert kind="error" className="my-0">{SWITCH_TEXT.signed}</Alert></div> : null}
+      <button type="button" className={card} data-way="new-deal" disabled={!!busy} aria-describedby="way-new-hint" onClick={onNewDeal}>
+        <strong className="break-words">{SWITCH_TEXT.newDeal}</strong>
+        <span id="way-new-hint" className="break-words text-[0.95rem] text-muted-foreground">{SWITCH_TEXT.newDealHint}</span>
+      </button>
+      {onBack ? <Button variant="ghost" className="justify-self-start" disabled={!!busy} onClick={onBack}>{TEXT.back}</Button> : null}
     </div>
   );
 }

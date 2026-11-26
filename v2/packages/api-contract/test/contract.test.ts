@@ -69,6 +69,7 @@ describe("api contract", () => {
     expect(DealDraftResponseSchema.safeParse({ dealId: "4711", offerType: "bu", payload: {}, revision: 1, updatedAt: "x", related: [{ ...rel, role: "x" }] }).success).toBe(false);
     expect([ERROR_CODES.SECOND_OFFER_UNCLEAR, ERROR_AREAS.secondOffer]).toEqual(["SECOND_OFFER_UNCLEAR", "deals.second-offer"]);
     expect(pathOf("createSecondOffer", { dealId: "4711" })).toBe("/api/deals/4711/second-offer");
+    expect(pathOf("switchOfferType", { dealId: "4711" })).toBe("/api/deals/4711/type-switch");
   });
 });
 

@@ -96,7 +96,8 @@ interface Overview { variants: DealVariant[]; rows: HomeSearchRow[] }
  *  U-063: a deal with stored drafts/offers lists them first (before a new empty offer, and also when the
  *  deal has an autosaved draft); without any, or when the lookup fails or is slow, as before.
  *  U-073: the deal's draft is of the picked type → its variants, its stored documents of the old app and
- *  „Neue Variante beginnen“ (DealOverview); a draft of ANOTHER type → as before (ADR 027 B). */
+ *  „Neue Variante beginnen“ (DealOverview); a draft of ANOTHER type → as before (ADR 027 B). ADR 030: a
+ *  deal with a variant of the picked type (variants may differ in type) shows the overview too. */
 export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose: () => void }) {
   const start = useStartFromAppointment();
   const qc = useQueryClient();
@@ -135,8 +136,9 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
     const vars = qc.fetchQuery(variantsQuery).then((r) => r.variants);
     vars.catch(() => {});
     const d = await qc.fetchQuery(draftQuery).catch(() => null);
-    const own = !!d && d.offerType === t;
-    const [rows, list] = await Promise.all([within(docs, DEAL_DOCS_WAIT_MS), own ? within(vars, DEAL_DOCS_WAIT_MS) : Promise.resolve(null)]);
+    const [rows, list] = await Promise.all([within(docs, DEAL_DOCS_WAIT_MS), d ? within(vars, DEAL_DOCS_WAIT_MS) : Promise.resolve(null)]);
+    // the deal's offer is of the picked type — its last-opened variant, or (ADR 030: variants may differ in type) any variant
+    const own = !!d && (d.offerType === t || !!list?.some((v) => v.offerType === t));
     if (own && list?.length) { setBusy(""); setOverview({ variants: list, rows: oldDocuments(rows, list) }); return; }
     if (rows && storedFirst(rows, String((d?.payload as Record<string, unknown> | undefined)?.offerNumber ?? ""))) { setBusy(""); setStored({ type: t, rows, draft: d }); return; }
     setBusy("");
@@ -145,7 +147,7 @@ export function OfferPicker({ entry, onClose }: { entry: PlanningEntry; onClose:
   if (overview) {
     return (
       <Modal title={OVERVIEW_TEXT.title} onClose={onClose} wide>
-        <DealOverview dealId={deal} variants={overview.variants} rows={overview.rows} onBack={() => setOverview(null)} />
+        <DealOverview dealId={deal} variants={overview.variants} rows={overview.rows} onBack={() => setOverview(null)} onLeave={onClose} />
       </Modal>
     );
   }

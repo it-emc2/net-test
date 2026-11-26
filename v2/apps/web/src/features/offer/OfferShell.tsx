@@ -205,8 +205,9 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     if (open.status === "ready" && !asked && variantId && isStepOf(type, step)) navigate({ pathname: location.pathname, search: variantSearch(variantId) }, { replace: true });
   }, [open.status, asked, variantId, location.pathname, navigate, type, step]);
   useEffect(() => { if (open.status === "moved") toast.info(VARIANT.gone, { id: "variant-gone" }); }, [open.status]);
-  // ADR 027 B: a deal has one offer type; an address with another type opens the deal's own offer — said in one line, never created from a URL
-  const otherType = open.status === "other-type" ? open.type : null;
+  // ADR 027 B / 030: an address with a type the deal has no variant of opens the deal's offer — said in one line, never created from a URL
+  // ADR 030: an address that names the variant follows its type silently
+  const otherType = open.status === "other-type" && !open.explicit ? open.type : null;
   useEffect(() => { if (otherType) toast.info(SECOND.otherTypeNotice(dealId, OFFER_TITLES[otherType], OFFER_TITLES[type]), { id: "other-type", duration: 10_000 }); }, [otherType, dealId, type]);
   const setOfferType = usePrefs((p) => p.setOfferType);
   useEffect(() => { setOfferType(type); return () => setOfferType(null); }, [type, setOfferType]); // the offer's accent colour, as today
@@ -233,6 +234,7 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   if (open.status === "loading") return <Page title="Einen Moment …" lead="Das Angebot wird geöffnet." />;
   if (open.status === "error") return <Page title="Das Angebot kann nicht geöffnet werden"><Alert kind="error">{open.message}</Alert></Page>;
   if (open.status === "other-type") return <Navigate to={`/deal/${dealId}/${open.type}${location.search}`} replace />;
+  if (open.status === "of-type") return <Navigate to={`${location.pathname}${variantSearch(open.variantId)}`} replace />;
   if (!isStepOf(type, step)) return <Navigate to={`${base}/${firstStep(type)}${q}`} replace />;
 
   const temp = dealId.startsWith("t-");

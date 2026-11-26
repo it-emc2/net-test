@@ -1,7 +1,8 @@
 // Drafts per deal and variant + append-only revision history (ADR 007, ADR 027 A). NEW
 // collections only — legacy `drafts` / `offers` are read for import but never written.
 //
-// Variants (ADR 027 A): a deal has 1..n variants, each a draft document of its own. The first
+// Variants (ADR 027 A): a deal has 1..n variants, each a draft document of its own, each with its
+// own `offerType` (ADR 030: the variants of a deal may be of different types). The first
 // variant has NO `variantId` field (every draft saved before variants existed is the first
 // variant, without rewriting it); its public id is FIRST_VARIANT_ID ("v1"). Later variants
 // carry `variantId` ("v-" + 12 hex). Uniqueness: (dealId, variantId) — an absent field is
@@ -37,6 +38,8 @@ export const DealDraft = model("DealDraft", new Schema({
   deletedAt: { type: Date, default: undefined },
   /** the variant this one was copied from */
   copiedFrom: { type: Schema.Types.Mixed, default: undefined },
+  /** „Angebotsart wechseln“ (ADR 030): { creationId, fromVariantId, fromOfferType, at } — the request that made this variant */
+  typeSwitch: { type: Schema.Types.Mixed, default: undefined },
   /** revision of the last full snapshot in the history (absent on drafts saved before variants) */
   snapshotRev: { type: Number, default: undefined },
   offerType: { type: String, required: true },
@@ -115,7 +118,7 @@ export interface SaveInput {
   kind?: "save" | "restore" | "import" | "copy";
   note?: string;
   /** fields of a variant document that is created by this save */
-  create?: { variantName?: string; openedAt?: Date; copiedFrom?: unknown };
+  create?: { variantName?: string; openedAt?: Date; copiedFrom?: unknown; typeSwitch?: unknown };
 }
 
 /** True when the connected MongoDB can run multi-document transactions (replica set / mongos). */
@@ -209,7 +212,7 @@ async function saveCore(input: SaveInput, session?: mongoose.ClientSession) {
       await DealDraft.create([{
         dealId, ...(filter.variantId ? { variantId: filter.variantId } : {}), ...set,
         ...(c.variantName ? { variantName: c.variantName } : {}), ...(c.openedAt ? { openedAt: c.openedAt } : {}),
-        ...(c.copiedFrom ? { copiedFrom: c.copiedFrom } : {}),
+        ...(c.copiedFrom ? { copiedFrom: c.copiedFrom } : {}), ...(c.typeSwitch ? { typeSwitch: c.typeSwitch } : {}),
       }], opt);
     }
   } catch (e) {

@@ -52,10 +52,16 @@ async function openDialog() {
   await userEvent.click(within(await screen.findByTestId("related-section")).getByRole("button", { name: TEXT.button }));
   return screen.findByTestId("second-offer-dialog");
 }
+/** ADR 030: after the type the dialog asks the way — „Als neuer Deal (weiteres Angebot)“ is this feature */
+async function asNewDeal() {
+  expect(dialog()).toHaveAttribute("data-step", "how");
+  await userEvent.click(dialog().querySelector<HTMLElement>('[data-way="new-deal"]')!);
+  expect(dialog()).toHaveAttribute("data-step", "confirm");
+}
 async function toConfirm(title = "Alltagshilfe") {
   await openDialog();
   await userEvent.click(within(dialog()).getByRole("button", { name: title }));
-  expect(dialog()).toHaveAttribute("data-step", "confirm");
+  await asNewDeal();
 }
 const confirm = () => userEvent.click(within(dialog()).getByRole("button", { name: TEXT.yes }));
 
@@ -353,7 +359,7 @@ describe("second offer — relations", () => {
     expect(ah).toHaveTextContent(TEXT.exists(NEW));
     expect(within(ah).getAllByRole("button").map((b) => b.textContent)).toEqual([TEXT.open, TEXT.createAnyway]);
     await userEvent.click(within(ah).getByRole("button", { name: TEXT.createAnyway }));
-    expect(dialog()).toHaveAttribute("data-step", "confirm");
+    await asNewDeal();
     await userEvent.click(within(dialog()).getByRole("button", { name: TEXT.cancel }));
     await openDialog();
     await userEvent.click(within(within(screen.getByTestId("second-offer-types")).getByText("Alltagshilfe").closest("li")!).getByRole("button", { name: TEXT.open }));
@@ -393,7 +399,8 @@ describe("second offer — planning and addresses", () => {
     const router = renderApp("/");
     await pick("Alltagshilfe");
     await userEvent.click(within(await screen.findByTestId("picker-choice")).getByRole("button", { name: /^Weiteres Angebot/ }));
-    expect(await screen.findByTestId("second-offer-dialog")).toHaveAttribute("data-step", "confirm");
+    await screen.findByTestId("second-offer-dialog");
+    await asNewDeal();
     expect(screen.getByTestId("second-offer-summary")).toHaveTextContent("Angebotsart: Alltagshilfe");
     expect(screen.getByTestId("second-offer-summary")).toHaveTextContent("(Erika Muster)");
     await confirm();

@@ -22,6 +22,11 @@ const EMPTY = { bu, bwt, hl, bl, ah, hms, wd } as const;
 export const NEW_OFFER_TYPES = ["bu", "bwt", "hl", "bl", "ah", "hms", "wd"] as const;
 export type NewOfferType = (typeof NEW_OFFER_TYPES)[number];
 export const isNewOfferType = (v: unknown): v is NewOfferType => typeof v === "string" && (NEW_OFFER_TYPES as readonly string[]).includes(v);
+/** The titles the app shows for the offer types (Hauptmenü tiles, offer header, a new variant's
+ *  name after „Angebotsart wechseln“, ADR 030). The Bitrix notes use their own labels (second-offer.ts). */
+export const OFFER_TYPE_TITLES: Record<NewOfferType, string> = {
+  bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Badelift", ah: "Alltagshilfe", hms: "Hausmeister-Service", wd: "Winterdienst",
+};
 /** Target types of „Weiteres Angebot“ (ADR 027 B): a new Bitrix deal needs per-type deal values
  *  (SECOND_OFFER_VALUES_JSON `byType`), which exist for these five only — Winterdienst / Hausmeister-Service
  *  can be the source of a second offer but not its target (owner question, U-066). */

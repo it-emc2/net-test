@@ -4,12 +4,13 @@
 // overview-rules.ts.
 import type { DealVariant, DealVariantsResponse, HomeSearchRow } from "@oc/api-contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { CopyPlus, Layers, LoaderCircle } from "lucide-react";
+import { CopyPlus, FilePlus2, Layers, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { call } from "../../shared/api/index.js";
 import { Alert, Button, Field, cn } from "../../shared/ui/index.js";
-import { nextVariantName, variantError, variantsKey } from "../offer/index.js";
+import { SECOND_OFFER_TEXT, nextVariantName, openSecondOffer, variantError, variantsKey } from "../offer/index.js";
+import { isNewOfferType, type NewOfferType } from "@oc/domain";
 import { StoredRows } from "./HomeSearch.js";
 import { OVERVIEW_TEXT as T, defaultSource, overviewIntro, variantPath, variantRowView } from "./overview-rules.js";
 
@@ -19,7 +20,8 @@ function VariantRow({ v, busy, onOpen }: { v: DealVariant; busy: boolean; onOpen
     <button type="button" data-testid="overview-variant" data-variant={v.variantId} data-status={v.status} disabled={busy} onClick={onOpen}
       className="grid min-h-14 w-full min-w-0 gap-0.5 rounded-md border-2 border-border px-3 py-2 text-left text-foreground hover:bg-accent-weak focus-visible:bg-accent-weak disabled:opacity-60">
       <span className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-2">
+        {/* wraps the „zuletzt geöffnet“ note below rather than breaking a long name (a type title, ADR 030) inside a word */}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2">
           <Layers aria-hidden className="size-4 shrink-0 text-muted-foreground" />
           <strong className="min-w-0 break-words" data-part="name">{view.name}</strong>
           {v.isDefault ? <span className="shrink-0 text-[0.85rem] text-muted-foreground" data-part="last">({T.lastOpened})</span> : null}
@@ -82,8 +84,20 @@ function NewVariantForm({ dealId, variants, onCancel, onCreated }: { dealId: str
   );
 }
 
-/** The overview. `onBack`: the picker's way back to the types. */
-export function DealOverview({ dealId, variants, rows, onBack }: { dealId: string; variants: readonly DealVariant[]; rows: readonly HomeSearchRow[]; onBack?: (() => void) | undefined }) {
+/** ADR 027 B / 030: the dialog of the offer header — another type on this deal or as a new deal; source = the variant opened last */
+function OtherTypeButton({ dealId, variants, disabled, onLeave }: { dealId: string; variants: readonly DealVariant[]; disabled: boolean; onLeave?: (() => void) | undefined }) {
+  const src = defaultSource(variants);
+  if (!src || !isNewOfferType(src.offerType)) return null;
+  return (
+    <Button size="lg" variant="outline" className="h-auto min-h-12 w-full whitespace-normal break-words" data-action="other-type" disabled={disabled}
+      onClick={() => { onLeave?.(); openSecondOffer({ dealId, type: src.offerType as NewOfferType, variantId: src.variantId, customer: "", inOffer: false }); }}>
+      <FilePlus2 aria-hidden /><span className="min-w-0 whitespace-normal break-words">{SECOND_OFFER_TEXT.button}</span>
+    </Button>
+  );
+}
+
+/** The overview. `onBack`: the picker's way back to the types; `onLeave`: the picker closes when the dialog of another type opens. */
+export function DealOverview({ dealId, variants, rows, onBack, onLeave }: { dealId: string; variants: readonly DealVariant[]; rows: readonly HomeSearchRow[]; onBack?: (() => void) | undefined; onLeave?: (() => void) | undefined }) {
   const nav = useNavigate();
   const [busy, setBusy] = useState("");
   const [creating, setCreating] = useState(false);
@@ -108,6 +122,7 @@ export function DealOverview({ dealId, variants, rows, onBack }: { dealId: strin
             <CopyPlus aria-hidden /><span className="min-w-0 whitespace-normal break-words">{T.newVariant}</span>
           </Button>
         )}
+      <OtherTypeButton dealId={dealId} variants={variants} disabled={!!busy} onLeave={onLeave} />
       {onBack ? <Button variant="ghost" className="min-h-12 justify-self-start" data-action="back" onClick={onBack}>{T.back}</Button> : null}
     </div>
   );

@@ -14,6 +14,7 @@ import {
 } from "./store.js";
 import { createVariant, deleteVariant, listVariants, numbersWereSent, renameVariant, setAhAmountOf, VariantError, variantNameOf, versandSent, type AhAmountOf } from "./variants.js";
 import { relatedOf, relationsOf, secondOffer, SecondOfferError, type SecondOfferDeps } from "./second-offer.js";
+import { typeSwitch, TypeSwitchError } from "./type-switch.js";
 
 const fail = (req: FastifyRequest, reply: FastifyReply, status: number, code: string, message: string, extra: object = {}) =>
   reply.status(status).send({ error: { code, message, requestId: req.id, ...extra } });
@@ -29,6 +30,8 @@ export interface DealDraftDeps {
   resolveContact?: (kundendaten: Record<string, unknown>, user: { email?: string } | undefined) => Promise<Record<string, unknown>>;
   /** the AH monthly amount of a stored offer (the variant panel's total of a handed-over AH offer); absent → none */
   ahAmountOf?: AhAmountOf;
+  /** the business-settings snapshot a NEW offer carries (`pricingRules`) — „Angebotsart wechseln“ (ADR 030) */
+  pricingRules?: () => Record<string, unknown>;
   /** a second offer type for the same customer (ADR 027 B): Bitrix deal writes + settings; absent → the route is not registered */
   secondOffer?: Omit<SecondOfferDeps, "resolveContact">;
 }
@@ -45,6 +48,10 @@ async function guarded<T>(req: FastifyRequest, reply: FastifyReply, fn: () => Pr
       // the error log gets warn-level refusals here; Bitrix failures were reported where they happened (with the upstream call)
       if (e.severity === "warn" && e.code !== ERROR_CODES.SECOND_OFFER_COMMENT_FAILED) reportError(req, { area: ERROR_AREAS.secondOffer, code: e.code, severity: "warn", message: `second offer refused (${e.code})`, dealId });
       return fail(req, reply, e.status, e.code, e.message, e.extra);
+    }
+    if (e instanceof TypeSwitchError) {
+      reportError(req, { area: ERROR_AREAS.typeSwitch, code: e.code, severity: "warn", message: `type switch refused (${e.code})`, dealId });
+      return fail(req, reply, e.status, e.code, e.message);
     }
     if (e instanceof VariantIndexMissingError) {
       reportError(req, { area: ERROR_AREAS.dealVariants, code: ERROR_CODES.VARIANT_CREATE_FAILED, message: "variant create failed: migration 005 not run", dealId });
@@ -85,11 +92,19 @@ async function targetOf(dealId: string, asked: string | undefined, forWrite: boo
   throw notFound();
 }
 
-/** all variants of a deal have the same offer type (ADR 027 A) — a save with another one is refused while there are several */
-function assertSameType(variants: any[], variantId: string, offerType: string) {
-  const others = variants.filter((v) => publicVariantId(v) !== variantId);
-  if (others.length && others.some((v) => v.offerType !== offerType)) {
-    throw new VariantError("VARIANT_TYPE_MISMATCH", 409, "Alle Varianten eines Auftrags haben dieselbe Angebotsart. Bitte legen Sie für eine andere Angebotsart einen neuen Auftrag an.");
+/**
+ * A variant keeps its offer type while the deal has several variants (ADR 030; before: all
+ * variants of a deal had ONE type, ADR 027 A). The variants of a deal may be of different types
+ * („Angebotsart wechseln“ makes a new variant of the other type); a save, restore or import that
+ * would turn an existing variant into another type is refused — e.g. today's UI (no variant in its
+ * calls) with another tile chosen would otherwise overwrite the variant opened last. A deal with
+ * one variant may change its type as before (today's behaviour).
+ */
+export function assertKeepsType(variants: any[], variantId: string, offerType: string) {
+  if (variants.length < 2) return;
+  const own = variants.find((v) => publicVariantId(v) === variantId);
+  if (own && own.offerType !== offerType) {
+    throw new VariantError("VARIANT_TYPE_MISMATCH", 409, "Die Angebotsart einer Variante kann nicht geändert werden, solange der Auftrag mehrere Varianten hat. Für eine andere Angebotsart nutzen Sie bitte „Angebotsart wechseln“ – die bisherige Variante bleibt erhalten.");
   }
 }
 
@@ -129,7 +144,7 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
     if (!Number.isInteger(b.baseRevision) || (b.baseRevision as number) < 0) return fail(req, reply, 400, "BAD_REQUEST", "baseRevision fehlt");
     return guarded(req, reply, async () => {
       const t = await targetOf(dealId, variantParam(req) ?? undefined, true);
-      assertSameType(t.variants, t.variantId, b.offerType!);
+      assertKeepsType(t.variants, t.variantId, b.offerType!);
       return saveDealDraft({
         dealId, variantId: t.variantId, offerType: b.offerType!, payload: b.payload as Record<string, unknown>, baseRevision: b.baseRevision!, by: req.user!.email,
       });
@@ -162,6 +177,7 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
       const t = await targetOf(dealId, variantParam(req) ?? undefined, false);
       const old = await payloadAt(dealId, b.revision!, t.variantId);
       if (!old) return fail(req, reply, 404, "NOT_FOUND", "Diese Version gibt es nicht");
+      assertKeepsType(t.variants, t.variantId, old.offerType);
       // U-074: a version with an OLDER offer number that was already sent is not brought back — the sent
       // offer stays as stored (opened from the Hauptmenü); a version with the draft's own number restores as before
       const p = (old.payload ?? {}) as Record<string, any>;
@@ -203,7 +219,7 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
     const label = b.kind === "draft" ? `Entwurf „${src.name}“` : `Angebot ${src.offerNumber}`;
     return guarded(req, reply, async () => {
       const t = await targetOf(dealId, variantParam(req) ?? undefined, true);
-      assertSameType(t.variants, t.variantId, offerType);
+      assertKeepsType(t.variants, t.variantId, offerType);
       return saveDealDraft({
         dealId, variantId: t.variantId, offerType, payload: structuredClone(src.payload), baseRevision: b.baseRevision!,
         by: req.user!.email, kind: "import", note: `Übernommen aus ${label}`,
@@ -230,6 +246,18 @@ export async function registerDealDrafts(app: FastifyInstance, deps: DealDraftDe
       }, req));
     });
   }
+
+  // ---------- „Angebotsart wechseln“: another offer type on the same deal (ADR 030) — no Bitrix call ----------
+  const ts = typeSwitch({ resolveContact: deps.resolveContact, pricingRules: deps.pricingRules });
+  app.post("/api/deals/:dealId/type-switch", async (req, reply) => {
+    const { dealId } = req.params as { dealId: string };
+    const b = (req.body ?? {}) as { offerType?: unknown; creationId?: unknown; variantId?: unknown };
+    if (typeof b.creationId !== "string" || !CREATION_ID_RE.test(b.creationId)) return fail(req, reply, 400, "BAD_REQUEST", "Anfrage-Kennung fehlt oder ist ungültig");
+    if (b.variantId !== undefined && !isVariantId(b.variantId)) return fail(req, reply, 400, "BAD_REQUEST", "Ungültige Varianten-Kennung");
+    return guarded(req, reply, () => ts.run({
+      dealId, offerType: b.offerType, creationId: b.creationId as string, variantId: b.variantId as string | undefined, by: req.user!.email, user: req.user,
+    }));
+  });
 
   // ---------- variants (ADR 027 A) ----------
   app.get("/api/deals/:dealId/variants", async (req) => listVariants((req.params as { dealId: string }).dealId));

@@ -26,6 +26,27 @@ export const snapshotKey = (dealId: string, variantId: string | null | undefined
 export const variantSearch = (variantId: string | null | undefined): string => (variantId ? `?${VARIANT_PARAM}=${encodeURIComponent(variantId)}` : "");
 export const variantInSearch = (search: string): string | undefined => new URLSearchParams(search).get(VARIANT_PARAM) || undefined;
 
+/**
+ * The variants of a deal may be of different offer types (ADR 030, „Angebotsart wechseln“). The
+ * type is part of the path, so opening another variant goes to ITS type: the same step when that
+ * type has it (same type: always), else the type's first step (the frame redirects there).
+ * `pathname`: /deal/<id>/<type>[/<step>].
+ */
+export function variantHref(pathname: string, v: Pick<DealVariant, "variantId" | "offerType">): string {
+  const [, , deal = "", type = "", step = ""] = pathname.split("/");
+  const sameType = !v.offerType || v.offerType === type;
+  return `/deal/${deal}/${sameType ? type : v.offerType}${sameType && step ? `/${step}` : ""}${variantSearch(v.variantId)}`;
+}
+
+/** the variant to open for an address of `type` without a variant: the one opened last if it is of that type, else the newest of that type */
+export function variantOfType<V extends Pick<DealVariant, "variantId" | "offerType" | "isDefault" | "updatedAt">>(variants: readonly V[], type: string): V | undefined {
+  const of = variants.filter((v) => v.offerType === type);
+  return of.find((v) => v.isDefault) ?? [...of].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+}
+
+/** the offer types of a deal's variants, in the order of the list, each once */
+export const typesOf = (variants: readonly Pick<DealVariant, "offerType">[]): string[] => [...new Set(variants.map((v) => v.offerType).filter(Boolean))];
+
 interface Open { dealId: string | null; variantId: string | null; variantKnown: boolean }
 /** the query of a draft call: the variant, once the server named it */
 export const variantQuery = (s: Open): string | undefined => (s.variantKnown && s.variantId ? `variant=${encodeURIComponent(s.variantId)}` : undefined);

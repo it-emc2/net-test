@@ -58,6 +58,8 @@ export async function restoreVersion(r: DealDraftRevision, onOtherType: (type: s
       const nr = String(err.detail.offerNumber ?? "").trim();
       return { ok: false, message: err.message || TEXT.sentRefused(nr), ...(nr ? { sentOffer: nr } : {}) };
     }
+    // ADR 030: a version of another type cannot come back while the deal has several variants — the server says why
+    if (err instanceof ApiFailure && err.code === ERROR_CODES.VARIANT_TYPE_MISMATCH && err.message) return { ok: false, message: err.message };
     return { ok: false, message: TEXT.failed };
   }
   const type = String(r.offerType ?? s.offer.activeOffer);

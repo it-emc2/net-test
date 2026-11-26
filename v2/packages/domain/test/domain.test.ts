@@ -200,3 +200,21 @@ describe("customer data (ADR 027 B: one rule for web and server)", () => {
       .toEqual(["Ja", "Nein", "Sonstiges", "", "Ja", "Sonstiges", "Sonstiges", "Nein", ""]);
   });
 });
+
+describe("offerWithCustomerData (ADR 030: one copy rule for „Weiteres Angebot“ and „Angebotsart wechseln“)", () => {
+  it("a new empty offer of the target type + the Kundendaten by the „Kunde suchen“ rule + date, contact person and deal number; the source is not changed", async () => {
+    const { offerWithCustomerData, emptyOffer: empty, OFFER_TYPE_TITLES } = await import("../src/index.js");
+    const kd = { firstName: "Kunde", lastName: "A", payer: "Selbstzahler", wohnumfeldDone: "Ja", date: "2026-01-01", ansprechpartner: "old@test.local" };
+    const before = structuredClone(kd);
+    const o = offerWithCustomerData({ offerType: "ah", sourceKundendaten: kd, dealId: "4711", today: "2026-11-26", contact: { ansprechpartner: "new@test.local" } }) as Record<string, any>;
+    expect(kd).toEqual(before);
+    expect(o.activeOffer).toBe("ah");
+    expect(o.Kundendaten).toMatchObject({ firstName: "Kunde", lastName: "A", payer: "Selbstzahler", date: "2026-11-26", ansprechpartner: "new@test.local" });
+    expect(o.Kundendaten.wohnumfeldDone).toBeUndefined(); // not a field of an Alltagshilfe offer
+    expect([o.auftragId, o.mail.auftragId, o.postal.auftragId]).toEqual(["4711", "4711", "4711"]);
+    const e = empty("ah", { date: "2026-11-26" }) as Record<string, any>;
+    // nothing else — except what the payer choice itself sets (docSelection: the documents a Selbstzahler signs)
+    for (const k of Object.keys(e)) if (!["Kundendaten", "mail", "postal", "auftragId", "docSelection"].includes(k)) expect(o[k], k).toEqual(e[k]);
+    expect(OFFER_TYPE_TITLES.bwt).toBe("Badewannentür");
+  });
+});

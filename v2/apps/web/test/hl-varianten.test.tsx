@@ -65,6 +65,7 @@ describe("Handlauf — variants and second offer type", () => {
     await userEvent.click(within(await screen.findByTestId("related-section")).getByRole("button", { name: TEXT.button }));
     const dialog = await screen.findByTestId("second-offer-dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Handlauf" }));
+    await userEvent.click(screen.getByTestId("second-offer-dialog").querySelector<HTMLElement>('[data-way="new-deal"]')!); // ADR 030: „Als neuer Deal“
     await userEvent.click(within(screen.getByTestId("second-offer-dialog")).getByRole("button", { name: TEXT.yes }));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/deal/${NEW}/hl/Kundendaten`));
     const posts = s.calls.filter((c) => c.key === POST).map((c) => c.body as Obj);

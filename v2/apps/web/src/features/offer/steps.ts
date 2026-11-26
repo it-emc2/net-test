@@ -3,7 +3,7 @@
 // behind the material (owner decision U-011 B4). The other types follow when all their steps
 // exist here: until then a step in today's UI goes on in today's order. `built` names the steps that already exist
 // as React screens — every other step still opens in today's UI.
-import type { NewOfferType } from "@oc/domain";
+import { OFFER_TYPE_TITLES, type NewOfferType } from "@oc/domain";
 
 export const STEPS: Record<NewOfferType, readonly string[]> = {
   // Badumbau (U-011 B4): Arbeitszeit comes after the work and the material — its suggestion is built from them
@@ -23,9 +23,7 @@ const LABELS: Record<string, string> = {
 };
 export const stepLabel = (step: string): string => LABELS[step] ?? step;
 
-export const OFFER_TITLES: Record<NewOfferType, string> = {
-  bu: "Badumbau", bwt: "Badewannentür", hl: "Handlauf", bl: "Badelift", ah: "Alltagshilfe", hms: "Hausmeister-Service", wd: "Winterdienst",
-};
+export const OFFER_TITLES: Record<NewOfferType, string> = OFFER_TYPE_TITLES;
 
 /** Steps that exist as React screens (phase 4 adds to this list, one screen at a time; each also
  *  needs its route in app/router.tsx). "partly": some sections of the step are still in today's UI. */

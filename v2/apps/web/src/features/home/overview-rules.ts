@@ -7,6 +7,8 @@
 //  - its stored Entwürfe/Angebote from the old app (GET /api/offers/v2/by-deal, U-063) — only those:
 //    an offer row whose number any variant carries or carried (current number + its send records,
 //    `numbers` of the list) IS that variant and is not listed again;
+//  - „Weiteres Angebot für diesen Kunden“ (ADR 027 B / 030): the dialog of the offer header — another
+//    type on this deal (a new variant) or as a new deal; source = the variant opened last
 //  - „Neue Variante beginnen“: the existing variant creation (POST …/variants — a copy of a variant
 //    without offer number and send status, a name the user may change; the server's refusals as in
 //    the variant panel), then the new variant opens.
@@ -45,8 +47,10 @@ export function oldDocuments(rows: readonly HomeSearchRow[] | null | undefined, 
 
 /** the sentence above the overview */
 export function overviewIntro(dealId: string, variants: readonly Pick<DealVariant, "offerType">[], docs: number): string {
-  const type = typeTitle(variants[0]?.offerType ?? "");
-  const what = variants.length === 1 ? `ein Angebot ${type}` : `ein Angebot ${type} in ${variants.length} Varianten`;
+  // ADR 030: the variants of a deal may differ in type („Angebotsart wechseln“)
+  const types = [...new Set(variants.map((v) => v.offerType))].map(typeTitle);
+  const list = types.length > 1 ? `${types.slice(0, -1).join(", ")} und ${types[types.length - 1]}` : types[0] ?? "";
+  const what = types.length > 1 ? `Angebote ${list} in ${variants.length} Varianten` : variants.length === 1 ? `ein Angebot ${list}` : `ein Angebot ${list} in ${variants.length} Varianten`;
   return `Zu Auftrag ${dealId} gibt es ${what}${docs ? " und gespeicherte Entwürfe oder Angebote aus der bisherigen Ansicht" : ""}. Tippen Sie auf eine Variante, um sie zu öffnen, oder beginnen Sie eine neue Variante.`;
 }
 
