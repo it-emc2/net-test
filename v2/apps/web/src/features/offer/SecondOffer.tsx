@@ -83,7 +83,7 @@ export function useRelatedCount(): number {
   return useRelated(dealId, false, fromDraft).rows.length;
 }
 
-/** „Weiteres Angebot für diesen Kunden“ — disabled with the reason while the offer has no deal number */
+/** „Andere Angebotsart / weiteres Angebot“ (until 2026-11-26 „Weiteres Angebot für diesen Kunden“) — disabled with the reason while the offer has no deal number */
 export function SecondOfferButton({ place, onOpen }: { place: string; onOpen?: () => void }) {
   const temp = useOfferStore((s) => isTemp(s.dealId));
   return (

@@ -14,6 +14,8 @@ import { lineDescription } from "../src/modules/documents/ported/docx-text-repla
 import { Gotenberg } from "../src/integrations/gotenberg.js";
 // @ts-expect-error plain .mjs harness from the legacy golden suite
 import { normaliseDocx, selectDocCases, ENDPOINTS } from "../../../../tests/golden/docs-harness.mjs";
+// @ts-expect-error plain .mjs list shared with the legacy golden suite
+import { expectedDocx } from "../../../../tests/golden/deliberate-differences.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const G = ROOT + "tests/golden/fixtures/";
@@ -62,7 +64,7 @@ describe("DOCX golden master — v2 port", () => {
     const res = await app.inject({ method: "POST", url: ep.path, payload: structuredClone(c.payload) });
     expect(res.statusCode, res.body.slice(0, 300)).toBe(200);
     expect(res.headers["content-type"]).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    expect(normaliseDocx(res.rawPayload)).toEqual(snapshots.get(id as string).docx);
+    expect(normaliseDocx(res.rawPayload)).toEqual(expectedDocx(id, snapshots.get(id as string).docx)); // ADR 031 list
   }, 60000);
 
   // U-014: description and price of single positions changed on the Kosten page.

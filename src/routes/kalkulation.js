@@ -228,7 +228,8 @@ function buildCostLinesFromMaterials(matLines = []) {
   const out = [];
 
   for (const m of matLines) {
-    if (!m || m.docxHide) continue;
+    // displayOnly: shown in the offer, not bought, no cost (leftover-only floor, ADR 031 of rewrite/v2)
+    if (!m || m.docxHide || m.displayOnly) continue;
 
     const label = cleanLabel(m.label || m.name || m.productId || m.id || "");
     if (!label) continue;

@@ -351,7 +351,7 @@ function Wall() {
             <div key={`${r.name}-${i}`} data-testid="wc-selected" className="flex items-center gap-3 border-t border-border pt-2">
               {r.img ? <img src={r.img} alt="" className={cn(IMG.row, "shrink-0 rounded object-cover")} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} /> : null}
               <span className="grid min-w-0 flex-1">
-                <strong data-part="name">{r.name}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price"><Internal when={r.plain !== undefined} instead={r.plain}>{r.price}</Internal></span>
+                <strong data-part="name">{r.name}{r.note ? <Internal> <span data-part="note" className="font-normal text-muted-foreground">{r.note}</span></Internal> : null}</strong><small data-part="meta" className="text-muted-foreground">{r.meta}</small><span data-part="price"><Internal when={r.plain !== undefined} instead={r.plain}>{r.price}</Internal></span>
                 {r.stock ? <span data-part="badges" className="flex flex-wrap gap-2 text-[0.85rem] font-semibold"><span title={r.stock.text} className={cn("rounded-full px-2 py-0.5", r.stock.inStock ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>{r.stock.qty} {r.stock.inStock ? "Auf Lager" : "Auf Bestellung"}</span><Internal>{r.own ? <span className="rounded-full bg-muted px-2 py-0.5">{r.own} Im eigenen Lager</span> : null}</Internal></span> : null}
               </span>
             </div>

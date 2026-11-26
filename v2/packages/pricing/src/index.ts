@@ -15,6 +15,8 @@ export { computeFingerprint, lineEditDeltas, NO_MARKUP_IDS, sumPriceAdjustments 
 export { SUPPLIER_QUALITY, supplierCodes } from "./core.js";
 // winwall: the catalogue names of the decors and the sealing sets an area needs (also used by the UI)
 export { KERAMICO_SITUATIONS, keramicoPanelPlan, WINWALL_CATALOG, WINWALL_FORMATS, resolveWvArticle, vigourPanelPlan, winwallLeftoverM2, winwallOrderLines, winwallPanelPlan, winwallProfileSuggestion, winwallSealingArea, winwallSealingSets, WINWALL_DECORS, winwallDecorCode, winwallArticleFormat, winwallFloorMore, winwallFloorQty, winwallStripLeftoverM2 } from "./core.js";
+// leftover-only floor (ADR 031): the rule and the unpriced plate line the documents show
+export { floorLeftoverLine, wallCladdingLeftoverOnly, withFloorLeftoverLine } from "./core.js";
 export * from "./tray-search.js";
 
 /** One priced line (materials or services). Extra legacy fields are kept as-is. */

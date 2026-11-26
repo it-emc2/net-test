@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pricingCore, { computeFingerprint } from "../../src/logic/pricing-core.js";
+import { expectedPricing } from "./deliberate-differences.mjs";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures/pricing");
 const load = (f) => JSON.parse(readFileSync(join(DIR, f), "utf8"));
@@ -41,7 +42,7 @@ describe("pricing golden master", () => {
 
   test.each(cases.map((c) => [c.id, c]))("%s", async (_id, c) => {
     const got = JSON.parse(JSON.stringify(await computePrices(structuredClone(c.payload))));
-    expect(got).toEqual(c.expected);
+    expect(got).toEqual(expectedPricing(c.id, c.expected)); // deliberate differences: see deliberate-differences.mjs
   });
 
   test("fingerprint is stable for every fixture payload", () => {

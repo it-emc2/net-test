@@ -588,9 +588,9 @@ describe("frame", () => {
     expect(server.count("POST /api/price")).toBeGreaterThan(0);
   });
 
-  it("„Weiteres Angebot für diesen Kunden“ has its visible text as its name", async () => {
+  it("„Andere Angebotsart / weiteres Angebot“ has its visible text as its name", async () => {
     await open();
     act(() => openVariantPanel());
-    expect(await screen.findByRole("button", { name: "Weiteres Angebot für diesen Kunden" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Andere Angebotsart / weiteres Angebot" })).toBeInTheDocument();
   });
 });
