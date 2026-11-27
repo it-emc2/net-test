@@ -8,6 +8,7 @@ import { Internal } from "../../../shared/ui/internal.js";
 import { useOfferStore } from "../../offer/index.js";
 import { namesOf } from "./rules.js";
 import { act } from "./store.js";
+import { WcPlateCard } from "./WcPlate.js";
 import { MONTAGES, SEATS, WC_IDS, renamed, setMontage, setSeat, setWcQty, tilesOf, toggleTile, wcName, type TileView } from "./wc-rules.js";
 
 type Fields = Record<string, unknown>;
@@ -105,6 +106,7 @@ export function WcPanel({ opt }: { opt: Fields }) {
       {montage === "Wandmontage" ? (
         <Choices legend="Sitzhöhe" name="wcSeatHeight" options={SEATS} value={seat || undefined} required onChange={(v) => act((s) => ({ ...s, opt: setSeat(s.opt, names, v) }))} />
       ) : null}
+      <WcPlateCard />
       {groups.map((g) => (
         <section key={g.kind} data-testid="wc-group" data-kind={g.kind} className="grid gap-3">
           <h4 className="m-0 text-base font-bold">{g.head}</h4>

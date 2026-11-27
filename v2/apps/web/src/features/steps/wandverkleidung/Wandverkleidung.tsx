@@ -16,6 +16,7 @@ import { AccCard, AccGrid } from "../../../shared/ui/acc-card.js";
 import { SwatchFace, SwatchGrid, swatchTile } from "../../../shared/ui/swatch.js";
 import { ChoiceTiles } from "../../../shared/ui/choice-tiles.js";
 import { KIND_TILES } from "./KindSketch.js";
+import { WcPlateNote } from "./WcPlateNote.js";
 import { toast } from "../../../shared/ui/toaster.js";
 import * as sv from "./simple.js";
 import * as pv from "./panels.js";
@@ -33,7 +34,7 @@ import * as vg from "./vigour.js";
 import { WW_DECORS, WW_SWATCHES } from "./decors.js";
 import { Drawing, TONES } from "./Drawing.js";
 import {
-  ACCESSORIES, FORMATS, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
+  ACCESSORIES, FORMATS, HALF_HEIGHT_KIND, LINES, SHOWER_TASK, accessoryQty, addRow, chooseLine, customCaption, customHint, decorCode, decorOf, fromRows, isBadRow, lineOf, rowNote, rowTitle, rowsOf,
   sealing, setAccessoryQty, toggleAccessory, wallAreaOf, withDecor, type Line, type Row,
 } from "./rules.js";
 
@@ -831,7 +832,13 @@ export function Wandverkleidung() {
             </div>
           </div>
           ) : null}
-          <ChoiceTiles legend="Welche Wände werden verkleidet?" name="wv-kind" options={KIND_TILES} perRow={5} value={String(wv.wvKind ?? "") || undefined} onChange={(v) => write({ wvKind: v })} />
+          <ChoiceTiles legend="Welche Wände werden verkleidet?" name="wv-kind" options={KIND_TILES} perRow={4} value={String(wv.wvKind ?? "") || undefined} onChange={(v) => write({ wvKind: v })} />
+          {wv.wvKind === HALF_HEIGHT_KIND ? (
+            <div className={cn(ROW, "flex-wrap justify-between")} data-testid="wv-kind-height">
+              <label htmlFor="wv-kind-height" className="min-w-0 flex-1 cursor-pointer">Alle Bad-Wände bis Höhe</label>
+              <span className="flex items-center gap-2"><span className="w-24"><Input id="wv-kind-height" type="number" min={0} max={400} step={1} inputMode="numeric" placeholder="z. B. 120" value={String(wv.wvKindHoehe ?? "")} onChange={(e) => write({ wvKindHoehe: e.target.value })} /></span>cm</span>
+            </div>
+          ) : null}
           <div className={cn(ROW, "flex-wrap justify-between has-[:checked]:border-primary")}>
             <label className="flex min-h-12 min-w-0 flex-1 cursor-pointer items-center gap-3">
               <input type="checkbox" className="size-5 shrink-0 accent-[var(--primary)]" checked={shower} onChange={(e) => dw((d) => toggleTask(d, SHOWER_TASK, e.target.checked))} />
@@ -839,6 +846,7 @@ export function Wandverkleidung() {
             </label>
             <span className="flex items-center gap-2"><span className="w-24"><Input type="number" min={0} step={1} inputMode="numeric" placeholder="___" aria-label="Höhe in cm" value={height} onChange={(e) => dw(() => ({ wandverkleidungHoehe: e.target.value }))} /></span>cm</span>
           </div>
+          {line === "ww" ? <WcPlateNote /> : null}
           {ask ? <WallQuestion ask={ask} onClose={() => setAsk(null)} /> : null}
           {line === "ww" && !simple ? <div><Button variant="outline" className="w-full border-dashed text-primary" onClick={toSimple}>Zur neuen Ansicht wechseln (Platten + Dekor)</Button></div> : null}
           {line === "ww" ? <>{simple ? <SimpleView onAsk={setAsk} /> : <><Calculator kit={WW_KIT} /><Rows /></>}<Accessories label="Zubehör winwall" area={wallAreaOf({ ...wv, ...(sealWalls ?? {}) })} cut /></> : line === "premium" ? <Vigour /> : <Badolux />}

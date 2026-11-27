@@ -84,7 +84,7 @@ describe("the tiles keep the values and full texts of the answers", () => {
   });
   it("Wandverkleidung: same values, the full text as the name, a short label on the tile", () => {
     expect(WALL_TILES.map((t) => [t.value, t.name])).toEqual(WALL_KINDS.map((k) => [k.value, k.label]));
-    expect(WALL_TILES.map((t) => t.label)).toEqual(["Fehlstellen", "Duschbereich deckenhoch", "Fliesenspiegel", "Kabine innen", "Alle Wände"]);
+    expect(WALL_TILES.map((t) => t.label)).toEqual(["Fehlstellen", "Fliesenspiegel", "Fliesenspiegel Duschbereich", "Kabine innen", "Duschbereich deckenhoch", "Alle Wände halbhoch", "Alle Wände"]);
   });
 
   it.each(UMBAU_KINDS.map((k) => [k.label, k.value] as const))("Arbeiten: „%s“ stores umbauart %s", async (label, value) => {
