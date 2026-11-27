@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useOfferStore } from "../src/features/offer/index.js";
 import { readFileSync, readdirSync } from "node:fs";
+import { IMG } from "../src/shared/ui/index.js";
 import { DOORS, GRIPS, dimField, doorInfo, doorTint, tintedDoor } from "../src/features/steps/bwt/rules.js";
 import reference from "./fixtures/bwt-tuer.json" with { type: "json" };
 import { BASE, fakeServer, renderApp } from "./helpers.js";
@@ -196,5 +197,32 @@ describe("Badewannentür (slice 1) stores and shows what today's UI does", () =>
     const imgs = screen.getAllByTestId("bwt-grip").map((g) => g.querySelector('img[data-part="grip-image"]') as HTMLImageElement);
     expect(imgs).toHaveLength(4);
     expect(imgs.every((i) => i.getAttribute("src") === "/assets/5b817c33100c0121ede70f11e341601c.jpg")).toBe(true);
+  });
+
+  it("door and grab bar cards show their pictures at the standard sizes; picking still stores the same values (owner 2026-11-27)", async () => {
+    await open();
+    const user = userEvent.setup();
+    const doorImg = (key: string) => cardOf(key).querySelector('img[data-part="door-image"]') as HTMLImageElement;
+    for (const d of DOORS) {
+      expect(doorImg(d.key).getAttribute("src")).toBe(d.img);
+      expect(doorImg(d.key).className).toContain(IMG.hero); // the whole door, large enough to show the customer
+      expect(doorImg(d.key).className).toContain("object-contain");
+    }
+    const grips = screen.getAllByTestId("bwt-grip").map((g) => g.querySelector('img[data-part="grip-image"]') as HTMLImageElement);
+    expect(grips.every((i) => i.className.includes(IMG.product))).toBe(true);
+    // the card still writes what it wrote: one door at a time, the quantity of the door that was on to "0"
+    await user.click(within(cardOf("verona")).getByRole("checkbox", { name: "Budget Tür - Verona" }));
+    expect([offer().bwt.bwtDoorType, offer().bwt.bwtDoorBudgetQty, offer().bwt.bwtDoorStdQty]).toEqual(["Budget Tür - Verona", "1", "0"]);
+    expect(cardOf("verona").querySelector('[data-part="check"]')).not.toBeNull();
+    expect(cardOf("std").querySelector('[data-part="check"]')).toBeNull();
+    // the enlarge button shows the picture large and does not pick the door
+    await user.click(within(cardOf("wien")).getByRole("button", { name: "Bild vergrößern: Individual Tür - Wien" }));
+    expect((within(await screen.findByTestId("bwt-lightbox")).getByRole("img") as HTMLImageElement).getAttribute("src")).toBe("/assets/wien.jpg");
+    expect(offer().bwt.bwtDoorType).toBe("Budget Tür - Verona");
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    expect(screen.queryByTestId("bwt-lightbox")).toBeNull();
+    // a tap on a grab bar's picture ticks it, as the tick does
+    await user.click(screen.getAllByTestId("bwt-grip")[1]!.querySelector('img[data-part="grip-image"]')!);
+    expect([offer().bwt.bwtAids, offer().bwt.bwtAidsHaltegriff40Qty]).toEqual([["Haltegriff40"], "1"]);
   });
 });
