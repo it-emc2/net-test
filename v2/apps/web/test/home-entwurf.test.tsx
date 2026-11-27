@@ -334,3 +334,36 @@ describe("a contact with several deals: the pick list (today: summary widget „
     expect(srv.count("GET /api/bitrix/contact/5002/deals")).toBe(1);
   });
 });
+
+describe("the result list on a touch device (owner 2026-11-27: a tapped result did nothing on the iPad)", () => {
+  const s = scen("search by name, several results");
+  const start = async () => {
+    fakeServer({ ...BASE, ...today, [searchKey(s.q)]: { body: { rows: rowsOf(s) } } });
+    renderApp("/");
+    const input = await screen.findByLabelText("Öffnen");
+    await userEvent.type(input, s.q);
+    await waitFor(() => expect(screen.getAllByTestId("search-row").length).toBeGreaterThan(0));
+    return input;
+  };
+  it("stays when the field loses the focus to nothing (Safari does not focus a tapped button)", async () => {
+    const input = await start();
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.getAllByTestId("search-row").length).toBeGreaterThan(0);
+  });
+  it("closes on a tap outside the field and its list", async () => {
+    await start();
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByTestId("search-results")).toBeNull());
+  });
+  it("a tap inside the list does not close it", async () => {
+    await start();
+    fireEvent.pointerDown(screen.getAllByTestId("search-row")[0]!);
+    expect(screen.getByTestId("search-results")).toBeInTheDocument();
+  });
+  it("the search is one area the page can place first for mouse devices", async () => {
+    await start();
+    const area = screen.getByTestId("home-search-area");
+    expect(area.className).toContain("[@media(pointer:fine)]:row-start-2");
+    expect(within(area).getByTestId("home-search")).toBeInTheDocument();
+  });
+});

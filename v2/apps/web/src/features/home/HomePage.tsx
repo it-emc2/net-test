@@ -101,20 +101,23 @@ export function HomePage() {
       <div className="grid gap-3 sm:grid-cols-2">
         {NEW_OFFER_TYPES.map((t) => <Tile key={t} to={`${base}/${t}`} title={OFFER_TITLES[t]} text={t.toUpperCase()} icon={<OfferIcon type={t} />} />)}
       </div>
-      <HomeSearch onDeal={(id) => void openDeal(id)} onTyping={() => { seq.current++; setMsg(""); setDeal(""); setStored(null); setOverview(null); setDocs(undefined); }} />
-      {msg ? <Alert>{msg}</Alert> : null}
-      {deal ? <DealDocuments key={deal} dealId={deal} source={docs} /> : null}
-      {stored ? (
-        <section className="grid gap-3 rounded-xl border-2 border-border bg-card p-4 text-card-foreground" aria-label={`Auftrag ${stored.id}`}>
-          <DealStart dealId={stored.id} rows={stored.rows} draft={stored.draft}
-            continueLabel={autosavedButton(stored.draft)} onContinue={() => nav(`/deal/${stored.id}/${stored.type}`)} />
-        </section>
-      ) : null}
-      {overview ? (
-        <section className="grid gap-3 rounded-xl border-2 border-border bg-card p-4 text-card-foreground" aria-label={`Auftrag ${overview.id}`}>
-          <DealOverview key={overview.id} dealId={overview.id} variants={overview.variants} rows={overview.rows} />
-        </section>
-      ) : null}
+      {/* with a mouse (PC) the search is the first thing under the title; on the iPad it stays here (owner 2026-11-27) */}
+      <div className="grid min-w-0 gap-4 [@media(pointer:fine)]:row-start-2" data-testid="home-search-area">
+        <HomeSearch onDeal={(id) => void openDeal(id)} onTyping={() => { seq.current++; setMsg(""); setDeal(""); setStored(null); setOverview(null); setDocs(undefined); }} />
+        {msg ? <Alert>{msg}</Alert> : null}
+        {deal ? <DealDocuments key={deal} dealId={deal} source={docs} /> : null}
+        {stored ? (
+          <section className="grid gap-3 rounded-xl border-2 border-border bg-card p-4 text-card-foreground" aria-label={`Auftrag ${stored.id}`}>
+            <DealStart dealId={stored.id} rows={stored.rows} draft={stored.draft}
+              continueLabel={autosavedButton(stored.draft)} onContinue={() => nav(`/deal/${stored.id}/${stored.type}`)} />
+          </section>
+        ) : null}
+        {overview ? (
+          <section className="grid gap-3 rounded-xl border-2 border-border bg-card p-4 text-card-foreground" aria-label={`Auftrag ${overview.id}`}>
+            <DealOverview key={overview.id} dealId={overview.id} variants={overview.variants} rows={overview.rows} />
+          </section>
+        ) : null}
+      </div>
       <WeekCalendar onPick={setPick} />
       <DeviceDrafts />
       {pick ? <OfferPicker entry={pick} onClose={() => setPick(null)} /> : null}
