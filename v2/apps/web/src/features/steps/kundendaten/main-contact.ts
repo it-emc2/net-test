@@ -47,6 +47,8 @@ export function sameName(a: Names, b: Names): boolean {
   const [af, al, bf, bl] = [a.firstName, a.lastName, b.firstName, b.lastName].map(normName);
   return (af === bf && al === bl) || (af === bl && al === bf);
 }
+/** the typed names of a Kundendaten section */
+const namesOf = (kd: Fields): Names => ({ firstName: kd.firstName, lastName: kd.lastName });
 export const fullName = (n: Names): string => [n.firstName, n.lastName].map((v) => str(v).trim()).filter(Boolean).join(" ");
 
 export interface MainContactQuestion { contactId: string; bitrix: string; offer: string; customer: DealCustomer }
@@ -60,9 +62,9 @@ export function mainContactQuestion(a: { dealId: string; deal: DealCustomerRespo
   const formId = str(kd.bitrixContactId).trim();
   if (formId && formId !== contactId) return null;
   if (!str(kd.firstName).trim() || !str(kd.lastName).trim()) return null;
-  if (sameName(c, kd as Names)) return null;
-  if (isKept(a.kept, contactId, kd as Names)) return null;
-  return { contactId, bitrix: fullName(c) || `Kontakt ${contactId}`, offer: fullName(kd as Names), customer: c };
+  if (sameName(c, namesOf(kd))) return null;
+  if (isKept(a.kept, contactId, namesOf(kd))) return null;
+  return { contactId, bitrix: fullName(c) || `Kontakt ${contactId}`, offer: fullName(namesOf(kd)), customer: c };
 }
 
 /** „Nicht ändern“ was answered for this contact and this typed name */
