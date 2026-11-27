@@ -5,6 +5,8 @@
 // Drawn with theme colours only (currentColor, --primary), so it reads in light and dark.
 // 2026-11-27: „Fliesenspiegel Duschbereich“ (the shower corner up to the tiles' height, with tile
 // joints) and „Alle Wände halbhoch“ (every wall up to half its height, with a height arrow).
+// 2026-11-27 (owner): „Fehlstellen“ is ONE picture — the strip of wall a removed bathtub leaves open
+// (bathtub → shower), not two loose patches.
 import type { ReactNode } from "react";
 import type { ChoiceTile } from "../../../shared/ui/choice-tiles.js";
 import { KINDS } from "./rules.js";
@@ -28,6 +30,7 @@ const wallsUpTo = (t: number) => {
   const back = at(14, 70), side = at(0, 90);
   return [`28,${back} 92,${back} 92,70 28,70`, `0,${side} 28,${back} 28,70 0,90`, `120,${side} 92,${back} 92,70 120,90`];
 };
+const TUB_BACK_X = 40, TUB_TOP = 58; // the removed bathtub: where it began on the back wall, and its rim
 const TILE_TOP = 42; // the tiles' height in the shower corner (half the wall)
 
 const HL = { fill: "var(--primary)", fillOpacity: 0.4, stroke: "var(--primary-text)", strokeWidth: 1.5, strokeLinejoin: "round" } as const;
@@ -49,7 +52,14 @@ function Room({ children, cabin }: { children?: ReactNode; cabin?: boolean }) {
 
 /** value → short label and the covered area */
 const SKETCH: Record<string, { label: string; picture: ReactNode }> = {
-  Fehlstellen: { label: "Fehlstellen", picture: <Room><Covered points={["52,22 66,22 66,34 52,34", "31,52 45,52 45,64 31,64"]} /></Room> },
+  Fehlstellen: { label: "Fehlstellen", picture: (
+    <Room>
+      {/* the strip of wall the removed bathtub left open: along the back wall, longer than the new tray, and round the corner */}
+      <Covered points={[`${TUB_BACK_X},${TUB_TOP} 92,${TUB_TOP} 92,70 ${TUB_BACK_X},70`, showerArea(TUB_TOP)[1]!]} />
+      {/* where the bathtub stood */}
+      <path d={`M${TUB_BACK_X} 70 L${TUB_BACK_X - 4} ${sideFloor(SIDE_X)} H${SHOWER_BACK_X - 4}`} strokeDasharray="3 2" strokeWidth={1} />
+    </Room>
+  ) },
   Fliesenspiegel: { label: "Fliesenspiegel", picture: <Room><Covered points={["28,34 66,34 66,46 28,46"]} /></Room> },
   "Fliesenspiegel-Duschbereich": { label: "Fliesenspiegel Duschbereich", picture: (
     <Room>

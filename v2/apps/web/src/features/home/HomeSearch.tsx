@@ -1,6 +1,6 @@
 // „Öffnen“ on the Hauptmenü: deal number, ANG number or a search in the stored drafts and offers
 // (rules: search-rules.ts; opening: open.ts). One request per pause in typing (220 ms), an older
-// answer never wins; the list closes with Escape or when the focus leaves it.
+// answer never wins; the list closes with Escape, when the focus moves elsewhere, or on a tap outside.
 import { DEAL_NUMBER_RE, HOME_SEARCH_DELAY_MS, HOME_SEARCH_LIMIT, type HomeSearchRow } from "@oc/api-contract";
 import { FilePlus, History, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
@@ -14,6 +14,7 @@ import { openOfferNumber, openRow, sourceLabel, takeOver, type Outcome } from ".
 import { Modal } from "./Modal.js";
 import { TEXT, moveActive, reactTypeOf, rowView, storedIntro, type AutosavedInfo } from "./search-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
+import { useOutsidePress } from "../../shared/lib/outside-press.js";
 
 type Ask = Extract<Outcome, { kind: "ask" }>;
 const isAbort = (e: unknown) => (e as Error)?.name === "AbortError";
@@ -161,6 +162,11 @@ export function HomeSearch({ onDeal, onTyping }: { onDeal: (id: string) => void;
   const { kind, value } = classifyOpen(text);
   const stop = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; ctl.current?.abort(); ctl.current = null; };
   useEffect(() => stop, []);
+  // The list closes on a tap or click OUTSIDE the field and its list. Not on blur alone: Safari on
+  // the iPad does not focus a tapped button, so the field's blur names no next element — closing
+  // there took the row away before its click arrived (owner 2026-11-27: a tapped result did nothing).
+  const box = useRef<HTMLDivElement>(null);
+  useOutsidePress(box, () => setOpen(false));
 
   const run = (q: string) => {
     stop();
@@ -204,7 +210,7 @@ export function HomeSearch({ onDeal, onTyping }: { onDeal: (id: string) => void;
 
   return (
     <Card data-testid="home-search">
-      <div className="relative grid gap-1.5" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
+      <div ref={box} className="relative grid gap-1.5" onBlur={(e) => { const next = e.relatedTarget as Node | null; if (next && !e.currentTarget.contains(next)) setOpen(false); }}>
         <Label htmlFor="home-open">{TEXT.label}</Label>
         <div className="relative">
           <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
