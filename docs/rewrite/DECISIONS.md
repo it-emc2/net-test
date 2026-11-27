@@ -542,3 +542,27 @@ Tests: `packages/pricing/test/floor-leftover-line.test.ts`, `apps/server/test/fl
 **Old app (`main`) / today's UI served by v2.** Its radio group has no input for the two new values: such an offer opens with no Ausführung ticked, its „Weiter“ asks for the Art der Wandverkleidung, its Angebotscheck shows „Art der Wandverkleidung fehlt“, and its next save (`buildPayload`, form-built) **drops `wvKind`, `wvKindHoehe` and `wvWcPlate`**. The plate itself (a normal `wvWwRows` row) and the Arbeiten line (`extraTasks`) survive and print as usual. Open for the owner: edit such offers in the React app only, or teach the old app the values.
 
 Tests: `apps/web/test/wv-wc-platte.test.tsx`, `apps/web/test/choice-tiles.test.tsx`, `packages/pricing/test/wv-kind-notes.test.ts`.
+
+## ADR 033 — The deal's main contact follows the insured person; a contact is never overwritten with another person (owner, 2026-11-27; built 2026-11-27)
+
+**Problem.** A deal's Bitrix contact is often a family member or other contact person, not the insured person the offer is for. Deal and main contact must carry the insured person; the other person is the Ansprechpartner.
+
+**Decision.** The React app asks when Kundendaten is left (U-099) and writes to Bitrix right after the answer — not on send, because on-site signing and Heutige Planung read the deal before any send. Route `POST /api/bitrix/deal/:id/main-contact` (v2 only), logic in `integrations/bitrix-deal.ts` `changeMainContact`.
+
+| Mode | Bitrix calls, in order |
+|---|---|
+| `replace` | `crm.deal.get` → `crm.contact.get` (old) → `crm.contact.list` NAME + LAST_NAME (old contact left out, PLZ rule of `ensurePartnerContact`) → none found: `crm.contact.add`; one found: reused unchanged; several: 409 `MAIN_CONTACT_AMBIGUOUS`, nothing written → `crm.deal.contact.items.get` → `crm.deal.contact.items.set` (new contact primary, every linked contact kept, old contact always kept) → `crm.timeline.comment.add` |
+| `rename` | `crm.deal.get` → `crm.contact.get` → `crm.contact.update` NAME + LAST_NAME only → `crm.timeline.comment.add` |
+
+Rules:
+- **Another person never overwrites a contact.** The old contact keeps its name, numbers, history and other deals. Overwriting was rejected: the family member's phone and e-mail would sit under the insured person's name, and every other deal of that contact would be renamed unasked.
+- **Phone / e-mail** go onto a new contact only when they differ from the old contact's (phone by digits, e-mail lower case): the family member's number is not copied onto the insured person.
+- **The deal is read fresh first**; another contact than the one the user saw → 409 `MAIN_CONTACT_CHANGED`, nothing written.
+- **Deal title and all other deal fields stay untouched.**
+- **Bitrix never blocks the offer**: on failure the dialog offers „Trotzdem weiter“. A failed timeline comment does not fail the change (`commentFailed`).
+- **„Nicht ändern“** is stored at the offer's top level (`mainContactKept` = contact id + typed name), outside Kundendaten: it reaches no document, price, customer record or customer copy. Today's UI may drop it when it saves the offer; the dialog then asks once more.
+- Every user may answer; each write goes to `UserActionLog` (`main_contact_changed` / `main_contact_failed`).
+
+**Known gaps.** (1) Not yet run against the real portal: the item shape of `crm.deal.contact.items.get/set`, that `items.set` moves the deal's `CONTACT_ID`, and that `HONORIFIC` is accepted by `crm.contact.add`. (2) `crm.contact.add` succeeding and `items.set` failing leaves an unlinked contact (answer 502; a retry reuses it by name). (3) With „Andere Person“ the Ansprechpartner fields are filled even when Bitrix then fails; the dialog returns on the next leave.
+
+Tests: `apps/server/test/main-contact.test.ts`, `apps/web/test/main-contact.test.ts`, `apps/web/test/kundendaten-hauptkontakt.test.tsx`.

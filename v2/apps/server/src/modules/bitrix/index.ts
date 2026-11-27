@@ -2,3 +2,4 @@
 export { registerBitrixRead } from "./read.js";
 export { registerBitrixWrite } from "./write.js";
 export { registerDealCustomer } from "./customer.js";
+export { registerMainContact } from "./main-contact.js";

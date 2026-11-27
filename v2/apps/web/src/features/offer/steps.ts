@@ -68,6 +68,19 @@ const CHECKS = new Map<string, () => StepProblem | null>();
 export const setStepCheck = (step: string, check: () => StepProblem | null): void => { CHECKS.set(step, check); };
 export const checkStep = (step: string): StepProblem | null => CHECKS.get(step)?.() ?? null;
 
+/** A screen may ask one question before its step is left (Kundendaten: the deal's main contact).
+ *  It gets `go` (the way on) and answers true when it took over — then it calls `go` itself once
+ *  answered; false: nothing to ask, the way goes on at once. Registered while the screen is mounted. */
+export type StepLeave = (go: () => void) => boolean;
+const LEAVES = new Map<string, StepLeave>();
+export const setStepLeave = (step: string, leave: StepLeave | null): void => { if (leave) LEAVES.set(step, leave); else LEAVES.delete(step); };
+/** true: the step holds the user for its question (the caller does not go on now) */
+export const askBeforeLeaving = (step: string, go: () => void): boolean => {
+  const leave = LEAVES.get(step);
+  if (!leave) return false;
+  try { return leave(go); } catch { return false; } // a broken question never blocks the way on
+};
+
 /** What the step list shows for a step (U-011 D2). Derived from the offer, never stored. */
 export type StepStatus =
   | { kind: "warn"; reason: string }   // the step's own check finds a problem

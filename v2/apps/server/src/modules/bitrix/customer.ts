@@ -151,15 +151,18 @@ export function dealCustomerLoader(bx: BitrixClient, opts: DealCustomerOptions =
     if (!fresh && hit && now() - hit.at < ttl) return Promise.resolve(hit.value);
     const running = inflight.get(dealId);
     if (running) return running; // also for fresh: it was started just now
-    const p = load(req, dealId).then((value) => {
+    const p: Promise<DealCustomerResponse> = load(req, dealId).then((value) => {
+      if (inflight.get(dealId) !== p) return value; // forgotten meanwhile: an answer from before the change is not kept
       if (cache.size >= max) for (const [k, v] of cache) if (now() - v.at >= ttl || cache.size >= max) cache.delete(k); else break;
       cache.set(dealId, { at: now(), value });
       return value;
-    }).finally(() => inflight.delete(dealId));
+    }).finally(() => { if (inflight.get(dealId) === p) inflight.delete(dealId); });
     inflight.set(dealId, p);
     return p;
   }
-  return { get, clear: () => cache.clear() };
+  /** the deal changed in Bitrix (e.g. its main contact): the next load asks Bitrix again */
+  const forget = (dealId: string) => { cache.delete(dealId); inflight.delete(dealId); };
+  return { get, forget, clear: () => cache.clear() };
 }
 
 const send = (req: FastifyRequest, reply: FastifyReply, e: LoadError) =>
