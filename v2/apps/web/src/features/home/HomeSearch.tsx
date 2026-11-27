@@ -14,6 +14,7 @@ import { openOfferNumber, openRow, sourceLabel, takeOver, type Outcome } from ".
 import { Modal } from "./Modal.js";
 import { TEXT, moveActive, reactTypeOf, rowView, storedIntro, type AutosavedInfo } from "./search-rules.js";
 import { CLASSIC_HOME } from "../../shared/lib/classic-ui.js";
+import { useOutsidePress } from "../../shared/lib/outside-press.js";
 
 type Ask = Extract<Outcome, { kind: "ask" }>;
 const isAbort = (e: unknown) => (e as Error)?.name === "AbortError";
@@ -165,11 +166,7 @@ export function HomeSearch({ onDeal, onTyping }: { onDeal: (id: string) => void;
   // the iPad does not focus a tapped button, so the field's blur names no next element — closing
   // there took the row away before its click arrived (owner 2026-11-27: a tapped result did nothing).
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const outside = (e: Event) => { if (box.current && !box.current.contains(e.target as Node | null)) setOpen(false); };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
-  }, []);
+  useOutsidePress(box, () => setOpen(false));
 
   const run = (q: string) => {
     stop();
