@@ -109,6 +109,20 @@
      1 px inside it, not 5 px outside. Outside, a focused field looked taller and higher than the
      field next to it (owner 2026-11-26). Tick boxes, radios and buttons keep the outer ring. */
   :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="color"]), textarea, select):focus-visible { outline-offset: -3px; }
+
+  /* Fields never grow wider than their place (owner 2026-11-27, seen on the iPad: „Pflegegrad seit“
+     outside its card, a date field or a dropdown over the field next to it).
+     Safari on iOS gives date, month and time fields — and dropdowns — a width of their own and does
+     not shrink them. Three rules, all needed:
+     1. a field may shrink below its own width and never exceeds its container;
+     2. date-like fields drop Safari's own box (the native picker still opens on a tap) so that
+        `width: 100%` applies; their text keeps its line height when empty and stays left-aligned;
+     3. a label-over-field wrapper (`grid` without columns, the field one or two levels inside) gets
+        ONE column that may shrink — an automatic column is as wide as its widest field wants to be. */
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea) { min-width: 0; max-width: 100%; }
+  :where(input[type="date"], input[type="month"], input[type="time"], input[type="datetime-local"]) { -webkit-appearance: none; appearance: none; }
+  :where(input[type="date"], input[type="month"], input[type="time"], input[type="datetime-local"])::-webkit-date-and-time-value { min-height: 1.5em; text-align: start; }
+  :where(.grid:has(> input, > select, > textarea, > * > input, > * > select, > * > textarea)) { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Product photo plate (IMG in shared/ui, every role but the decor swatch): the photo itself is never recoloured.
