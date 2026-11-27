@@ -20,6 +20,8 @@ const G = ROOT + "tests/golden/fixtures/";
 const json = (p: string) => JSON.parse(readFileSync(G + p, "utf8"));
 const CASE = (json("pricing/cases.json") as any[]).find((c) => c.id === "offers-bu-KK-d43bbe");
 const LINE = "- 1 Stk Aluverbundplatte (Marmor weiß)";
+/** in the customer offer the line ends with its supplier's Kürzel (owner 2026-11-27): a VIGOUR plate */
+const OFFER_LINE = `${LINE} · WV-HM`;
 /** the same customer with the floor bought (2 panels) — no display line */
 const bought = () => { const p = structuredClone(CASE.payload); Object.assign(p.duschwanne, { wallCladdingQty: "2", wallCladdingPanelSize: "997", wallCladdingUseLeftover: undefined }); return p; };
 
@@ -65,33 +67,33 @@ describe("leftover-only floor in the documents (ADR 031)", () => {
   it("offer DOCX: the plate under FUSSBODEN before the Flächenkleber, no price, no leftover word; total as recorded", async () => {
     const p = await docx("/docx-template", CASE.payload);
     const at = p.indexOf("FUSSBODEN");
-    expect(p.slice(at, at + 3)).toEqual(["FUSSBODEN", LINE, "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"]);
-    expect(p.filter((x) => x.includes("Aluverbundplatte"))).toEqual([LINE]);
+    expect(p.slice(at, at + 3)).toEqual(["FUSSBODEN", OFFER_LINE, "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"]);
+    expect(p.filter((x) => x.includes("Aluverbundplatte"))).toEqual([OFFER_LINE]);
     expect(p.join("\n")).not.toMatch(/aus Resten|Reste aus|Resten der Wandverkleidung/i);
     // the recorded total of the case, to the cent
     const total = String(CASE.expected.total.toFixed(2)).replace(".", ",");
     expect(p.join("\n")).toContain(total.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
   }, 60000);
 
-  it("winwall: the floor's Dekor in the plates' wording under „FUSSBODEN · WV-WW“", async () => {
+  it("winwall: the floor's Dekor in the plates' wording, with winwall's Kürzel", async () => {
     const payload = structuredClone(CASE.payload);
     Object.assign(payload.duschwanne, { wallCladdingSupplier: "ww", wallCladdingWwDecor: "WS229", wallCladdingWwQty: "", wallCladdingQty: "0" });
     const p = await docx("/docx-template", payload);
-    const at = p.indexOf("FUSSBODEN · WV-WW");
-    expect(p.slice(at, at + 3)).toEqual(["FUSSBODEN · WV-WW", "- 1 Stk Aluverbundplatte — Dekor: Struktur steingrau (WS 229)", "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"]);
+    const at = p.indexOf("FUSSBODEN");
+    expect(p.slice(at, at + 3)).toEqual(["FUSSBODEN", "- 1 Stk Aluverbundplatte — Dekor: Struktur steingrau (WS 229) · WV-WW", "- 7 Pkg Flächenkleber (1 Pkg je 0.6 m²)"]);
     expect(p.join("\n")).not.toMatch(/aus Resten|Resten der Wandverkleidung/i);
   }, 60000);
 
   it("with plates bought there is no extra line: the floor lists the panels as before", async () => {
     const p = await docx("/docx-template", bought());
     const at = p.indexOf("FUSSBODEN");
-    expect(p[at + 1]).toBe("- 2 Stk Aluverbundplatte (Marmor weiß)");
-    expect(p.filter((x) => x.includes("Aluverbundplatte"))).toEqual(["- 2 Stk Aluverbundplatte (Marmor weiß)"]);
+    expect(p[at + 1]).toBe("- 2 Stk Aluverbundplatte (Marmor weiß) · WV-HM");
+    expect(p.filter((x) => x.includes("Aluverbundplatte"))).toEqual(["- 2 Stk Aluverbundplatte (Marmor weiß) · WV-HM"]);
   }, 60000);
 
   it("signing page: the same position list as the offer", async () => {
     const { data } = (await signing.renderData(structuredClone(CASE.payload))) as any;
-    expect((data.MaterialsLines as any[]).map((r) => r.MaterialLine)).toContain(LINE);
+    expect((data.MaterialsLines as any[]).map((r) => r.MaterialLine)).toContain(OFFER_LINE);
     const html = String(await signing.angebotHtml(data, {}));
     expect(html).toContain("1 Stk Aluverbundplatte (Marmor weiß)");
     expect(html).not.toMatch(/aus Resten|Resten der Wandverkleidung/i);

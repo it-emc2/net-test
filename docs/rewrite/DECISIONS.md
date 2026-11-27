@@ -566,3 +566,27 @@ Rules:
 **Known gaps.** (1) Not yet run against the real portal: the item shape of `crm.deal.contact.items.get/set`, that `items.set` moves the deal's `CONTACT_ID`, and that `HONORIFIC` is accepted by `crm.contact.add`. (2) `crm.contact.add` succeeding and `items.set` failing leaves an unlinked contact (answer 502; a retry reuses it by name). (3) With „Andere Person“ the Ansprechpartner fields are filled even when Bitrix then fails; the dialog returns on the next leave.
 
 Tests: `apps/server/test/main-contact.test.ts`, `apps/web/test/main-contact.test.ts`, `apps/web/test/kundendaten-hauptkontakt.test.tsx`.
+
+## ADR 034 — Supplier Kürzel per product line instead of per section heading (owner, 2026-11-27; built 2026-11-27)
+
+**Decision.** `lineSupplierCode(line, payload)` (TS core and legacy copy, identical) gives the Kürzel of ONE material line or null. The offer document (`docx-template`, legacy original + verbatim port) and the Kosten step both call it; no new field on the price result, so the price goldens are byte-identical and a locked offer's stored price snapshot works unchanged. `supplierCodes()` (one code per section) stays for the Bitrix field „Material-Kürzel“, the material overview and the order list.
+
+| Line | Kürzel | Read from |
+|---|---|---|
+| winwall plates, profiles, Abdichtungsset, Zuschnitt (`WS…`/`NW…`), in any of the four sections | WV-WW | productId |
+| VIGOUR wall panels `V3WV…`/`V3WVK…` (also a floor plate ordered as one), profiles `V3A`/`V3V`, TRINNITY Wandabdichtung `TRWDSET…` | WV-HM | productId, hassmannArticle |
+| Keramico panels `WP…`, Badolux wall accessories | WV-BX | productId |
+| Leftover floor plate without price (ADR 031, no id) | WV-WW / WV-HM | payload `wallCladdingSupplier` |
+| Catalogue tray `SLA…` / `DW…` / other | DW-SL / DW-BX / DW-HM | payload `chosenTrayProductId` |
+| Any other Duschwanne line (Freier Posten) | DW-FP | payload |
+| Everything else: Ramsauer adhesive, floor panels `V5FB…`, Hydroträgerplatte `BP…`, floor sealing `TRBDSET…`/`TRDB…`, all Duschabtrennung lines, Aluprofil für Trockenbau | none | — |
+
+Only the sections Fußboden, Wandverkleidung, Duschwanne, Duschabtrennung; only Badumbau, as before. „Qualität und Normen“: once per distinct Kürzel of the section that has a sentence, after its rows.
+
+**Deliberately without a Kürzel.** (1) Duschabtrennung: none is defined; the maker of a configurator line is in `configurator.state[].__supplier`, not on the price line. (2) Floor panels and floor sealing: WV-HM / WV-BX would print the wall panels' „Brandklasse B2“ sentence under FUSSBODEN, which is not established for those products. Both wait for the owner.
+
+**Assumed.** TRINNITY Wandabdichtung counts as WV-HM (Haßmann product in the VIGOUR wall system).
+
+**Differences to the recorded documents** (`tests/golden/deliberate-differences.mjs`, „Kürzel je Produkt“): five offer snapshots — headings lose the Kürzel, coded lines gain it; one gains „Qualität und Normen: Brandklasse B2“ under FUSSBODEN (VIGOUR leftover plate). A locked offer printed again shows the new form. The old app on `main` is unchanged; today's UI served by v2 shows no Kürzel on its Kosten page, its documents come from the v2 server and carry them.
+
+Tests: `packages/pricing/test/line-supplier-code.test.ts`, `apps/server/test/line-codes-docs.test.ts`, `apps/web/test/kosten-kuerzel.test.tsx`.

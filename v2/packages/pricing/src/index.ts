@@ -12,7 +12,7 @@ import createPricingCore, {
 
 export type { PricingDeps, PricingProductModel, PricingSnapshotModel };
 export { computeFingerprint, lineEditDeltas, NO_MARKUP_IDS, sumPriceAdjustments };
-export { SUPPLIER_QUALITY, supplierCodes } from "./core.js";
+export { LINE_CODE_CATEGORIES, SUPPLIER_QUALITY, lineSupplierCode, supplierCodes } from "./core.js";
 // winwall: the catalogue names of the decors and the sealing sets an area needs (also used by the UI)
 export { KERAMICO_SITUATIONS, keramicoPanelPlan, WINWALL_CATALOG, WINWALL_FORMATS, resolveWvArticle, vigourPanelPlan, winwallLeftoverM2, winwallOrderLines, winwallPanelPlan, winwallProfileSuggestion, winwallSealingArea, winwallSealingSets, WINWALL_DECORS, winwallDecorCode, winwallArticleFormat, winwallFloorMore, winwallFloorQty, winwallStripLeftoverM2 } from "./core.js";
 // leftover-only floor (ADR 031): the rule and the unpriced plate line the documents show

@@ -9,11 +9,15 @@
 //    the offer was priced shows today's difference (the offer's price stays the billed one)
 //  - a line of the offer document that is shown but not bought (`displayOnly`, ADR 031: the plate of a
 //    floor made only of leftovers) is listed where the document has it, without a price, with its note
+//  - Badumbau: a line of Fußboden, Wandverkleidung, Duschwanne or Duschabtrennung ends with the Kürzel of its
+//    supplier, as in the offer document (`lineSupplierCode`, owner 2026-11-27); the headings carry none
+import { lineSupplierCode } from "@oc/pricing";
+
 type Fields = Record<string, unknown>;
 export interface Price { [k: string]: unknown }
-interface RawLine { productId?: string; id?: string; key?: string; name?: string; label?: string; qty?: unknown; unit?: string; unitPrice?: unknown; lineTotal?: unknown; amount?: unknown; source?: string; category?: string; currentNet?: unknown; displayOnly?: boolean; note?: string }
+interface RawLine { productId?: string; id?: string; key?: string; name?: string; label?: string; qty?: unknown; unit?: string; unitPrice?: unknown; lineTotal?: unknown; amount?: unknown; source?: string; category?: string; currentNet?: unknown; displayOnly?: boolean; note?: string; hassmannArticle?: string | null }
 export interface Tag { text: string; kind: "plain" | "up" | "down"; title?: string }
-export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string; task?: boolean; /** internal note after the label (ADR 031) */ note?: string };
+export type Row = { subtitle: string } | { id: string; label: string; tags: Tag[]; qty: string; unit: string; total: string; task?: boolean; /** internal note after the label (ADR 031) */ note?: string; /** supplier Kürzel after the label, as in the offer document */ code?: string };
 export interface Section { num: string; title: string; rows: Row[]; footer: string; note?: { text: string; up: boolean } | null }
 export interface Sum { num?: string; label: string; value: string; rule?: boolean; total?: boolean; note?: undefined }
 export type SumRow = Sum | { note: string };
@@ -65,10 +69,12 @@ export function withDisplayOnly(mat: RawLine[], price: Price): RawLine[] {
 export const MATERIAL_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Badewanne", "Weiteres"];
 /** material lines under their category, in the order of the offer document (Handlauf: the
  *  configurations' names in first-seen order, lines without one under "Lieferkosten") */
-function grouped(list: RawLine[], exempt: ReadonlySet<string>, hl = false): Row[] {
+function grouped(list: RawLine[], exempt: ReadonlySet<string>, hl = false, offer: Fields | null = null): Row[] {
   const byCat = new Map<string, RawLine[]>();
   for (const l of list) { const c = l.category || (l.source === "optional" || l.source === "optional_reha" ? "Zubehör" : hl ? "Lieferkosten" : "Weiteres"); byCat.set(c, [...(byCat.get(c) ?? []), l]); }
-  return (hl ? [...byCat.keys()] : MATERIAL_ORDER).flatMap((cat) => { const g = byCat.get(cat); return g?.length ? [{ subtitle: cat.toUpperCase() }, ...g.map((l) => row(l, exempt))] : []; });
+  // Badumbau (offer given): the line's supplier Kürzel, as in the offer document
+  const coded = (l: RawLine): Row => { const r = row(l, exempt), code = offer ? (lineSupplierCode(l, offer) as string | null) : null; return code && !("subtitle" in r) ? { ...r, code } : r; };
+  return (hl ? [...byCat.keys()] : MATERIAL_ORDER).flatMap((cat) => { const g = byCat.get(cat); return g?.length ? [{ subtitle: cat.toUpperCase() }, ...g.map(coded)] : []; });
 }
 const INCLUDED = [/fahrzeugbereitstellung/i, /bereitstellung.*werkzeug/i, /ber.?umung der baustelle/i, /kilometerpauschale/i, /facharbeiter/i, /anfahrt/i];
 
@@ -165,7 +171,7 @@ export function sections(price: Price | null, ctx: Ctx = {}): Section[] {
   return [
     { num: "I", title: String(services.title || "Auszuführende Arbeiten"), rows: work, footer: "" },
     { num: "", title: "Enthält je Einheit", rows: included, footer: `Summe Leistungen: ${eur(services.sum)}` },
-    { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(withDisplayOnly(matLines, price), exempt), footer: `Summe Material: ${eur(matSum)}`,
+    { num: "II", title: String(materials.title || "Material für Badumbau"), rows: grouped(withDisplayOnly(matLines, price), exempt, false, ctx.offer ?? null), footer: `Summe Material: ${eur(matSum)}`,
       // several articles changed their price: the sum of it (one article says it on its own line)
       note: drift && Math.abs(delta) >= 0.005 && (drift.lines?.length ?? 0) > 1 ? { text: `Preis geändert: ${drift.lines!.length} Artikel kosten heute ${delta > 0 ? "insgesamt +" : "insgesamt −"}${eur(Math.abs(delta))} gegenüber dem Angebot. Angebotspreise bleiben unverändert.`, up: delta > 0 } : null },
     { num: "III", title: "Optionale Produkte", rows: optLines.map((l) => row(l, exempt)), footer: `Summe: ${eur((price.optionalDisplayUI as Fields | undefined)?.sum ?? 0)}` },

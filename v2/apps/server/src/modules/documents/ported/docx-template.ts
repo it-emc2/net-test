@@ -15,7 +15,7 @@ import { randomBytes } from "crypto";
 import dayjs from "dayjs";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import { SUPPLIER_QUALITY, supplierCodes } from "@oc/pricing";
+import { SUPPLIER_QUALITY, lineSupplierCode } from "@oc/pricing";
 import ImageModule from "docxtemplater-image-module-free";
 
 import ProductModel from "../shims/product-model.js";
@@ -1365,7 +1365,6 @@ async function mapData(body = {}, computed = {}) {
     return uncategorizedLabel;
   };
 
-  const supplierCodesForDoc = computed?.supplierCodes || supplierCodes(body, matForDoc);
   let MaterialsLines;
   if (isBuOffer || isHlOffer) {
     const grouped = new Map();
@@ -1386,16 +1385,19 @@ async function mapData(body = {}, computed = {}) {
       // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL or
       // HANDLAUFE 1); item lines are IsSub:false. Consumed by the
       // {#IsSub}/{^IsSub} condition in the Angebot docx's MaterialsLines loop.
-      // Supplier Kürzel next to the heading, "Qualität und Normen" under the
-      // category (BU: Wandverkleidung → WV-xx, Duschwanne → DW-xx).
-      const code = isBuOffer
-        ? { Wandverkleidung: supplierCodesForDoc.wv, Duschwanne: supplierCodesForDoc.dw, Fußboden: supplierCodesForDoc.fb }[cat] || null
-        : null;
-      MaterialsLines.push({ MaterialLine: code ? `${cat.toUpperCase()} · ${code}` : cat.toUpperCase(), IsSub: true });
-      for (const row of rows)
-        MaterialsLines.push({ MaterialLine: row.MaterialLine, IsSub: false });
-      if (code && SUPPLIER_QUALITY[code])
-        MaterialsLines.push({ MaterialLine: `Qualität und Normen: ${SUPPLIER_QUALITY[code]}`, IsSub: false });
+      // BU (owner 2026-11-27): each line ends with the Kürzel of ITS supplier
+      // (" · WV-WW"), the heading carries none; "Qualität und Normen" once per
+      // Kürzel present in the category, after its rows (lineSupplierCode).
+      MaterialsLines.push({ MaterialLine: cat.toUpperCase(), IsSub: true });
+      const codes = [];
+      for (const row of rows) {
+        const code = isBuOffer ? lineSupplierCode(row._raw, body) : null;
+        if (code && !codes.includes(code)) codes.push(code);
+        MaterialsLines.push({ MaterialLine: code ? `${row.MaterialLine} · ${code}` : row.MaterialLine, IsSub: false });
+      }
+      for (const code of codes)
+        if (SUPPLIER_QUALITY[code])
+          MaterialsLines.push({ MaterialLine: `Qualität und Normen: ${SUPPLIER_QUALITY[code]}`, IsSub: false });
     }
   } else {
     MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({

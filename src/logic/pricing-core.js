@@ -456,6 +456,42 @@ export function supplierCodes(payload, lines = []) {
   return { wv: wvCode, dw: dwCode, ...(floorWw ? { fb: "WV-WW" } : {}) };
 }
 
+// Kürzel per product line (owner 2026-11-27): in the offer each line of these sections carries the
+// Kürzel of ITS supplier, only for that supplier's own products — not one per section heading.
+export const LINE_CODE_CATEGORIES = ["Fußboden", "Wandverkleidung", "Duschwanne", "Duschabtrennung"];
+
+/**
+ * The supplier Kürzel of ONE material line (`materials.lines` / display copies), null = none.
+ * Read from the line: productId, hassmannArticle, category, displayOnly.
+ *  - winwall (WS…/NW…: plates, profiles, Abdichtungsset, Zuschnitt) → WV-WW, in any of the four sections
+ *  - VIGOUR wall panels (V3WV…/V3WVK…, also a floor plate billed under another id whose
+ *    hassmannArticle is one), VIGOUR profiles V3A/V3V, TRINNITY Wandabdichtung TRWDSET… → WV-HM
+ *  - Badolux/Keramico panels WP…, Badolux wall accessories (BADOLUX_WV_ACCESSORIES) → WV-BX
+ *  - Duschwanne: the catalogue tray (SLA… DW-SL, DW… DW-BX, else DW-HM), any other line there
+ *    (the Freier Posten) DW-FP
+ *  - everything else (Ramsauer adhesive/silicone, floor panels, floor sealing, shower screens,
+ *    Aluprofil für Trockenbau …) → null; no codes are defined for those yet.
+ * Needs the payload only where the line cannot tell: the catalogue tray vs. a Freier Posten
+ * (chosenTrayProductId — the free item's id is typed by the user) and the supplier of the
+ * leftover-only floor plate (ADR 031, a line without id: wallCladdingSupplier).
+ */
+export function lineSupplierCode(line, payload) {
+  const cat = line?.category;
+  if (!LINE_CODE_CATEGORIES.includes(cat)) return null;
+  const id = String(line?.productId || line?.id || "").trim();
+  if (cat === "Duschwanne") {
+    const tray = String(payload?.duschwanne?.chosenTrayProductId || "").trim();
+    if (!tray || !id.toUpperCase().startsWith(tray.toUpperCase())) return "DW-FP";
+    return /^SLA/i.test(tray) ? "DW-SL" : /^DW/i.test(tray) ? "DW-BX" : "DW-HM";
+  }
+  if (line?.displayOnly && cat === "Fußboden")
+    return payload?.duschwanne?.wallCladdingSupplier === "ww" ? "WV-WW" : "WV-HM";
+  if (/^(WS|NW)/i.test(id)) return "WV-WW";
+  if (/^WP\d/i.test(id) || BADOLUX_WV_ACCESSORIES.includes(id)) return "WV-BX";
+  if (/^V3(WVK?\d|A$|V$)/i.test(id) || /^V3WVK?\d/i.test(String(line?.hassmannArticle || "")) || /^TRWDSET/i.test(id)) return "WV-HM";
+  return null;
+}
+
 /** Panels per format → order lines, one per format at the single price. No sets
  *  (2026-11-16: 4 panels = 4 Stk, no set discount). */
 export function winwallOrderLines(decor, qtyByFormat = {}) {

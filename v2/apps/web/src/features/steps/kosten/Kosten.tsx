@@ -40,6 +40,7 @@ function Lines({ rows }: { rows: Row[] }) {
           <div key={`${r.id}-${i}`} className="contents" role="row" data-testid="kosten-line" data-line-id={r.id}>
             <span role="cell" className="whitespace-pre-line">
               <span data-part="label">{r.label}</span>
+              {r.code ? <span data-part="code" className="text-muted-foreground"> · {r.code}</span> : null}
               {r.note ? <Internal> <span data-part="note" className="text-muted-foreground">{r.note}</span></Internal> : null}
               {r.tags.map((t) => <span key={t.text} data-part="tag" title={t.title} className={cn("ml-2 inline-block rounded-full border px-2 py-0.5 text-[0.8rem]", t.kind === "up" && "border-[#f0c7c2] bg-[#fbeae8] font-semibold text-[#a5261c]", t.kind === "down" && "border-[#bfe3cf] bg-[#e8f5ee] font-semibold text-[#1e8449]", t.kind === "plain" && "border-border text-muted-foreground")}>{t.text}</span>)}
             </span>
