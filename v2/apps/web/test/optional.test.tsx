@@ -91,7 +91,16 @@ describe("Optionale Produkte stores and shows what today's UI does", () => {
     expect(screen.getAllByTestId("opt-card").map((c) => [c.dataset.id, part(c, "name")])).toEqual(reference.cards);
   });
 
-  it.each(reference.scenarios.map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
+  // Deliberate difference (UX-CHANGES U-096, owner 2026-11-27): a product that is unticked takes the
+  // accessories it brought with it. Today's UI leaves them ticked, so these two recordings no longer apply.
+  const ACCESSORIES_GO = new Set(["kitchen tap off again", "wall siphon off again"]);
+  it.each(reference.scenarios.filter((s) => ACCESSORIES_GO.has(s.name)).map((s) => [s.name, s] as const))("%s: its accessories go with it — nothing stays ticked", async (_name, scenario) => {
+    const { base } = await open();
+    await play(scenario.steps as (string | number)[][]);
+    await waitFor(() => expect(changed(base.optional, offer().optional)).toEqual({}));
+  });
+
+  it.each(reference.scenarios.filter((s) => !ACCESSORIES_GO.has(s.name)).map((s) => [s.name, s] as const))("%s", async (_name, scenario) => {
     const { base, router } = await open();
     await play(scenario.steps as (string | number)[][]);
     const elsewhere = ("elsewhere" in scenario ? scenario.elsewhere : {}) as Record<string, unknown>;
@@ -195,7 +204,17 @@ describe("Optionale Produkte — rules", () => {
     let s = setQty(toggleProduct(fresh(), "WESGH"), "WESGH", "3");
     expect([s.opt.qty_TRGAVS15, s.opt.qty_INSTMATROH, count(s, "WESGH")]).toEqual(["3", "3", 3]);
     s = toggleProduct(s, "WESGH");
-    expect([isOn(s.opt, "TRGAVS15"), s.opt.qty_TRGAVS15]).toEqual([true, "3"]); // they stay when the product goes
+    // unticked: its accessories go with it (owner 2026-11-27; today's UI leaves them ticked)
+    expect([isOn(s.opt, "WESGH"), isOn(s.opt, "TRGAVS15"), isOn(s.opt, "INSTMATROH"), count(s, "WESGH")]).toEqual([false, false, false, 0]);
+    s = toggleProduct(s, "WESGH"); // ticked again: they come back, one each
+    expect([isOn(s.opt, "TRGAVS15"), isOn(s.opt, "INSTMATROH")]).toEqual([true, true]);
+  });
+
+  it("the accessory of the basin tap goes with it too", () => {
+    let s = toggleProduct(fresh(), "ONSHB");
+    expect(isOn(s.opt, "YNORGH21825")).toBe(true);
+    s = toggleProduct(s, "ONSHB");
+    expect([isOn(s.opt, "ONSHB"), isOn(s.opt, "YNORGH21825")]).toEqual([false, false]);
   });
 
   it("free items: quickAdd holds the complete rows; quantity 1 by itself; a further row needs name, price and article", () => {

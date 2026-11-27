@@ -1,8 +1,10 @@
 // „Welche Wände werden verkleidet?“ as picture tiles (owner sketches 2026-11-26): a small view into the
 // bathroom — back wall, the two side walls, a shower tray in the right corner, a washbasin on the back
 // wall — with the covered area in the accent colour. Only the look: the values (`wvKind`) and the full
-// texts used elsewhere are KINDS in rules.ts, unchanged — the full text stays the accessible name.
+// texts used elsewhere are KINDS in rules.ts — the full text stays the accessible name.
 // Drawn with theme colours only (currentColor, --primary), so it reads in light and dark.
+// 2026-11-27: „Fliesenspiegel Duschbereich“ (the shower corner up to the tiles' height, with tile
+// joints) and „Alle Wände halbhoch“ (every wall up to half its height, with a height arrow).
 import type { ReactNode } from "react";
 import type { ChoiceTile } from "../../../shared/ui/choice-tiles.js";
 import { KINDS } from "./rules.js";
@@ -19,6 +21,14 @@ const showerArea = (top: number) => {
   const sideY = sideTop(SIDE_X) + t * (sideFloor(SIDE_X) - sideTop(SIDE_X));
   return [`${SHOWER_BACK_X},${top} 92,${top} 92,70 ${SHOWER_BACK_X},70`, `92,${top} ${SIDE_X},${sideY} ${SIDE_X},${sideFloor(SIDE_X)} 92,70`];
 };
+
+/** every wall from the floor up to `t` (0 = ceiling … 1 = floor) of its height */
+const wallsUpTo = (t: number) => {
+  const at = (top: number, floor: number) => Math.round((top + t * (floor - top)) * 10) / 10;
+  const back = at(14, 70), side = at(0, 90);
+  return [`28,${back} 92,${back} 92,70 28,70`, `0,${side} 28,${back} 28,70 0,90`, `120,${side} 92,${back} 92,70 120,90`];
+};
+const TILE_TOP = 42; // the tiles' height in the shower corner (half the wall)
 
 const HL = { fill: "var(--primary)", fillOpacity: 0.4, stroke: "var(--primary-text)", strokeWidth: 1.5, strokeLinejoin: "round" } as const;
 const Covered = ({ points }: { points: readonly string[] }) => <>{points.map((p) => <polygon key={p} points={p} {...HL} />)}</>;
@@ -40,9 +50,23 @@ function Room({ children, cabin }: { children?: ReactNode; cabin?: boolean }) {
 /** value → short label and the covered area */
 const SKETCH: Record<string, { label: string; picture: ReactNode }> = {
   Fehlstellen: { label: "Fehlstellen", picture: <Room><Covered points={["52,22 66,22 66,34 52,34", "31,52 45,52 45,64 31,64"]} /></Room> },
-  Deckenhoch: { label: "Duschbereich deckenhoch", picture: <Room><Covered points={showerArea(14)} /></Room> },
   Fliesenspiegel: { label: "Fliesenspiegel", picture: <Room><Covered points={["28,34 66,34 66,46 28,46"]} /></Room> },
+  "Fliesenspiegel-Duschbereich": { label: "Fliesenspiegel Duschbereich", picture: (
+    <Room>
+      <Covered points={showerArea(TILE_TOP)} />
+      {/* tile joints on the covered back wall */}
+      <path d={`M${SHOWER_BACK_X} 51 H92 M${SHOWER_BACK_X} 60 H92 M76 ${TILE_TOP} V70 M84 ${TILE_TOP} V70`} strokeWidth={0.9} />
+    </Room>
+  ) },
   "Innenraum-der-Kabine": { label: "Kabine innen", picture: <Room cabin><Covered points={showerArea(30)} /></Room> },
+  Deckenhoch: { label: "Duschbereich deckenhoch", picture: <Room><Covered points={showerArea(14)} /></Room> },
+  "alle-Bad-Wände-halbhoch": { label: "Alle Wände halbhoch", picture: (
+    <Room>
+      <Covered points={wallsUpTo(0.5)} />
+      {/* the height, up from the floor on the left wall */}
+      <path d="M11 82 V46 M8 49 l3 -3.5 l3 3.5 M8 82 h6" />
+    </Room>
+  ) },
   "alle-Bad-Wände": { label: "Alle Wände", picture: <Room><Covered points={[BACK, LEFT, RIGHT]} /></Room> },
 };
 

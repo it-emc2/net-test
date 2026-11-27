@@ -517,3 +517,28 @@ A rep opened a deal as one offer type (e.g. Badumbau) and wants the same deal as
 **Old app (`main`, Fly).** Unchanged: such an offer shows the Flächenkleber and no plate line. Today's UI served by v2 (classic view) computes with the same engine copy: its Kosten and Angebotscheck read `materialsDisplayUI` (no line); its documents are rendered by the v2 server (line present).
 
 Tests: `packages/pricing/test/floor-leftover-line.test.ts`, `apps/server/test/floor-leftover-docs.test.ts`, `apps/web/test/fussboden-reste-zeile.test.tsx`.
+
+## ADR 032 — Wandverkleidung „Ausführung“: two further answers; the wall-mounted WC's Vorwand plate (owner, 2026-11-27 „use best judgement“; built 2026-11-27)
+
+**(A) Ausführung (`wandverkleidung.wvKind`).** Seven tiles from the smallest to the largest area, 4 per row on the iPad, 2 on a phone, each with its own sketch (`KindSketch.tsx`). Two new stored values, known only to the React app:
+
+| Value | Tile / full text | Offer work note (`computeWorkNotes`, TS core **and** legacy copy, identical) |
+|---|---|---|
+| `Fliesenspiegel-Duschbereich` | Fliesenspiegel Duschbereich / „Fliesenspiegel im Dusch-/Wannenbereich“ | „Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich“ (the sentence `Fliesenspiegel` already prints) |
+| `alle-Bad-Wände-halbhoch` | Alle Wände halbhoch / „Alle Bad-Wände halbhoch“ + field „Alle Bad-Wände bis Höhe … cm“ (`wandverkleidung.wvKindHoehe`, shown only for this answer, kept when another answer is chosen) | „Verkleidung aller Bad-Wände bis in einer Höhe von <cm> cm“, without a height „Verkleidung halbhoch aller Bad-Wände“ |
+
+`wvKind` drives nothing but the work note and the Angebotscheck's „Art der Wandverkleidung fehlt“ (any value counts) — no price, no work time, no material (checked: pricing core, `arbeiten/rules.ts`, `arbeitszeit`, Angebotscheck, both UIs). Not added: „Alle Bad-Wände in Höhe des Duschbereichs“ (= halbhoch with that height) and „Duschbereich bis Höhe … cm“ (that is the existing Arbeiten task `wandverkleidung_duschbereich` + `duschwanne.wandverkleidungHoehe`, which stays a separate row and can be combined with any answer). Old values, texts and results unchanged: golden 117/117, differential 115/115, sync-with-legacy green; `packages/pricing/test/wv-kind-notes.test.ts`.
+
+**(B) Wand-WC → 1 winwall plate 100 × 250 cm for the Vorwand.** The WC (Optionale Produkte → WC) mounted on the wall with the Conel VIS element `CVIS3WCT112` (quantity > 0) shows a card. Explicit, never silent (the automatic Arbeiten pattern does not fit cleanly: the plate merges into the rows of its Dekor, and the wall calculator / classic rows rewrite rows):
+
+| Topic | How |
+|---|---|
+| Add | „Im Dekor der Wandverkleidung hinzufügen“: +1 plate format 15 in the first Dekor's row (`wvWwRows` via `fromRows`, so the existing suggestions follow: 2 bags of adhesive per plate; a connecting profile per extra plate while no wall plan is entered). „Anderes Dekor wählen“: the plate as a further Dekor (placeholder = the first palette Dekor not used), the Wandverkleidung step opens with it active and a note „bitte unten das Dekor wählen“. Wandverkleidung off: the card says so and the add switches it on |
+| Track | `wandverkleidung.wvWcPlate` = `{ decor, count, note, picked, orphan }` (object, v2 only). `count` = plates 100 × 250 of that Dekor right after adding; another number later = changed by the user. A Dekor change of those plates (palette, typed number, row Dekor) moves the mark along (`followPlate`, inside `wvChanges`) |
+| Remove | „Entfernen“ on the card: −1 plate of the marked Dekor, mark gone. The WC no longer wall-mounted / removed: unchanged plate removed automatically with a toast; a changed plate stays, a toast once, and the Wandverkleidung step asks „Platte entfernen“ / „Behalten“ |
+| Arbeiten note | one line in „Weitere Arbeiten“ (`duschwanne.extraTasks`): „Verkleidung der Vorwand des Wand-WCs mit Wandverkleidung (1 Platte 100 × 250 cm)“ — added once (never twice, an identical line typed by the user is not taken over), removed with the plate only when the card added it and the text is unchanged. Free lines carry no time; the line is printed in the offer's „Auszuführende Arbeiten“ like every free line |
+| VIGOUR / Badolux | hint only („bitte 1 Paneel 997 × 2550 mm“ / „1 Wandpaneel Keramico 950 × 2550 mm ergänzen“), nothing added: their panels have colour/quantity fields of their own and a VIGOUR panel adds 30 min through the Arbeitszeit rule |
+
+**Old app (`main`) / today's UI served by v2.** Its radio group has no input for the two new values: such an offer opens with no Ausführung ticked, its „Weiter“ asks for the Art der Wandverkleidung, its Angebotscheck shows „Art der Wandverkleidung fehlt“, and its next save (`buildPayload`, form-built) **drops `wvKind`, `wvKindHoehe` and `wvWcPlate`**. The plate itself (a normal `wvWwRows` row) and the Arbeiten line (`extraTasks`) survive and print as usual. Open for the owner: edit such offers in the React app only, or teach the old app the values.
+
+Tests: `apps/web/test/wv-wc-platte.test.tsx`, `apps/web/test/choice-tiles.test.tsx`, `packages/pricing/test/wv-kind-notes.test.ts`.

@@ -22,10 +22,21 @@ import { WW_DECORS } from "./decors.js";
 type Fields = Record<string, unknown>;
 export type Line = "ww" | "premium" | "standard";
 
+/** „Welche Wände werden verkleidet?“ (`wvKind`), from the smallest to the largest area. Five are
+ *  today's values (old app's radio group); the two marked v2 are known only to the React app
+ *  (owner 2026-11-27, ADR 032). The offer's work note per value is the pricing engine's
+ *  computeWorkNotes; no value changes a price or the work time. */
 export const KINDS = [
-  { value: "Fehlstellen", label: "Nur schließende Fehlstellen" }, { value: "Deckenhoch", label: "Deckenhoch im Dusch-/Wannenbereich" },
-  { value: "Fliesenspiegel", label: "Fliesenspiegel" }, { value: "Innenraum-der-Kabine", label: "Innenraum der Kabine" }, { value: "alle-Bad-Wände", label: "Alle Bad-Wände" },
+  { value: "Fehlstellen", label: "Nur schließende Fehlstellen" },
+  { value: "Fliesenspiegel", label: "Fliesenspiegel" },
+  { value: "Fliesenspiegel-Duschbereich", label: "Fliesenspiegel im Dusch-/Wannenbereich", v2: true },
+  { value: "Innenraum-der-Kabine", label: "Innenraum der Kabine" },
+  { value: "Deckenhoch", label: "Deckenhoch im Dusch-/Wannenbereich" },
+  { value: "alle-Bad-Wände-halbhoch", label: "Alle Bad-Wände halbhoch", v2: true },
+  { value: "alle-Bad-Wände", label: "Alle Bad-Wände" },
 ] as const;
+/** the Ausführung that asks for a height (`wvKindHoehe`, cm — printed in the offer's work note) */
+export const HALF_HEIGHT_KIND = "alle-Bad-Wände-halbhoch";
 export const SHOWER_TASK = "wandverkleidung_duschbereich";
 
 // ---- product line ----

@@ -9,6 +9,7 @@
 //  - the ticked tasks give the automatic work-time suggestion stored in `Arbeitszeit`
 import { addMinutes, derived } from "../arbeitszeit/rules.js";
 import { TASKS } from "./tasks.js";
+import { followPlate } from "../wandverkleidung/wc-plate.js";
 
 type Fields = Record<string, unknown>;
 
@@ -202,6 +203,7 @@ export function arbeitenChanges(offer: Record<string, any>, dwFields: Fields, la
 /** One change of the offer for a change of the Wandverkleidung: its fields, and the rows of the
  *  work-time suggestion that follow from it. */
 export function wvChanges(offer: Record<string, any>, wvFields: Fields): Record<string, Fields> {
+  wvFields = { ...wvFields, ...followPlate(offer.wandverkleidung ?? {}, wvFields) }; // the Wand-WC's plate keeps its Dekor (ADR 032)
   const wv = { ...(offer.wandverkleidung ?? {}), ...wvFields };
   return { wandverkleidung: wvFields, Arbeitszeit: { ...(offer.Arbeitszeit ?? {}), ...suggestion(offer.duschwanne ?? {}, offer.pricingRules?.azMinutes, offer.Arbeitszeit?.autoSuggestedTasks, wv, offer.optional) } };
 }

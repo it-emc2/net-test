@@ -1,9 +1,10 @@
 // Badewannentür (BWT), slice 1: the existing tub (shape, Umbau-Check, material), the five door
-// cards, the hinge and the four grab bars. The stored fields are exactly today's
+// cards, the hinge and the four grab bars (cards with a product photo). The stored fields are exactly today's
 // (test/bwt-tuer.test.tsx compares with what today's UI stores and shows for the same inputs).
 // Slice 2 (free items, note, sketch, the two note texts) is in Extras.tsx.
 import { Card, CardTitle, Check, Choices, IMG, cn } from "../../../shared/ui/index.js";
 import { Internal } from "../../../shared/ui/internal.js";
+import { TickBadge, swatchTile } from "../../../shared/ui/swatch.js";
 import { useOfferStore } from "../../offer/index.js";
 import { Anschlag } from "./Anschlag.js";
 import { Doors, Qty } from "./Doors.js";
@@ -34,16 +35,18 @@ export function Badewannentuer() {
       </Card>
       <Card aria-labelledby="bwt-zubehoer">
         <CardTitle id="bwt-zubehoer">Optionale Haltegriffe</CardTitle>
-        {/* every tile keeps the room of its quantity, and is wide enough (15 rem) for the bold ticked name on one line, so ticking one never makes the row jump (U-059) */}
+        {/* every card keeps the room of its quantity, and is wide enough (15 rem) for the bold ticked name on one line, so ticking
+            one never makes the row jump (U-059); the picture is a product photo (IMG.product) and, like the tick, picks the grab bar */}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(15rem,100%),1fr))] gap-3">
           {GRIPS.map((g) => {
             const on = gripOn(b, g.n);
             return (
-              <div key={g.n} data-testid="bwt-grip" data-n={g.n} className="grid content-start gap-2 rounded-lg border-2 border-control bg-card p-3 has-[:checked]:border-primary has-[:checked]:bg-accent-weak">
-                <div className="grid justify-items-center gap-2">
-                  <img src="/assets/5b817c33100c0121ede70f11e341601c.jpg" alt="" loading="lazy" data-part="grip-image" className={cn(IMG.row, "rounded-md object-contain")} />
-                  <Check id={`bwt-grip-${g.n}`} checked={on} onChange={() => write((x) => toggleGrip(x, g.n))}>{g.label}</Check>
-                </div>
+              <div key={g.n} data-testid="bwt-grip" data-n={g.n} className={swatchTile(on, "cursor-default gap-2 p-2 pb-3 text-base")}>
+                <label htmlFor={`bwt-grip-${g.n}`} aria-hidden className="relative block cursor-pointer">
+                  <img src="/assets/5b817c33100c0121ede70f11e341601c.jpg" alt="" loading="lazy" data-part="grip-image" className={cn(IMG.product, "w-full rounded-lg object-contain")} />
+                  {on ? <TickBadge /> : null}
+                </label>
+                <Check id={`bwt-grip-${g.n}`} checked={on} onChange={() => write((x) => toggleGrip(x, g.n))}>{g.label}</Check>
                 <div data-part="grip-qty" aria-hidden={!on || undefined} className={cn("grid justify-items-center gap-1", !on && "invisible")}>
                   <span className="font-semibold">Menge</span>
                   <Qty field={g.qty} b={b} label={g.label} inputLabel={`Menge ${g.label}`} />

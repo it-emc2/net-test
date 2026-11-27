@@ -120,6 +120,8 @@ function after(opt: Fields, id: string): Fields {
   const on = isOn(opt, id);
   if (on) for (const group of ONLY_ONE) if (group.includes(id)) for (const other of group) if (other !== id) opt = tick(opt, other, false);
   if (on && COMES_WITH[id]) opt = follow(opt, id);
+  // unticked: its accessories go with it (owner 2026-11-27; today's UI leaves them ticked)
+  if (!on) for (const part of COMES_WITH[id] ?? []) opt = tick(opt, part, false);
   if (BASINS.includes(id)) {
     if (on) { for (const part of BASIN_PARTS) opt = tick(opt, part, true); opt = basinParts(opt); }
     else if (!anyBasin(opt)) for (const part of BASIN_PARTS) opt = tick(opt, part, false); // the last basin takes its accessories with it

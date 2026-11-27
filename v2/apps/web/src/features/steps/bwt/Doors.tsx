@@ -1,10 +1,14 @@
-// The door section of Badewannentür: five equal tiles in one row (3 + 2 below 760 px, two columns below 480 px so the
-// names break between words, U-059) (the tile is the control; one door
-// at a time), and below them one full-width panel for the chosen door — specs, sizes (Wien, Wien
-// Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-034): the stored fields and
+// The door section of Badewannentür: one card per door with a large picture on top (IMG.hero, the whole door on the
+// photo plate, not cropped) so it can be shown to the customer on the tablet — 2 per row on the tablet, 1 on a phone —
+// name and short specs below; the chosen card in the swatch language (3 px primary frame, tick badge, light tint).
+// The card is the control (a checkbox `bwtDoorType`; one door at a time); a small button in the picture's corner
+// shows the doors large in the shared lightbox. Below the cards one full-width panel for the chosen door — sizes
+// (Wien, Wien Glas), quantity as a stepper and colour. Layout only (UX-CHANGES U-034): the stored fields and
 // the rules are slice 1's (rules.ts).
-import { Check as Tick, Info } from "lucide-react";
-import { Card, CardTitle, IMG, Input, Stepper, cn } from "../../../shared/ui/index.js";
+import { Maximize2 } from "lucide-react";
+import { useState } from "react";
+import { Card, CardTitle, IMG, Input, Lightbox, Stepper, cn } from "../../../shared/ui/index.js";
+import { TickBadge, swatchTile } from "../../../shared/ui/swatch.js";
 import { COLORS, DIMS, DOORS, dimField, doorOn, toggleDoor, type Door } from "./rules.js";
 import { set, str, write, type Fields } from "./store.js";
 
@@ -17,15 +21,25 @@ function colorsOf(d: Door): readonly (readonly [string, string, string])[] | nul
   return null; // Wien Glas: the frame colour is typed
 }
 
-function Tile({ d, b, invalid }: { d: Door; b: Fields; invalid: boolean }) {
+function Tile({ d, b, invalid, onZoom }: { d: Door; b: Fields; invalid: boolean; onZoom: () => void }) {
   const on = doorOn(b, d);
   return (
-    <label data-testid="bwt-door" data-key={d.key} className={cn("relative grid min-w-0 cursor-pointer grid-rows-[6rem_auto] gap-2 rounded-lg border-2 bg-card p-2 text-center has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring", on ? "border-primary bg-accent-weak" : "border-input")}>
-      <input type="checkbox" name="bwtDoorType" className="sr-only" aria-label={d.value} aria-invalid={invalid || undefined} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
-      <img src={d.img} alt="" loading="lazy" className={cn(IMG.tile, "mx-auto object-contain")} />
-      <strong className="grid min-h-[2.75rem] min-w-0 content-center break-words text-[0.95rem] leading-tight">{d.value}</strong>
-      {on ? <span aria-hidden data-part="tick" className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full bg-primary text-primary-foreground"><Tick className="size-4" /></span> : null}
-    </label>
+    <div data-testid="bwt-door" data-key={d.key} className="relative grid min-w-0">
+      <label className={swatchTile(on, "gap-2 p-2 pb-3 text-base")}>
+        <input type="checkbox" name="bwtDoorType" className="sr-only" aria-label={d.value} aria-invalid={invalid || undefined} checked={on} onChange={() => write((x) => toggleDoor(x, d))} />
+        <span className="relative block">
+          <img src={d.img} alt="" loading="lazy" data-part="door-image" className={cn(IMG.hero, "w-full rounded-lg object-contain")} />
+          {on ? <TickBadge /> : null}
+        </span>
+        <strong className="px-1 leading-tight">{d.value}</strong>
+        {d.spec ? <span data-part="spec" className="px-1 text-[0.9rem] font-normal text-muted-foreground">{d.spec}</span> : null}
+      </label>
+      {/* beside the label, not in it: a tap on it shows the picture large and never picks the door */}
+      <button type="button" aria-label={`Bild vergrößern: ${d.value}`} onClick={onZoom}
+        className="absolute left-3.5 top-3.5 grid size-11 cursor-zoom-in place-items-center rounded-full border border-border bg-card/90 text-foreground shadow-md">
+        <Maximize2 aria-hidden className="size-5" />
+      </button>
+    </div>
   );
 }
 
@@ -44,10 +58,7 @@ function Panel({ d, b }: { d: Door; b: Fields }) {
   const colors = colorsOf(d), label = d.colorKind === "text" ? "Rahmen-Farbe" : "Farbe";
   return (
     <div data-testid="bwt-door-panel" data-key={d.key} className="grid gap-4 rounded-lg border-2 border-primary bg-card p-4">
-      <div className="grid gap-1">
-        <h3 className="m-0 text-[1.05rem] font-semibold">{d.value}</h3>
-        {d.spec ? <p className="m-0 flex items-start gap-2 text-muted-foreground"><Info aria-hidden className="mt-0.5 size-4 shrink-0" />{d.spec}</p> : null}
-      </div>
+      <h3 className="m-0 text-[1.05rem] font-semibold">{d.value}</h3>
       {d.dims ? (
         <div className="grid gap-2" data-part="dims">
           <div className="font-semibold">Maße</div>
@@ -95,13 +106,19 @@ function Panel({ d, b }: { d: Door; b: Fields }) {
   );
 }
 
+const PICTURES = DOORS.map((d) => ({ src: d.img, label: d.value }));
+
 export function Doors({ b, invalid }: { b: Fields; invalid: boolean }) {
   const chosen = DOORS.find((d) => doorOn(b, d));
+  const [shown, setShown] = useState<number | null>(null);
   return (
     <Card aria-labelledby="bwt-tuer">
       <CardTitle id="bwt-tuer">Wählen Sie Ihren gewünschten Tür-Typen</CardTitle>
-      <div className={cn("grid grid-cols-2 gap-3 min-[480px]:grid-cols-3 min-[760px]:grid-cols-5", invalid && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>{DOORS.map((d) => <Tile key={d.key} d={d} b={b} invalid={invalid} />)}</div>
+      <div className={cn("grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2", invalid && "rounded-lg outline outline-2 outline-offset-4 outline-destructive")}>
+        {DOORS.map((d, i) => <Tile key={d.key} d={d} b={b} invalid={invalid} onZoom={() => setShown(i)} />)}
+      </div>
       {chosen ? <Panel key={chosen.key} d={chosen} b={b} /> : null}
+      {shown != null ? <Lightbox images={PICTURES} start={shown} onClose={() => setShown(null)} testId="bwt-lightbox" /> : null}
     </Card>
   );
 }

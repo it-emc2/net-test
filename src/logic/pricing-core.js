@@ -1076,6 +1076,17 @@ function grossToNet(gross, taxRate) {
     if (kind === "Innenraum-der-Kabine")
       picked.add("Verkleidung im Innenraum der Kabine");
     if (kind === "alle-Bad-Wände") picked.add("Verkleidung deckenhoch aller Bad-Wände");
+    // v2 (2026-11-27): further Ausführungen; the height of "halbhoch" is printed when it is given
+    if (kind === "Fliesenspiegel-Duschbereich")
+      picked.add("Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich");
+    if (kind === "alle-Bad-Wände-halbhoch") {
+      const cm = String(payload?.wandverkleidung?.wvKindHoehe ?? "").trim();
+      picked.add(
+        cm
+          ? `Verkleidung aller Bad-Wände bis in einer Höhe von ${cm} cm`
+          : "Verkleidung halbhoch aller Bad-Wände",
+      );
+    }
 
     // Fußboden
     if (hasFlooring && floorKind === "Fehlstellen") {
