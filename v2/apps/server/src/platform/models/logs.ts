@@ -13,6 +13,8 @@ export const BitrixLog = model("BitrixLog", new Schema({
 export const USER_ACTION_EVENTS = [
   "offer_sent", "offer_bitrix_only", "move_dialog_shown", "move_dialog_dismissed", "move_succeeded",
   "move_failed", "termin_opened", "configurator_opened", "duschabtrennung_leaf_selected", "server_started",
+  // v2 only: the deal's main contact changed from Kundendaten (modules/bitrix/main-contact.ts)
+  "main_contact_changed", "main_contact_failed",
 ] as const;
 // One row per DOCX→PDF / HTML→PDF conversion (main PR #322, admin "PDF-Engine" view). v2 always
 // converts through the PDF engine, so it writes engine "gotenberg"; rows expire after 180 days.

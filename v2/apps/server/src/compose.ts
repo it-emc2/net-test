@@ -15,7 +15,7 @@ import { createSentAwarePricing, sentOfferRecorder } from "./modules/sends/index
 import { registerOfferNumbers } from "./modules/sends/index.js";
 import { registerAdmin } from "./modules/admin/index.js";
 import { registerCustomers } from "./modules/customers/index.js";
-import { registerBitrixRead, registerDealCustomer } from "./modules/bitrix/index.js";
+import { registerBitrixRead, registerDealCustomer, registerMainContact } from "./modules/bitrix/index.js";
 import { BitrixClient } from "./integrations/bitrix.js";
 import { BitrixLog, PDF_LOG_APP, PdfLog } from "./platform/models.js";
 import { dealWrites } from "./integrations/bitrix-deal.js";
@@ -131,7 +131,8 @@ export async function registerApi(app: FastifyInstance, deps: ApiDeps) {
   await registerCustomers(app);
   await registerAdmin(app, { businessConfig, authSecret: cfg.AUTH_SECRET, secureCookie });
   await registerBitrixRead(app, bitrix);
-  await registerDealCustomer(app, bitrix);
+  const dealCustomer = await registerDealCustomer(app, bitrix);
+  await registerMainContact(app, { deals, forgetDealCustomer: (id) => dealCustomer.forget(id) });
   await registerSends(app, { deals });
   await registerOfferNumbers(app);
   const ensureSentOffer = sentOfferRecorder(unpinnedPricing, app.log);
