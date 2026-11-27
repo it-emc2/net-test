@@ -5,7 +5,7 @@ import { isNewOfferType, type NewOfferType } from "@oc/domain";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { euro } from "../../shared/lib/format.js";
 import { ChevronLeft, ChevronRight, Circle, CircleAlert, CircleCheck, Minus, TriangleAlert } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { usePrefs } from "../../shared/lib/prefs.js";
 import { Alert, Button, ButtonLink, Card, CardTitle, Page, cn } from "../../shared/ui/index.js";
 import { toast } from "../../shared/ui/toaster.js";
@@ -18,7 +18,7 @@ import { TEXT as VARIANT, variantInSearch, variantSearch } from "./model/variant
 import { usePrice } from "./model/usePrice.js";
 import { useAhPrice } from "./model/ah-price.js";
 import { TEXT as SECOND } from "./model/second-offer.js";
-import { OFFER_TITLES, STEPS, checkStep, firstStep, flowSteps, groupStartingAt, isReferenzStep, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
+import { OFFER_TITLES, STEPS, askBeforeLeaving, checkStep, firstStep, flowSteps, groupStartingAt, isReferenzStep, isStepOf, stepLabel, stepStatuses, type StepStatus } from "./steps.js";
 
 function Total() {
   const ah = useOfferStore((s) => s.offer?.activeOffer === "ah");
@@ -78,7 +78,7 @@ function StatusIcon({ s }: { s: StepStatus }) {
 }
 
 /** The step list with a status per step (done / warning / open / not chosen) and the progress on top. */
-function StepList({ type, base, q, current, statuses }: { type: NewOfferType; base: string; q: string; current: string; statuses: Record<string, StepStatus> }) {
+function StepList({ type, base, q, current, statuses, onLeave }: { type: NewOfferType; base: string; q: string; current: string; statuses: Record<string, StepStatus>; onLeave: (e: MouseEvent, to: string) => void }) {
   const { done, total } = countsIn(statuses);
   return (
     <div className="grid gap-2">
@@ -101,7 +101,7 @@ function StepList({ type, base, q, current, statuses }: { type: NewOfferType; ba
             <li key={s}>
               {group ? <p className="mb-1 mt-3 text-[0.85rem] font-semibold uppercase tracking-wide text-muted-foreground">{group.num ? `${group.num} · ` : ""}{group.title}</p> : null}
               <NavLink
-                to={`${base}/${s}${q}`} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
+                to={`${base}/${s}${q}`} onClick={(e) => { if (s !== current) onLeave(e, `${base}/${s}${q}`); }} data-state={st.kind} aria-label={said ? `${stepLabel(s)} – ${said}` : stepLabel(s)} title={said ? `${stepLabel(s)} – ${said}` : undefined}
                 className={cn(
                   "flex min-h-12 items-center gap-3 rounded-lg border border-transparent px-3 py-1.5 text-foreground no-underline transition-colors hover:bg-accent-weak",
                   active && "border-accent bg-accent-weak font-bold", st.kind === "off" && "text-muted-foreground",
@@ -243,7 +243,19 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
   const inFlow = !isReferenzStep(step);
   const at = steps.indexOf(step);
   const prev = inFlow ? steps[at - 1] : undefined, next = inFlow ? steps[at + 1] : undefined;
-  const goHome = () => { void flushDraft().then(() => navigate("/")); };
+  // a step may ask one question before it is left (askBeforeLeaving); it then goes on by itself once answered
+  const leaveTo = (e: MouseEvent, to: string) => {
+    if (askBeforeLeaving(step, () => navigate(to))) { e.preventDefault(); setDrawer(false); }
+  };
+  const forward = (e: MouseEvent, to: string) => {
+    const open = (s: string) => navigate(`${base}/${s}${q}`);
+    if (!goOn(step, open)) { e.preventDefault(); return; }
+    if (askBeforeLeaving(step, () => { if (goOn(step, open)) navigate(to); })) e.preventDefault(); // the step's check once more after the answer
+  };
+  const goHome = () => {
+    const home = () => { void flushDraft().then(() => navigate("/")); };
+    if (askBeforeLeaving(step, home)) setDrawer(false); else home();
+  };
   const title = `${OFFER_TITLES[type]}${temp ? " · noch ohne Auftragsnummer" : ` · Auftrag ${dealId}`}`;
   return (
     // Wide screens (iPad landscape, desktop): the step list is a sidebar that stays in view (the
@@ -253,19 +265,19 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
     <div className={cn("mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-4 px-4 pb-16 lg:gap-6 lg:pt-6", sidebar && "lg:grid-cols-[minmax(240px,300px)_1fr]")}>
       {/* the total shows once: in this bar, or (wide, sidebar shown) in the sidebar */}
       {!wide || !sidebar ? <div role="group" aria-label="Schrittleiste" className={cn("sticky top-16 z-30 -mx-4 flex items-center gap-2 border-b border-border bg-background px-4 py-2", sidebar && "lg:hidden")}>
-        {prev ? <Link to={`${base}/${prev}${q}`} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
+        {prev ? <Link to={`${base}/${prev}${q}`} onClick={(e) => leaveTo(e, `${base}/${prev}${q}`)} aria-label="Vorheriger Schritt" className={barBtn}><ChevronLeft aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronLeft className="size-5" /></span>}
         {/* below 480 px the bar keeps one row (U-056) and leaves ~50 px for the text: „4/7“ instead of a cut „Sc…“; the full name stays for screen readers (U-059) */}
         <p className="m-0 min-w-0 flex-1 truncate text-center font-semibold">
           <span className="max-[479px]:sr-only">{inFlow ? <span className="font-normal text-muted-foreground">{`Schritt ${at + 1}/${steps.length} · `}</span> : null}{stepLabel(step)}</span>
           <span aria-hidden data-part="step-short" className="min-[480px]:hidden">{inFlow ? `${at + 1}/${steps.length}` : stepLabel(step)}</span>
         </p>
-        {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
+        {next ? <Link to={`${base}/${next}${q}`} aria-label="Nächster Schritt" onClick={(e) => forward(e, `${base}/${next}${q}`)} className={barBtn}><ChevronRight aria-hidden className="size-5" /></Link> : <span className={cn(barBtn, "opacity-40")} aria-hidden><ChevronRight className="size-5" /></span>}
         <BarMoney base={base} fallback={<Total />} className="max-[479px]:min-w-0 max-[479px]:shrink" />
       </div> : null}
-      <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} q={q} current={step} statuses={statuses} /></StepDrawer>
+      <StepDrawer onHome={goHome} total={<><Total /><SelfPayRows base={base} /></>}><StepList type={type} base={base} q={q} current={step} statuses={statuses} onLeave={leaveTo} /></StepDrawer>
       <nav aria-label="Schritte" className={cn("hidden content-start gap-4 self-start overflow-y-auto pr-1 lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:sticky", sidebar && "lg:grid")}>
         <p className="m-0 font-bold">{title}</p>
-        <StepList type={type} base={base} q={q} current={step} statuses={statuses} />
+        <StepList type={type} base={base} q={q} current={step} statuses={statuses} onLeave={leaveTo} />
         {wide && sidebar ? <><Total /><SelfPayRows base={base} /></> : null}
         {/* save first, then leave; the Hauptmenü empties the store when it opens (one assignment) */}
         <Button variant="secondary" onClick={goHome}>Zum Hauptmenü</Button>
@@ -274,8 +286,8 @@ function OpenOffer({ dealId, type }: { dealId: string; type: NewOfferType }) {
         <Outlet />
         {/* with the sidebar closed these two are the way through the offer */}
         <div className="flex items-center justify-between gap-3 pt-2">
-          {prev ? <ButtonLink to={`${base}/${prev}${q}`} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
-          {next ? <Button asChild><Link to={`${base}/${next}${q}`} aria-label={`Weiter zu ${stepLabel(next)}`} onClick={(e) => { if (!goOn(step, (to) => navigate(`${base}/${to}${q}`))) e.preventDefault(); }}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
+          {prev ? <ButtonLink to={`${base}/${prev}${q}`} onClick={(e) => leaveTo(e, `${base}/${prev}${q}`)} aria-label={`Zurück zu ${stepLabel(prev)}`}><ChevronLeft aria-hidden />Zurück</ButtonLink> : <span />}
+          {next ? <Button asChild><Link to={`${base}/${next}${q}`} aria-label={`Weiter zu ${stepLabel(next)}`} onClick={(e) => forward(e, `${base}/${next}${q}`)}>Weiter<ChevronRight aria-hidden /></Link></Button> : null}
         </div>
       </main>
     </div>

@@ -103,6 +103,12 @@ export const ERROR_CODES = {
   OFFER_SEARCH_FAILED: "OFFER_SEARCH_FAILED",
   /** „Versionen“ (U-074): restoring a version that carries an older offer number that was already sent is refused (409, `offerNumber` in the answer) */
   RESTORE_SENT_NUMBER: "RESTORE_SENT_NUMBER",
+  /** main contact (Kundendaten): the deal's contact in Bitrix is no longer the one the dialog showed (409, nothing written) */
+  MAIN_CONTACT_CHANGED: "MAIN_CONTACT_CHANGED",
+  /** main contact: more than one Bitrix contact fits the insured person (409, nothing written — the office decides) */
+  MAIN_CONTACT_AMBIGUOUS: "MAIN_CONTACT_AMBIGUOUS",
+  /** main contact: Bitrix refused or did not answer a call of the change (502) */
+  MAIN_CONTACT_FAILED: "MAIN_CONTACT_FAILED",
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** the areas a recorded failure belongs to (where in the app it happened) */
@@ -147,6 +153,41 @@ export const DealCustomerResponseSchema = z.object({
 export type DealCustomerResponse = z.infer<typeof DealCustomerResponseSchema>;
 /** how long the server keeps a deal's customer, and the web app treats it as fresh */
 export const DEAL_CUSTOMER_TTL_MS = 60_000;
+
+// ---------- the deal's main contact (Kundendaten, owner 2026-11-27) ----------
+// The deal's Bitrix contact is often a family member, not the insured person typed in Kundendaten.
+// "replace": a contact of the insured person (found, else created) becomes the deal's primary contact;
+// the old contact stays linked as a further contact. "rename": the SAME contact gets the typed first
+// and last name (spelling only). Never is one contact overwritten with another person.
+export const MainContactPersonSchema = z.object({
+  salutation: z.string().max(40).optional(),
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
+  street: z.string().max(200).optional(),
+  postalCode: z.string().max(20).optional(),
+  city: z.string().max(100).optional(),
+  phone: z.string().max(60).optional(),
+  email: z.string().max(200).optional(),
+});
+export type MainContactPerson = z.infer<typeof MainContactPersonSchema>;
+export const MainContactRequestSchema = z.object({
+  mode: z.enum(["replace", "rename"]),
+  /** the deal's contact the user saw; another one in Bitrix → MAIN_CONTACT_CHANGED */
+  expectedContactId: z.string().regex(/^\d{1,12}$/),
+  person: MainContactPersonSchema,
+});
+export type MainContactRequest = z.infer<typeof MainContactRequestSchema>;
+export const MainContactResponseSchema = z.object({
+  ok: z.literal(true),
+  /** the deal's main contact now (rename: the same contact) */
+  contactId: z.string(),
+  /** replace: the contact was created (false: an existing contact was used) */
+  created: z.boolean(),
+  mode: z.enum(["replace", "rename"]),
+  /** the timeline note failed — the change itself was made */
+  commentFailed: z.boolean().optional(),
+});
+export type MainContactResponse = z.infer<typeof MainContactResponseSchema>;
 
 // ---------- auth ----------
 export const PublicUserSchema = z.object({
@@ -469,6 +510,8 @@ export const endpoints = {
   dealDraft: { method: "GET", path: "/api/deals/:dealId/draft", response: DealDraftResponseSchema },
   /** the deal's contact as Kundendaten fields, with the landlord fields: ONE Bitrix request (batch), kept ~60 s on the server; query fresh=1 asks Bitrix again */
   dealCustomer: { method: "GET", path: "/api/deals/:dealId/customer", response: DealCustomerResponseSchema },
+  /** the deal's main contact: the insured person becomes it ("replace"), or the contact's name is corrected ("rename") */
+  changeMainContact: { method: "POST", path: "/api/bitrix/deal/:id/main-contact", request: MainContactRequestSchema, response: MainContactResponseSchema },
   /** „Kunde suchen“ in the local customer list (no Bitrix); query: q, limit */
   customerSearch: { method: "GET", path: "/api/customers/search", response: z.looseObject({ items: z.array(z.looseObject({})).nullish() }) },
   /** one saved customer with the whole saved Kundendaten page */

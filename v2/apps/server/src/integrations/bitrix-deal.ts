@@ -158,6 +158,21 @@ export interface NewDeal {
   /** user fields by their original names (UF_CRM_…) */
   ufFields: Record<string, unknown>;
 }
+/** the person of „Hauptkontakt“ (Kundendaten): the insured person as typed in the offer */
+export interface MainContactPerson { salutation?: string | undefined; firstName: string; lastName: string; street?: string | undefined; postalCode?: string | undefined; city?: string | undefined; phone?: string | undefined; email?: string | undefined }
+export type MainContactOutcome =
+  | { kind: "done"; contactId: number; created: boolean; commentFailed: boolean }
+  /** the deal's contact is not the one the user saw (someone changed the deal meanwhile) */
+  | { kind: "moved"; contactId: number | null }
+  /** more than one contact fits the insured person — a human decides */
+  | { kind: "ambiguous"; candidates: string[] }
+  | { kind: "no-deal" };
+/** the reverse of customerOfContact's salutation (Familie has no Bitrix honorific here) */
+const HONORIFIC_OF: Record<string, string> = { Frau: "HNR_DE_1", Herr: "HNR_DE_2" };
+const multiValues = (list: unknown): string[] => (Array.isArray(list) ? list : []).map((x: any) => String(x?.VALUE ?? "").trim()).filter(Boolean);
+const digitsOf = (v: string) => v.replace(/\D/g, "");
+const contactName = (c: any) => [c?.NAME, c?.LAST_NAME].map((s) => String(s ?? "").trim()).filter(Boolean).join(" ");
+
 /** the create call returned without an error but also without an id — the deal may exist (outcome unknown) */
 export class DealCreateNoIdError extends Error { override name = "DealCreateNoIdError"; }
 
@@ -296,6 +311,82 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
     return { contactId, created };
   }
 
+  /**
+   * The deal's main contact (Kundendaten, owner 2026-11-27) — never overwrites a contact with
+   * another person; the spirit of ensurePartnerContact:
+   *  1. crm.deal.get: the deal's CONTACT_ID must still be `expectedContactId` (else "moved", nothing written)
+   *  2. crm.contact.get of that contact (its name for the note; its phone / e-mail for the rule below)
+   *  rename: 3. crm.contact.update of the SAME contact, NAME + LAST_NAME only
+   *  replace: 3. crm.contact.list by NAME + LAST_NAME (the old contact left out, the PLZ rule of
+   *     ensurePartnerContact): >1 → "ambiguous" (nothing written), 1 → used unchanged, 0 → crm.contact.add
+   *     (HONORIFIC when Frau / Herr, address; PHONE / EMAIL only when NOT the old contact's — a family
+   *     member's number is not copied onto the insured person)
+   *     4. crm.deal.contact.items.get + crm.deal.contact.items.set: every linked contact kept, the new one
+   *     first (SORT 10, IS_PRIMARY Y), the others after it in their order (IS_PRIMARY N) — no other deal field
+   *  last: a timeline note on the deal; a failed note does not fail the change (`commentFailed`)
+   */
+  async function changeMainContact(a: { dealId: number; mode: "replace" | "rename"; expectedContactId: number; person: MainContactPerson; by: string }, log?: (m: string, err?: unknown) => void): Promise<MainContactOutcome> {
+    const first = String(a.person.firstName || "").trim(), last = String(a.person.lastName || "").trim();
+    if (!first || !last) throw new Error("first and last name required");
+    const deal = (await bx.get("crm.deal.get", { id: a.dealId }))?.result;
+    if (!deal || typeof deal !== "object") return { kind: "no-deal" };
+    const current = Number(deal.CONTACT_ID) || 0;
+    if (current !== a.expectedContactId) return { kind: "moved", contactId: current || null };
+    const old = (await bx.get("crm.contact.get", { id: current }))?.result ?? {};
+    const oldName = contactName(old) || `Kontakt ${current}`, newName = `${first} ${last}`;
+    const note = async (comment: string) => {
+      try { await addTimelineComment({ entityType: "deal", entityId: a.dealId, comment }); return false; }
+      catch (err) { log?.("main contact: timeline comment failed", err); return true; }
+    };
+    if (a.mode === "rename") {
+      await bx.post("crm.contact.update", { id: current, fields: { NAME: first, LAST_NAME: last } });
+      const commentFailed = await note(`Konfigurator: Name des Kontakts korrigiert von ${oldName} auf ${newName} (ID ${current}). Geändert durch ${a.by}.`);
+      return { kind: "done", contactId: current, created: false, commentFailed };
+    }
+    const plz = String(a.person.postalCode || "").trim();
+    const found = await bx.post("crm.contact.list", { filter: { NAME: first, LAST_NAME: last }, select: ["ID", "ADDRESS_POSTAL_CODE"] });
+    const candidates = (Array.isArray(found?.result) ? found.result : []).filter((c: any) => {
+      if (Number(c?.ID) === current) return false; // the old contact is the other person
+      const cp = String(c?.ADDRESS_POSTAL_CODE || "").trim();
+      return !plz || !cp || cp === plz;
+    });
+    if (candidates.length > 1) return { kind: "ambiguous", candidates: candidates.map((c: any) => String(c.ID)) };
+    let contactId: number, created = false;
+    if (candidates.length === 1) contactId = Number(candidates[0].ID);
+    else {
+      const honorific = HONORIFIC_OF[String(a.person.salutation || "").trim()];
+      const phone = String(a.person.phone || "").trim(), email = String(a.person.email || "").trim();
+      const oldPhones = new Set(multiValues(old.PHONE).map(digitsOf).filter(Boolean));
+      const oldEmails = new Set(multiValues(old.EMAIL).map((e) => e.toLowerCase()));
+      const street = String(a.person.street || "").trim(), city = String(a.person.city || "").trim();
+      const fields = {
+        NAME: first, LAST_NAME: last, OPENED: "Y",
+        ...(honorific ? { HONORIFIC: honorific } : {}),
+        ...(phone && !oldPhones.has(digitsOf(phone)) ? { PHONE: [{ VALUE: phone, VALUE_TYPE: "WORK" }] } : {}),
+        ...(email && !oldEmails.has(email.toLowerCase()) ? { EMAIL: [{ VALUE: email, VALUE_TYPE: "WORK" }] } : {}),
+        ...(street ? { ADDRESS: street } : {}),
+        ...(plz ? { ADDRESS_POSTAL_CODE: plz } : {}),
+        ...(city ? { ADDRESS_CITY: city } : {}),
+      };
+      const added = await bx.post("crm.contact.add", { fields });
+      contactId = Number(added?.result);
+      if (!Number.isFinite(contactId) || contactId <= 0) throw new Error("crm.contact.add returned no id");
+      created = true;
+    }
+    const linked = await bx.post("crm.deal.contact.items.get", { id: a.dealId });
+    const others = (Array.isArray(linked?.result) ? linked.result : [])
+      .filter((i: any) => Number(i?.CONTACT_ID) > 0 && Number(i.CONTACT_ID) !== contactId)
+      .sort((x: any, y: any) => (Number(x.SORT) || 0) - (Number(y.SORT) || 0));
+    if (!others.some((i: any) => Number(i.CONTACT_ID) === current)) others.push({ CONTACT_ID: current }); // the old contact always stays
+    const items = [
+      { CONTACT_ID: contactId, SORT: 10, IS_PRIMARY: "Y" },
+      ...others.map((i: any, n: number) => ({ CONTACT_ID: Number(i.CONTACT_ID), SORT: (n + 2) * 10, ...(i.ROLE_ID ? { ROLE_ID: i.ROLE_ID } : {}), IS_PRIMARY: "N" })),
+    ];
+    await bx.post("crm.deal.contact.items.set", { id: a.dealId, items });
+    const commentFailed = await note(`Konfigurator: Hauptkontakt geändert von ${oldName} (ID ${current}, bleibt als Ansprechpartner am Auftrag) auf ${newName} (ID ${contactId}, ${created ? "neu angelegt" : "bestehender Kontakt"}). Geändert durch ${a.by}.`);
+    return { kind: "done", contactId, created, commentFailed };
+  }
+
   /** Best-effort: never throws, so a Bitrix hiccup can't fail an offer send. */
   async function setDealOfferLink(dealId: unknown, offerNumber: unknown) {
     const id = String(dealId || "").trim(), n = String(offerNumber || "").trim();
@@ -345,6 +436,6 @@ export function dealWrites(bx: BitrixClient, opts: { offerLinkBase: string }) {
 
   /** a Bitrix task (main PR #321: "Neuen Link anfordern" on an expired signing link) */
   const addTask = (fields: Record<string, unknown>) => bx.post("tasks.task.add", { fields });
-  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, setDealOfferLink, addTask, createDeal, findDealByOrigin, addTimelineComments };
+  return { updateDealStage, updateDealAfterSigning, addTimelineComment, getDealContactId, ensurePartnerContact, changeMainContact, setDealOfferLink, addTask, createDeal, findDealByOrigin, addTimelineComments };
 }
 export type DealWrites = ReturnType<typeof dealWrites>;

@@ -50,6 +50,10 @@ export const WizardPayloadSchema = z.looseObject({
   offerOverrides: Section.optional(),
   pricingRules: Section.optional(),
   materials: z.union([z.array(z.unknown()), z.string()]).optional(),
+  /** v2 only, Kundendaten (owner 2026-11-27): „Nicht ändern“ to the question about the deal's main
+   *  contact, for this Bitrix contact and this typed name — page memory only: read by no document,
+   *  no price, not copied into another offer (customer-copy.ts takes Kundendaten only) */
+  mainContactKept: z.looseObject({ contactId: LooseScalar.optional(), firstName: LooseScalar.optional(), lastName: LooseScalar.optional() }).optional(),
 });
 
 export type WizardPayload = z.infer<typeof WizardPayloadSchema>;
